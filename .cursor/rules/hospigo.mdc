@@ -1,0 +1,21 @@
+---
+description: Hospigo monorepo layout, tooling, and branch conventions
+alwaysApply: true
+---
+
+# Hospigo
+
+Hospigo is an npm workspaces monorepo (`apps/*`, `packages/*`). `apps/api`, `apps/web`, and `packages/shared` stay placeholders until an implementation task names that package.
+
+- Extend `tsconfig.base.json` from each package tsconfig. Keep `strict` enabled.
+- Run commands in Git Bash. `npm run lint` must pass. The Husky pre-commit hook runs `npm run lint`.
+- Public URLs use `hospigo.indigocomputers.in` (`APP_URL`, `API_URL`, `STAGING_URL`). Copy `.env.example` to `.env` for secrets. Never commit `.env`.
+- Land feature work on `develop`. `main` is the default branch.
+
+```json
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "outDir": "dist" },
+  "include": ["src"]
+}
+```
