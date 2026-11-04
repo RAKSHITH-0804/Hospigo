@@ -31,7 +31,7 @@
 
 ## 2026-11-04 — Phase 1 Step 3b-2 — Import batch tables and bookkeeping
 
-- **Commit hash(es):** unverified (local)
+- **Commit hash(es):** `2069aa3`, `41dc354`, `d992aa2`, `f2d9309`
 - **Added:** `import_types` (global), `import_batches` / `import_batch_rows` / `import_exceptions`; DB state machine + immutability triggers; `ImportBatchService` / `ImportsModule`; import Jest suite
 - **Changed:** `GLOBAL_TABLES` allowlists `import_types`; isolation fixtures cover new tenant tables; architecture notes for import design and UHID counter follow-up after patient import
 - **Removed:** nothing
