@@ -11,5 +11,7 @@
 | `packages/shared`        | Shared package placeholder                                      |
 | `scripts/db`             | Labelled DB bootstrap scripts (e.g. create-roles)               |
 | `docs`                   | Architecture and operational docs                               |
+| `docs/ci.md`             | GitHub Actions CI, PR flow, how to read failures                |
+| `.github/`               | Workflows, Dependabot, pull request template                    |
 
 Do not add stray files at the repo root. Throwaway probes belong under `scripts/` and must be labelled.

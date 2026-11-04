@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-04 — Phase 1 — CI (GitHub Actions) + PR template + Dependabot
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** `.github/workflows/ci.yml` (lint, format:check, API build, create-roles against Postgres 16 + Redis 7 services, API tests; report-only audit job); `.github/dependabot.yml` (weekly npm + github-actions); `.github/pull_request_template.md`; `docs/ci.md`
+- **Changed:** README CI section + docs index; folder-guide entries for `docs/ci.md` and `.github/`
+- **Removed:** nothing
+- **Fixed:** nothing
+- **Database (migrations, roles, RLS):** none (CI bootstraps ephemeral roles/DBs on the runner only)
+- **New .env keys (names only):** none
+- **Tests:** local `npm test -w @hospigo/api` after adding CI files (unverified count here); real Actions validation on first push
+- **Decisions:** Node 22 in Actions (matches local/README; no `engines` field yet); `HUSKY=0` in CI; audit report-only; no `secrets` context; per-run hex passwords for app roles; fixed CI-only Postgres service superuser password; both `DATABASE_URL_TEST` and `DATABASE_URL_OWNER_TEST` target `hospigo_test`
+- **Follow-ups and open items:** confirm first Actions run on push; optionally add `engines.node` later; consider failing audit on high once noise is under control
+
 ## 2026-11-04 — Phase 1 Step 4 follow-up — rebuild guards, safety-net split, access/leak gaps
 
 - **Commit hash(es):** (uncommitted)

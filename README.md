@@ -170,8 +170,13 @@ With the API running (default port from `API_PORT`):
 | Storage health fails / API rejects `STORAGE_ROOT_PATH` | Point it at an absolute folder outside the repo that already exists and is writable              |
 | Husky hooks missing after clone                        | Run `npm install` so the root `prepare` script activates Husky                                   |
 
+## CI
+
+GitHub Actions runs lint, format check, API build, DB role bootstrap, and API tests on pushes to `develop` / `feature/**` and on PRs into `develop` / `main`. An `audit` job reports `npm audit` findings without blocking. Details: [docs/ci.md](docs/ci.md).
+
 ## Docs index
 
 - [Architecture](docs/architecture.md) — tenancy, DB roles, RLS, Prisma, ledger rules for later
 - [Folder guide](docs/folder-guide.md) — where code and scripts live
+- [CI](docs/ci.md) — GitHub Actions, PR flow, reading failures
 - [Changelog](docs/CHANGELOG.md) — step-by-step project history
