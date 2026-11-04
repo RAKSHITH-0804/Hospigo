@@ -31,7 +31,7 @@
 
 ## 2026-11-04 — Phase 1 Step 3b-2 follow-up — Import tests + concurrency fixes
 
-- **Commit hash(es):** `108606b` (fix); companion `test(db)` commit on develop (unpushed)
+- **Commit hash(es):** `108606b` (fix), `a9d777e` (test)
 - **Added:** full 6×6 DB status matrix; NULL-branch duplicate cases; raw SQL exception CHECK cases; unmatched-row catalog snapshot; concurrent approve/post/undo/approve-vs-fail; `import_types` DELETE/TRUNCATE refuse
 - **Changed:** `ImportBatchService` locks batch rows with `SELECT … FOR UPDATE`; `fail()` accepts DRAFT|PREVIEWED only (mutual exclusion vs approve)
 - **Removed:** nothing
