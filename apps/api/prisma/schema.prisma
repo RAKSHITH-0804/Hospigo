@@ -102,6 +102,9 @@ model Hospital {
   uhidFormatConfigs UhidFormatConfig[]
   uhidFormatBlocks UhidFormatBlock[]
   uhidCounters UhidCounter[]
+  importBatches ImportBatch[]
+  importBatchRows ImportBatchRow[]
+  importExceptions ImportException[]
 
   @@map("hospitals")
 }
@@ -140,6 +143,7 @@ model Branch {
   roleAssignmentBranches RoleAssignmentBranch[]
   auditLogs     AuditLog[]
   registeredPatients Patient[]
+  importBatches ImportBatch[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -205,6 +209,10 @@ model User {
   createdPatients Patient[]        @relation("PatientCreatedBy")
   uhidFormatConfigs UhidFormatConfig[] @relation("UhidConfigCreatedBy")
   patientFieldSettingsChanged PatientFieldSetting[] @relation("FieldSettingChangedBy")
+  importBatchesCreated ImportBatch[] @relation("ImportBatchCreatedBy")
+  importBatchesApproved ImportBatch[] @relation("ImportBatchApprovedBy")
+  importBatchesUndone ImportBatch[] @relation("ImportBatchUndoneBy")
+  importExceptionsResolved ImportException[] @relation("ImportExceptionResolvedBy")
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -568,4 +576,147 @@ model UhidCounter {
 
   @@id([tenantId, periodYear])
   @@map("uhid_counters")
+}
+
+// --- Import bookkeeping (Step 3b-2) ---
+
+/// Global import type catalog (no tenant). Codes are DATA — not hardcoded in app logic.
+model ImportType {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  batches ImportBatch[]
+
+  @@map("import_types")
+}
+
+enum ImportBatchStatus {
+  DRAFT
+  PREVIEWED
+  APPROVED
+  POSTED
+  UNDONE
+  FAILED
+
+  @@map("import_batch_status")
+}
+
+enum ImportRowStatus {
+  VALID
+  EXCEPTION
+  POSTED
+  REVERSED
+
+  @@map("import_row_status")
+}
+
+enum ImportRowAction {
+  CREATE
+  UPDATE
+  NONE
+
+  @@map("import_row_action")
+}
+
+enum ImportExceptionStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+
+  @@map("import_exception_status")
+}
+
+model ImportBatch {
+  id               String            @id @default(cuid())
+  tenantId         String            @map("tenant_id")
+  importTypeId     String            @map("import_type_id")
+  branchId         String?           @map("branch_id")
+  status           ImportBatchStatus @default(DRAFT)
+  templateVersion  String            @map("template_version")
+  periodStart      DateTime?         @map("period_start") @db.Date
+  periodEnd        DateTime?         @map("period_end") @db.Date
+  fileStorageKey   String            @map("file_storage_key")
+  fileSha256       String            @map("file_sha256")
+  fileNameOriginal String            @map("file_name_original")
+  totalRows        Int               @default(0) @map("total_rows")
+  validRows        Int               @default(0) @map("valid_rows")
+  exceptionRows    Int               @default(0) @map("exception_rows")
+  postedRows       Int               @default(0) @map("posted_rows")
+  runStatus        String?           @map("run_status")
+  errorMessage     String?           @map("error_message")
+  createdBy        String            @map("created_by")
+  approvedBy       String?           @map("approved_by")
+  approvedAt       DateTime?         @map("approved_at") @db.Timestamptz(3)
+  postedAt         DateTime?         @map("posted_at") @db.Timestamptz(3)
+  undoneBy         String?           @map("undone_by")
+  undoneAt         DateTime?         @map("undone_at") @db.Timestamptz(3)
+  undoReason       String?           @map("undo_reason")
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital   Hospital          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  importType ImportType        @relation(fields: [importTypeId], references: [id], onDelete: Restrict)
+  branch     Branch?           @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict)
+  creator    User              @relation("ImportBatchCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
+  approver   User?             @relation("ImportBatchApprovedBy", fields: [tenantId, approvedBy], references: [tenantId, id], onDelete: Restrict)
+  undoner    User?             @relation("ImportBatchUndoneBy", fields: [tenantId, undoneBy], references: [tenantId, id], onDelete: Restrict)
+  rows       ImportBatchRow[]
+  exceptions ImportException[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@map("import_batches")
+}
+
+model ImportBatchRow {
+  id               String           @id @default(cuid())
+  tenantId         String           @map("tenant_id")
+  batchId          String           @map("batch_id")
+  rowNumber        Int              @map("row_number")
+  matchKey         String           @map("match_key")
+  /// Immutable audit/undo copy of the source row — never read by domain matching logic.
+  rawValues        Json             @map("raw_values")
+  rowStatus        ImportRowStatus  @default(VALID) @map("row_status")
+  action           ImportRowAction?
+  resultEntityType String?          @map("result_entity_type")
+  resultEntityId   String?          @map("result_entity_id")
+  previousValues   Json?            @map("previous_values")
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital   Hospital          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  batch      ImportBatch       @relation(fields: [tenantId, batchId], references: [tenantId, id], onDelete: Cascade)
+  exceptions ImportException[]
+
+  @@unique([tenantId, id])
+  @@unique([batchId, rowNumber])
+  @@index([tenantId, batchId])
+  @@map("import_batch_rows")
+}
+
+model ImportException {
+  id             String                 @id @default(cuid())
+  tenantId       String                 @map("tenant_id")
+  batchId        String                 @map("batch_id")
+  rowId          String                 @map("row_id")
+  reasonCode     String                 @map("reason_code")
+  message        String
+  status         ImportExceptionStatus  @default(OPEN)
+  resolvedBy     String?                @map("resolved_by")
+  resolvedAt     DateTime?              @map("resolved_at") @db.Timestamptz(3)
+  resolutionNote String?                @map("resolution_note")
+  createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  hospital Hospital      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  batch    ImportBatch   @relation(fields: [tenantId, batchId], references: [tenantId, id], onDelete: Cascade)
+  row      ImportBatchRow @relation(fields: [tenantId, rowId], references: [tenantId, id], onDelete: Cascade)
+  resolver User?         @relation("ImportExceptionResolvedBy", fields: [tenantId, resolvedBy], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, batchId])
+  @@map("import_exceptions")
 }
