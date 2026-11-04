@@ -29,7 +29,22 @@
 
 ## Unreleased
 
-Step 3a (Prisma, base schema, RLS) files exist in the working tree (`apps/api/prisma/`, `scripts/db/create-roles.mjs`, related docs) but have **no commit on `develop` yet**. Treat completion status as **unverified** until create-roles, migrate, seed, and tests are run and commits land.
+(nothing)
+
+---
+
+## 2026-11-04 — Phase 1 Step 3a — Prisma schema, roles, RLS
+
+- **Commit hash(es):** `4588800`, `a575da7`, `0f03692`, `02fd360`, `fb9bec9`, `4e0cba9`, plus this docs commit
+- **Added:** Prisma 7 schema + init RLS migration; `scripts/db/create-roles.mjs`; reference + dev-only tenant seeds; `PrismaModule`/`PrismaService`; RLS/security Jest suite; `.gitattributes` (LF); `docs/architecture.md`, `docs/folder-guide.md`
+- **Changed:** API env validation for owner DB URL; health e2e uses app URL against `hospigo_test` only; eslint/gitignore/prettier ignore generated client; `postinstall`/`prebuild`/`pretest` run `prisma generate`
+- **Removed:** `docs/.gitkeep` (replaced by real docs)
+- **Fixed:** SECURITY DEFINER ACL — `REVOKE`/`GRANT` after `OWNER TO` must run as `hospigo_security` (`SET ROLE`); global `ALTER DEFAULT PRIVILEGES … REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC` for owner/security
+- **Database (migrations, roles, RLS):** roles `hospigo_owner` (BYPASSRLS, migrate/seed only), `hospigo_app`, `hospigo_hq`, `hospigo_security` (NOLOGIN); DBs `hospigo` + `hospigo_test`; FORCE RLS on tenant tables; login + first-SuperAdmin SECURITY DEFINER helpers
+- **New .env keys (names only):** `POSTGRES_SUPERUSER_URL`, `HOSPIGO_OWNER_PASSWORD`, `HOSPIGO_APP_PASSWORD`, `HOSPIGO_HQ_PASSWORD`, `DATABASE_URL_OWNER`, `DATABASE_URL_TEST`, `DATABASE_URL_OWNER_TEST`, `DATABASE_URL_HQ`, seed password keys
+- **Tests:** 25 passed (12 prior health/storage + RLS/security suite including catalog FORCE RLS, `_prisma_migrations` app denial, SECURITY DEFINER PUBLIC revoke + cross-role execute denial)
+- **Decisions:** Legacy role `hospigo` and DB `hospigo_dev` left untouched; owner never used by running API; do not expose Postgres publicly
+- **Follow-ups and open items:** Auth / Step 4+
 
 ---
 
