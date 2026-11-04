@@ -10,6 +10,8 @@ export const GLOBAL_TABLES = new Set([
   '_prisma_migrations',
   // Global system field catalog (exact name).
   'patient_field_catalog',
+  // Global import type catalog (exact name).
+  'import_types',
 ]);
 
 export function requireTestDatabaseUrl(): string {

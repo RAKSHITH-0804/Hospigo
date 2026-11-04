@@ -391,6 +391,46 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
       data: { tenantId: tenantB, periodYear: 0, lastNumber: 0n },
     });
     sampleB.uhid_counters = 'composite';
+
+    // Samples for Step 3b-2 import tables.
+    const importType = await prisma.importType.upsert({
+      where: { code: `ISO_IMP_${stamp}` },
+      create: { code: `ISO_IMP_${stamp}`, name: 'Isolation import type' },
+      update: {},
+    });
+    const batch = await prisma.importBatch.create({
+      data: {
+        tenantId: tenantB,
+        importTypeId: importType.id,
+        branchId: branchB,
+        templateVersion: '1',
+        fileStorageKey: `tenants/${tenantB}/imports/iso.xlsx`,
+        fileSha256: `sha_iso_${stamp}`,
+        fileNameOriginal: 'iso.xlsx',
+        createdBy: sampleB.users,
+      },
+    });
+    sampleB.import_batches = batch.id;
+    const batchRow = await prisma.importBatchRow.create({
+      data: {
+        tenantId: tenantB,
+        batchId: batch.id,
+        rowNumber: 1,
+        matchKey: 'CODE1',
+        rawValues: { code: 'CODE1' },
+      },
+    });
+    sampleB.import_batch_rows = batchRow.id;
+    const iex = await prisma.importException.create({
+      data: {
+        tenantId: tenantB,
+        batchId: batch.id,
+        rowId: batchRow.id,
+        reasonCode: 'UNMATCHED',
+        message: 'no match',
+      },
+    });
+    sampleB.import_exceptions = iex.id;
   });
 
   afterAll(async () => {
