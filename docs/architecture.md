@@ -60,6 +60,17 @@ HQ access under FORCE RLS uses policies `TO hospigo_hq` / `TO hospigo_security` 
 - `setStartNumber`: raise-only, requires a reason, writes audit. Permission: Indigo or hospital SuperAdmin only, **not** branch Admin (counter is shared). Role enforcement is pending auth (Step 6); the method takes an actor id and documents the check as pending.
 - Patient search: exact UHID, phone, or name prefix; server-side pagination capped by `PATIENT_SEARCH_MAX_PAGE_SIZE`; tenant-scoped. No Aadhaar search.
 
+## Import batches (Step 3b-2)
+
+- Bookkeeping only in this step: no Excel parsing, no domain handlers, no controllers/UI.
+- `import_types` is a **global** catalog (SELECT for app). Types are **data** — not a hardcoded list in app code. No types are seeded here; features that need an import type insert their own catalog rows.
+- Tenant tables: `import_batches`, `import_batch_rows`, `import_exceptions`. App: SELECT/INSERT/UPDATE, no DELETE. Separate per-command RLS policies. `hospigo_hq` has no access.
+- **State machine (DB trigger):** DRAFT→PREVIEWED→APPROVED→POSTED→UNDONE; DRAFT/PREVIEWED/APPROVED→FAILED. UNDONE and FAILED are terminal. APPROVED needs `approved_by`/`approved_at`; POSTED needs a prior approval; UNDONE needs undo actor/time/reason.
+- **Idempotency:** partial unique index on `(tenant, type, coalesce(branch,''), file_sha256)` while status is active (not UNDONE/FAILED).
+- **`raw_values` JSONB** on rows is an **immutable audit/undo copy of the source row only** — never read by business matching logic. Matching is by unique business code (`match_key`); no placeholder master records. `row_number` and `raw_values` cannot change after insert (trigger).
+- `ImportBatchService`: create / preview / approve / post / undo / fail / recordException / resolveException; every transition writes `audit_logs`.
+- **Later (patient import handler):** after posting imported UHIDs, raise the hospital UHID counter past the highest imported UHID via `setStartNumber` so staff registrations never collide with imported numbers.
+
 ## Auth note (Step 6)
 
 `lookup_hospital_id_by_access_code` returns only the hospital id for active codes (identical empty result for unknown/inactive). Rate limiting and uniform wrong-password responses are implemented in auth (Step 6), not here. Controllers/UI for patients are also Step 6+.

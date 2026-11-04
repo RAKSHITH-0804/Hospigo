@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-04 — Phase 1 Step 3b-2 — Import batch tables and bookkeeping
+
+- **Commit hash(es):** unverified (local)
+- **Added:** `import_types` (global), `import_batches` / `import_batch_rows` / `import_exceptions`; DB state machine + immutability triggers; `ImportBatchService` / `ImportsModule`; import Jest suite
+- **Changed:** `GLOBAL_TABLES` allowlists `import_types`; isolation fixtures cover new tenant tables; architecture notes for import design and UHID counter follow-up after patient import
+- **Removed:** nothing
+- **Fixed:** nothing
+- **Database (migrations, roles, RLS):** `20261104200000_import_batches` — app SELECT/INSERT/UPDATE only on tenant import tables; SELECT-only on `import_types`; no HQ grants
+- **New .env keys (names only):** none
+- **Tests:** 71 passing on `hospigo_test` (prior 64 + import suite)
+- **Decisions:** import types are data not code; `raw_values` JSONB allowed only as immutable audit/undo copy; no Excel parsing in this step
+- **Follow-ups and open items:** Excel parsers and domain handlers per import type; patient-import must call `setStartNumber` past max imported UHID; auth/controllers/UI later
+
 ## 2026-11-04 — Phase 1 Step 3b-1 follow-up — UHID format immutability + DB-level tests
 
 - **Commit hash(es):** `497c089`, `2c4678d`, `64088e8`
