@@ -1,0 +1,314 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- Global catalog (no tenant_id; listed in GLOBAL_TABLES for RLS tests) ---
+
+model Module {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospitalSubscriptions HospitalModuleSubscription[]
+  branchModules         BranchModule[]
+
+  @@map("modules")
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model HqUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  displayName  String   @map("display_name")
+  passwordHash String   @map("password_hash")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("hq_users")
+}
+
+// --- Tenant tables (all carry tenant_id; hospital.id IS the tenant) ---
+
+enum HospitalStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+
+  @@map("hospital_status")
+}
+
+model Hospital {
+  id         String         @id @default(cuid())
+  code       String         @unique
+  name       String
+  accessCode String         @unique @map("access_code")
+  status     HospitalStatus @default(ACTIVE)
+  isTest     Boolean        @default(false) @map("is_test")
+  isActive   Boolean        @default(true) @map("is_active")
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  settings      HospitalSetting[]
+  branches      Branch[]
+  subscriptions HospitalModuleSubscription[]
+  branchModules BranchModule[]
+  users         User[]
+  userBranches  UserBranch[]
+  roles         Role[]
+  rolePermissions RolePermission[]
+  roleAssignments RoleAssignment[]
+  roleAssignmentBranches RoleAssignmentBranch[]
+  auditLogs     AuditLog[]
+
+  @@map("hospitals")
+}
+
+model HospitalSetting {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  key          String
+  value        Json
+  effectiveFrom DateTime @map("effective_from") @db.Timestamptz(3)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, key, effectiveFrom])
+  @@index([tenantId, key])
+  @@map("hospital_settings")
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  code      String
+  name      String
+  isMain    Boolean  @default(false) @map("is_main")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital      Hospital       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchModules BranchModule[]
+  userBranches  UserBranch[]
+  roleAssignmentBranches RoleAssignmentBranch[]
+  auditLogs     AuditLog[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("branches")
+}
+
+model HospitalModuleSubscription {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  moduleId  String   @map("module_id")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  module   Module   @relation(fields: [moduleId], references: [id], onDelete: Restrict)
+  branchModules BranchModule[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, moduleId])
+  @@index([tenantId])
+  @@map("hospital_module_subscriptions")
+}
+
+model BranchModule {
+  id                   String   @id @default(cuid())
+  tenantId             String   @map("tenant_id")
+  branchId             String   @map("branch_id")
+  moduleId             String   @map("module_id")
+  enabledByIndigo      Boolean  @default(true) @map("enabled_by_indigo")
+  restrictedByHospital Boolean  @default(false) @map("restricted_by_hospital")
+  isActive             Boolean  @default(true) @map("is_active")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital     Hospital                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch       Branch                     @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Cascade)
+  module       Module                     @relation(fields: [moduleId], references: [id], onDelete: Restrict)
+  subscription HospitalModuleSubscription @relation(fields: [tenantId, moduleId], references: [tenantId, moduleId], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, branchId, moduleId])
+  @@index([tenantId])
+  @@map("branch_modules")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  code         String
+  email        String
+  displayName  String   @map("display_name")
+  passwordHash String   @map("password_hash")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital        Hospital         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userBranches    UserBranch[]
+  roleAssignments RoleAssignment[]
+  auditLogs       AuditLog[]       @relation("AuditActor")
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, code])
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@map("users")
+}
+
+model UserBranch {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  userId    String   @map("user_id")
+  branchId  String   @map("branch_id")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Cascade)
+  branch   Branch   @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, userId, branchId])
+  @@index([tenantId])
+  @@map("user_branches")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  code        String
+  name        String
+  description String?
+  isSystem    Boolean  @default(false) @map("is_system")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital        Hospital         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  permissions     RolePermission[]
+  roleAssignments RoleAssignment[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("roles")
+}
+
+model RolePermission {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  roleId       String   @map("role_id")
+  permissionId String   @map("permission_id")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital   Hospital   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [tenantId, roleId], references: [tenantId, id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, roleId, permissionId])
+  @@index([tenantId])
+  @@map("role_permissions")
+}
+
+enum RoleScopeType {
+  HOSPITAL
+  BRANCH
+
+  @@map("role_scope_type")
+}
+
+model RoleAssignment {
+  id        String        @id @default(cuid())
+  tenantId  String        @map("tenant_id")
+  userId    String        @map("user_id")
+  roleId    String        @map("role_id")
+  scopeType RoleScopeType @map("scope_type")
+  isActive  Boolean       @default(true) @map("is_active")
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User                   @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Cascade)
+  role     Role                   @relation(fields: [tenantId, roleId], references: [tenantId, id], onDelete: Cascade)
+  branches RoleAssignmentBranch[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, userId])
+  @@map("role_assignments")
+}
+
+model RoleAssignmentBranch {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  assignmentId String   @map("assignment_id")
+  branchId     String   @map("branch_id")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital   Hospital       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignment RoleAssignment @relation(fields: [tenantId, assignmentId], references: [tenantId, id], onDelete: Cascade)
+  branch     Branch         @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, assignmentId, branchId])
+  @@index([tenantId])
+  @@map("role_assignment_branches")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String   @map("tenant_id")
+  actorUserId String? @map("actor_user_id")
+  branchId   String?  @map("branch_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  reason     String?
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor    User?    @relation("AuditActor", fields: [tenantId, actorUserId], references: [tenantId, id], onDelete: SetNull)
+  branch   Branch?  @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, entityType, entityId])
+  @@map("audit_logs")
+}
