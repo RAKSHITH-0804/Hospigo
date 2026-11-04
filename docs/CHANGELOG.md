@@ -31,7 +31,7 @@
 
 ## 2026-11-04 — Phase 1 Step 3b-1 — Patients, field settings, UHID engine
 
-- **Commit hash(es):** unverified (local commits pending push)
+- **Commit hash(es):** `cde436e`, `9acfe98`, `23edf0c`, `8cf75ae`, `f095275` (+ docs hash follow-up)
 - **Added:** Patients + `patient_identifiers` (table only); patient field catalog/settings/custom fields; UHID format configs/blocks/counters; `PatientsModule` services (`PatientsService`, `PatientFieldsService`, `UhidService`); injectable clock; hospigo_security column-privilege test; patients/UHID Jest suite
 - **Changed:** `hospigo_security` hospital update narrowed to `UPDATE (id)`; `GLOBAL_TABLES` allowlists `patient_field_catalog`; isolation fixtures cover new tenant tables; architecture docs for UHID/field settings/Aadhaar pending
 - **Removed:** nothing
