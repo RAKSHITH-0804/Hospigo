@@ -275,4 +275,17 @@ describe('Hospital isolation through services (leak tests)', () => {
     expect(stillDraft.status).toBe('DRAFT');
     expect(stillDraft.tenantId).toBe(tenantB);
   });
+
+  it('registering a patient with created_by from another hospital is refused', async () => {
+    // Service does not specially validate actor hospital; composite FK
+    // (tenant_id, created_by) → users(tenant_id, id) refuses at the database.
+    await expect(
+      patientsA.register({
+        tenantId: tenantA,
+        registeredBranchId: branchAMain,
+        createdBy: actorB,
+        name: 'Cross Actor',
+      }),
+    ).rejects.toThrow(/foreign key|Foreign key|patients_tenant_id_created_by/i);
+  });
 });

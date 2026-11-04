@@ -3,30 +3,32 @@ import path from 'node:path';
 
 /**
  * SAFETY-NET: scan apps/api/src excluding the database module, seeds, and specs.
- * Feature files must not use PrismaService / $transaction / raw SQL / set_config
- * unless exactly allowlisted (with a reason comment per entry).
+ *
+ * - set_config and PrismaService: forbidden everywhere scanned — NO allowlist.
+ * - $transaction: also hard-forbidden (TenantDb owns transactions).
+ * - $queryRaw / $executeRaw: allowlisted by exact path only (must run on a TenantDb tx).
  */
-const ALLOWLIST = new Map<string, string>([
-  // Counter FOR UPDATE on a TenantDb transaction client.
+const RAW_SQL_ALLOWLIST = new Map<string, string>([
   [
     'modules/patients/uhid.service.ts',
     'UHID counter bump uses $executeRaw/$queryRaw on TenantDb tx',
   ],
-  // Name-prefix search on a TenantDb transaction client.
   ['modules/patients/patients.service.ts', 'Name-prefix search uses $queryRaw on TenantDb tx'],
-  // Batch row lock on a TenantDb transaction client.
   [
     'modules/imports/import-batch.service.ts',
     'Batch row lock uses $queryRaw FOR UPDATE on TenantDb tx',
   ],
 ]);
 
-const FORBIDDEN = [
+const HARD_FORBIDDEN = [
   { name: 'PrismaService', re: /\bPrismaService\b/ },
+  { name: 'set_config', re: /set_config\s*\(/ },
   { name: '$transaction', re: /\$transaction\s*\(/ },
+];
+
+const RAW_SQL_PATTERNS = [
   { name: '$queryRaw', re: /\$queryRaw/ },
   { name: '$executeRaw', re: /\$executeRaw/ },
-  { name: 'set_config', re: /set_config\s*\(/ },
 ];
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -45,18 +47,15 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 describe('TenantDb safety-net scan', () => {
-  it('fails if feature code uses raw Prisma/$transaction/raw SQL/set_config outside allowlist', () => {
+  it('forbids PrismaService, set_config, and $transaction with no allowlist', () => {
     const srcRoot = path.resolve(__dirname, '..');
     const files = walk(srcRoot);
     const violations: string[] = [];
 
     for (const abs of files) {
       const rel = path.relative(srcRoot, abs).split(path.sep).join('/');
-      if (ALLOWLIST.has(rel)) {
-        continue;
-      }
       const text = fs.readFileSync(abs, 'utf8');
-      for (const pattern of FORBIDDEN) {
+      for (const pattern of HARD_FORBIDDEN) {
         if (pattern.re.test(text)) {
           violations.push(`${rel} matched ${pattern.name}`);
         }
@@ -66,8 +65,29 @@ describe('TenantDb safety-net scan', () => {
     expect(violations).toEqual([]);
   });
 
-  it('allowlist entries each exist and have a comment reason', () => {
-    for (const [file, reason] of ALLOWLIST) {
+  it('allows $queryRaw/$executeRaw only on exact allowlisted paths', () => {
+    const srcRoot = path.resolve(__dirname, '..');
+    const files = walk(srcRoot);
+    const violations: string[] = [];
+
+    for (const abs of files) {
+      const rel = path.relative(srcRoot, abs).split(path.sep).join('/');
+      if (RAW_SQL_ALLOWLIST.has(rel)) {
+        continue;
+      }
+      const text = fs.readFileSync(abs, 'utf8');
+      for (const pattern of RAW_SQL_PATTERNS) {
+        if (pattern.re.test(text)) {
+          violations.push(`${rel} matched ${pattern.name}`);
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it('raw-SQL allowlist entries each exist and have a comment reason', () => {
+    for (const [file, reason] of RAW_SQL_ALLOWLIST) {
       expect(reason.trim().length).toBeGreaterThan(5);
       const abs = path.resolve(__dirname, '..', file);
       expect(fs.existsSync(abs)).toBe(true);
