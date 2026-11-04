@@ -2,13 +2,48 @@ import 'dotenv/config';
 import path from 'path';
 import { config as loadEnv } from 'dotenv';
 import { FakeClock } from '../../common/clock';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 import {
   createAppPrisma,
   createOwnerPrisma,
   createPgClient,
+  GLOBAL_TABLES,
   requireTestDatabaseUrl,
 } from '../../database/db-test.util';
+import { PrismaClient } from '../../generated/prisma';
 import { ImportBatchService } from './import-batch.service';
+
+const ALL_STATUSES = ['DRAFT', 'PREVIEWED', 'APPROVED', 'POSTED', 'UNDONE', 'FAILED'] as const;
+type BatchStatus = (typeof ALL_STATUSES)[number];
+
+const ALLOWED_TRANSITIONS = new Set<string>([
+  'DRAFT->PREVIEWED',
+  'DRAFT->FAILED',
+  'PREVIEWED->APPROVED',
+  'PREVIEWED->FAILED',
+  'APPROVED->POSTED',
+  'APPROVED->FAILED',
+  'POSTED->UNDONE',
+]);
+
+function createDedicatedAppPrisma(): { prisma: PrismaClient; pool: Pool } {
+  const pool = new Pool({ connectionString: requireTestDatabaseUrl(), max: 1 });
+  return { prisma: new PrismaClient({ adapter: new PrismaPg(pool) }), pool };
+}
+
+function createStartBarrier(total: number): () => Promise<void> {
+  let arrived = 0;
+  const waiters: Array<() => void> = [];
+  return () =>
+    new Promise<void>((resolve) => {
+      waiters.push(resolve);
+      arrived += 1;
+      if (arrived >= total) {
+        for (const w of waiters) w();
+      }
+    });
+}
 
 loadEnv({ path: path.resolve(process.cwd(), '../../.env') });
 loadEnv({ path: path.resolve(process.cwd(), '.env') });
@@ -125,113 +160,120 @@ describe('Import batches (hospigo_test only)', () => {
       return id;
     }
 
-    async function expectReject(
+    async function applyStatus(
       client: ReturnType<typeof createPgClient>,
-      sql: string,
-      params: unknown[],
-      pattern: RegExp,
+      id: string,
+      to: BatchStatus,
     ): Promise<void> {
-      await client.query('SAVEPOINT sp_illegal');
-      await expect(client.query(sql, params)).rejects.toThrow(pattern);
-      await client.query('ROLLBACK TO SAVEPOINT sp_illegal');
-    }
-
-    it('allows every legal transition and refuses illegal ones', async () => {
-      const client = createPgClient('app');
-      await client.connect();
-      try {
-        await client.query('BEGIN');
-        await client.query(`SELECT set_config('app.tenant_id', $1, true)`, [tenantId]);
-        const id = await insertDraft(client, `sm_${Date.now()}`);
-
-        await expectReject(
-          client,
-          `UPDATE import_batches SET status = 'APPROVED' WHERE id = $1`,
-          [id],
-          /illegal status transition/i,
-        );
-
-        await client.query(`UPDATE import_batches SET status = 'PREVIEWED' WHERE id = $1`, [id]);
-        await expectReject(
-          client,
-          `UPDATE import_batches SET status = 'POSTED' WHERE id = $1`,
-          [id],
-          /illegal status transition/i,
-        );
-        await expectReject(
-          client,
-          `UPDATE import_batches SET status = 'APPROVED', approved_by = NULL, approved_at = NULL WHERE id = $1`,
-          [id],
-          /APPROVED requires/i,
-        );
-
+      if (to === 'APPROVED') {
         await client.query(
           `UPDATE import_batches
            SET status = 'APPROVED', approved_by = $2, approved_at = NOW()
            WHERE id = $1`,
           [id, actorId],
         );
-
-        // Strip approval while still APPROVED (status unchanged), then POSTED must fail.
-        await client.query(
-          `UPDATE import_batches SET approved_by = NULL, approved_at = NULL WHERE id = $1`,
-          [id],
-        );
-        await expectReject(
-          client,
-          `UPDATE import_batches SET status = 'POSTED', posted_at = NOW() WHERE id = $1`,
-          [id],
-          /earlier approval/i,
-        );
-        await client.query(
-          `UPDATE import_batches SET approved_by = $2, approved_at = NOW() WHERE id = $1`,
-          [id, actorId],
-        );
-
+        return;
+      }
+      if (to === 'POSTED') {
         await client.query(
           `UPDATE import_batches SET status = 'POSTED', posted_at = NOW() WHERE id = $1`,
           [id],
         );
-
-        await expectReject(
-          client,
-          `UPDATE import_batches SET status = 'UNDONE', undone_by = NULL, undone_at = NULL, undo_reason = NULL WHERE id = $1`,
-          [id],
-          /UNDONE requires/i,
-        );
-
+        return;
+      }
+      if (to === 'UNDONE') {
         await client.query(
           `UPDATE import_batches
-           SET status = 'UNDONE', undone_by = $2, undone_at = NOW(), undo_reason = 'fix'
+           SET status = 'UNDONE', undone_by = $2, undone_at = NOW(), undo_reason = 'undo'
            WHERE id = $1`,
           [id, actorId],
         );
+        return;
+      }
+      await client.query(`UPDATE import_batches SET status = $2 WHERE id = $1`, [id, to]);
+    }
 
-        await expectReject(
-          client,
-          `UPDATE import_batches SET status = 'DRAFT' WHERE id = $1`,
-          [id],
-          /terminal/i,
-        );
+    /** Walk a fresh DRAFT to the requested status along a legal path. */
+    async function placeInStatus(
+      client: ReturnType<typeof createPgClient>,
+      target: BatchStatus,
+    ): Promise<string> {
+      const id = await insertDraft(client, `mx_${target}_${Date.now()}_${Math.random()}`);
+      const path: BatchStatus[] =
+        target === 'DRAFT'
+          ? []
+          : target === 'PREVIEWED'
+            ? ['PREVIEWED']
+            : target === 'APPROVED'
+              ? ['PREVIEWED', 'APPROVED']
+              : target === 'POSTED'
+                ? ['PREVIEWED', 'APPROVED', 'POSTED']
+                : target === 'UNDONE'
+                  ? ['PREVIEWED', 'APPROVED', 'POSTED', 'UNDONE']
+                  : ['FAILED'];
+      for (const step of path) {
+        await applyStatus(client, id, step);
+      }
+      return id;
+    }
 
-        await client.query('COMMIT');
+    it('full 6x6 status matrix: only allowed transitions succeed; all others refuse', async () => {
+      const client = createPgClient('app');
+      await client.connect();
+      try {
+        for (const from of ALL_STATUSES) {
+          for (const to of ALL_STATUSES) {
+            await client.query('BEGIN');
+            await client.query(`SELECT set_config('app.tenant_id', $1, true)`, [tenantId]);
+            const id = await placeInStatus(client, from);
+            const key = `${from}->${to}`;
+            const allowed = ALLOWED_TRANSITIONS.has(key);
+            if (allowed) {
+              await expect(applyStatus(client, id, to)).resolves.toBeUndefined();
+            } else {
+              await expect(applyStatus(client, id, to)).rejects.toThrow(
+                /illegal status transition|terminal|no-op refused|APPROVED requires|earlier approval|UNDONE requires/i,
+              );
+            }
+            await client.query('ROLLBACK');
+          }
+        }
       } finally {
         await client.end();
       }
     });
 
-    it('DRAFT/PREVIEWED/APPROVED may move to FAILED; FAILED is terminal', async () => {
+    it('APPROVED/POSTED/UNDONE field requirements enforced at DATABASE level', async () => {
       const client = createPgClient('app');
       await client.connect();
       try {
         await client.query('BEGIN');
         await client.query(`SELECT set_config('app.tenant_id', $1, true)`, [tenantId]);
-        const id = await insertDraft(client, `fail_${Date.now()}`);
-        await client.query(`UPDATE import_batches SET status = 'FAILED' WHERE id = $1`, [id]);
+        const id = await placeInStatus(client, 'PREVIEWED');
         await expect(
-          client.query(`UPDATE import_batches SET status = 'DRAFT' WHERE id = $1`, [id]),
-        ).rejects.toThrow(/terminal/i);
-        await client.query('COMMIT');
+          client.query(`UPDATE import_batches SET status = 'APPROVED' WHERE id = $1`, [id]),
+        ).rejects.toThrow(/APPROVED requires/i);
+        await client.query('ROLLBACK');
+
+        await client.query('BEGIN');
+        await client.query(`SELECT set_config('app.tenant_id', $1, true)`, [tenantId]);
+        const id2 = await placeInStatus(client, 'APPROVED');
+        await client.query(
+          `UPDATE import_batches SET approved_by = NULL, approved_at = NULL WHERE id = $1`,
+          [id2],
+        );
+        await expect(
+          client.query(`UPDATE import_batches SET status = 'POSTED' WHERE id = $1`, [id2]),
+        ).rejects.toThrow(/earlier approval/i);
+        await client.query('ROLLBACK');
+
+        await client.query('BEGIN');
+        await client.query(`SELECT set_config('app.tenant_id', $1, true)`, [tenantId]);
+        const id3 = await placeInStatus(client, 'POSTED');
+        await expect(
+          client.query(`UPDATE import_batches SET status = 'UNDONE' WHERE id = $1`, [id3]),
+        ).rejects.toThrow(/UNDONE requires/i);
+        await client.query('ROLLBACK');
       } finally {
         await client.end();
       }
@@ -496,6 +538,471 @@ describe('Import batches (hospigo_test only)', () => {
     });
   });
 
+  describe('duplicate detection with NULL branch_id', () => {
+    it('two active NULL-branch batches same hash refuse; NULL vs real branch allowed; different hash allowed', async () => {
+      const hash = `null_br_${Date.now()}`;
+      await service.createBatch({
+        tenantId,
+        importTypeId,
+        createdBy: actorId,
+        templateVersion: '1',
+        fileStorageKey: `k/${hash}_a`,
+        fileSha256: hash,
+        fileNameOriginal: 'a.xlsx',
+        branchId: null,
+      });
+      await expect(
+        service.createBatch({
+          tenantId,
+          importTypeId,
+          createdBy: actorId,
+          templateVersion: '1',
+          fileStorageKey: `k/${hash}_b`,
+          fileSha256: hash,
+          fileNameOriginal: 'b.xlsx',
+          branchId: null,
+        }),
+      ).rejects.toThrow(/active batch already exists/i);
+
+      const withBranch = await service.createBatch({
+        tenantId,
+        importTypeId,
+        createdBy: actorId,
+        templateVersion: '1',
+        fileStorageKey: `k/${hash}_branch`,
+        fileSha256: hash,
+        fileNameOriginal: 'c.xlsx',
+        branchId: branchMain,
+      });
+      const withBranchRow = await owner.importBatch.findUniqueOrThrow({
+        where: { id: withBranch.id },
+      });
+      expect(withBranchRow).toMatchObject({ status: 'DRAFT', branchId: branchMain });
+
+      const otherHash = await service.createBatch({
+        tenantId,
+        importTypeId,
+        createdBy: actorId,
+        templateVersion: '1',
+        fileStorageKey: `k/${hash}_diff`,
+        fileSha256: `${hash}_other`,
+        fileNameOriginal: 'd.xlsx',
+        branchId: null,
+      });
+      const otherHashRow = await owner.importBatch.findUniqueOrThrow({
+        where: { id: otherHash.id },
+      });
+      expect(otherHashRow).toMatchObject({ status: 'DRAFT', branchId: null });
+    });
+  });
+
+  describe('exception resolution CHECK (raw SQL)', () => {
+    async function insertOpenException(
+      client: ReturnType<typeof createPgClient>,
+      suffix: string,
+    ): Promise<string> {
+      const batchId = `exc_batch_${suffix}`;
+      const rowId = `exc_row_${suffix}`;
+      const excId = `exc_${suffix}`;
+      await client.query(
+        `INSERT INTO import_batches
+          (id, tenant_id, import_type_id, branch_id, status, template_version,
+           file_storage_key, file_sha256, file_name_original, created_by)
+         VALUES ($1,$2,$3,$4,'DRAFT','1',$5,$6,'e.xlsx',$7)`,
+        [
+          batchId,
+          tenantId,
+          importTypeId,
+          branchMain,
+          `tenants/${tenantId}/imports/${suffix}`,
+          suffix,
+          actorId,
+        ],
+      );
+      await client.query(
+        `INSERT INTO import_batch_rows
+          (id, tenant_id, batch_id, row_number, match_key, raw_values)
+         VALUES ($1,$2,$3,1,'MK',$4::jsonb)`,
+        [rowId, tenantId, batchId, JSON.stringify({ x: 1 })],
+      );
+      await client.query(
+        `INSERT INTO import_exceptions
+          (id, tenant_id, batch_id, row_id, reason_code, message, status)
+         VALUES ($1,$2,$3,$4,'UNMATCHED_ROW','unmatched','OPEN')`,
+        [excId, tenantId, batchId, rowId],
+      );
+      return excId;
+    }
+
+    it('refuses RESOLVED/DISMISSED without resolved_by, resolved_at, or note (incl empty string)', async () => {
+      const client = createPgClient('app');
+      await client.connect();
+      try {
+        const attempts: Array<{ label: string; sql: string; params: unknown[] }> = [
+          {
+            label: 'RESOLVED missing resolved_by',
+            sql: `UPDATE import_exceptions
+                  SET status = 'RESOLVED', resolved_by = NULL, resolved_at = NOW(), resolution_note = 'ok'
+                  WHERE id = $1`,
+            params: [],
+          },
+          {
+            label: 'RESOLVED missing resolved_at',
+            sql: `UPDATE import_exceptions
+                  SET status = 'RESOLVED', resolved_by = $2, resolved_at = NULL, resolution_note = 'ok'
+                  WHERE id = $1`,
+            params: [actorId],
+          },
+          {
+            label: 'RESOLVED missing note',
+            sql: `UPDATE import_exceptions
+                  SET status = 'RESOLVED', resolved_by = $2, resolved_at = NOW(), resolution_note = NULL
+                  WHERE id = $1`,
+            params: [actorId],
+          },
+          {
+            label: 'RESOLVED empty-string note',
+            sql: `UPDATE import_exceptions
+                  SET status = 'RESOLVED', resolved_by = $2, resolved_at = NOW(), resolution_note = ''
+                  WHERE id = $1`,
+            params: [actorId],
+          },
+          {
+            label: 'DISMISSED missing resolved_by',
+            sql: `UPDATE import_exceptions
+                  SET status = 'DISMISSED', resolved_by = NULL, resolved_at = NOW(), resolution_note = 'ok'
+                  WHERE id = $1`,
+            params: [],
+          },
+          {
+            label: 'DISMISSED missing resolved_at',
+            sql: `UPDATE import_exceptions
+                  SET status = 'DISMISSED', resolved_by = $2, resolved_at = NULL, resolution_note = 'ok'
+                  WHERE id = $1`,
+            params: [actorId],
+          },
+          {
+            label: 'DISMISSED missing note',
+            sql: `UPDATE import_exceptions
+                  SET status = 'DISMISSED', resolved_by = $2, resolved_at = NOW(), resolution_note = NULL
+                  WHERE id = $1`,
+            params: [actorId],
+          },
+          {
+            label: 'DISMISSED empty-string note',
+            sql: `UPDATE import_exceptions
+                  SET status = 'DISMISSED', resolved_by = $2, resolved_at = NOW(), resolution_note = '   '
+                  WHERE id = $1`,
+            params: [actorId],
+          },
+        ];
+
+        for (const [i, attempt] of attempts.entries()) {
+          await client.query('BEGIN');
+          await client.query(`SELECT set_config('app.tenant_id', $1, true)`, [tenantId]);
+          const id = await insertOpenException(client, `chk_${Date.now()}_${i}`);
+          const params = [id, ...attempt.params];
+          await expect(client.query(attempt.sql, params)).rejects.toThrow(
+            /import_exceptions_resolved_fields_chk|check constraint/i,
+          );
+          await client.query('ROLLBACK');
+        }
+      } finally {
+        await client.end();
+      }
+    });
+  });
+
+  describe('unmatched row isolation from domain tables', () => {
+    it('unmatched row creates exception only; all non-import tenant table counts unchanged', async () => {
+      const exclude = [
+        ...GLOBAL_TABLES,
+        'import_batches',
+        'import_batch_rows',
+        'import_exceptions',
+        'audit_logs',
+      ];
+      const catalog = await owner.$queryRawUnsafe<{ relname: string }[]>(
+        `
+        SELECT c.relname
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public'
+          AND c.relkind = 'r'
+          AND c.relname <> ALL($1::text[])
+          AND EXISTS (
+            SELECT 1 FROM pg_attribute a
+            WHERE a.attrelid = c.oid AND a.attname = 'tenant_id' AND NOT a.attisdropped
+          )
+        ORDER BY 1
+        `,
+        exclude,
+      );
+      expect(catalog.length).toBeGreaterThan(0);
+
+      const before = new Map<string, number>();
+      for (const { relname } of catalog) {
+        const rows = await owner.$queryRawUnsafe<{ c: bigint }[]>(
+          `SELECT COUNT(*)::bigint AS c FROM "${relname}" WHERE tenant_id = $1`,
+          tenantId,
+        );
+        before.set(relname, Number(rows[0]?.c ?? 0));
+      }
+
+      const batch = await service.createBatch({
+        tenantId,
+        importTypeId,
+        createdBy: actorId,
+        templateVersion: '1',
+        fileStorageKey: `k/unmatched_snap_${Date.now()}`,
+        fileSha256: `unmatched_snap_${Date.now()}`,
+        fileNameOriginal: 'u.xlsx',
+        branchId: branchMain,
+      });
+      const row = await owner.importBatchRow.create({
+        data: {
+          tenantId,
+          batchId: batch.id,
+          rowNumber: 1,
+          matchKey: 'GHOST',
+          rawValues: { firstName: 'Ghost' },
+        },
+      });
+      await service.recordException({
+        tenantId,
+        batchId: batch.id,
+        rowId: row.id,
+        reasonCode: 'UNMATCHED_ROW',
+        message: 'no master match',
+        actorUserId: actorId,
+      });
+
+      const exceptions = await owner.importException.findMany({
+        where: { tenantId, batchId: batch.id },
+      });
+      expect(exceptions).toHaveLength(1);
+      expect(exceptions[0]?.reasonCode).toBe('UNMATCHED_ROW');
+      expect(exceptions[0]?.status).toBe('OPEN');
+
+      for (const { relname } of catalog) {
+        const rows = await owner.$queryRawUnsafe<{ c: bigint }[]>(
+          `SELECT COUNT(*)::bigint AS c FROM "${relname}" WHERE tenant_id = $1`,
+          tenantId,
+        );
+        expect({ table: relname, count: Number(rows[0]?.c ?? 0) }).toEqual({
+          table: relname,
+          count: before.get(relname),
+        });
+      }
+    });
+  });
+
+  describe('concurrency (separate connections + start barrier)', () => {
+    jest.setTimeout(120_000);
+
+    async function seedPreviewed(prefix: string): Promise<string> {
+      const batch = await service.createBatch({
+        tenantId,
+        importTypeId,
+        createdBy: actorId,
+        templateVersion: '1',
+        fileStorageKey: `k/${prefix}_${Date.now()}`,
+        fileSha256: `${prefix}_${Date.now()}`,
+        fileNameOriginal: 'c.xlsx',
+        branchId: branchMain,
+      });
+      await owner.importBatchRow.create({
+        data: {
+          tenantId,
+          batchId: batch.id,
+          rowNumber: 1,
+          matchKey: 'P1',
+          rawValues: { code: 'P1' },
+          rowStatus: 'VALID',
+        },
+      });
+      await service.markPreviewed({
+        tenantId,
+        batchId: batch.id,
+        actorUserId: actorId,
+        totalRows: 1,
+        validRows: 1,
+        exceptionRows: 0,
+      });
+      return batch.id;
+    }
+
+    function countTransitionAudits(audits: Array<{ metadata: unknown }>, to: string): number {
+      return audits.filter((a) => (a.metadata as { to?: string } | null)?.to === to).length;
+    }
+
+    it('20 simultaneous approve calls: exactly one succeeds, rest refuse, one audit row', async () => {
+      const batchId = await seedPreviewed('conc_appr');
+      const N = 20;
+      const barrier = createStartBarrier(N);
+      const clients = Array.from({ length: N }, () => createDedicatedAppPrisma());
+      const servicesN = clients.map((c) => new ImportBatchService(c.prisma as never, clock));
+
+      const results = await Promise.allSettled(
+        servicesN.map(async (svc) => {
+          await barrier();
+          return svc.approve({ tenantId, batchId, actorUserId: actorId });
+        }),
+      );
+
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+      expect(results.filter((r) => r.status === 'rejected')).toHaveLength(N - 1);
+      for (const r of results) {
+        if (r.status === 'rejected') {
+          expect(String(r.reason)).toMatch(/expected status PREVIEWED|Import batch refused/i);
+        }
+      }
+
+      const audits = await owner.auditLog.findMany({
+        where: {
+          tenantId,
+          entityType: 'import_batches',
+          entityId: batchId,
+          action: 'IMPORT_BATCH_TRANSITION',
+        },
+      });
+      expect(countTransitionAudits(audits, 'APPROVED')).toBe(1);
+
+      await Promise.all(
+        clients.map(async (c) => {
+          await c.prisma.$disconnect();
+          await c.pool.end();
+        }),
+      );
+    });
+
+    it('20 simultaneous post calls: exactly one succeeds, rest refuse, one audit row', async () => {
+      const batchId = await seedPreviewed('conc_post');
+      await service.approve({ tenantId, batchId, actorUserId: actorId });
+
+      const N = 20;
+      const barrier = createStartBarrier(N);
+      const clients = Array.from({ length: N }, () => createDedicatedAppPrisma());
+      const servicesN = clients.map((c) => new ImportBatchService(c.prisma as never, clock));
+
+      const results = await Promise.allSettled(
+        servicesN.map(async (svc) => {
+          await barrier();
+          return svc.post({ tenantId, batchId, actorUserId: actorId });
+        }),
+      );
+
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+      expect(results.filter((r) => r.status === 'rejected')).toHaveLength(N - 1);
+      for (const r of results) {
+        if (r.status === 'rejected') {
+          expect(String(r.reason)).toMatch(/expected status APPROVED|Import batch refused/i);
+        }
+      }
+
+      const audits = await owner.auditLog.findMany({
+        where: {
+          tenantId,
+          entityType: 'import_batches',
+          entityId: batchId,
+          action: 'IMPORT_BATCH_TRANSITION',
+        },
+      });
+      expect(countTransitionAudits(audits, 'POSTED')).toBe(1);
+
+      await Promise.all(
+        clients.map(async (c) => {
+          await c.prisma.$disconnect();
+          await c.pool.end();
+        }),
+      );
+    });
+
+    it('20 simultaneous undo calls: exactly one succeeds, rest refuse, one audit row', async () => {
+      const batchId = await seedPreviewed('conc_undo');
+      await service.approve({ tenantId, batchId, actorUserId: actorId });
+      await service.post({ tenantId, batchId, actorUserId: actorId });
+
+      const N = 20;
+      const barrier = createStartBarrier(N);
+      const clients = Array.from({ length: N }, () => createDedicatedAppPrisma());
+      const servicesN = clients.map((c) => new ImportBatchService(c.prisma as never, clock));
+
+      const results = await Promise.allSettled(
+        servicesN.map(async (svc) => {
+          await barrier();
+          return svc.undo({
+            tenantId,
+            batchId,
+            actorUserId: actorId,
+            reason: 'race undo',
+          });
+        }),
+      );
+
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+      expect(results.filter((r) => r.status === 'rejected')).toHaveLength(N - 1);
+      for (const r of results) {
+        if (r.status === 'rejected') {
+          expect(String(r.reason)).toMatch(/expected status POSTED|Import batch refused/i);
+        }
+      }
+
+      const audits = await owner.auditLog.findMany({
+        where: {
+          tenantId,
+          entityType: 'import_batches',
+          entityId: batchId,
+          action: 'IMPORT_BATCH_TRANSITION',
+        },
+      });
+      expect(countTransitionAudits(audits, 'UNDONE')).toBe(1);
+
+      await Promise.all(
+        clients.map(async (c) => {
+          await c.prisma.$disconnect();
+          await c.pool.end();
+        }),
+      );
+    });
+
+    it('approve vs fail at the same moment: exactly one wins', async () => {
+      const batchId = await seedPreviewed('conc_af');
+      const barrier = createStartBarrier(2);
+      const a = createDedicatedAppPrisma();
+      const b = createDedicatedAppPrisma();
+      const svcA = new ImportBatchService(a.prisma as never, clock);
+      const svcB = new ImportBatchService(b.prisma as never, clock);
+
+      const results = await Promise.allSettled([
+        (async () => {
+          await barrier();
+          return svcA.approve({ tenantId, batchId, actorUserId: actorId });
+        })(),
+        (async () => {
+          await barrier();
+          return svcB.fail({
+            tenantId,
+            batchId,
+            actorUserId: actorId,
+            errorMessage: 'race fail',
+          });
+        })(),
+      ]);
+
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+      expect(results.filter((r) => r.status === 'rejected')).toHaveLength(1);
+
+      const final = await owner.importBatch.findUniqueOrThrow({ where: { id: batchId } });
+      expect(['APPROVED', 'FAILED']).toContain(final.status);
+
+      await a.prisma.$disconnect();
+      await a.pool.end();
+      await b.prisma.$disconnect();
+      await b.pool.end();
+    });
+  });
+
   describe('privileges', () => {
     it('hospigo_app has no DELETE/TRUNCATE on import tenant tables; hq has none; import_types SELECT only', async () => {
       const client = createPgClient('app');
@@ -520,14 +1027,22 @@ describe('Import batches (hospigo_test only)', () => {
         const typeIns = await client.query<{ ok: boolean }>(
           `SELECT has_table_privilege('hospigo_app', 'public.import_types', 'INSERT') AS ok`,
         );
+        const typeDel = await client.query<{ ok: boolean }>(
+          `SELECT has_table_privilege('hospigo_app', 'public.import_types', 'DELETE') AS ok`,
+        );
         expect(typeSel.rows[0]?.ok).toBe(true);
         expect(typeIns.rows[0]?.ok).toBe(false);
+        expect(typeDel.rows[0]?.ok).toBe(false);
 
         await client.query('BEGIN');
         await client.query(`SELECT set_config('app.tenant_id', $1, true)`, [tenantId]);
         for (const table of ['import_batches', 'import_batch_rows', 'import_exceptions']) {
           await expect(client.query(`TRUNCATE ${table}`)).rejects.toThrow();
         }
+        await expect(client.query('TRUNCATE import_types')).rejects.toThrow();
+        await expect(
+          client.query(`DELETE FROM import_types WHERE code = 'PATIENTS'`),
+        ).rejects.toThrow();
         await client.query('ROLLBACK');
       } finally {
         await client.end();

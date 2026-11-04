@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-04 — Phase 1 Step 3b-2 follow-up — Import tests + concurrency fixes
+
+- **Commit hash(es):** `108606b` (fix); companion `test(db)` commit on develop (unpushed)
+- **Added:** full 6×6 DB status matrix; NULL-branch duplicate cases; raw SQL exception CHECK cases; unmatched-row catalog snapshot; concurrent approve/post/undo/approve-vs-fail; `import_types` DELETE/TRUNCATE refuse
+- **Changed:** `ImportBatchService` locks batch rows with `SELECT … FOR UPDATE`; `fail()` accepts DRAFT|PREVIEWED only (mutual exclusion vs approve)
+- **Removed:** nothing
+- **Fixed:** same-status status UPDATE no longer no-ops (trigger raises); approve-vs-fail race both succeeding when approve won first
+- **Database (migrations, roles, RLS):** in-place edit of unpushed `20261104200000_import_batches` — status no-op refused
+- **New .env keys (names only):** none
+- **Tests:** 78 passing on `hospigo_test`
+- **Decisions:** APPROVED→FAILED stays legal at DB; service `fail()` stops at PREVIEWED so concurrent approve/fail has one winner
+- **Follow-ups and open items:** optional service path to fail an APPROVED (not yet posted) batch without weakening the race
+
 ## 2026-11-04 — Phase 1 Step 3b-2 — Import batch tables and bookkeeping
 
 - **Commit hash(es):** `2069aa3`, `41dc354`, `d992aa2`, `f2d9309`
