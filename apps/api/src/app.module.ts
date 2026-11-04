@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { envFilePath, validateEnv } from './config/env';
 import { PrismaModule } from './database/prisma.module';
 import { HealthModule } from './modules/health/health.module';
+import { ImportsModule } from './modules/imports/imports.module';
 import { PatientsModule } from './modules/patients/patients.module';
 import { StorageModule } from './modules/storage/storage.module';
 
@@ -18,6 +19,7 @@ import { StorageModule } from './modules/storage/storage.module';
     StorageModule,
     HealthModule,
     PatientsModule,
+    ImportsModule,
   ],
 })
 export class AppModule {}
