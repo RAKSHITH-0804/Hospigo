@@ -1,0 +1,205 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - develop
+      - 'feature/**'
+  pull_request:
+    branches:
+      - develop
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HUSKY: '0'
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          # CI-only ephemeral superuser password for this job's Postgres service
+          # container. The container lives only for the run and is not exposed
+          # outside the runner. Not a production secret.
+          POSTGRES_PASSWORD: ci_ephemeral_postgres_superuser_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Generate CI secrets and write .env
+        run: |
+          set -euo pipefail
+
+          OWNER_PW="$(openssl rand -hex 24)"
+          APP_PW="$(openssl rand -hex 24)"
+          HQ_PW="$(openssl rand -hex 24)"
+          JWT_SECRET="$(openssl rand -hex 24)"
+          SMTP_PASSWORD="$(openssl rand -hex 24)"
+          SEED_SUPERADMIN_PASSWORD="$(openssl rand -hex 24)"
+          SEED_BRANCH_ADMIN_PASSWORD="$(openssl rand -hex 24)"
+          SEED_STAFF_PASSWORD="$(openssl rand -hex 24)"
+
+          echo "::add-mask::${OWNER_PW}"
+          echo "::add-mask::${APP_PW}"
+          echo "::add-mask::${HQ_PW}"
+          echo "::add-mask::${JWT_SECRET}"
+          echo "::add-mask::${SMTP_PASSWORD}"
+          echo "::add-mask::${SEED_SUPERADMIN_PASSWORD}"
+          echo "::add-mask::${SEED_BRANCH_ADMIN_PASSWORD}"
+          echo "::add-mask::${SEED_STAFF_PASSWORD}"
+
+          # Same fixed CI-only value as services.postgres.env.POSTGRES_PASSWORD above.
+          SUPER_PW='ci_ephemeral_postgres_superuser_only'
+          echo "::add-mask::${SUPER_PW}"
+
+          STORAGE_ROOT_PATH="${RUNNER_TEMP}/hospigo-storage"
+          mkdir -p "${STORAGE_ROOT_PATH}"
+
+          HOST='127.0.0.1'
+          PORT='5432'
+
+          POSTGRES_SUPERUSER_URL="postgresql://postgres:${SUPER_PW}@${HOST}:${PORT}/postgres"
+          DATABASE_URL="postgresql://hospigo_app:${APP_PW}@${HOST}:${PORT}/hospigo"
+          DATABASE_URL_OWNER="postgresql://hospigo_owner:${OWNER_PW}@${HOST}:${PORT}/hospigo"
+          DATABASE_URL_TEST="postgresql://hospigo_app:${APP_PW}@${HOST}:${PORT}/hospigo_test"
+          DATABASE_URL_OWNER_TEST="postgresql://hospigo_owner:${OWNER_PW}@${HOST}:${PORT}/hospigo_test"
+          DATABASE_URL_HQ="postgresql://hospigo_hq:${HQ_PW}@${HOST}:${PORT}/hospigo"
+          REDIS_URL="redis://${HOST}:6379"
+
+          {
+            echo "HOSPIGO_OWNER_PASSWORD=${OWNER_PW}"
+            echo "HOSPIGO_APP_PASSWORD=${APP_PW}"
+            echo "HOSPIGO_HQ_PASSWORD=${HQ_PW}"
+            echo "JWT_SECRET=${JWT_SECRET}"
+            echo "SMTP_PASSWORD=${SMTP_PASSWORD}"
+            echo "SEED_SUPERADMIN_PASSWORD=${SEED_SUPERADMIN_PASSWORD}"
+            echo "SEED_BRANCH_ADMIN_PASSWORD=${SEED_BRANCH_ADMIN_PASSWORD}"
+            echo "SEED_STAFF_PASSWORD=${SEED_STAFF_PASSWORD}"
+            echo "POSTGRES_SUPERUSER_URL=${POSTGRES_SUPERUSER_URL}"
+            echo "DATABASE_URL=${DATABASE_URL}"
+            echo "DATABASE_URL_OWNER=${DATABASE_URL_OWNER}"
+            echo "DATABASE_URL_TEST=${DATABASE_URL_TEST}"
+            echo "DATABASE_URL_OWNER_TEST=${DATABASE_URL_OWNER_TEST}"
+            echo "DATABASE_URL_HQ=${DATABASE_URL_HQ}"
+            echo "REDIS_URL=${REDIS_URL}"
+            echo "STORAGE_ROOT_PATH=${STORAGE_ROOT_PATH}"
+            echo "PGHOST=${HOST}"
+            echo "PGPORT=${PORT}"
+            echo "NODE_ENV=test"
+            echo "API_PORT=3000"
+            echo "SMTP_HOST=127.0.0.1"
+            echo "SMTP_PORT=587"
+            echo "SMTP_USER=hospigo"
+            echo "SMTP_FROM=noreply@hospigo.indigocomputers.in"
+            echo "APP_URL=https://hospigo.indigocomputers.in"
+            echo "API_URL=https://api.hospigo.indigocomputers.in"
+            echo "STAGING_URL=https://staging.hospigo.indigocomputers.in"
+            echo "PATIENT_SEARCH_MAX_PAGE_SIZE=50"
+          } >> "${GITHUB_ENV}"
+
+          # create-roles.mjs reads passwords and URLs from the repo-root .env file only
+          # (not from process.env). prisma.config.ts and Jest also load this file.
+          cat > .env <<EOF
+          APP_URL=https://hospigo.indigocomputers.in
+          API_URL=https://api.hospigo.indigocomputers.in
+          STAGING_URL=https://staging.hospigo.indigocomputers.in
+          NODE_ENV=test
+          API_PORT=3000
+          PGHOST=${HOST}
+          PGPORT=${PORT}
+          POSTGRES_SUPERUSER_URL=${POSTGRES_SUPERUSER_URL}
+          HOSPIGO_OWNER_PASSWORD=${OWNER_PW}
+          HOSPIGO_APP_PASSWORD=${APP_PW}
+          HOSPIGO_HQ_PASSWORD=${HQ_PW}
+          DATABASE_URL=${DATABASE_URL}
+          DATABASE_URL_OWNER=${DATABASE_URL_OWNER}
+          DATABASE_URL_TEST=${DATABASE_URL_TEST}
+          DATABASE_URL_OWNER_TEST=${DATABASE_URL_OWNER_TEST}
+          DATABASE_URL_HQ=${DATABASE_URL_HQ}
+          REDIS_URL=${REDIS_URL}
+          STORAGE_ROOT_PATH=${STORAGE_ROOT_PATH}
+          SMTP_HOST=127.0.0.1
+          SMTP_PORT=587
+          SMTP_USER=hospigo
+          SMTP_PASSWORD=${SMTP_PASSWORD}
+          SMTP_FROM=noreply@hospigo.indigocomputers.in
+          JWT_SECRET=${JWT_SECRET}
+          PATIENT_SEARCH_MAX_PAGE_SIZE=50
+          SEED_SUPERADMIN_PASSWORD=${SEED_SUPERADMIN_PASSWORD}
+          SEED_BRANCH_ADMIN_PASSWORD=${SEED_BRANCH_ADMIN_PASSWORD}
+          SEED_STAFF_PASSWORD=${SEED_STAFF_PASSWORD}
+          EOF
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Build API
+        run: npm run build -w @hospigo/api
+
+      - name: Create Postgres roles and databases
+        run: node scripts/db/create-roles.mjs
+
+      - name: Test API
+        run: npm test -w @hospigo/api
+
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    env:
+      HUSKY: '0'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        # npm audit reads only the lockfile; install scripts such as prisma generate
+        # need DATABASE_URL_OWNER and are not needed here.
+        run: npm ci --ignore-scripts
+
+      - name: npm audit (report only)
+        run: npm audit --audit-level=high

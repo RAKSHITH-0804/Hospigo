@@ -1,0 +1,19 @@
+/** @type {import('jest').Config} */
+module.exports = {
+  moduleFileExtensions: ['js', 'json', 'ts'],
+  rootDir: 'src',
+  testRegex: '.*\\.spec\\.ts$',
+  transform: {
+    '^.+\\.ts$': [
+      'ts-jest',
+      {
+        tsconfig: '<rootDir>/../tsconfig.json',
+      },
+    ],
+  },
+  testEnvironment: 'node',
+  testTimeout: 20000,
+  maxWorkers: 1,
+  // Rebuilds hospigo_test (schema drop + migrate deploy + reference seed) before the suite.
+  globalSetup: '<rootDir>/../jest.global-setup.cjs',
+};

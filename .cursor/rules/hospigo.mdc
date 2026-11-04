@@ -19,3 +19,10 @@ Hospigo is an npm workspaces monorepo (`apps/*`, `packages/*`). `apps/api`, `app
   "include": ["src"]
 }
 ```
+
+## Documentation and secrets
+
+- After every step and before committing, add an entry to `docs/CHANGELOG.md` using the template in that file.
+- If setup, env keys, scripts, or run steps changed, update `README.md` in the same commit.
+- Never write secrets, passwords, or full connection strings into any file, doc, or output.
+- Documentation goes in `docs/`; the repo root holds only configuration and top-level folders.
