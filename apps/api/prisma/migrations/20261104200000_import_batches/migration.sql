@@ -184,8 +184,9 @@ RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
+  -- Same-status SET is refused (no-op status updates are not allowed).
   IF NEW.status IS NOT DISTINCT FROM OLD.status THEN
-    RETURN NEW;
+    RAISE EXCEPTION 'import_batches: status no-op refused (already %)', OLD.status;
   END IF;
 
   -- Terminal states: no exit

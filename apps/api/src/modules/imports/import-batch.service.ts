@@ -76,17 +76,23 @@ export class ImportBatchService {
     exceptionRows?: number;
   }): Promise<void> {
     await this.transition(input.tenantId, input.batchId, input.actorUserId, 'PREVIEWED', {
-      totalRows: input.totalRows,
-      validRows: input.validRows,
-      exceptionRows: input.exceptionRows,
+      expectedFrom: ['DRAFT'],
+      extra: {
+        totalRows: input.totalRows,
+        validRows: input.validRows,
+        exceptionRows: input.exceptionRows,
+      },
     });
   }
 
   async approve(input: { tenantId: string; batchId: string; actorUserId: string }): Promise<void> {
     const now = this.clock.now();
     await this.transition(input.tenantId, input.batchId, input.actorUserId, 'APPROVED', {
-      approvedBy: input.actorUserId,
-      approvedAt: now,
+      expectedFrom: ['PREVIEWED'],
+      extra: {
+        approvedBy: input.actorUserId,
+        approvedAt: now,
+      },
     });
   }
 
@@ -94,7 +100,10 @@ export class ImportBatchService {
     const now = this.clock.now();
     await this.prisma.$transaction(async (tx) => {
       await this.setTenant(tx, input.tenantId);
-      const batch = await this.requireBatch(tx, input.tenantId, input.batchId);
+      const batch = await this.lockBatch(tx, input.tenantId, input.batchId);
+      if (batch.status !== 'APPROVED') {
+        throw new Error(`Import batch refused: expected status APPROVED, found ${batch.status}`);
+      }
       const from = batch.status;
       const updated = await tx.importBatch.update({
         where: { id: input.batchId },
@@ -139,7 +148,10 @@ export class ImportBatchService {
     const now = this.clock.now();
     await this.prisma.$transaction(async (tx) => {
       await this.setTenant(tx, input.tenantId);
-      const batch = await this.requireBatch(tx, input.tenantId, input.batchId);
+      const batch = await this.lockBatch(tx, input.tenantId, input.batchId);
+      if (batch.status !== 'POSTED') {
+        throw new Error(`Import batch refused: expected status POSTED, found ${batch.status}`);
+      }
       const from = batch.status;
       await tx.importBatch.update({
         where: { id: input.batchId },
@@ -175,9 +187,15 @@ export class ImportBatchService {
     actorUserId: string;
     errorMessage: string;
   }): Promise<void> {
+    // DRAFT|PREVIEWED only: concurrent approve vs fail must be mutually exclusive.
+    // APPROVED→FAILED remains legal at the DATABASE trigger; cancel-after-approve is a
+    // separate intentional path (raw/admin or a future cancelApproved), not this race.
     await this.transition(input.tenantId, input.batchId, input.actorUserId, 'FAILED', {
-      runStatus: 'FAILED',
-      errorMessage: input.errorMessage,
+      expectedFrom: ['DRAFT', 'PREVIEWED'],
+      extra: {
+        runStatus: 'FAILED',
+        errorMessage: input.errorMessage,
+      },
     });
   }
 
@@ -273,15 +291,23 @@ export class ImportBatchService {
     batchId: string,
     actorUserId: string,
     to: ImportBatchStatus,
-    extra: Prisma.ImportBatchUncheckedUpdateInput = {},
+    options: {
+      expectedFrom: ImportBatchStatus[];
+      extra?: Prisma.ImportBatchUncheckedUpdateInput;
+    },
   ): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       await this.setTenant(tx, tenantId);
-      const batch = await this.requireBatch(tx, tenantId, batchId);
+      const batch = await this.lockBatch(tx, tenantId, batchId);
+      if (!options.expectedFrom.includes(batch.status)) {
+        throw new Error(
+          `Import batch refused: expected status ${options.expectedFrom.join('|')}, found ${batch.status}`,
+        );
+      }
       const from = batch.status;
       await tx.importBatch.update({
         where: { id: batchId },
-        data: { status: to, ...extra },
+        data: { status: to, ...(options.extra ?? {}) },
       });
       await this.audit(tx, {
         tenantId,
@@ -294,12 +320,29 @@ export class ImportBatchService {
     });
   }
 
-  private async requireBatch(tx: Tx, tenantId: string, batchId: string) {
-    const batch = await tx.importBatch.findFirst({ where: { id: batchId, tenantId } });
-    if (!batch) {
+  /** Lock the batch row for the duration of the transition (concurrency-safe). */
+  private async lockBatch(tx: Tx, tenantId: string, batchId: string) {
+    const rows = await tx.$queryRaw<
+      Array<{
+        id: string;
+        status: ImportBatchStatus;
+        valid_rows: number;
+      }>
+    >`
+      SELECT id, status, valid_rows
+      FROM import_batches
+      WHERE id = ${batchId} AND tenant_id = ${tenantId}
+      FOR UPDATE
+    `;
+    const row = rows[0];
+    if (!row) {
       throw new Error('Import batch not found');
     }
-    return batch;
+    return {
+      id: row.id,
+      status: row.status,
+      validRows: row.valid_rows,
+    };
   }
 
   private async setTenant(tx: Tx, tenantId: string): Promise<void> {
