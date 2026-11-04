@@ -18,3 +18,5 @@ out/
 # Local folder storage if STORAGE_ROOT_PATH points inside the repo
 .storage/
 /storage/
+# Prisma generated client
+apps/api/src/generated/
