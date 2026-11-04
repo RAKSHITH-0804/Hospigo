@@ -347,4 +347,227 @@ describe('AccessService', () => {
     // New request context → fresh memo
     await expect(asUser(multiStaffId, () => access.can(permWrite, eastId))).resolves.toBe(false);
   });
+
+  it('BRANCH assignment without user_branches membership denies', async () => {
+    const stamp = Date.now();
+    const user = await owner.user.create({
+      data: {
+        tenantId,
+        code: `NOM_${stamp}`,
+        email: `nom_${stamp}@example.test`,
+        displayName: 'No membership',
+        passwordHash: 'x',
+      },
+    });
+    const writeRole = await owner.role.findFirstOrThrow({
+      where: { tenantId, code: { startsWith: 'BR_WRITE_' } },
+    });
+    await owner.roleAssignment.create({
+      data: {
+        tenantId,
+        userId: user.id,
+        roleId: writeRole.id,
+        scopeType: 'BRANCH',
+        branches: { create: [{ branchId: mainId }] },
+      },
+    });
+    // No user_branches row for mainId
+    await expect(asUser(user.id, () => access.can(permWrite, mainId))).resolves.toBe(false);
+  });
+
+  it('user_branches membership without a role assignment denies', async () => {
+    const stamp = Date.now();
+    const user = await owner.user.create({
+      data: {
+        tenantId,
+        code: `NOA_${stamp}`,
+        email: `noa_${stamp}@example.test`,
+        displayName: 'No assignment',
+        passwordHash: 'x',
+      },
+    });
+    await owner.userBranch.create({
+      data: { tenantId, userId: user.id, branchId: mainId },
+    });
+    await expect(asUser(user.id, () => access.can(permWrite, mainId))).resolves.toBe(false);
+  });
+
+  it('BRANCH assignment plus active membership allows', async () => {
+    const stamp = Date.now();
+    const user = await owner.user.create({
+      data: {
+        tenantId,
+        code: `BOTH_${stamp}`,
+        email: `both_${stamp}@example.test`,
+        displayName: 'Both',
+        passwordHash: 'x',
+      },
+    });
+    const writeRole = await owner.role.findFirstOrThrow({
+      where: { tenantId, code: { startsWith: 'BR_WRITE_' } },
+    });
+    await owner.userBranch.create({
+      data: { tenantId, userId: user.id, branchId: mainId },
+    });
+    await owner.roleAssignment.create({
+      data: {
+        tenantId,
+        userId: user.id,
+        roleId: writeRole.id,
+        scopeType: 'BRANCH',
+        branches: { create: [{ branchId: mainId }] },
+      },
+    });
+    await expect(asUser(user.id, () => access.can(permWrite, mainId))).resolves.toBe(true);
+  });
+
+  it('deactivated user_branches membership denies BRANCH access', async () => {
+    const stamp = Date.now();
+    const user = await owner.user.create({
+      data: {
+        tenantId,
+        code: `DEACT_${stamp}`,
+        email: `deact_${stamp}@example.test`,
+        displayName: 'Deact mem',
+        passwordHash: 'x',
+      },
+    });
+    const writeRole = await owner.role.findFirstOrThrow({
+      where: { tenantId, code: { startsWith: 'BR_WRITE_' } },
+    });
+    const membership = await owner.userBranch.create({
+      data: { tenantId, userId: user.id, branchId: eastId, isActive: true },
+    });
+    await owner.roleAssignment.create({
+      data: {
+        tenantId,
+        userId: user.id,
+        roleId: writeRole.id,
+        scopeType: 'BRANCH',
+        branches: { create: [{ branchId: eastId }] },
+      },
+    });
+    await expect(asUser(user.id, () => access.can(permWrite, eastId))).resolves.toBe(true);
+    await owner.userBranch.update({
+      where: { id: membership.id },
+      data: { isActive: false },
+    });
+    // New request → fresh memo
+    await expect(asUser(user.id, () => access.can(permWrite, eastId))).resolves.toBe(false);
+  });
+
+  async function fixtureBranchGrant(suffix: string): Promise<{
+    userId: string;
+    permissionCode: string;
+    permissionId: string;
+    roleId: string;
+    rolePermissionId: string;
+    assignmentBranchId: string;
+  }> {
+    const perm = await owner.permission.create({
+      data: { code: `acs.fx.${suffix}`, description: suffix },
+    });
+    const role = await owner.role.create({
+      data: {
+        tenantId,
+        code: `FX_R_${suffix}`,
+        name: `Fixture ${suffix}`,
+        permissions: { create: [{ permissionId: perm.id }] },
+      },
+      include: { permissions: true },
+    });
+    const user = await owner.user.create({
+      data: {
+        tenantId,
+        code: `FX_U_${suffix}`,
+        email: `fx_u_${suffix}@example.test`,
+        displayName: suffix,
+        passwordHash: 'x',
+      },
+    });
+    await owner.userBranch.create({
+      data: { tenantId, userId: user.id, branchId: mainId },
+    });
+    const assignment = await owner.roleAssignment.create({
+      data: {
+        tenantId,
+        userId: user.id,
+        roleId: role.id,
+        scopeType: 'BRANCH',
+        branches: { create: [{ branchId: mainId }] },
+      },
+      include: { branches: true },
+    });
+    return {
+      userId: user.id,
+      permissionCode: perm.code,
+      permissionId: perm.id,
+      roleId: role.id,
+      rolePermissionId: role.permissions[0]!.id,
+      assignmentBranchId: assignment.branches[0]!.id,
+    };
+  }
+
+  it('inactive permission denies after an allowed baseline', async () => {
+    const fx = await fixtureBranchGrant(`perm_${Date.now()}`);
+    await expect(asUser(fx.userId, () => access.can(fx.permissionCode, mainId))).resolves.toBe(
+      true,
+    );
+    await owner.permission.update({ where: { id: fx.permissionId }, data: { isActive: false } });
+    await expect(asUser(fx.userId, () => access.can(fx.permissionCode, mainId))).resolves.toBe(
+      false,
+    );
+  });
+
+  it('inactive role denies after an allowed baseline', async () => {
+    const fx = await fixtureBranchGrant(`role_${Date.now()}`);
+    await expect(asUser(fx.userId, () => access.can(fx.permissionCode, mainId))).resolves.toBe(
+      true,
+    );
+    await owner.role.update({ where: { id: fx.roleId }, data: { isActive: false } });
+    await expect(asUser(fx.userId, () => access.can(fx.permissionCode, mainId))).resolves.toBe(
+      false,
+    );
+  });
+
+  it('inactive role_permissions row denies after an allowed baseline', async () => {
+    const fx = await fixtureBranchGrant(`rp_${Date.now()}`);
+    await expect(asUser(fx.userId, () => access.can(fx.permissionCode, mainId))).resolves.toBe(
+      true,
+    );
+    await owner.rolePermission.update({
+      where: { id: fx.rolePermissionId },
+      data: { isActive: false },
+    });
+    await expect(asUser(fx.userId, () => access.can(fx.permissionCode, mainId))).resolves.toBe(
+      false,
+    );
+  });
+
+  it('inactive assignment-branch denies after an allowed baseline', async () => {
+    const fx = await fixtureBranchGrant(`ab_${Date.now()}`);
+    await expect(asUser(fx.userId, () => access.can(fx.permissionCode, mainId))).resolves.toBe(
+      true,
+    );
+    await owner.roleAssignmentBranch.update({
+      where: { id: fx.assignmentBranchId },
+      data: { isActive: false },
+    });
+    await expect(asUser(fx.userId, () => access.can(fx.permissionCode, mainId))).resolves.toBe(
+      false,
+    );
+  });
+
+  it('deactivated branch_modules row denies after an allowed baseline', async () => {
+    await expect(asUser(superAdminId, () => access.can(permRead, mainId, moduleLab))).resolves.toBe(
+      true,
+    );
+    await owner.branchModule.updateMany({
+      where: { tenantId, branchId: mainId, module: { code: moduleLab } },
+      data: { isActive: false },
+    });
+    await expect(asUser(superAdminId, () => access.can(permRead, mainId, moduleLab))).resolves.toBe(
+      false,
+    );
+  });
 });

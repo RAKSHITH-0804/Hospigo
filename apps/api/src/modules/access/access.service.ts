@@ -119,6 +119,12 @@ export class AccessService {
       const permissionBranches = new Map<string, Set<string>>();
 
       if (userActive && hospitalActive) {
+        const memberships = await tx.userBranch.findMany({
+          where: { tenantId: ctx.tenantId!, userId, isActive: true },
+          select: { branchId: true },
+        });
+        const memberBranchIds = new Set(memberships.map((m) => m.branchId));
+
         const assignments = await tx.roleAssignment.findMany({
           where: {
             tenantId: ctx.tenantId!,
@@ -143,11 +149,13 @@ export class AccessService {
           const codes = assignment.role.permissions.map((rp) => rp.permission.code);
           let covered: string[];
           if (assignment.scopeType === 'HOSPITAL') {
+            // HOSPITAL scope covers all active branches; membership not required.
             covered = allActiveBranchIds;
           } else {
+            // BRANCH scope: active assignment-branch AND active user_branches membership.
             covered = assignment.branches
               .map((b) => b.branchId)
-              .filter((id) => branchMap.get(id) === true);
+              .filter((id) => branchMap.get(id) === true && memberBranchIds.has(id));
           }
           for (const code of codes) {
             let set = permissionBranches.get(code);
