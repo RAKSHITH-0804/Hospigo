@@ -417,6 +417,9 @@ AS $$
   SELECT replace(gen_random_uuid()::text, '-', '');
 $$;
 
+-- SECURITY DEFINER helpers owned by hospigo_security call this; PUBLIC execute is revoked by default privileges.
+GRANT EXECUTE ON FUNCTION cuid_like() TO hospigo_security;
+
 DO $$
 DECLARE
   t text;
@@ -528,6 +531,12 @@ CREATE POLICY hospitals_security_select ON hospitals
   FOR SELECT TO hospigo_security
   USING (true);
 
+-- FOR UPDATE in hq_create_first_superadmin requires an UPDATE policy under FORCE RLS.
+CREATE POLICY hospitals_security_update ON hospitals
+  FOR UPDATE TO hospigo_security
+  USING (true)
+  WITH CHECK (true);
+
 CREATE POLICY users_security_all ON users
   FOR ALL TO hospigo_security
   USING (true) WITH CHECK (true);
@@ -577,6 +586,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
 GRANT INSERT ON TABLE audit_logs TO hospigo_hq;
 
 GRANT SELECT ON TABLE hospitals, branches, permissions TO hospigo_security;
+-- UPDATE on hospitals: required for SELECT ... FOR UPDATE in hq_create_first_superadmin.
+GRANT UPDATE ON TABLE hospitals TO hospigo_security;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
   users, user_branches, roles, role_permissions, role_assignments, role_assignment_branches
   TO hospigo_security;
@@ -655,12 +666,29 @@ SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
 DECLARE
+  v_status hospital_status;
+  v_is_active boolean;
   v_role_id text;
   v_user_id text;
   v_assignment_id text;
   v_main_branch_id text;
   v_exists boolean;
 BEGIN
+  -- Serialize concurrent first-SuperAdmin attempts on the same hospital.
+  SELECT h.status, h.is_active
+    INTO v_status, v_is_active
+  FROM hospitals h
+  WHERE h.id = p_tenant_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'hospital not found';
+  END IF;
+
+  IF v_status IS DISTINCT FROM 'ACTIVE'::hospital_status OR v_is_active IS NOT TRUE THEN
+    RAISE EXCEPTION 'hospital is not active';
+  END IF;
+
   SELECT EXISTS (
     SELECT 1
     FROM role_assignments ra
