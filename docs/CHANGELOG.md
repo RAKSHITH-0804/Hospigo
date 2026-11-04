@@ -29,6 +29,32 @@
 
 ## Unreleased
 
+## 2026-11-04 — Phase 1 Step 4 follow-up — rebuild guards, safety-net split, access/leak gaps
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** rebuild URL/host/`current_database`/`is_test` guards + unit tests; access tests for inactive permission/role/role_permission/assignment-branch and deactivated branch_modules; leak test for cross-hospital `created_by`
+- **Changed:** safety-net — `PrismaService`/`set_config`/`$transaction` have no allowlist; only `$queryRaw`/`$executeRaw` are path-allowlisted
+- **Removed:** nothing
+- **Fixed:** rebuild could previously DROP based on URL text alone
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** none
+- **Tests:** 118 passing on `hospigo_test` (twice)
+- **Decisions:** local-host-only rebuild; BRANCH membership rule retained
+- **Follow-ups and open items:** none for this follow-up
+
+## 2026-11-04 — Phase 1 Step 4 follow-up — BRANCH scope requires user_branches
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** AccessService tests for assignment-without-membership, membership-without-assignment, both-required allow, deactivated membership deny
+- **Changed:** BRANCH-scoped `AccessService` grants now require active `user_branches` membership for that branch; HOSPITAL scope unchanged (no membership required)
+- **Removed:** nothing
+- **Fixed:** BRANCH access could previously succeed from assignment alone without membership
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** none
+- **Tests:** 105 passing on `hospigo_test` (twice)
+- **Decisions:** membership is mandatory for BRANCH scope only
+- **Follow-ups and open items:** none for this follow-up
+
 ## 2026-11-04 — Phase 1 Step 4 — Request context, TenantDb, AccessService, clean test DB
 
 - **Commit hash(es):** `de40f04`, `decdbe3`, `2f1e366`

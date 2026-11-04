@@ -25,12 +25,15 @@
 - Required together: user exists + active; hospital active (`status === ACTIVE` and `isActive`); branch active; a role assignment grants the permission (`HOSPITAL` scope = all active branches of the hospital; `BRANCH` scope = listed assignment branches only); if `moduleCode` is given, that branch module must be `enabled_by_indigo` and not `restricted_by_hospital`.
 - Multi-branch staff get **each branch's own** permissions — never the union across branches. `activeBranchId` only **narrows**.
 - Snapshot is memoised on the **request context object only** (never process-global), loaded through TenantDb.
-- Schema notes: `user_branches` is membership; `role_assignments` + `role_assignment_branches` are authorization. A BRANCH-scoped assignment listing a branch with no `user_branches` row is possible at the FK level. Flags honoured: `users.is_active`, `hospitals.is_active` + `status`, `branches.is_active`, `roles.is_active`, `role_assignments.is_active`, `role_assignment_branches.is_active`, `role_permissions.is_active`, `permissions.is_active`, module/`branch_modules.is_active`. No separate “archived” flag — inactive branch = archived for access.
+- Schema notes: `user_branches` is membership; `role_assignments` + `role_assignment_branches` are authorization. A BRANCH-scoped assignment listing a branch with no `user_branches` row is possible at the FK level, but **AccessService denies it** — BRANCH scope requires an active assignment-branch **and** an active `user_branches` membership for that branch. HOSPITAL scope does not require membership (covers all active branches). Flags honoured: `users.is_active`, `hospitals.is_active` + `status`, `branches.is_active`, `roles.is_active`, `role_assignments.is_active`, `role_assignment_branches.is_active`, `role_permissions.is_active`, `permissions.is_active`, module/`branch_modules.is_active`. No separate “archived” flag — inactive branch = archived for access.
 
 ## Test database rebuild (Step 4)
 
-- Jest `globalSetup` rebuilds `hospigo_test` before every suite: refuse unless both app and owner URLs name `hospigo_test`; `DROP SCHEMA public CASCADE` → recreate schema → re-apply create-roles schema USAGE/CREATE grants (CONNECT + default privileges survive) → `prisma migrate deploy` as owner → idempotent reference seed.
-- Startup check: tenant tables must be empty after rebuild (asserted in setup; sentinel file for tests). Grant audit re-checks schema privileges and policies.
+- Jest `globalSetup` rebuilds `hospigo_test` before every suite.
+- **Before any DROP SCHEMA:** both app and owner URLs must be local (`localhost` / `127.0.0.1` / `::1`), share host+port+database, name `hospigo_test`; owner and app connections must report `current_database() = hospigo_test`; if `hospitals` exists with any `is_test = false` row, refuse.
+- Then: `DROP SCHEMA public CASCADE` → recreate schema → re-apply create-roles schema USAGE/CREATE grants (CONNECT + default privileges survive) → `prisma migrate deploy` as owner → idempotent reference seed.
+- Startup check: tenant tables empty after rebuild (setup + sentinel). Grant audit re-checks schema privileges and policies.
+- Safety-net: `PrismaService`, `set_config`, and `$transaction` are forbidden in feature code with **no** allowlist; only `$queryRaw` / `$executeRaw` on TenantDb txs may be allowlisted by exact path.
 
 ## Database roles
 
