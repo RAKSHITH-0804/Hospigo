@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-04 — Phase 1 Step 3b-1 follow-up — UHID format immutability + DB-level tests
+
+- **Commit hash(es):** unverified (local)
+- **Added:** `uhid.db-level.spec.ts` — deferred FY/RUNNING_NUMBER triggers, counter raise-only, true 50-connection concurrency, NEVER vs FY boundary, app privilege checks
+- **Changed:** `hospigo_app` on `uhid_format_configs` / `uhid_format_blocks` is SELECT+INSERT only (policies split); revoked DELETE on patient customisation tables
+- **Removed:** app UPDATE/DELETE grants and FOR ALL policies on UHID format tables
+- **Fixed:** format-config immutability for the app role (privileges + policies)
+- **Database (migrations, roles, RLS):** `20261104190000_lock_uhid_format_immutability`
+- **New .env keys (names only):** none
+- **Tests:** 64 passing on `hospigo_test`
+- **Decisions:** no all-role UPDATE/DELETE trigger on format tables (would break owner deferred-trigger tests); app immutability via grants/policies only
+- **Follow-ups and open items:** apply migrate deploy on any non-test DB that still points at a separate `DATABASE_URL_OWNER` host/db if used in other environments
+
 ## 2026-11-04 — Phase 1 Step 3b-1 — Patients, field settings, UHID engine
 
 - **Commit hash(es):** `cde436e`, `9acfe98`, `23edf0c`, `8cf75ae`, `f095275` (+ docs hash follow-up)
@@ -38,7 +51,7 @@
 - **Fixed:** nested Prisma creates omit inherited `tenant_id` (composite FK); tenant `set_config` kept inside transactions for pool safety
 - **Database (migrations, roles, RLS):** `20261104180000_tighten_hospigo_security_hospital_update`, `20261104180100_patients_and_identifiers`, `20261104180200_patient_field_settings`, `20261104180300_uhid_engine` — new migrations only (3a untouched). Patients/UHID/clinical: no grants to `hospigo_hq`. FY reset without FY block rejected in service + deferred DB trigger.
 - **New .env keys (names only):** `PATIENT_SEARCH_MAX_PAGE_SIZE`
-- **Tests:** 48 passing on `hospigo_test` (prior 34 + new isolation/UHID/field/security coverage)
+- **Tests:** 48 passing on `hospigo_test` (prior 34 + new isolation/UHID/field/security coverage); later raised to 64 with DB-level suite
 - **Decisions:** hospital-wide UHID counter (all branches); no hardcoding of hospital formats/field lists in app code; Aadhaar write/search deferred; consultant column deferred to visits; setStartNumber role check pending Step 6; new-hospital default field settings deferred to Phase 2 onboarding
 - **Follow-ups and open items:** auth/controllers/UI (Step 6); Aadhaar storage rules with manager; Indigo-side UHID tools (Phase 2); ledger design still pending for OPD billing
 

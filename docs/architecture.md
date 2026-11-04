@@ -51,6 +51,7 @@ HQ access under FORCE RLS uses policies `TO hospigo_hq` / `TO hospigo_security` 
 ## UHID engine
 
 - Formats are immutable rows: `uhid_format_configs` + `uhid_format_blocks`. A change = a new config row with `effective_from`. Generator uses the latest config with `effective_from <=` server now. Existing UHIDs are never rewritten.
+- **App-role immutability** (migration `…_lock_uhid_format_immutability`): `hospigo_app` has **SELECT + INSERT only** on configs/blocks (no UPDATE/DELETE grants; policies are separate SELECT and INSERT, no UPDATE/DELETE policy). Owner retains full access for migrate/seed/fixtures. No all-role refuse trigger — deferred FY/RUNNING_NUMBER validation tests need owner DELETE of a block to fail at COMMIT with the validation error.
 - Block types: `FIXED_TEXT`, `BRANCH_CODE`, `FINANCIAL_YEAR`, `CALENDAR_YEAR`, `SEPARATOR`, `RUNNING_NUMBER`. Exactly one `RUNNING_NUMBER`. Padding is a **minimum** width (numbers may grow, never truncate).
 - **Hospital-wide counter:** `uhid_counters` PK `(tenant_id, period_year)` — one sequence shared by **all** branches (`period_year = 0` when reset is `NEVER`). A trigger refuses any decrease of `last_number` (raise-only).
 - Generator (one service method, one DB transaction): get-or-create counter, `FOR UPDATE`, increment, build UHID from blocks, insert patient. Any insert failure (including UNIQUE collision with an imported UHID) rolls back so the counter does not advance (no gaps). Error is clear; never skip or duplicate silently.
