@@ -29,7 +29,18 @@
 
 ## Unreleased
 
-(nothing)
+## 2026-11-04 — Phase 1 Step 3b-1 — Patients, field settings, UHID engine
+
+- **Commit hash(es):** unverified (local commits pending push)
+- **Added:** Patients + `patient_identifiers` (table only); patient field catalog/settings/custom fields; UHID format configs/blocks/counters; `PatientsModule` services (`PatientsService`, `PatientFieldsService`, `UhidService`); injectable clock; hospigo_security column-privilege test; patients/UHID Jest suite
+- **Changed:** `hospigo_security` hospital update narrowed to `UPDATE (id)`; `GLOBAL_TABLES` allowlists `patient_field_catalog`; isolation fixtures cover new tenant tables; architecture docs for UHID/field settings/Aadhaar pending
+- **Removed:** nothing
+- **Fixed:** nested Prisma creates omit inherited `tenant_id` (composite FK); tenant `set_config` kept inside transactions for pool safety
+- **Database (migrations, roles, RLS):** `20261104180000_tighten_hospigo_security_hospital_update`, `20261104180100_patients_and_identifiers`, `20261104180200_patient_field_settings`, `20261104180300_uhid_engine` — new migrations only (3a untouched). Patients/UHID/clinical: no grants to `hospigo_hq`. FY reset without FY block rejected in service + deferred DB trigger.
+- **New .env keys (names only):** `PATIENT_SEARCH_MAX_PAGE_SIZE`
+- **Tests:** 48 passing on `hospigo_test` (prior 34 + new isolation/UHID/field/security coverage)
+- **Decisions:** hospital-wide UHID counter (all branches); no hardcoding of hospital formats/field lists in app code; Aadhaar write/search deferred; consultant column deferred to visits; setStartNumber role check pending Step 6; new-hospital default field settings deferred to Phase 2 onboarding
+- **Follow-ups and open items:** auth/controllers/UI (Step 6); Aadhaar storage rules with manager; Indigo-side UHID tools (Phase 2); ledger design still pending for OPD billing
 
 ---
 
