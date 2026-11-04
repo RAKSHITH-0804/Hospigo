@@ -10,12 +10,22 @@
     "sourceType": "module"
   },
   "plugins": ["@typescript-eslint"],
-  "extends": [
-    "eslint:recommended",
-    "plugin:@typescript-eslint/recommended",
-    "prettier"
-  ],
+  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended", "prettier"],
   "ignorePatterns": ["node_modules/", "dist/", "coverage/", ".husky/"],
+  "overrides": [
+    {
+      "files": ["**/*.spec.ts"],
+      "env": {
+        "jest": true
+      }
+    },
+    {
+      "files": ["**/*.js", "**/*.cjs"],
+      "parserOptions": {
+        "sourceType": "script"
+      }
+    }
+  ],
   "rules": {
     "@typescript-eslint/no-unused-vars": [
       "error",
