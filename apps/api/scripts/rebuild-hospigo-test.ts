@@ -14,6 +14,12 @@ import pg from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma';
 import { seedReferenceData } from '../prisma/seeds/reference';
+import {
+  assertCurrentDatabaseIsHospigoTest,
+  assertNoNonTestHospitals,
+  assertRebuildUrlPair,
+  parsePgUrl,
+} from '../src/database/rebuild-guards';
 
 function fsExists(p: string): boolean {
   return fs.existsSync(p);
@@ -26,30 +32,20 @@ const repoRoot = path.resolve(apiRoot, '../..');
 loadEnv({ path: path.join(repoRoot, '.env') });
 loadEnv({ path: path.join(apiRoot, '.env') });
 
-function dbNameOf(url: string): string {
-  return new URL(url).pathname.replace(/^\//, '');
-}
-
-function requireTestUrl(label: string, url: string | undefined): string {
+function requireUrl(label: string, url: string | undefined): string {
   if (!url) {
     throw new Error(`${label} is required`);
-  }
-  const name = dbNameOf(url);
-  if (name !== 'hospigo_test') {
-    throw new Error(`${label} must point at database hospigo_test (got "${name}")`);
   }
   return url;
 }
 
-const appUrl = requireTestUrl(
+const appUrl = requireUrl(
   'DATABASE_URL_TEST (or DATABASE_URL)',
   process.env.DATABASE_URL_TEST || process.env.DATABASE_URL,
 );
-const ownerUrl = requireTestUrl('DATABASE_URL_OWNER_TEST', process.env.DATABASE_URL_OWNER_TEST);
+const ownerUrl = requireUrl('DATABASE_URL_OWNER_TEST', process.env.DATABASE_URL_OWNER_TEST);
 
 async function reapplySchemaHardening(client: pg.Client): Promise<void> {
-  // CONNECT grants and ALTER DEFAULT PRIVILEGES are role/database-level and survive
-  // DROP SCHEMA. Re-apply only schema USAGE/CREATE that the new public schema needs.
   await client.query('REVOKE ALL ON SCHEMA public FROM PUBLIC');
   await client.query('GRANT USAGE, CREATE ON SCHEMA public TO hospigo_owner');
   await client.query('GRANT USAGE ON SCHEMA public TO hospigo_app');
@@ -58,11 +54,45 @@ async function reapplySchemaHardening(client: pg.Client): Promise<void> {
   await client.query('ALTER SCHEMA public OWNER TO hospigo_owner');
 }
 
+/**
+ * All safety checks that must pass BEFORE DROP SCHEMA.
+ */
+export async function assertSafeToRebuildHospigoTest(
+  appConnectionString: string,
+  ownerConnectionString: string,
+): Promise<void> {
+  assertRebuildUrlPair(appConnectionString, ownerConnectionString);
+
+  const owner = new pg.Client({
+    connectionString: ownerConnectionString,
+    connectionTimeoutMillis: 15_000,
+  });
+  await owner.connect();
+  try {
+    await assertCurrentDatabaseIsHospigoTest(owner, 'owner connection');
+    await assertNoNonTestHospitals(owner);
+  } finally {
+    await owner.end();
+  }
+
+  const app = new pg.Client({
+    connectionString: appConnectionString,
+    connectionTimeoutMillis: 15_000,
+  });
+  await app.connect();
+  try {
+    await assertCurrentDatabaseIsHospigoTest(app, 'app connection');
+  } finally {
+    await app.end();
+  }
+}
+
 export async function rebuildHospigoTest(): Promise<{
   ownerDb: string;
   appDb: string;
 }> {
-  void appUrl;
+  await assertSafeToRebuildHospigoTest(appUrl, ownerUrl);
+
   const owner = new pg.Client({ connectionString: ownerUrl, connectionTimeoutMillis: 15_000 });
   await owner.connect();
   try {
@@ -98,7 +128,10 @@ export async function rebuildHospigoTest(): Promise<{
     await prisma.$disconnect();
   }
 
-  return { ownerDb: dbNameOf(ownerUrl), appDb: dbNameOf(appUrl) };
+  return {
+    ownerDb: parsePgUrl(ownerUrl).database,
+    appDb: parsePgUrl(appUrl).database,
+  };
 }
 
 export async function assertTenantTablesEmpty(): Promise<void> {
@@ -193,8 +226,6 @@ async function main(): Promise<void> {
   const result = await rebuildHospigoTest();
   await assertTenantTablesEmpty();
   const audit = await collectGrantAudit();
-  // Marker for Jest tests (globalSetup sets this in-process via child stdout parse,
-  // and also writes a sentinel file).
   const sentinel = path.join(apiRoot, '.hospigo-test-rebuilt');
   fs.writeFileSync(
     sentinel,
