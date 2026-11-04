@@ -4,8 +4,11 @@ import { config as loadEnv } from 'dotenv';
 import { ConfigService } from '@nestjs/config';
 import { FakeClock } from '../../common/clock';
 import {
+  asHospital,
+  autoHospitalContext,
   createAppPrisma,
   createOwnerPrisma,
+  createTenantDb,
   requireTestDatabaseUrl,
 } from '../../database/db-test.util';
 import { PatientFieldsService } from './patient-fields.service';
@@ -181,9 +184,10 @@ describe('Patients + UHID engine (hospigo_test only)', () => {
       },
     } as unknown as ConfigService;
 
-    uhid = new UhidService(app as never, clock);
-    fields = new PatientFieldsService(app as never);
-    patients = new PatientsService(app as never, fields, uhid, config as never);
+    const tenantDb = createTenantDb(app);
+    uhid = autoHospitalContext(new UhidService(tenantDb, clock));
+    fields = autoHospitalContext(new PatientFieldsService(tenantDb));
+    patients = autoHospitalContext(new PatientsService(tenantDb, fields, uhid, config as never));
   });
 
   afterAll(async () => {
@@ -304,22 +308,24 @@ describe('Patients + UHID engine (hospigo_test only)', () => {
       where: { tenantId_periodYear: { tenantId, periodYear: 0 } },
     });
     await expect(
-      app.$transaction(async (tx) => {
-        const allocated = await uhid.allocateNextUhid({
-          tenantId,
-          branchId: branchMain,
-          tx: tx as never,
-        });
-        await tx.patient.create({
-          data: {
+      asHospital(tenantId, () =>
+        createTenantDb(app).withTenant(async (tx) => {
+          const allocated = await uhid.allocateNextUhid({
             tenantId,
-            uhid: allocated.uhid,
-            registeredBranchId: branchMain,
-            name: '',
-            createdBy: actorId,
-          },
-        });
-      }),
+            branchId: branchMain,
+            tx,
+          });
+          await tx.patient.create({
+            data: {
+              tenantId,
+              uhid: allocated.uhid,
+              registeredBranchId: branchMain,
+              name: '',
+              createdBy: actorId,
+            },
+          });
+        }),
+      ),
     ).rejects.toThrow();
     const after = await owner.uhidCounter.findUniqueOrThrow({
       where: { tenantId_periodYear: { tenantId, periodYear: 0 } },
@@ -455,12 +461,12 @@ describe('Patients + UHID engine (hospigo_test only)', () => {
     });
 
     const fyClock = new FakeClock(new Date('2026-03-31T18:29:00.000Z')); // 31 Mar 23:59 IST
-    const fyUhid = new UhidService(app as never, fyClock);
-    const fyPatients = new PatientsService(
-      app as never,
-      new PatientFieldsService(app as never),
-      fyUhid,
-      { get: () => 10 } as never,
+    const fyDb = createTenantDb(app);
+    const fyUhid = autoHospitalContext(new UhidService(fyDb, fyClock));
+    const fyPatients = autoHospitalContext(
+      new PatientsService(fyDb, autoHospitalContext(new PatientFieldsService(fyDb)), fyUhid, {
+        get: () => 10,
+      } as never),
     );
     const beforeRoll = await fyPatients.register({
       tenantId: fyHospital.id,

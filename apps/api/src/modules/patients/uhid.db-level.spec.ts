@@ -7,9 +7,11 @@ import type { Client } from 'pg';
 import { Pool } from 'pg';
 import { FakeClock } from '../../common/clock';
 import {
+  autoHospitalContext,
   createAppPrisma,
   createOwnerPrisma,
   createPgClient,
+  createTenantDb,
   requireTestDatabaseUrl,
 } from '../../database/db-test.util';
 import { PrismaClient } from '../../generated/prisma';
@@ -30,9 +32,10 @@ function pageConfig(): ConfigService {
 }
 
 function makePatients(prisma: PrismaClient, clock: FakeClock): PatientsService {
-  const fields = new PatientFieldsService(prisma as never);
-  const uhid = new UhidService(prisma as never, clock);
-  return new PatientsService(prisma as never, fields, uhid, pageConfig() as never);
+  const tenantDb = createTenantDb(prisma);
+  const fields = new PatientFieldsService(tenantDb);
+  const uhid = new UhidService(tenantDb, clock);
+  return autoHospitalContext(new PatientsService(tenantDb, fields, uhid, pageConfig() as never));
 }
 
 /** One Prisma client + dedicated 1-connection pool (true separate TCP connection). */

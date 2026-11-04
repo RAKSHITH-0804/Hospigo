@@ -20,3 +20,5 @@ out/
 /storage/
 # Prisma generated client
 apps/api/src/generated/
+# Jest globalSetup sentinel (hospigo_test rebuild proof)
+apps/api/.hospigo-test-rebuilt

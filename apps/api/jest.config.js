@@ -14,4 +14,6 @@ module.exports = {
   testEnvironment: 'node',
   testTimeout: 20000,
   maxWorkers: 1,
+  // Rebuilds hospigo_test (schema drop + migrate deploy + reference seed) before the suite.
+  globalSetup: '<rootDir>/../jest.global-setup.cjs',
 };

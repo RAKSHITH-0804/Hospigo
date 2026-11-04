@@ -5,9 +5,11 @@ import { FakeClock } from '../../common/clock';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import {
+  autoHospitalContext,
   createAppPrisma,
   createOwnerPrisma,
   createPgClient,
+  createTenantDb,
   GLOBAL_TABLES,
   requireTestDatabaseUrl,
 } from '../../database/db-test.util';
@@ -128,7 +130,7 @@ describe('Import batches (hospigo_test only)', () => {
     });
     importTypeOther = t2.id;
 
-    service = new ImportBatchService(app as never, clock);
+    service = autoHospitalContext(new ImportBatchService(createTenantDb(app), clock));
   });
 
   afterAll(async () => {
@@ -841,7 +843,9 @@ describe('Import batches (hospigo_test only)', () => {
       const N = 20;
       const barrier = createStartBarrier(N);
       const clients = Array.from({ length: N }, () => createDedicatedAppPrisma());
-      const servicesN = clients.map((c) => new ImportBatchService(c.prisma as never, clock));
+      const servicesN = clients.map((c) =>
+        autoHospitalContext(new ImportBatchService(createTenantDb(c.prisma), clock)),
+      );
 
       const results = await Promise.allSettled(
         servicesN.map(async (svc) => {
@@ -883,7 +887,9 @@ describe('Import batches (hospigo_test only)', () => {
       const N = 20;
       const barrier = createStartBarrier(N);
       const clients = Array.from({ length: N }, () => createDedicatedAppPrisma());
-      const servicesN = clients.map((c) => new ImportBatchService(c.prisma as never, clock));
+      const servicesN = clients.map((c) =>
+        autoHospitalContext(new ImportBatchService(createTenantDb(c.prisma), clock)),
+      );
 
       const results = await Promise.allSettled(
         servicesN.map(async (svc) => {
@@ -926,7 +932,9 @@ describe('Import batches (hospigo_test only)', () => {
       const N = 20;
       const barrier = createStartBarrier(N);
       const clients = Array.from({ length: N }, () => createDedicatedAppPrisma());
-      const servicesN = clients.map((c) => new ImportBatchService(c.prisma as never, clock));
+      const servicesN = clients.map((c) =>
+        autoHospitalContext(new ImportBatchService(createTenantDb(c.prisma), clock)),
+      );
 
       const results = await Promise.allSettled(
         servicesN.map(async (svc) => {
@@ -971,8 +979,8 @@ describe('Import batches (hospigo_test only)', () => {
       const barrier = createStartBarrier(2);
       const a = createDedicatedAppPrisma();
       const b = createDedicatedAppPrisma();
-      const svcA = new ImportBatchService(a.prisma as never, clock);
-      const svcB = new ImportBatchService(b.prisma as never, clock);
+      const svcA = autoHospitalContext(new ImportBatchService(createTenantDb(a.prisma), clock));
+      const svcB = autoHospitalContext(new ImportBatchService(createTenantDb(b.prisma), clock));
 
       const results = await Promise.allSettled([
         (async () => {
