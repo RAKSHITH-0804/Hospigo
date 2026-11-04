@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../database/prisma.service';
+import { TenantDb } from '../../database/tenant-db';
 
 export type PatientFieldPayload = {
   name: string;
@@ -45,7 +45,7 @@ const SYSTEM_KEY_TO_PAYLOAD: Record<string, keyof PatientFieldPayload> = {
 
 @Injectable()
 export class PatientFieldsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly tenantDb: TenantDb) {}
 
   /**
    * Apply hospital field settings to a registration payload.
@@ -59,10 +59,7 @@ export class PatientFieldsService {
   ): Promise<FieldValidationResult> {
     const rejectDisabled = options?.rejectDisabled === true;
 
-    // set_config must share a connection with reads (pg pool); keep them in one transaction.
-    return this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
-
+    return this.tenantDb.withTenant(async (tx) => {
       const settings = await tx.patientFieldSetting.findMany({
         where: { tenantId },
         include: { catalog: true, customField: true },
@@ -168,8 +165,7 @@ export class PatientFieldsService {
       throw new Error('Patient name field cannot be disabled');
     }
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.tenant_id', ${input.tenantId}, true)`;
+    await this.tenantDb.withTenant(async (tx) => {
       const catalog = await tx.patientFieldCatalog.findUnique({ where: { key: input.catalogKey } });
       if (!catalog) {
         throw new Error(`Unknown catalog field: ${input.catalogKey}`);

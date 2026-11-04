@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma';
 import { CLOCK, type Clock } from '../../common/clock';
-import { PrismaService } from '../../database/prisma.service';
+import { TenantDb } from '../../database/tenant-db';
 import {
   assertUhidConfigValid,
   buildUhid,
@@ -13,7 +13,7 @@ import {
 @Injectable()
 export class UhidService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly tenantDb: TenantDb,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -45,8 +45,7 @@ export class UhidService {
     };
     assertUhidConfigValid(config);
 
-    const configId = await this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.tenant_id', ${input.tenantId}, true)`;
+    const configId = await this.tenantDb.withTenant(async (tx) => {
       const created = await tx.uhidFormatConfig.create({
         data: {
           tenantId: input.tenantId,
@@ -89,8 +88,7 @@ export class UhidService {
     // Pending Step 6: enforce Indigo / hospital SuperAdmin only (counter is hospital-wide).
     void input.actorUserId;
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.tenant_id', ${input.tenantId}, true)`;
+    await this.tenantDb.withTenant(async (tx) => {
       const existing = await tx.uhidCounter.findUnique({
         where: {
           tenantId_periodYear: { tenantId: input.tenantId, periodYear: input.periodYear },
@@ -131,6 +129,9 @@ export class UhidService {
     });
   }
 
+  /**
+   * Allocate next UHID inside an existing tenant transaction (tenant already set by TenantDb).
+   */
   async allocateNextUhid(input: {
     tenantId: string;
     branchId: string;
@@ -138,9 +139,9 @@ export class UhidService {
     now?: Date;
   }): Promise<{ uhid: string; runningNumber: bigint; periodYear: number }> {
     const now = input.now ?? this.clock.now();
-    await input.tx.$executeRaw`SELECT set_config('app.tenant_id', ${input.tenantId}, true)`;
+    const tx = input.tx;
 
-    const configs = await input.tx.uhidFormatConfig.findMany({
+    const configs = await tx.uhidFormatConfig.findMany({
       where: { tenantId: input.tenantId, effectiveFrom: { lte: now } },
       orderBy: { effectiveFrom: 'desc' },
       take: 1,
@@ -151,7 +152,7 @@ export class UhidService {
       throw new Error('No UHID format config effective for this hospital; registration refused');
     }
 
-    const branch = await input.tx.branch.findUnique({
+    const branch = await tx.branch.findUnique({
       where: { tenantId_id: { tenantId: input.tenantId, id: input.branchId } },
     });
     if (!branch) {
@@ -174,17 +175,18 @@ export class UhidService {
 
     const periodYear = resolvePeriodYear(now, cfg.resetRule, cfg.fyStartMonth, cfg.timezone);
 
-    await input.tx.$executeRaw`
+    // Counter bump uses raw SQL FOR UPDATE (tx already tenant-scoped by TenantDb).
+    await tx.$executeRaw`
       INSERT INTO uhid_counters (tenant_id, period_year, last_number)
       VALUES (${input.tenantId}, ${periodYear}, 0)
       ON CONFLICT (tenant_id, period_year) DO NOTHING
     `;
-    await input.tx.$executeRaw`
+    await tx.$executeRaw`
       SELECT last_number FROM uhid_counters
       WHERE tenant_id = ${input.tenantId} AND period_year = ${periodYear}
       FOR UPDATE
     `;
-    const updated = await input.tx.$queryRaw<Array<{ last_number: bigint }>>`
+    const updated = await tx.$queryRaw<Array<{ last_number: bigint }>>`
       UPDATE uhid_counters
       SET last_number = last_number + 1
       WHERE tenant_id = ${input.tenantId} AND period_year = ${periodYear}

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { ApiEnv } from '../../config/env';
-import { PrismaService } from '../../database/prisma.service';
+import { TenantDb } from '../../database/tenant-db';
 import { PatientFieldsService, type PatientFieldPayload } from './patient-fields.service';
 import { UhidService } from './uhid.service';
 
@@ -14,7 +14,7 @@ export type RegisterPatientInput = PatientFieldPayload & {
 @Injectable()
 export class PatientsService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly tenantDb: TenantDb,
     private readonly fields: PatientFieldsService,
     private readonly uhid: UhidService,
     private readonly config: ConfigService<ApiEnv, true>,
@@ -32,7 +32,7 @@ export class PatientsService {
     void ignoredDisabled;
 
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      return await this.tenantDb.withTenant(async (tx) => {
         const { uhid } = await this.uhid.allocateNextUhid({
           tenantId: input.tenantId,
           branchId: input.registeredBranchId,
@@ -105,9 +105,7 @@ export class PatientsService {
     const page = Math.max(input.page ?? 1, 1);
     const skip = (page - 1) * pageSize;
 
-    return this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.tenant_id', ${input.tenantId}, true)`;
-
+    return this.tenantDb.withTenant(async (tx) => {
       if (input.namePrefix) {
         const pattern = `${input.namePrefix.toLowerCase()}%`;
         const totalRows = await tx.$queryRaw<Array<{ count: bigint }>>`

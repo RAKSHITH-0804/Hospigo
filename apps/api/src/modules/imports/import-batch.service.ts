@@ -1,14 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { CLOCK, type Clock } from '../../common/clock';
-import { PrismaService } from '../../database/prisma.service';
+import { TenantDb, type TenantTx } from '../../database/tenant-db';
 import type { ImportBatchStatus, ImportExceptionStatus, Prisma } from '../../generated/prisma';
-
-type Tx = Prisma.TransactionClient;
 
 @Injectable()
 export class ImportBatchService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly tenantDb: TenantDb,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -28,8 +26,7 @@ export class ImportBatchService {
     periodStart?: Date | null;
     periodEnd?: Date | null;
   }): Promise<{ id: string }> {
-    return this.prisma.$transaction(async (tx) => {
-      await this.setTenant(tx, input.tenantId);
+    return this.tenantDb.withTenant(async (tx) => {
       try {
         const created = await tx.importBatch.create({
           data: {
@@ -98,8 +95,7 @@ export class ImportBatchService {
 
   async post(input: { tenantId: string; batchId: string; actorUserId: string }): Promise<void> {
     const now = this.clock.now();
-    await this.prisma.$transaction(async (tx) => {
-      await this.setTenant(tx, input.tenantId);
+    await this.tenantDb.withTenant(async (tx) => {
       const batch = await this.lockBatch(tx, input.tenantId, input.batchId);
       if (batch.status !== 'APPROVED') {
         throw new Error(`Import batch refused: expected status APPROVED, found ${batch.status}`);
@@ -146,8 +142,7 @@ export class ImportBatchService {
       throw new Error('undo requires a non-empty reason');
     }
     const now = this.clock.now();
-    await this.prisma.$transaction(async (tx) => {
-      await this.setTenant(tx, input.tenantId);
+    await this.tenantDb.withTenant(async (tx) => {
       const batch = await this.lockBatch(tx, input.tenantId, input.batchId);
       if (batch.status !== 'POSTED') {
         throw new Error(`Import batch refused: expected status POSTED, found ${batch.status}`);
@@ -211,8 +206,7 @@ export class ImportBatchService {
     message: string;
     actorUserId: string;
   }): Promise<{ id: string }> {
-    return this.prisma.$transaction(async (tx) => {
-      await this.setTenant(tx, input.tenantId);
+    return this.tenantDb.withTenant(async (tx) => {
       await tx.importBatchRow.update({
         where: { id: input.rowId },
         data: { rowStatus: 'EXCEPTION' },
@@ -256,8 +250,7 @@ export class ImportBatchService {
     }
     const now = this.clock.now();
     const status = input.status ?? 'RESOLVED';
-    await this.prisma.$transaction(async (tx) => {
-      await this.setTenant(tx, input.tenantId);
+    await this.tenantDb.withTenant(async (tx) => {
       const ex = await tx.importException.findFirst({
         where: { id: input.exceptionId, tenantId: input.tenantId },
       });
@@ -296,8 +289,7 @@ export class ImportBatchService {
       extra?: Prisma.ImportBatchUncheckedUpdateInput;
     },
   ): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
-      await this.setTenant(tx, tenantId);
+    await this.tenantDb.withTenant(async (tx) => {
       const batch = await this.lockBatch(tx, tenantId, batchId);
       if (!options.expectedFrom.includes(batch.status)) {
         throw new Error(
@@ -321,7 +313,7 @@ export class ImportBatchService {
   }
 
   /** Lock the batch row for the duration of the transition (concurrency-safe). */
-  private async lockBatch(tx: Tx, tenantId: string, batchId: string) {
+  private async lockBatch(tx: TenantTx, tenantId: string, batchId: string) {
     const rows = await tx.$queryRaw<
       Array<{
         id: string;
@@ -345,12 +337,8 @@ export class ImportBatchService {
     };
   }
 
-  private async setTenant(tx: Tx, tenantId: string): Promise<void> {
-    await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
-  }
-
   private async audit(
-    tx: Tx,
+    tx: TenantTx,
     input: {
       tenantId: string;
       actorUserId: string;
