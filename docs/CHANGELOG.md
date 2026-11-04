@@ -31,7 +31,7 @@
 
 ## 2026-11-04 — Phase 1 Step 4 — Request context, TenantDb, AccessService, clean test DB
 
-- **Commit hash(es):** unverified (filled after commit)
+- **Commit hash(es):** `de40f04`, `decdbe3`, `2f1e366`
 - **Added:** Jest globalSetup rebuild of `hospigo_test`; `RequestContext` ALS; `TenantDb` door; `AccessService`; safety-net scan; TenantDb / access / hospital-isolation leak tests
 - **Changed:** Patients, UHID, field settings, ImportBatchService use TenantDb only; `PrismaService` no longer exported from `PrismaModule`
 - **Removed:** manual `set_config` from feature services
