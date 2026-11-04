@@ -31,7 +31,7 @@
 
 ## 2026-11-04 — Phase 1 Step 3b-1 follow-up — UHID format immutability + DB-level tests
 
-- **Commit hash(es):** unverified (local)
+- **Commit hash(es):** `497c089`, `2c4678d`, `64088e8`
 - **Added:** `uhid.db-level.spec.ts` — deferred FY/RUNNING_NUMBER triggers, counter raise-only, true 50-connection concurrency, NEVER vs FY boundary, app privilege checks
 - **Changed:** `hospigo_app` on `uhid_format_configs` / `uhid_format_blocks` is SELECT+INSERT only (policies split); revoked DELETE on patient customisation tables
 - **Removed:** app UPDATE/DELETE grants and FOR ALL policies on UHID format tables
