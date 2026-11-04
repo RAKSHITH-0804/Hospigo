@@ -48,6 +48,19 @@ model HqUser {
   @@map("hq_users")
 }
 
+/// Global system field catalog (no tenant). Defaults only — hospitals override via patient_field_settings.
+model PatientFieldCatalog {
+  key            String  @id
+  defaultLabel   String  @map("default_label")
+  dataType       String  @map("data_type")
+  canDisable     Boolean @map("can_disable")
+  alwaysRequired Boolean @map("always_required")
+
+  settings PatientFieldSetting[]
+
+  @@map("patient_field_catalog")
+}
+
 // --- Tenant tables (all carry tenant_id; hospital.id IS the tenant) ---
 
 enum HospitalStatus {
@@ -80,6 +93,15 @@ model Hospital {
   roleAssignments RoleAssignment[]
   roleAssignmentBranches RoleAssignmentBranch[]
   auditLogs     AuditLog[]
+  patients      Patient[]
+  patientIdentifiers PatientIdentifier[]
+  patientCustomFields PatientCustomField[]
+  patientCustomFieldOptions PatientCustomFieldOption[]
+  patientCustomFieldValues PatientCustomFieldValue[]
+  patientFieldSettings PatientFieldSetting[]
+  uhidFormatConfigs UhidFormatConfig[]
+  uhidFormatBlocks UhidFormatBlock[]
+  uhidCounters UhidCounter[]
 
   @@map("hospitals")
 }
@@ -117,6 +139,7 @@ model Branch {
   userBranches  UserBranch[]
   roleAssignmentBranches RoleAssignmentBranch[]
   auditLogs     AuditLog[]
+  registeredPatients Patient[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -179,6 +202,9 @@ model User {
   userBranches    UserBranch[]
   roleAssignments RoleAssignment[]
   auditLogs       AuditLog[]       @relation("AuditActor")
+  createdPatients Patient[]        @relation("PatientCreatedBy")
+  uhidFormatConfigs UhidFormatConfig[] @relation("UhidConfigCreatedBy")
+  patientFieldSettingsChanged PatientFieldSetting[] @relation("FieldSettingChangedBy")
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -311,4 +337,235 @@ model AuditLog {
   @@index([tenantId, createdAt])
   @@index([tenantId, entityType, entityId])
   @@map("audit_logs")
+}
+
+// --- Patients (Step 3b-1). Consultant belongs on visits later. ---
+
+model Patient {
+  id                 String    @id @default(cuid())
+  tenantId           String    @map("tenant_id")
+  uhid               String
+  registeredBranchId String    @map("registered_branch_id")
+  name               String
+  gender             String?
+  dateOfBirth        DateTime? @map("date_of_birth") @db.Date
+  dobIsEstimated     Boolean   @default(false) @map("dob_is_estimated")
+  phone              String?
+  email              String?
+  addressStreet      String?   @map("address_street")
+  addressCross       String?   @map("address_cross")
+  addressArea        String?   @map("address_area")
+  addressCity        String?   @map("address_city")
+  addressState       String?   @map("address_state")
+  addressPincode     String?   @map("address_pincode")
+  isActive           Boolean   @default(true) @map("is_active")
+  createdBy          String    @map("created_by")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital           Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  registeredBranch   Branch   @relation(fields: [tenantId, registeredBranchId], references: [tenantId, id], onDelete: Restrict)
+  creator            User     @relation("PatientCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
+  identifiers        PatientIdentifier[]
+  customFieldValues  PatientCustomFieldValue[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, uhid])
+  @@index([tenantId, phone])
+  @@index([tenantId])
+  @@map("patients")
+}
+
+/// Aadhaar and similar identifiers — table exists with RLS; fill/search rules undecided (manager). No app writes yet.
+model PatientIdentifier {
+  id             String   @id @default(cuid())
+  tenantId       String   @map("tenant_id")
+  patientId      String   @map("patient_id")
+  identifierType String   @map("identifier_type")
+  valueEncrypted Bytes    @map("value_encrypted")
+  valueHash      String   @map("value_hash")
+  last4          String
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patient  Patient  @relation(fields: [tenantId, patientId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, patientId, identifierType])
+  @@index([tenantId, valueHash])
+  @@map("patient_identifiers")
+}
+
+enum PatientCustomFieldDataType {
+  TEXT
+  NUMBER
+  DATE
+  DROPDOWN
+
+  @@map("patient_custom_field_data_type")
+}
+
+model PatientCustomField {
+  id        String                     @id @default(cuid())
+  tenantId  String                     @map("tenant_id")
+  code      String
+  label     String
+  dataType  PatientCustomFieldDataType @map("data_type")
+  isActive  Boolean                    @default(true) @map("is_active")
+  createdAt DateTime                   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  options  PatientCustomFieldOption[]
+  values   PatientCustomFieldValue[]
+  settings PatientFieldSetting[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("patient_custom_fields")
+}
+
+model PatientCustomFieldOption {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  fieldId   String   @map("field_id")
+  label     String
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  field    PatientCustomField @relation(fields: [tenantId, fieldId], references: [tenantId, id], onDelete: Cascade)
+  values   PatientCustomFieldValue[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, fieldId])
+  @@map("patient_custom_field_options")
+}
+
+model PatientCustomFieldValue {
+  id         String    @id @default(cuid())
+  tenantId   String    @map("tenant_id")
+  patientId  String    @map("patient_id")
+  fieldId    String    @map("field_id")
+  valueText  String?   @map("value_text")
+  valueNumber Decimal? @map("value_number") @db.Decimal(18, 4)
+  valueDate  DateTime? @map("value_date") @db.Date
+  optionId   String?   @map("option_id")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patient  Patient                 @relation(fields: [tenantId, patientId], references: [tenantId, id], onDelete: Cascade)
+  field    PatientCustomField      @relation(fields: [tenantId, fieldId], references: [tenantId, id], onDelete: Cascade)
+  option   PatientCustomFieldOption? @relation(fields: [tenantId, optionId], references: [tenantId, id], onDelete: SetNull)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, patientId, fieldId])
+  @@index([tenantId])
+  @@map("patient_custom_field_values")
+}
+
+model PatientFieldSetting {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  catalogKey    String?  @map("catalog_key")
+  customFieldId String?  @map("custom_field_id")
+  isEnabled     Boolean  @map("is_enabled")
+  isRequired    Boolean  @map("is_required")
+  label         String?
+  sortOrder     Int      @default(0) @map("sort_order")
+  changedBy     String?  @map("changed_by")
+  changedAt     DateTime @default(now()) @map("changed_at") @db.Timestamptz(3)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital    Hospital             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  catalog     PatientFieldCatalog? @relation(fields: [catalogKey], references: [key], onDelete: Restrict)
+  customField PatientCustomField?  @relation(fields: [tenantId, customFieldId], references: [tenantId, id], onDelete: Cascade)
+  changer     User?                @relation("FieldSettingChangedBy", fields: [tenantId, changedBy], references: [tenantId, id], onDelete: SetNull)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, catalogKey])
+  @@unique([tenantId, customFieldId])
+  @@index([tenantId])
+  @@map("patient_field_settings")
+}
+
+enum UhidResetRule {
+  NEVER
+  FINANCIAL_YEAR
+
+  @@map("uhid_reset_rule")
+}
+
+enum UhidBlockType {
+  FIXED_TEXT
+  BRANCH_CODE
+  FINANCIAL_YEAR
+  CALENDAR_YEAR
+  SEPARATOR
+  RUNNING_NUMBER
+
+  @@map("uhid_block_type")
+}
+
+enum UhidFyStyle {
+  SHORT
+  LONG
+
+  @@map("uhid_fy_style")
+}
+
+model UhidFormatConfig {
+  id            String        @id @default(cuid())
+  tenantId      String        @map("tenant_id")
+  effectiveFrom DateTime      @map("effective_from") @db.Timestamptz(3)
+  resetRule     UhidResetRule @map("reset_rule")
+  fyStartMonth  Int           @default(4) @map("fy_start_month")
+  timezone      String        @default("Asia/Kolkata")
+  createdBy     String        @map("created_by")
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  hospital Hospital          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  creator  User              @relation("UhidConfigCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
+  blocks   UhidFormatBlock[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, effectiveFrom])
+  @@map("uhid_format_configs")
+}
+
+model UhidFormatBlock {
+  id         String        @id @default(cuid())
+  tenantId   String        @map("tenant_id")
+  configId   String        @map("config_id")
+  position   Int
+  blockType  UhidBlockType @map("block_type")
+  textValue  String?       @map("text_value")
+  fyStyle    UhidFyStyle?  @map("fy_style")
+  minWidth   Int?          @map("min_width")
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  hospital Hospital         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  config   UhidFormatConfig @relation(fields: [tenantId, configId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, configId, position])
+  @@index([tenantId, configId])
+  @@map("uhid_format_blocks")
+}
+
+model UhidCounter {
+  tenantId    String @map("tenant_id")
+  periodYear  Int    @map("period_year")
+  lastNumber  BigInt @map("last_number")
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, periodYear])
+  @@map("uhid_counters")
 }
