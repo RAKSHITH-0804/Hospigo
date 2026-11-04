@@ -197,7 +197,9 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        # npm audit reads only the lockfile; install scripts such as prisma generate
+        # need DATABASE_URL_OWNER and are not needed here.
+        run: npm ci --ignore-scripts
 
       - name: npm audit (report only)
         run: npm audit --audit-level=high

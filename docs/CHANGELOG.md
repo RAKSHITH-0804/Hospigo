@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-05 — Phase 1 — CI audit job uses npm ci --ignore-scripts
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** nothing
+- **Changed:** `audit` job install → `npm ci --ignore-scripts` (lockfile-only; skips prisma generate); `docs/ci.md` notes why
+- **Removed:** nothing
+- **Fixed:** nothing
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** none
+- **Tests:** lint + format:check only (Actions not run locally)
+- **Decisions:** audit does not need install scripts; `ci` job unchanged
+- **Follow-ups and open items:** none for this tweak
+
 ## 2026-11-04 — Phase 1 — CI (GitHub Actions) + PR template + Dependabot
 
 - **Commit hash(es):** (uncommitted)

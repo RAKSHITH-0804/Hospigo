@@ -9,7 +9,7 @@ Two jobs share the same triggers:
 | Job     | Purpose                                                                                                                                                                                                            | Blocking?                              |
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------- |
 | `ci`    | Install (`npm ci`), lint, Prettier check, build `@hospigo/api`, bootstrap Postgres roles/DBs with `scripts/db/create-roles.mjs`, run `npm test -w @hospigo/api` against service containers (Postgres 16 + Redis 7) | Yes                                    |
-| `audit` | `npm audit --audit-level=high`                                                                                                                                                                                     | No — report only (`continue-on-error`) |
+| `audit` | Installs with `npm ci --ignore-scripts` (audit only needs the lockfile; skips prisma generate which needs `DATABASE_URL_OWNER`), then `npm audit --audit-level=high`                                               | No — report only (`continue-on-error`) |
 
 Workflow file: `.github/workflows/ci.yml`. Permissions are `contents: read` only. No repository secrets are used; passwords for the ephemeral CI database are generated per run (or a fixed CI-only Postgres superuser password for the service container).
 
