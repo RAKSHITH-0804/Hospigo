@@ -1,4 +1,6 @@
 import 'reflect-metadata';
+import 'dotenv/config';
+import { config as loadEnv } from 'dotenv';
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'http';
 import { mkdtempSync } from 'fs';
@@ -8,19 +10,39 @@ import path from 'path';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 
+loadEnv({ path: path.resolve(process.cwd(), '../../.env') });
+loadEnv({ path: path.resolve(process.cwd(), '.env') });
+
 const storageRoot = mkdtempSync(path.join(os.tmpdir(), 'hospigo-api-e2e-'));
+
+function requireAppTestDatabaseUrl(): string {
+  const url = process.env.DATABASE_URL_TEST || process.env.DATABASE_URL;
+  if (!url) {
+    throw new Error('DATABASE_URL_TEST (or DATABASE_URL) is required for health e2e');
+  }
+  const dbName = new URL(url).pathname.replace(/^\//, '');
+  if (dbName !== 'hospigo_test') {
+    throw new Error(
+      `Refusing to run health e2e against database "${dbName}". Expected hospigo_test.`,
+    );
+  }
+  return url;
+}
+
+const appDatabaseUrl = requireAppTestDatabaseUrl();
 
 const defaults: Record<string, string> = {
   NODE_ENV: 'test',
   API_PORT: '3000',
-  DATABASE_URL: 'postgresql://hospigo:hospigo@127.0.0.1:5432/hospigo',
-  REDIS_URL: 'redis://127.0.0.1:6379',
+  // App role only — never fall back to DATABASE_URL_OWNER.
+  DATABASE_URL: appDatabaseUrl,
+  REDIS_URL: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
   STORAGE_ROOT_PATH: storageRoot,
-  SMTP_HOST: '127.0.0.1',
-  SMTP_PORT: '587',
-  SMTP_USER: 'hospigo',
-  SMTP_PASSWORD: 'change-me',
-  SMTP_FROM: 'noreply@hospigo.indigocomputers.in',
+  SMTP_HOST: process.env.SMTP_HOST || '127.0.0.1',
+  SMTP_PORT: process.env.SMTP_PORT || '587',
+  SMTP_USER: process.env.SMTP_USER || 'hospigo',
+  SMTP_PASSWORD: process.env.SMTP_PASSWORD || 'change-me',
+  SMTP_FROM: process.env.SMTP_FROM || 'noreply@hospigo.indigocomputers.in',
 };
 
 for (const [key, value] of Object.entries(defaults)) {
@@ -122,7 +144,7 @@ describe('Health endpoints', () => {
   });
 });
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+function isRecord(value: unknown): boolean {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
@@ -130,30 +152,34 @@ function readService(services: unknown, name: string): ServiceBody {
   if (!isRecord(services)) {
     throw new Error(`Missing services.${name}`);
   }
-  const value = services[name];
+  const value = (services as Record<string, unknown>)[name];
   if (!isRecord(value)) {
     throw new Error(`services.${name} is missing`);
   }
-  if (value['status'] !== 'up' && value['status'] !== 'down') {
+  const record = value as Record<string, unknown>;
+  if (record['status'] !== 'up' && record['status'] !== 'down') {
     throw new Error(`services.${name}.status must be up or down`);
   }
-  if (typeof value['responseTimeMs'] !== 'number') {
+  if (typeof record['responseTimeMs'] !== 'number') {
     throw new Error(`services.${name}.responseTimeMs must be a number`);
   }
-  if (typeof value['checkedAt'] !== 'string') {
+  if (typeof record['checkedAt'] !== 'string') {
     throw new Error(`services.${name}.checkedAt must be a string`);
   }
-  if (value['status'] === 'down' && (typeof value['error'] !== 'string' || value['error'] === '')) {
+  if (
+    record['status'] === 'down' &&
+    (typeof record['error'] !== 'string' || record['error'] === '')
+  ) {
     throw new Error(`services.${name} is down without an error`);
   }
 
   return {
-    status: value['status'],
-    responseTimeMs: value['responseTimeMs'],
-    checkedAt: value['checkedAt'],
-    ...(typeof value['error'] === 'string' ? { error: value['error'] } : {}),
-    ...(typeof value['clients'] === 'number' ? { clients: value['clients'] } : {}),
-    ...(typeof value['waiting'] === 'number' ? { waiting: value['waiting'] } : {}),
-    ...(typeof value['failed'] === 'number' ? { failed: value['failed'] } : {}),
+    status: record['status'] as string,
+    responseTimeMs: record['responseTimeMs'] as number,
+    checkedAt: record['checkedAt'] as string,
+    ...(typeof record['error'] === 'string' ? { error: record['error'] } : {}),
+    ...(typeof record['clients'] === 'number' ? { clients: record['clients'] } : {}),
+    ...(typeof record['waiting'] === 'number' ? { waiting: record['waiting'] } : {}),
+    ...(typeof record['failed'] === 'number' ? { failed: record['failed'] } : {}),
   };
 }

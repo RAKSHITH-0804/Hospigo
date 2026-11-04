@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { envFilePath, validateEnv } from './config/env';
+import { PrismaModule } from './database/prisma.module';
 import { HealthModule } from './modules/health/health.module';
 import { StorageModule } from './modules/storage/storage.module';
 
@@ -12,6 +13,7 @@ import { StorageModule } from './modules/storage/storage.module';
       envFilePath: envFilePath(),
       validate: validateEnv,
     }),
+    PrismaModule,
     StorageModule,
     HealthModule,
   ],
