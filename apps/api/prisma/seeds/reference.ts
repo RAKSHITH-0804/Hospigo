@@ -40,8 +40,102 @@ export async function seedReferenceData(prisma: PrismaClient): Promise<void> {
     });
   }
 
+  for (const item of PATIENT_FIELD_CATALOG) {
+    await prisma.patientFieldCatalog.upsert({
+      where: { key: item.key },
+      create: item,
+      update: {
+        defaultLabel: item.defaultLabel,
+        dataType: item.dataType,
+        canDisable: item.canDisable,
+        alwaysRequired: item.alwaysRequired,
+      },
+    });
+  }
+
   console.log('Reference catalog seeded.');
 }
+
+/** System patient fields — defaults only; hospitals override via patient_field_settings. */
+const PATIENT_FIELD_CATALOG = [
+  {
+    key: 'name',
+    defaultLabel: 'Full name',
+    dataType: 'TEXT',
+    canDisable: false,
+    alwaysRequired: true,
+  },
+  {
+    key: 'gender',
+    defaultLabel: 'Gender',
+    dataType: 'TEXT',
+    canDisable: true,
+    alwaysRequired: false,
+  },
+  {
+    key: 'date_of_birth',
+    defaultLabel: 'Date of birth',
+    dataType: 'DATE',
+    canDisable: true,
+    alwaysRequired: false,
+  },
+  {
+    key: 'phone',
+    defaultLabel: 'Phone',
+    dataType: 'TEXT',
+    canDisable: true,
+    alwaysRequired: false,
+  },
+  {
+    key: 'email',
+    defaultLabel: 'Email',
+    dataType: 'TEXT',
+    canDisable: true,
+    alwaysRequired: false,
+  },
+  {
+    key: 'address_street',
+    defaultLabel: 'Street',
+    dataType: 'TEXT',
+    canDisable: true,
+    alwaysRequired: false,
+  },
+  {
+    key: 'address_cross',
+    defaultLabel: 'Cross',
+    dataType: 'TEXT',
+    canDisable: true,
+    alwaysRequired: false,
+  },
+  {
+    key: 'address_area',
+    defaultLabel: 'Area',
+    dataType: 'TEXT',
+    canDisable: true,
+    alwaysRequired: false,
+  },
+  {
+    key: 'address_city',
+    defaultLabel: 'City',
+    dataType: 'TEXT',
+    canDisable: true,
+    alwaysRequired: false,
+  },
+  {
+    key: 'address_state',
+    defaultLabel: 'State',
+    dataType: 'TEXT',
+    canDisable: true,
+    alwaysRequired: false,
+  },
+  {
+    key: 'address_pincode',
+    defaultLabel: 'PIN code',
+    dataType: 'TEXT',
+    canDisable: true,
+    alwaysRequired: false,
+  },
+] as const;
 
 export const SYSTEM_ROLE_CODES = {
   SUPER_ADMIN: 'SUPER_ADMIN',

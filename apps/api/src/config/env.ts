@@ -13,6 +13,8 @@ export interface ApiEnv {
   SMTP_USER: string;
   SMTP_PASSWORD: string;
   SMTP_FROM: string;
+  /** Max page size for patient search (server-enforced). */
+  PATIENT_SEARCH_MAX_PAGE_SIZE: number;
 }
 
 export function envFilePath(): string[] {
@@ -40,6 +42,12 @@ export function validateEnv(config: Record<string, unknown>): ApiEnv {
   const smtpUser = requireText(config, 'SMTP_USER', errors);
   const smtpPassword = requireText(config, 'SMTP_PASSWORD', errors);
   const smtpFrom = requireText(config, 'SMTP_FROM', errors);
+  const patientSearchMaxPageSize = parseOptionalPortLike(
+    config['PATIENT_SEARCH_MAX_PAGE_SIZE'],
+    'PATIENT_SEARCH_MAX_PAGE_SIZE',
+    50,
+    errors,
+  );
 
   if (redisUrl !== '' && !/^rediss?:\/\//.test(redisUrl)) {
     errors.push('REDIS_URL must start with redis:// or rediss://');
@@ -61,6 +69,7 @@ export function validateEnv(config: Record<string, unknown>): ApiEnv {
     SMTP_USER: smtpUser,
     SMTP_PASSWORD: smtpPassword,
     SMTP_FROM: smtpFrom,
+    PATIENT_SEARCH_MAX_PAGE_SIZE: patientSearchMaxPageSize,
   };
 }
 
@@ -172,4 +181,26 @@ function parsePort(value: unknown, key: string, errors: string[]): number {
   }
   errors.push(`${key} must be an integer from 1 to 65535`);
   return 0;
+}
+
+function parseOptionalPortLike(
+  value: unknown,
+  key: string,
+  fallback: number,
+  errors: string[],
+): number {
+  if (value === undefined || value === '') {
+    return fallback;
+  }
+  if (typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 500) {
+    return value;
+  }
+  if (typeof value === 'string' && /^[0-9]+$/.test(value.trim())) {
+    const n = Number(value.trim());
+    if (n >= 1 && n <= 500) {
+      return n;
+    }
+  }
+  errors.push(`${key} must be an integer from 1 to 500`);
+  return fallback;
 }

@@ -159,9 +159,121 @@ export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
       await ensureHospitalRole(prisma, hospital.id, staff.id, superAdminRoleId);
       await ensureBranchRole(prisma, hospital.id, staff.id, branchAdminRoleId, otherBranchId);
     }
+
+    await seedDefaultFieldSettings(prisma, hospital.id, superAdmin.id);
+    await seedExampleUhidFormat(prisma, hospital.id, superAdmin.id, hospitalSeed.code);
   }
 
   console.log('Dev tenant seed complete.');
+}
+
+/**
+ * Default field settings for fake test hospitals only.
+ * Real new-hospital defaults come from Phase 2 onboarding — until then registration without a
+ * UHID format config refuses with a clear error.
+ */
+async function seedDefaultFieldSettings(
+  prisma: PrismaClient,
+  tenantId: string,
+  changedBy: string,
+): Promise<void> {
+  const catalog = await prisma.patientFieldCatalog.findMany();
+  let order = 0;
+  for (const field of catalog) {
+    await prisma.patientFieldSetting.upsert({
+      where: { tenantId_catalogKey: { tenantId, catalogKey: field.key } },
+      create: {
+        tenantId,
+        catalogKey: field.key,
+        isEnabled: true,
+        isRequired: field.alwaysRequired,
+        label: field.defaultLabel,
+        sortOrder: order++,
+        changedBy,
+      },
+      update: {
+        isEnabled: true,
+        isRequired: field.alwaysRequired,
+        label: field.defaultLabel,
+        changedBy,
+      },
+    });
+  }
+}
+
+/**
+ * Two EXAMPLE formats with FAKE codes (not real hospital formats):
+ * (a) DEMO_NORTH → fixed text + RUNNING_NUMBER min 4, reset NEVER (e.g. TESTA0001)
+ * (b) DEMO_SOUTH → FY SHORT + "/" + RUNNING_NUMBER min 5, reset FINANCIAL_YEAR (e.g. 2627/00001)
+ */
+async function seedExampleUhidFormat(
+  prisma: PrismaClient,
+  tenantId: string,
+  createdBy: string,
+  hospitalCode: string,
+): Promise<void> {
+  const existing = await prisma.uhidFormatConfig.findFirst({ where: { tenantId } });
+  if (existing) {
+    return;
+  }
+
+  if (hospitalCode === 'DEMO_NORTH') {
+    await prisma.uhidFormatConfig.create({
+      data: {
+        tenantId,
+        effectiveFrom: new Date('2000-01-01T00:00:00.000Z'),
+        resetRule: 'NEVER',
+        fyStartMonth: 4,
+        timezone: 'Asia/Kolkata',
+        createdBy,
+        blocks: {
+          create: [
+            {
+              position: 1,
+              blockType: 'FIXED_TEXT',
+              textValue: 'TESTA',
+            },
+            {
+              position: 2,
+              blockType: 'RUNNING_NUMBER',
+              minWidth: 4,
+            },
+          ],
+        },
+      },
+    });
+    return;
+  }
+
+  await prisma.uhidFormatConfig.create({
+    data: {
+      tenantId,
+      effectiveFrom: new Date('2000-01-01T00:00:00.000Z'),
+      resetRule: 'FINANCIAL_YEAR',
+      fyStartMonth: 4,
+      timezone: 'Asia/Kolkata',
+      createdBy,
+      blocks: {
+        create: [
+          {
+            position: 1,
+            blockType: 'FINANCIAL_YEAR',
+            fyStyle: 'SHORT',
+          },
+          {
+            position: 2,
+            blockType: 'SEPARATOR',
+            textValue: '/',
+          },
+          {
+            position: 3,
+            blockType: 'RUNNING_NUMBER',
+            minWidth: 5,
+          },
+        ],
+      },
+    },
+  });
 }
 
 function requiredEnv(key: string): string {
