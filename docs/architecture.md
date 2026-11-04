@@ -1,11 +1,36 @@
-# Hospigo architecture notes (Phase 1 / Steps 3a–3b-1)
+# Hospigo architecture notes (Phase 1 / Steps 3a–4)
 
 ## Tenancy
 
 - Each hospital row is a tenant. `hospitals.id` is the tenant id.
 - Tenant tables carry `tenant_id` and reference parents with composite keys `(tenant_id, id)` so a row cannot point at another hospital's records.
 - Session variable `app.tenant_id` scopes app-role queries. Missing/empty value fails closed (zero rows), never an error that leaks data.
-- Runtime services that set `app.tenant_id` must do so inside the same DB transaction as the queries that depend on it (connection pooling otherwise drops the setting).
+- **TenantDb is the only door** that sets `app.tenant_id` (LOCAL to a transaction via `set_config(..., true)`). Feature services must not call `set_config`, `$transaction`, or inject `PrismaService` for tenant work.
+
+## Request context (Step 4)
+
+- `AsyncLocalStorage` holder: `tenantId`, `userId`, `kind` (`HOSPITAL` | `HQ`), `activeBranchId`, `requestId`.
+- API: `runWithContext`, `getContext`, `requireContext`. No token parsing here — Step 6 fills the same interface.
+- Parallel async flows keep isolated stores (verified by test).
+
+## TenantDb (Step 4)
+
+- `TenantDb.withTenant(fn)` reads `tenantId` from request context; refuses if missing or `kind === 'HQ'`; opens a transaction; sets `app.tenant_id` LOCAL; passes the tx to `fn`.
+- `PrismaService` stays inside the database module (not exported). Seeds may use a raw owner client.
+- Safety-net Jest scan of `apps/api/src` (excluding `database/`, specs) fails on raw Prisma / `$transaction` / raw SQL / `set_config` unless allowlisted by exact path with a reason comment.
+
+## AccessService (Step 4)
+
+- `can(permissionCode, branchId, moduleCode?)` and `branchesFor(permissionCode, moduleCode?)`. Default **DENY**.
+- Required together: user exists + active; hospital active (`status === ACTIVE` and `isActive`); branch active; a role assignment grants the permission (`HOSPITAL` scope = all active branches of the hospital; `BRANCH` scope = listed assignment branches only); if `moduleCode` is given, that branch module must be `enabled_by_indigo` and not `restricted_by_hospital`.
+- Multi-branch staff get **each branch's own** permissions — never the union across branches. `activeBranchId` only **narrows**.
+- Snapshot is memoised on the **request context object only** (never process-global), loaded through TenantDb.
+- Schema notes: `user_branches` is membership; `role_assignments` + `role_assignment_branches` are authorization. A BRANCH-scoped assignment listing a branch with no `user_branches` row is possible at the FK level. Flags honoured: `users.is_active`, `hospitals.is_active` + `status`, `branches.is_active`, `roles.is_active`, `role_assignments.is_active`, `role_assignment_branches.is_active`, `role_permissions.is_active`, `permissions.is_active`, module/`branch_modules.is_active`. No separate “archived” flag — inactive branch = archived for access.
+
+## Test database rebuild (Step 4)
+
+- Jest `globalSetup` rebuilds `hospigo_test` before every suite: refuse unless both app and owner URLs name `hospigo_test`; `DROP SCHEMA public CASCADE` → recreate schema → re-apply create-roles schema USAGE/CREATE grants (CONNECT + default privileges survive) → `prisma migrate deploy` as owner → idempotent reference seed.
+- Startup check: tenant tables must be empty after rebuild (asserted in setup; sentinel file for tests). Grant audit re-checks schema privileges and policies.
 
 ## Database roles
 
@@ -73,7 +98,7 @@ HQ access under FORCE RLS uses policies `TO hospigo_hq` / `TO hospigo_security` 
 
 ## Auth note (Step 6)
 
-`lookup_hospital_id_by_access_code` returns only the hospital id for active codes (identical empty result for unknown/inactive). Rate limiting and uniform wrong-password responses are implemented in auth (Step 6), not here. Controllers/UI for patients are also Step 6+.
+`lookup_hospital_id_by_access_code` returns only the hospital id for active codes (identical empty result for unknown/inactive). Rate limiting and uniform wrong-password responses are implemented in auth (Step 6), not here. Controllers/UI for patients are also Step 6+. Step 6 will populate request context from tokens; AccessService and TenantDb already consume that interface.
 
 ## Ledger design rules (later — OPD billing step)
 

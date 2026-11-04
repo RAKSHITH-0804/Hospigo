@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-04 — Phase 1 Step 4 — Request context, TenantDb, AccessService, clean test DB
+
+- **Commit hash(es):** unverified (filled after commit)
+- **Added:** Jest globalSetup rebuild of `hospigo_test`; `RequestContext` ALS; `TenantDb` door; `AccessService`; safety-net scan; TenantDb / access / hospital-isolation leak tests
+- **Changed:** Patients, UHID, field settings, ImportBatchService use TenantDb only; `PrismaService` no longer exported from `PrismaModule`
+- **Removed:** manual `set_config` from feature services
+- **Fixed:** nothing
+- **Database (migrations, roles, RLS):** none (no schema change)
+- **New .env keys (names only):** none
+- **Tests:** 101 passing on `hospigo_test` (twice in a row from clean rebuild)
+- **Decisions:** schema-drop rebuild (not drop database) to preserve CONNECT hardening; AccessService does not require `user_branches` for BRANCH-scoped grants (schema allows assignment without membership)
+- **Follow-ups and open items:** Step 5–6 controllers/tokens; optional service path to fail APPROVED import batches; patient cross-branch visibility undecided
+
 ## 2026-11-04 — Phase 1 Step 3b-2 follow-up — Import tests + concurrency fixes
 
 - **Commit hash(es):** `108606b` (fix), `a9d777e` (test)
