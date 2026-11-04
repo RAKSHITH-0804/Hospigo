@@ -289,6 +289,108 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
       },
     });
     raceHospitalId = raceHospital.id;
+
+    // Samples for Step 3b-1 tenant tables (picked up by the full-table isolation loop).
+    const catalog = await prisma.patientFieldCatalog.upsert({
+      where: { key: 'name' },
+      create: {
+        key: 'name',
+        defaultLabel: 'Full name',
+        dataType: 'TEXT',
+        canDisable: false,
+        alwaysRequired: true,
+      },
+      update: {},
+    });
+    const fieldSetting = await prisma.patientFieldSetting.create({
+      data: {
+        tenantId: tenantB,
+        catalogKey: catalog.key,
+        isEnabled: true,
+        isRequired: true,
+        label: catalog.defaultLabel,
+        sortOrder: 0,
+      },
+    });
+    sampleB.patient_field_settings = fieldSetting.id;
+
+    const customField = await prisma.patientCustomField.create({
+      data: {
+        tenantId: tenantB,
+        code: `cf_${stamp}`,
+        label: 'Custom',
+        dataType: 'TEXT',
+      },
+    });
+    sampleB.patient_custom_fields = customField.id;
+
+    const option = await prisma.patientCustomFieldOption.create({
+      data: {
+        tenantId: tenantB,
+        fieldId: customField.id,
+        label: 'Opt',
+        sortOrder: 1,
+      },
+    });
+    sampleB.patient_custom_field_options = option.id;
+
+    const patient = await prisma.patient.create({
+      data: {
+        tenantId: tenantB,
+        uhid: `ISOUHID${stamp}`,
+        registeredBranchId: branchB,
+        name: 'Isolation Patient',
+        createdBy: sampleB.users,
+      },
+    });
+    sampleB.patients = patient.id;
+
+    const cfv = await prisma.patientCustomFieldValue.create({
+      data: {
+        tenantId: tenantB,
+        patientId: patient.id,
+        fieldId: customField.id,
+        valueText: 'x',
+      },
+    });
+    sampleB.patient_custom_field_values = cfv.id;
+
+    const ident = await prisma.patientIdentifier.create({
+      data: {
+        tenantId: tenantB,
+        patientId: patient.id,
+        identifierType: 'TEST',
+        valueEncrypted: Buffer.from('x'),
+        valueHash: `hash_${stamp}`,
+        last4: '0000',
+      },
+    });
+    sampleB.patient_identifiers = ident.id;
+
+    const uhidCfg = await prisma.uhidFormatConfig.create({
+      data: {
+        tenantId: tenantB,
+        effectiveFrom: new Date('2000-01-01T00:00:00.000Z'),
+        resetRule: 'NEVER',
+        fyStartMonth: 4,
+        timezone: 'Asia/Kolkata',
+        createdBy: sampleB.users,
+        blocks: {
+          create: [
+            { position: 1, blockType: 'FIXED_TEXT', textValue: 'X' },
+            { position: 2, blockType: 'RUNNING_NUMBER', minWidth: 3 },
+          ],
+        },
+      },
+      include: { blocks: true },
+    });
+    sampleB.uhid_format_configs = uhidCfg.id;
+    sampleB.uhid_format_blocks = uhidCfg.blocks[0]!.id;
+
+    await prisma.uhidCounter.create({
+      data: { tenantId: tenantB, periodYear: 0, lastNumber: 0n },
+    });
+    sampleB.uhid_counters = 'composite';
   });
 
   afterAll(async () => {
@@ -357,22 +459,25 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
       await owner.end();
 
       for (const table of tables) {
-        const sampleId = sampleB[table];
-        expect(sampleId).toBeDefined();
+        expect(sampleB[table]).toBeDefined();
 
         const hasTenantId = await tableHasColumn(client, table, 'tenant_id');
+        const hasId = await tableHasColumn(client, table, 'id');
         const bFilter = hasTenantId
           ? `tenant_id = '${tenantB.replace(/'/g, "''")}'`
           : `id = '${tenantB.replace(/'/g, "''")}'`;
+        const selectList = hasId ? 'id' : 'tenant_id';
 
         const asA = await withTenant(client, tenantA, async () => {
-          const r = await client.query(`SELECT id FROM ${quoteIdent(table)} WHERE ${bFilter}`);
+          const r = await client.query(
+            `SELECT ${selectList} FROM ${quoteIdent(table)} WHERE ${bFilter}`,
+          );
           return r.rowCount ?? 0;
         });
         expect({ table, asA }).toEqual({ table, asA: 0 });
 
         const unset = await withTenant(client, null, async () => {
-          const r = await client.query(`SELECT id FROM ${quoteIdent(table)}`);
+          const r = await client.query(`SELECT ${selectList} FROM ${quoteIdent(table)}`);
           return r.rowCount ?? 0;
         });
         expect({ table, unset }).toEqual({ table, unset: 0 });
@@ -394,6 +499,7 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
       for (const table of tables) {
         const sampleId = sampleB[table];
         expect(sampleId).toBeDefined();
+        const hasId = await tableHasColumn(client, table, 'id');
 
         const canUpdate = await client.query<{ ok: boolean }>(
           `SELECT has_table_privilege('hospigo_app', $1, 'UPDATE') AS ok`,
@@ -406,32 +512,55 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
 
         await withTenant(client, tenantA, async () => {
           if (canUpdate.rows[0]?.ok) {
-            const hasIsActive = await tableHasColumn(client, table, 'is_active');
-            const upd = hasIsActive
-              ? await client.query(
-                  `UPDATE ${quoteIdent(table)} SET is_active = is_active WHERE id = $1 RETURNING id`,
-                  [sampleId],
-                )
-              : await client.query(
-                  `UPDATE ${quoteIdent(table)} SET name = name WHERE id = $1 RETURNING id`,
-                  [sampleId],
-                );
+            let upd;
+            if (!hasId && table === 'uhid_counters') {
+              upd = await client.query(
+                `UPDATE uhid_counters SET last_number = last_number
+                 WHERE tenant_id = $1 AND period_year = 0 RETURNING tenant_id`,
+                [tenantB],
+              );
+            } else {
+              const hasIsActive = await tableHasColumn(client, table, 'is_active');
+              upd = hasIsActive
+                ? await client.query(
+                    `UPDATE ${quoteIdent(table)} SET is_active = is_active WHERE id = $1 RETURNING id`,
+                    [sampleId],
+                  )
+                : await client.query(
+                    `UPDATE ${quoteIdent(table)} SET tenant_id = tenant_id WHERE id = $1 RETURNING id`,
+                    [sampleId],
+                  );
+            }
             expect({ table, updated: upd.rowCount }).toEqual({ table, updated: 0 });
           } else {
             await expect(
-              client.query(`UPDATE ${quoteIdent(table)} SET id = id WHERE id = $1`, [sampleId]),
+              hasId
+                ? client.query(`UPDATE ${quoteIdent(table)} SET id = id WHERE id = $1`, [sampleId])
+                : client.query(
+                    `UPDATE uhid_counters SET last_number = last_number WHERE tenant_id = $1`,
+                    [tenantB],
+                  ),
             ).rejects.toThrow();
           }
 
           if (canDelete.rows[0]?.ok) {
-            const del = await client.query(
-              `DELETE FROM ${quoteIdent(table)} WHERE id = $1 RETURNING id`,
-              [sampleId],
-            );
+            const del = hasId
+              ? await client.query(`DELETE FROM ${quoteIdent(table)} WHERE id = $1 RETURNING id`, [
+                  sampleId,
+                ])
+              : await client.query(
+                  `DELETE FROM uhid_counters WHERE tenant_id = $1 AND period_year = 0 RETURNING tenant_id`,
+                  [tenantB],
+                );
             expect({ table, deleted: del.rowCount }).toEqual({ table, deleted: 0 });
           } else {
             await expect(
-              client.query(`DELETE FROM ${quoteIdent(table)} WHERE id = $1`, [sampleId]),
+              hasId
+                ? client.query(`DELETE FROM ${quoteIdent(table)} WHERE id = $1`, [sampleId])
+                : client.query(
+                    `DELETE FROM uhid_counters WHERE tenant_id = $1 AND period_year = 0`,
+                    [tenantB],
+                  ),
             ).rejects.toThrow();
           }
         });

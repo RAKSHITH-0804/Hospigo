@@ -43,6 +43,7 @@ const defaults: Record<string, string> = {
   SMTP_USER: process.env.SMTP_USER || 'hospigo',
   SMTP_PASSWORD: process.env.SMTP_PASSWORD || 'change-me',
   SMTP_FROM: process.env.SMTP_FROM || 'noreply@hospigo.indigocomputers.in',
+  PATIENT_SEARCH_MAX_PAGE_SIZE: process.env.PATIENT_SEARCH_MAX_PAGE_SIZE || '50',
 };
 
 for (const [key, value] of Object.entries(defaults)) {

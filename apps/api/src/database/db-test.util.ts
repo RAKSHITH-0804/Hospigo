@@ -8,6 +8,8 @@ export const GLOBAL_TABLES = new Set([
   'hq_users',
   // Prisma's own table, holds no tenant data.
   '_prisma_migrations',
+  // Global system field catalog (exact name).
+  'patient_field_catalog',
 ]);
 
 export function requireTestDatabaseUrl(): string {
