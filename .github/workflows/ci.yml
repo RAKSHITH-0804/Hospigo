@@ -180,6 +180,30 @@ jobs:
       - name: Test API
         run: npm test -w @hospigo/api
 
+      - name: Start compiled API and check /health
+        run: |
+          set -euo pipefail
+          log_file="${RUNNER_TEMP}/api-start.log"
+          node apps/api/dist/main.js >"${log_file}" 2>&1 &
+          api_pid=$!
+          healthy=0
+          for _ in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:${API_PORT}/health" | grep -qx '{"status":"ok"}'; then
+              healthy=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "${healthy}" -ne 1 ]; then
+            echo "Compiled API did not return a healthy response within 30 seconds."
+            tail -n 200 "${log_file}" || true
+            kill "${api_pid}" >/dev/null 2>&1 || true
+            wait "${api_pid}" || true
+            exit 1
+          fi
+          kill "${api_pid}" >/dev/null 2>&1 || true
+          wait "${api_pid}" || true
+
   audit:
     runs-on: ubuntu-latest
     timeout-minutes: 20

@@ -172,7 +172,7 @@ With the API running (default port from `API_PORT`):
 
 ## CI
 
-GitHub Actions runs lint, format check, API build, DB role bootstrap, and API tests on pushes to `develop` / `feature/**` and on PRs into `develop` / `main`. An `audit` job reports `npm audit` findings without blocking. Details: [docs/ci.md](docs/ci.md).
+GitHub Actions runs lint, format check, API build, DB role bootstrap, API tests, and a compiled-API `/health` check on pushes to `develop` / `feature/**` and on PRs into `develop` / `main`. An `audit` job reports `npm audit` findings without blocking. Details: [docs/ci.md](docs/ci.md).
 
 ## Docs index
 

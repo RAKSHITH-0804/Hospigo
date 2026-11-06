@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-06 — Phase 1 — CI starts the compiled API and checks /health
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** CI step that starts `node apps/api/dist/main.js`, waits up to 30 seconds for `GET /health` to return `{"status":"ok"}`, then stops the process
+- **Changed:** README and `docs/ci.md` describe that check
+- **Removed:** nothing
+- **Fixed:** nothing
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** none
+- **Tests:** local start of the compiled API against the developer `.env`, then `/health`, then the process was stopped
+- **Decisions:** no new service container; Redis is already provided and is not contacted by the liveness route
+- **Follow-ups and open items:** this branch's workflow has no web build or web test steps, so the new step is the last step in the `ci` job
+
 ## 2026-11-05 — Phase 1 — CI audit job uses npm ci --ignore-scripts
 
 - **Commit hash(es):** (uncommitted)
