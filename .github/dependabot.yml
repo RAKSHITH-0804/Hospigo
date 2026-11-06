@@ -20,15 +20,15 @@ updates:
         patterns:
           - 'prisma'
           - '@prisma/*'
+      npm-minor-patch:
+        patterns:
+          - '*'
+        update-types:
+          - 'minor'
+          - 'patch'
     # Majors are upgraded manually as planned work.
     ignore:
-      - dependency-name: '@nestjs/*'
-        update-types:
-          - 'version-update:semver-major'
-      - dependency-name: 'prisma'
-        update-types:
-          - 'version-update:semver-major'
-      - dependency-name: '@prisma/*'
+      - dependency-name: '*'
         update-types:
           - 'version-update:semver-major'
 
