@@ -7,8 +7,8 @@ export function EmptyState({
 }) {
   return (
     <div>
-      <p className="text-sm font-medium">{title}</p>
-      {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+      <p className="type-label font-medium">{title}</p>
+      {description ? <p className="type-label text-muted-foreground">{description}</p> : null}
     </div>
   );
 }

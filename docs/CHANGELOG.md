@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-11 — Phase 1 Step 5b — four concept screens with fake data
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** concept screens on `/login`, `/admin` (Hospitals), `/app/opd` (OPD queue), `/book/[code]`; Coming later stubs for other HQ and hospital nav items; `apps/web/src/mock` fake data; async mock loader + loading/empty/error states; `docs/ui-concepts.md`; fluid theme tokens (type, spacing, controls, containers) plus login/surface/status colour tokens
+- **Changed:** HQ and hospital sidebars use Step 5b nav; staff/booking shells take brand colour from mock hospital config; folder guide lists mock and ui-concepts paths; login phone layout (slim brand bar, no scroll goal) and full-height split from layout breakpoint (~700px); booking full-viewport fluid card with two columns from the same breakpoint; sidebar current-page highlight and desktop page-context top bar; HQ hospitals stacked cards under table breakpoint; auto-fit stat grids; branch label Main Branch (sample); primary colour teal for concept screens; booking/page wrappers use min-height only with document scroll and top-aligned sections
+- **Removed:** admin page dependency on the live `/health` Storage status card for this concept step; duplicate Sample data badge on the login brand panel; fixed-device Tailwind size classes from concept screens in favour of theme utility classes; patient-visible access code on `/book/[code]`
+- **Fixed:** UI revision rounds 2–4 (contrast, Send OTP gating, fluid layout, clipped non-scrolling pages, stretch gaps between booking sections)
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** none
+- **Tests:** Jest render tests for login (one sample badge), hospitals (card+table markup, current nav), OPD queue (three status chip variants, current nav, branch label), booking (no access code, Send OTP disabled until filled, load states); theme hardcode scan; scroll-lock scan (min-height only on page wrappers); shell smoke tests updated
+- **Decisions:** PDF is image-based so text description follows the Step 5b prompt plus listed corrections; Platform health remains Coming later while System health card on Hospitals uses Storage wording; concept look is sample-only and driven by CSS variables; layout breakpoint literals documented once beside `@theme` tokens because media queries cannot read variables; `overflow-x: clip` on shell/html instead of `hidden` so document scroll is not trapped; no API calls
+- **Follow-ups and open items:** Step 6 real auth; replace mock folder with APIs; wire Onboard hospital, Call next patient, Send OTP
+
 ## 2026-11-06 — Phase 1 — CI starts the compiled API and checks /health
 
 - **Commit hash(es):** (uncommitted)

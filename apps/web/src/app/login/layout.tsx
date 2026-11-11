@@ -1,9 +1,5 @@
 import type { ReactNode } from 'react';
 
 export default function LoginLayout({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-6">
-      {children}
-    </div>
-  );
+  return <div className="viewport-fill bg-background">{children}</div>;
 }
