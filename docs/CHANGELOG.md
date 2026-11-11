@@ -40,7 +40,33 @@
 - **New .env keys (names only):** none
 - **Tests:** local start of the compiled API against the developer `.env`, then `/health`, then the process was stopped
 - **Decisions:** no new service container; Redis is already provided and is not contacted by the liveness route
-- **Follow-ups and open items:** this branch's workflow has no web build or web test steps, so the new step is the last step in the `ci` job
+- **Follow-ups and open items:** the compiled-API check runs after the API tests and before the web build and web test steps
+
+## 2026-11-06 — Phase 1 Step 5a fix — cn helper and web CI
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** direct `clsx` and `tailwind-merge` dependencies for the web `cn` helper
+- **Changed:** CI `ci` job builds and tests `@hospigo/web` after the API tests
+- **Removed:** direct `cn` npm dependency from `@hospigo/web`
+- **Fixed:** `apps/web/src/lib/utils.ts` now merges class names with `clsx` and `tailwind-merge` instead of the `cn` package
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** none
+- **Tests:** web smoke tests and API suite re-run locally; `tsc --noEmit` and web build
+- **Decisions:** `shadcn` stays in dependencies because `globals.css` imports `shadcn/tailwind.css`
+- **Follow-ups and open items:** `shadcn` still depends on its own `cn` package; production audit findings from `shadcn` and existing Nest `multer` were not auto-fixed
+
+## 2026-11-06 — Phase 1 Step 5a — web shell
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** Next.js App Router shell in `apps/web` (login, Indigo HQ, hospital staff, public booking); shared loading, empty, and error states; API client; auth-guard stub; mock navigation; web smoke tests; optional API `CORS_ORIGIN`; root `.nvmrc` and `engines`
+- **Changed:** `apps/web` is no longer a placeholder; README setup notes for the web app and `CORS_ORIGIN`
+- **Removed:** nothing
+- **Fixed:** nothing
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** `CORS_ORIGIN` (API, optional), `NEXT_PUBLIC_API_URL` (web)
+- **Tests:** API CORS origin test; web Jest smoke tests for each route page and layout plus the three state components
+- **Decisions:** Next.js 16.4.5 (supports Node 22.14); no Hospigo UI concepts file, so a neutral shadcn style; Jest for web tests because it is already the API runner; did not add `eslint-config-next` because it requires ESLint 9 and the repo stays on ESLint 8
+- **Follow-ups and open items:** Step 6 replaces the auth-guard stub; remove `src/mock` when navigation comes from the API
 
 ## 2026-11-05 — Phase 1 — CI audit job uses npm ci --ignore-scripts
 

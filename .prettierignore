@@ -3,3 +3,5 @@ dist
 coverage
 apps/api/src/generated
 package-lock.json
+.next
+apps/web/next-env.d.ts

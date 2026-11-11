@@ -204,6 +204,12 @@ jobs:
           kill "${api_pid}" >/dev/null 2>&1 || true
           wait "${api_pid}" || true
 
+      - name: Build web
+        run: npm run build -w @hospigo/web
+
+      - name: Test web
+        run: npm test -w @hospigo/web
+
   audit:
     runs-on: ubuntu-latest
     timeout-minutes: 20

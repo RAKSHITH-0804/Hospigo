@@ -18,11 +18,13 @@
     ".husky/",
     "apps/api/src/generated/",
     "apps/api/jest.config.js",
-    "apps/api/jest.global-setup.cjs"
+    "apps/api/jest.global-setup.cjs",
+    ".next/",
+    "apps/web/next-env.d.ts"
   ],
   "overrides": [
     {
-      "files": ["**/*.spec.ts"],
+      "files": ["**/*.spec.ts", "**/*.spec.tsx"],
       "env": {
         "jest": true
       }
