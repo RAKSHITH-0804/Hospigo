@@ -15,6 +15,8 @@ export interface ApiEnv {
   SMTP_FROM: string;
   /** Max page size for patient search (server-enforced). */
   PATIENT_SEARCH_MAX_PAGE_SIZE: number;
+  /** Comma-separated browser origins. Unset means CORS stays off. */
+  CORS_ORIGIN: string | undefined;
 }
 
 export function envFilePath(): string[] {
@@ -48,6 +50,7 @@ export function validateEnv(config: Record<string, unknown>): ApiEnv {
     50,
     errors,
   );
+  const corsOrigin = optionalText(config, 'CORS_ORIGIN', errors);
 
   if (redisUrl !== '' && !/^rediss?:\/\//.test(redisUrl)) {
     errors.push('REDIS_URL must start with redis:// or rediss://');
@@ -70,6 +73,7 @@ export function validateEnv(config: Record<string, unknown>): ApiEnv {
     SMTP_PASSWORD: smtpPassword,
     SMTP_FROM: smtpFrom,
     PATIENT_SEARCH_MAX_PAGE_SIZE: patientSearchMaxPageSize,
+    CORS_ORIGIN: corsOrigin,
   };
 }
 
@@ -158,6 +162,23 @@ function parseNodeEnv(value: unknown, errors: string[]): ApiEnv['NODE_ENV'] {
   }
   errors.push('NODE_ENV must be development, production, or test');
   return 'development';
+}
+
+function optionalText(
+  config: Record<string, unknown>,
+  key: string,
+  errors: string[],
+): string | undefined {
+  const value = config[key];
+  if (value === undefined || value === '') {
+    return undefined;
+  }
+  if (typeof value !== 'string') {
+    errors.push(`${key} must be a string`);
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed === '' ? undefined : trimmed;
 }
 
 function requireText(config: Record<string, unknown>, key: string, errors: string[]): string {
