@@ -38,8 +38,8 @@ Dependency audit noise and transitive advisories should not block delivery while
 
 ## How the test database is created in CI
 
-1. The `ci` job starts Postgres 16 and Redis 7 as **service containers** (no Docker CLI in the workflow).
-2. A step generates per-run role passwords and JWT access secrets (hex), masks them in the log, writes them to `GITHUB_ENV` and a runner-local `.env` (`JWT_HOSPITAL_ACCESS_SECRET`, `JWT_HQ_ACCESS_SECRET`), and points `DATABASE_URL_TEST` / `DATABASE_URL_OWNER_TEST` at database `hospigo_test` on `127.0.0.1`.
+1. The `ci` job starts Postgres 16 and Redis 7 as **service containers** (no Docker CLI in the workflow). Redis is required for auth rate-limit/lockout tests (Step 6a-2); CI sets `REDIS_URL=redis://127.0.0.1:6379`.
+2. A step generates per-run role passwords and JWT access secrets (hex), masks them in the log, writes them to `GITHUB_ENV` and a runner-local `.env` (`JWT_HOSPITAL_ACCESS_SECRET`, `JWT_HQ_ACCESS_SECRET`, `REDIS_URL`), and points `DATABASE_URL_TEST` / `DATABASE_URL_OWNER_TEST` at database `hospigo_test` on `127.0.0.1`.
 3. `node scripts/db/create-roles.mjs` connects as the ephemeral Postgres superuser and creates roles (`hospigo_owner`, `hospigo_app`, `hospigo_hq`, …) plus databases `hospigo` and `hospigo_test`.
 4. `npm test -w @hospigo/api` runs; Jest `globalSetup` rebuilds `hospigo_test` (guards require both app and owner test URLs to name `hospigo_test` and be local), applies migrations, and seeds reference data before the suite.
 

@@ -121,10 +121,13 @@ export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
       }
     }
 
+    // Domains use hyphens (not underscores) so class-validator @IsEmail accepts them.
+    const emailDomain = `${hospitalSeed.code.toLowerCase().replace(/_/g, '-')}.example.test`;
+
     const superAdmin = await upsertUser(prisma, {
       tenantId: hospital.id,
       code: 'SA001',
-      email: `superadmin@${hospitalSeed.code.toLowerCase()}.example.test`,
+      email: `superadmin@${emailDomain}`,
       displayName: 'Seed SuperAdmin',
       password: superPassword,
     });
@@ -134,7 +137,7 @@ export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
     const branchAdmin = await upsertUser(prisma, {
       tenantId: hospital.id,
       code: 'BA001',
-      email: `branchadmin@${hospitalSeed.code.toLowerCase()}.example.test`,
+      email: `branchadmin@${emailDomain}`,
       displayName: 'Seed Branch Admin',
       password: branchPassword,
     });
@@ -144,7 +147,7 @@ export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
     const staff = await upsertUser(prisma, {
       tenantId: hospital.id,
       code: 'ST001',
-      email: `staff@${hospitalSeed.code.toLowerCase()}.example.test`,
+      email: `staff@${emailDomain}`,
       displayName: 'Seed Staff Dual',
       password: staffPassword,
     });
@@ -161,6 +164,18 @@ export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
       await ensureHospitalRole(prisma, hospital.id, staff.id, superAdminRoleId);
       await ensureBranchRole(prisma, hospital.id, staff.id, branchAdminRoleId, otherBranchId);
     }
+
+    // Dev-only user to exercise forced password change (must_change_password=true).
+    const mustChange = await upsertUser(prisma, {
+      tenantId: hospital.id,
+      code: 'MC001',
+      email: `mustchange@${emailDomain}`,
+      displayName: 'Seed Must Change',
+      password: staffPassword,
+      mustChangePassword: true,
+    });
+    await ensureMembership(prisma, hospital.id, mustChange.id, branchIds.MAIN!);
+    await ensureBranchRole(prisma, hospital.id, mustChange.id, branchAdminRoleId, branchIds.MAIN!);
 
     await seedDefaultFieldSettings(prisma, hospital.id, superAdmin.id);
     await seedExampleUhidFormat(prisma, hospital.id, superAdmin.id, hospitalSeed.code);
@@ -294,8 +309,11 @@ async function upsertUser(
     email: string;
     displayName: string;
     password: string;
+    /** Default false for demo users; set true for forced-change path testing. */
+    mustChangePassword?: boolean;
   },
 ) {
+  const mustChangePassword = input.mustChangePassword === true;
   const passwordHash = await argon2.hash(input.password);
   return prisma.user.upsert({
     where: { tenantId_code: { tenantId: input.tenantId, code: input.code } },
@@ -305,17 +323,16 @@ async function upsertUser(
       email: input.email,
       displayName: input.displayName,
       passwordHash,
-      // Dev seed only: skip forced password change so local demos work immediately.
-      mustChangePassword: false,
-      passwordChangedAt: new Date(),
+      mustChangePassword,
+      passwordChangedAt: mustChangePassword ? null : new Date(),
     },
     update: {
       email: input.email,
       displayName: input.displayName,
       passwordHash,
       isActive: true,
-      mustChangePassword: false,
-      passwordChangedAt: new Date(),
+      mustChangePassword,
+      passwordChangedAt: mustChangePassword ? null : new Date(),
     },
   });
 }

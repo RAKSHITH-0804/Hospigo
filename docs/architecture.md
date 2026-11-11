@@ -109,10 +109,21 @@ HQ access under FORCE RLS uses policies `TO hospigo_hq` / `TO hospigo_security` 
 - **Refresh token format:** hospital `h.<tenantId>.<sessionId>.<secret>` (tenant id lets the server set RLS context before looking up the session); HQ `q.<sessionId>.<secret>`.
 - **Config:** single file `apps/api/src/modules/auth/auth.config.ts` — password/lockout/rate/token/link lifetimes with env overrides. JWT secrets: `JWT_HOSPITAL_ACCESS_SECRET` and `JWT_HQ_ACCESS_SECRET` (required, ≥32 chars, must differ).
 - **Token types:** `HOSPITAL`, `HQ`, `CHANGE_PASSWORD_HOSPITAL`, `CHANGE_PASSWORD_HQ`. Separate signing keys for hospital vs HQ. Hospital access claims include `tenantId`, `userId`, `branchId` (the branch whose code was used). Access JWTs pin **HS256** on sign and verify; refresh secret checks use constant-time `timingSafeEqual` (`PasswordService.verifyRefreshSecret`).
-- **AuthGuard + `@Public()` + `@TokenKinds(...)`:** per-controller (not global yet). Verifies Bearer token, enforces allowed types, sets request context. HQ tokens refused on hospital routes and the reverse. `CHANGE_PASSWORD_*` accepted only where listed.
+- **AuthGuard + `@Public()` + `@TokenKinds(...)`:** registered **globally** (`APP_GUARD`) in Step 6a-2 — deny by default. Verifies Bearer token, enforces allowed types, sets request context. HQ tokens refused on hospital routes and the reverse. `CHANGE_PASSWORD_*` accepted only where listed. Non-HTTP contexts (Socket.IO) are skipped.
 - **HQ DB:** `HqPrismaService` uses `DATABASE_URL_HQ` (`hospigo_hq`). Provided only inside `AuthModule` — other modules must not import it.
-- **Login helper (no HTTP endpoint yet):** access code → branch → tenant, then user lookup under `runWithContext`; membership requires active `user_branches` for that branch. All failure modes return the same internal `AUTH_FAILED` result (6a-2 maps to one client error).
-- Login/refresh/logout HTTP endpoints, email, OTP, and patient login are **out of scope** for 6a-1.
+- **Login helper:** access code → branch → tenant, then user lookup under `runWithContext`; membership requires active `user_branches` for that branch. All failure modes return the same internal `AUTH_FAILED` result.
+
+## Auth endpoints (Step 6a-2)
+
+- **HTTP:** `POST /auth/hospital/login`, `POST /auth/hq/login`, `POST /auth/refresh`, `POST /auth/logout`, `POST /auth/change-password`, `GET /auth/me`. See `docs/api-auth.md`.
+- **Public routes:** hospital/hq login, refresh, logout (refresh body), health. Swagger at `/docs` only when `NODE_ENV !== 'production'`.
+- **Generic 401:** unknown access code, inactive branch/hospital, unknown email, wrong password, disabled user, missing membership, and account lockout share one status and body. Dummy argon2 verify runs on paths that never check a real hash (timing).
+- **Lockout / rate limit:** Redis (`AuthRedisService`, key prefix `hospigo:auth:`). IP limit and per-account lockout (hashed code+email keys); change-password uses a separate `cpw:` sub-prefix keyed by user id. **Fail closed:** if Redis is unreachable, login, refresh, and change-password return 503 — never allowed through. Lockout responses stay generic 401.
+- **Refresh:** rotate every use; reuse of a revoked/replaced token revokes the whole family and audits `AUTH_REFRESH_REUSE`. Refresh re-checks user/branch/hospital/membership; failure revokes the family.
+- **Forced change:** login with `must_change_password` returns only a `CHANGE_PASSWORD_*` access token (no refresh). Accepted on change-password only; other routes refuse it.
+- **Logout design:** `@Public` + `refreshToken` in body (idempotent). Safer than requiring a live access Bearer — an expired access token can still end the session when the refresh secret is presented.
+- **Audits (tenant known):** `AUTH_LOGIN_SUCCESS`, `AUTH_PASSWORD_CHANGE`, `AUTH_REFRESH_REUSE`, `AUTH_LOCKOUT` → `audit_logs` (no passwords/tokens/raw emails). HQ events and unknown-tenant failures → Nest Logger only (`audit_logs.tenant_id` is required; HQ has no tenant row).
+- Email, OTP, and patient login remain out of scope.
 
 ## Ledger design rules (later — OPD billing step)
 

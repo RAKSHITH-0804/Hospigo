@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-11 — Phase 1 Step 6a-2 — auth endpoints
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** `AuthController` / `AuthService` / DTOs; `AuthRedisService` (IP rate limit + account lockout, fail-closed); global `APP_GUARD` AuthGuard; helmet; `docs/api-auth.md`; HTTP endpoint tests (login failures, lockout, rate limit, refresh reuse, forced change, guard, validation, audits)
+- **Changed:** `AuthGuard` is global (deny by default); `@Public` on health + login/refresh/logout; ValidationPipe whitelist/forbidNonWhitelisted/transform; body size + trust-proxy from `auth.config.ts`; Swagger mounted only when `NODE_ENV !== 'production'`; dev seed adds one `must_change_password=true` user (`MC001`); architecture / folder-guide / ci docs
+- **Removed:** none
+- **Fixed:** change-password brute-force lockout (separate Redis `cpw:` keys); seed emails use hyphenated domains so `@IsEmail` accepts them; refresh/session coverage expanded
+- **Database (migrations, roles, RLS):** none (reuses `auth_sessions` / `hq_auth_sessions` / `audit_logs`)
+- **New .env keys (names only):** `AUTH_CHANGE_PASSWORD_TOKEN_TTL_SEC`, `AUTH_REQUEST_BODY_LIMIT_BYTES`, `AUTH_TRUSTED_PROXY`, `AUTH_IP_RATE_LIMIT_WINDOW_MS` (plus existing optional `AUTH_*` from 6a-1)
+- **Tests:** auth endpoint suite + Redis fail-closed unit tests; keep prior suite green (was 135 before this step)
+- **Decisions:** logout is `@Public` + refreshToken body (idempotent); Redis down → 503 on login/refresh; HQ events stay in Nest Logger (`audit_logs` requires `tenant_id`); CI Redis service already present from 6a-1 (`REDIS_URL=redis://127.0.0.1:6379`)
+- **Follow-ups and open items:** email/OTP/patient login (6b/6c); WebSocket auth (gateway is currently unauthenticated); restrict `/health/details`
+
 ## 2026-11-11 — Phase 1 Step 6a-1 — auth foundation (no endpoints)
 
 - **Commit hash(es):** (uncommitted)

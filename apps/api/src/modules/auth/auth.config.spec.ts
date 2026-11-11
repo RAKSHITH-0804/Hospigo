@@ -15,10 +15,14 @@ describe('auth config', () => {
     expect(cfg.loginFailureWindowMs).toBe(15 * 60 * 1000);
     expect(cfg.loginLockoutMs).toBe(15 * 60 * 1000);
     expect(cfg.ipRateLimitPerMinute).toBe(20);
+    expect(cfg.ipRateLimitWindowMs).toBe(60 * 1000);
     expect(cfg.accessTokenTtlSec).toBe(15 * 60);
     expect(cfg.refreshTokenTtlSec).toBe(7 * 24 * 60 * 60);
+    expect(cfg.changePasswordTokenTtlSec).toBe(10 * 60);
     expect(cfg.activationLinkTtlSec).toBe(48 * 60 * 60);
     expect(cfg.resetLinkTtlSec).toBe(30 * 60);
+    expect(cfg.requestBodyLimitBytes).toBe(100 * 1024);
+    expect(cfg.trustedProxy).toBe('none');
   });
 
   it('rejects missing, short, or identical JWT secrets', () => {

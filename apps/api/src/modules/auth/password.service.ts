@@ -1,5 +1,5 @@
 import { createHash, randomInt, randomBytes, timingSafeEqual } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { ConfigService } from '@nestjs/config';
 import type { ApiEnv } from '../../config/env';
@@ -35,11 +35,33 @@ export type PasswordValidationResult =
   { ok: true } | { ok: false; reason: 'TOO_SHORT' | 'COMMON_PASSWORD' };
 
 @Injectable()
-export class PasswordService {
+export class PasswordService implements OnModuleInit {
   private readonly auth: AuthConfig;
+  /** Startup-generated dummy plain + hash for timing equalization (never logged). */
+  private dummyPlain = '';
+  private dummyHash = '';
 
   constructor(config: ConfigService<ApiEnv, true>) {
     this.auth = config.getOrThrow('auth', { infer: true });
+  }
+
+  async onModuleInit(): Promise<void> {
+    this.dummyPlain = randomBytes(32).toString('base64url');
+    this.dummyHash = await argon2.hash(this.dummyPlain, { type: argon2.argon2id });
+  }
+
+  /**
+   * Run whenever no real password hash is checked so failure paths take similar time.
+   */
+  async burnVerifyTime(): Promise<void> {
+    if (!this.dummyHash) {
+      await this.onModuleInit();
+    }
+    try {
+      await argon2.verify(this.dummyHash, this.dummyPlain);
+    } catch {
+      // ignore
+    }
   }
 
   validatePlainPassword(plain: string): PasswordValidationResult {

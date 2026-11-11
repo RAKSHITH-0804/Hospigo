@@ -1,18 +1,21 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { HqPrismaService } from '../../database/hq-prisma.service';
+import { AuthController } from './auth.controller';
 import { AuthGuard } from './auth.guard';
+import { AuthRedisService } from './auth-redis.service';
+import { AuthService } from './auth.service';
 import { HospitalLoginHelper } from './hospital-login.helper';
 import { MembershipHelper } from './membership.helper';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 
 /**
- * Auth foundation (Step 6a-1). No login/refresh/logout controllers yet.
- * AuthGuard is exported for per-controller use — not registered globally.
+ * Auth endpoints (Step 6a-2). AuthGuard is registered globally via APP_GUARD.
  * HqPrismaService is provided here only; do not import it from other modules.
- * Access tokens use jsonwebtoken (HS256 only).
  */
 @Module({
+  controllers: [AuthController],
   providers: [
     PasswordService,
     TokenService,
@@ -20,6 +23,9 @@ import { TokenService } from './token.service';
     MembershipHelper,
     HospitalLoginHelper,
     HqPrismaService,
+    AuthRedisService,
+    AuthService,
+    { provide: APP_GUARD, useExisting: AuthGuard },
   ],
   exports: [PasswordService, TokenService, AuthGuard, MembershipHelper, HospitalLoginHelper],
 })

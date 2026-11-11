@@ -19,8 +19,8 @@ type AuthedRequest = {
 };
 
 /**
- * Per-controller AuthGuard (not global until Step 6a-2 says so).
- * Verifies Bearer JWT, enforces @TokenKinds, sets ALS request context.
+ * Global AuthGuard (APP_GUARD). Deny by default; @Public() skips auth.
+ * Non-HTTP contexts (e.g. Socket.IO) are skipped so the existing gateway stays unchanged.
  */
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -30,6 +30,10 @@ export class AuthGuard implements CanActivate {
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
+    if (context.getType() !== 'http') {
+      return true;
+    }
+
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),

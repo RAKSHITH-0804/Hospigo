@@ -107,7 +107,12 @@ describe('HospitalLoginHelper membership', () => {
       email,
       password,
     });
-    expect(denied).toEqual({ ok: false, reason: 'AUTH_FAILED' });
+    expect(denied).toMatchObject({ ok: false, reason: 'AUTH_FAILED' });
+    expect(denied.ok).toBe(false);
+    if (!denied.ok) {
+      expect(denied.tenantId).toBeDefined();
+      expect(denied.branchId).toBeDefined();
+    }
 
     const unknown = await login.attempt({
       accessCode: 'no-such-code',
