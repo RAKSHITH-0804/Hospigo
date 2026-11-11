@@ -1,11 +1,18 @@
 import fs from 'fs';
 import path from 'path';
+import {
+  AUTH_JWT_MIN_SECRET_LENGTH,
+  loadAuthConfig,
+  type AuthConfig,
+} from '../modules/auth/auth.config';
 
 export interface ApiEnv {
   NODE_ENV: 'development' | 'production' | 'test';
   API_PORT: number;
   DATABASE_URL: string;
   DATABASE_URL_OWNER: string;
+  /** HQ role connection (hospigo_hq). Used only by HqPrismaService / HQ auth. */
+  DATABASE_URL_HQ: string;
   REDIS_URL: string;
   STORAGE_ROOT_PATH: string;
   SMTP_HOST: string;
@@ -17,6 +24,9 @@ export interface ApiEnv {
   PATIENT_SEARCH_MAX_PAGE_SIZE: number;
   /** Comma-separated browser origins. Unset means CORS stays off. */
   CORS_ORIGIN: string | undefined;
+  JWT_HOSPITAL_ACCESS_SECRET: string;
+  JWT_HQ_ACCESS_SECRET: string;
+  auth: AuthConfig;
 }
 
 export function envFilePath(): string[] {
@@ -37,6 +47,7 @@ export function validateEnv(config: Record<string, unknown>): ApiEnv {
     'DATABASE_URL_OWNER',
     errors,
   );
+  const databaseUrlHq = parseDatabaseUrl(config['DATABASE_URL_HQ'], 'DATABASE_URL_HQ', errors);
   const redisUrl = requireText(config, 'REDIS_URL', errors);
   const storageRootPath = parseStorageRoot(config['STORAGE_ROOT_PATH'], errors);
   const smtpHost = requireText(config, 'SMTP_HOST', errors);
@@ -56,6 +67,13 @@ export function validateEnv(config: Record<string, unknown>): ApiEnv {
     errors.push('REDIS_URL must start with redis:// or rediss://');
   }
 
+  let auth: AuthConfig | undefined;
+  try {
+    auth = loadAuthConfig(config);
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : String(error));
+  }
+
   if (errors.length > 0) {
     throw new Error(`Invalid environment configuration:\n- ${errors.join('\n- ')}`);
   }
@@ -65,6 +83,7 @@ export function validateEnv(config: Record<string, unknown>): ApiEnv {
     API_PORT: apiPort,
     DATABASE_URL: databaseUrl,
     DATABASE_URL_OWNER: databaseUrlOwner,
+    DATABASE_URL_HQ: databaseUrlHq,
     REDIS_URL: redisUrl,
     STORAGE_ROOT_PATH: storageRootPath,
     SMTP_HOST: smtpHost,
@@ -74,6 +93,9 @@ export function validateEnv(config: Record<string, unknown>): ApiEnv {
     SMTP_FROM: smtpFrom,
     PATIENT_SEARCH_MAX_PAGE_SIZE: patientSearchMaxPageSize,
     CORS_ORIGIN: corsOrigin,
+    JWT_HOSPITAL_ACCESS_SECRET: auth!.jwtHospitalAccessSecret,
+    JWT_HQ_ACCESS_SECRET: auth!.jwtHqAccessSecret,
+    auth: auth!,
   };
 }
 
@@ -225,3 +247,5 @@ function parseOptionalPortLike(
   errors.push(`${key} must be an integer from 1 to 500`);
   return fallback;
 }
+
+export { AUTH_JWT_MIN_SECRET_LENGTH };

@@ -75,12 +75,11 @@ describe('Patients + UHID engine (hospigo_test only)', () => {
       data: {
         code: `P3B_${stamp}`,
         name: 'Patient Test Hospital',
-        accessCode: `p3b-${stamp}`,
         isTest: true,
         branches: {
           create: [
-            { code: 'MAIN', name: 'Main', isMain: true },
-            { code: 'EAST', name: 'East', isMain: false },
+            { code: 'MAIN', name: 'Main', isMain: true, accessCode: `p3b-${stamp}` },
+            { code: 'EAST', name: 'East', isMain: false, accessCode: `p3b-${stamp}-east` },
           ],
         },
       },
@@ -94,9 +93,10 @@ describe('Patients + UHID engine (hospigo_test only)', () => {
       data: {
         code: `P3B_O_${stamp}`,
         name: 'Other Hospital',
-        accessCode: `p3bo-${stamp}`,
         isTest: true,
-        branches: { create: { code: 'MAIN', name: 'Main', isMain: true } },
+        branches: {
+          create: { code: 'MAIN', name: 'Main', isMain: true, accessCode: `p3bo-${stamp}` },
+        },
       },
       include: { branches: true },
     });
@@ -414,9 +414,10 @@ describe('Patients + UHID engine (hospigo_test only)', () => {
       data: {
         code: `FY_${stamp}`,
         name: 'FY Hospital',
-        accessCode: `fy-${stamp}`,
         isTest: true,
-        branches: { create: { code: 'MAIN', name: 'Main', isMain: true } },
+        branches: {
+          create: { code: 'MAIN', name: 'Main', isMain: true, accessCode: `fy-${stamp}` },
+        },
       },
       include: { branches: true },
     });
