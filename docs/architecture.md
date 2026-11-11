@@ -10,7 +10,8 @@
 ## Request context (Step 4)
 
 - `AsyncLocalStorage` holder: `tenantId`, `userId`, `kind` (`HOSPITAL` | `HQ`), `activeBranchId`, `requestId`.
-- API: `runWithContext`, `getContext`, `requireContext`. No token parsing here — Step 6 fills the same interface.
+- API: `runWithContext`, `enterWithContext`, `getContext`, `requireContext`.
+- AuthGuard (Step 6a-1) verifies Bearer JWTs and calls `enterWithContext` so `TenantDb.withTenant` works from HTTP handlers.
 - Parallel async flows keep isolated stores (verified by test).
 
 ## TenantDb (Step 4)
@@ -99,9 +100,19 @@ HQ access under FORCE RLS uses policies `TO hospigo_hq` / `TO hospigo_security` 
 - `ImportBatchService`: create / preview / approve / post / undo / fail / recordException / resolveException; every transition writes `audit_logs`.
 - **Later (patient import handler):** after posting imported UHIDs, raise the hospital UHID counter past the highest imported UHID via `setStartNumber` so staff registrations never collide with imported numbers.
 
-## Auth note (Step 6)
+## Auth foundation (Step 6a-1)
 
-`lookup_hospital_id_by_access_code` returns only the hospital id for active codes (identical empty result for unknown/inactive). Rate limiting and uniform wrong-password responses are implemented in auth (Step 6), not here. Controllers/UI for patients are also Step 6+. Step 6 will populate request context from tokens; AccessService and TenantDb already consume that interface.
+- **Branch access codes:** `branches.access_code` is NOT NULL, globally unique case-insensitive (`lower(trim(access_code))`). Hospitals no longer store access codes. Main Branch inherited the hospital code in migration; other existing branches got `dev-placeholder-<id>` (dev/test data only).
+- **Lookup:** `lookup_branch_by_access_code(code)` (SECURITY DEFINER, fixed `search_path`) returns `(branch_id, tenant_id, is_main)` only when the branch and hospital are active. Unknown / inactive branch / inactive hospital all return the same empty result. Execute granted to `hospigo_app` only.
+- **Password flags:** `users` and `hq_users` have `must_change_password` (default **true**), `password_changed_at`, `last_login_at`. Dev seeds set `must_change_password=false` for local demos only.
+- **Sessions:** `auth_sessions` (tenant RLS) and `hq_auth_sessions` (global; HQ role only) store **hashed** refresh secrets (`token_hash`), `family_id`, expiry/revocation/rotation fields. Never store raw refresh tokens.
+- **Refresh token format:** hospital `h.<tenantId>.<sessionId>.<secret>` (tenant id lets the server set RLS context before looking up the session); HQ `q.<sessionId>.<secret>`.
+- **Config:** single file `apps/api/src/modules/auth/auth.config.ts` — password/lockout/rate/token/link lifetimes with env overrides. JWT secrets: `JWT_HOSPITAL_ACCESS_SECRET` and `JWT_HQ_ACCESS_SECRET` (required, ≥32 chars, must differ).
+- **Token types:** `HOSPITAL`, `HQ`, `CHANGE_PASSWORD_HOSPITAL`, `CHANGE_PASSWORD_HQ`. Separate signing keys for hospital vs HQ. Hospital access claims include `tenantId`, `userId`, `branchId` (the branch whose code was used). Access JWTs pin **HS256** on sign and verify; refresh secret checks use constant-time `timingSafeEqual` (`PasswordService.verifyRefreshSecret`).
+- **AuthGuard + `@Public()` + `@TokenKinds(...)`:** per-controller (not global yet). Verifies Bearer token, enforces allowed types, sets request context. HQ tokens refused on hospital routes and the reverse. `CHANGE_PASSWORD_*` accepted only where listed.
+- **HQ DB:** `HqPrismaService` uses `DATABASE_URL_HQ` (`hospigo_hq`). Provided only inside `AuthModule` — other modules must not import it.
+- **Login helper (no HTTP endpoint yet):** access code → branch → tenant, then user lookup under `runWithContext`; membership requires active `user_branches` for that branch. All failure modes return the same internal `AUTH_FAILED` result (6a-2 maps to one client error).
+- Login/refresh/logout HTTP endpoints, email, OTP, and patient login are **out of scope** for 6a-1.
 
 ## Ledger design rules (later — OPD billing step)
 

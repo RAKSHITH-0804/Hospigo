@@ -53,12 +53,11 @@ describe('Hospital isolation through services (leak tests)', () => {
       data: {
         code: `LEA_${stamp}`,
         name: 'Leak A',
-        accessCode: `lea-${stamp}`,
         isTest: true,
         branches: {
           create: [
-            { code: 'MAIN', name: 'Main', isMain: true },
-            { code: 'EAST', name: 'East', isMain: false },
+            { code: 'MAIN', name: 'Main', isMain: true, accessCode: `lea-${stamp}` },
+            { code: 'EAST', name: 'East', isMain: false, accessCode: `lea-${stamp}-east` },
           ],
         },
       },
@@ -68,9 +67,10 @@ describe('Hospital isolation through services (leak tests)', () => {
       data: {
         code: `LEB_${stamp}`,
         name: 'Leak B',
-        accessCode: `leb-${stamp}`,
         isTest: true,
-        branches: { create: { code: 'MAIN', name: 'Main', isMain: true } },
+        branches: {
+          create: { code: 'MAIN', name: 'Main', isMain: true, accessCode: `leb-${stamp}` },
+        },
       },
       include: { branches: true },
     });

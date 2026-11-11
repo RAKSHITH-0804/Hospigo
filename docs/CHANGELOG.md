@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-11 — Phase 1 Step 6a-1 — auth foundation (no endpoints)
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** auth module (`PasswordService`, `TokenService`, `AuthGuard`, `@Public` / `@TokenKinds`, login + membership helpers); `HqPrismaService` (`DATABASE_URL_HQ`); `BranchAccessLookup`; `auth.config.ts`; one-time `apps/api/scripts/create-hq-admin.ts`; migrations for branch access codes, lookup function, password flags, `auth_sessions` / `hq_auth_sessions`
+- **Changed:** access codes live on branches (not hospitals); JWT env keys split into `JWT_HOSPITAL_ACCESS_SECRET` + `JWT_HQ_ACCESS_SECRET`; argon2 moved to API runtime deps; CI writes the two JWT secrets; README / architecture / folder-guide updated
+- **Removed:** `hospitals.access_code`, `lookup_hospital_id_by_access_code`, `JWT_SECRET` from `.env.example` / CI / env validation
+- **Fixed:** access JWT sign/verify pin HS256 only; refresh verification uses constant-time `timingSafeEqual`; removed unused `@nestjs/jwt` dependency
+- **Database (migrations, roles, RLS):** `20261111190000_branch_access_code` (column + case-insensitive unique index; Main Branch backfill; other branches `dev-placeholder-<id>`); `20261111190100_lookup_branch_by_access_code`; `20261111190200_drop_hospital_access_code`; `20261111190300_user_password_flags`; `20261111190400_auth_sessions` (RLS on `auth_sessions`; grants: `hospigo_app` SIUD on `auth_sessions`; `hospigo_hq` SIU on `hq_users` + SIUD on `hq_auth_sessions` — no other HQ widen)
+- **New .env keys (names only):** `JWT_HOSPITAL_ACCESS_SECRET`, `JWT_HQ_ACCESS_SECRET`; optional `AUTH_*` overrides listed in `.env.example`
+- **Tests:** branch-code uniqueness; lookup active/unknown/inactive; auth_sessions RLS + HQ grant checks; PasswordService (incl. verifyRefreshSecret); TokenService (HS256 pin, reject none/HS384/wrong family); AuthGuard probe controller; membership login helper; auth config validation (plus existing suite kept green)
+- **Decisions:** refresh format `h.<tenantId>.<sessionId>.<secret>` / `q.<sessionId>.<secret>` so hospital session lookup can set tenant context without a cross-tenant scan; AuthGuard not global until 6a-2; seed users set `must_change_password=false` for local demos only; TokenService uses `jsonwebtoken` with HS256 pinned; every refresh check must use `verifyRefreshSecret`
+- **Follow-ups and open items:** 6a-2 login/refresh/logout endpoints; register AuthGuard globally when endpoints land; email/OTP/patient login later; local `.env` must replace `JWT_SECRET` with the two new JWT keys (not edited by this step)
+
 ## 2026-11-11 — Phase 1 Step 5b — four concept screens with fake data
 
 - **Commit hash(es):** (uncommitted)

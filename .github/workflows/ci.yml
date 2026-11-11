@@ -65,7 +65,8 @@ jobs:
           OWNER_PW="$(openssl rand -hex 24)"
           APP_PW="$(openssl rand -hex 24)"
           HQ_PW="$(openssl rand -hex 24)"
-          JWT_SECRET="$(openssl rand -hex 24)"
+          JWT_HOSPITAL_ACCESS_SECRET="$(openssl rand -hex 24)"
+          JWT_HQ_ACCESS_SECRET="$(openssl rand -hex 24)"
           SMTP_PASSWORD="$(openssl rand -hex 24)"
           SEED_SUPERADMIN_PASSWORD="$(openssl rand -hex 24)"
           SEED_BRANCH_ADMIN_PASSWORD="$(openssl rand -hex 24)"
@@ -74,7 +75,8 @@ jobs:
           echo "::add-mask::${OWNER_PW}"
           echo "::add-mask::${APP_PW}"
           echo "::add-mask::${HQ_PW}"
-          echo "::add-mask::${JWT_SECRET}"
+          echo "::add-mask::${JWT_HOSPITAL_ACCESS_SECRET}"
+          echo "::add-mask::${JWT_HQ_ACCESS_SECRET}"
           echo "::add-mask::${SMTP_PASSWORD}"
           echo "::add-mask::${SEED_SUPERADMIN_PASSWORD}"
           echo "::add-mask::${SEED_BRANCH_ADMIN_PASSWORD}"
@@ -102,7 +104,8 @@ jobs:
             echo "HOSPIGO_OWNER_PASSWORD=${OWNER_PW}"
             echo "HOSPIGO_APP_PASSWORD=${APP_PW}"
             echo "HOSPIGO_HQ_PASSWORD=${HQ_PW}"
-            echo "JWT_SECRET=${JWT_SECRET}"
+            echo "JWT_HOSPITAL_ACCESS_SECRET=${JWT_HOSPITAL_ACCESS_SECRET}"
+            echo "JWT_HQ_ACCESS_SECRET=${JWT_HQ_ACCESS_SECRET}"
             echo "SMTP_PASSWORD=${SMTP_PASSWORD}"
             echo "SEED_SUPERADMIN_PASSWORD=${SEED_SUPERADMIN_PASSWORD}"
             echo "SEED_BRANCH_ADMIN_PASSWORD=${SEED_BRANCH_ADMIN_PASSWORD}"
@@ -155,7 +158,8 @@ jobs:
           SMTP_USER=hospigo
           SMTP_PASSWORD=${SMTP_PASSWORD}
           SMTP_FROM=noreply@hospigo.indigocomputers.in
-          JWT_SECRET=${JWT_SECRET}
+          JWT_HOSPITAL_ACCESS_SECRET=${JWT_HOSPITAL_ACCESS_SECRET}
+          JWT_HQ_ACCESS_SECRET=${JWT_HQ_ACCESS_SECRET}
           PATIENT_SEARCH_MAX_PAGE_SIZE=50
           SEED_SUPERADMIN_PASSWORD=${SEED_SUPERADMIN_PASSWORD}
           SEED_BRANCH_ADMIN_PASSWORD=${SEED_BRANCH_ADMIN_PASSWORD}

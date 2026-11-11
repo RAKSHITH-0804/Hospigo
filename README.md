@@ -93,7 +93,8 @@ openssl rand -hex 24
 | `SMTP_USER`                    | SMTP username                                                                      |
 | `SMTP_PASSWORD`                | SMTP password                                                                      |
 | `SMTP_FROM`                    | From address for outbound mail                                                     |
-| `JWT_SECRET`                   | JWT signing secret (auth Step 6)                                                   |
+| `JWT_HOSPITAL_ACCESS_SECRET`   | Hospital access-token signing secret (≥32 chars; must differ from HQ secret)       |
+| `JWT_HQ_ACCESS_SECRET`         | HQ access-token signing secret (≥32 chars; must differ from hospital secret)       |
 | `PATIENT_SEARCH_MAX_PAGE_SIZE` | Server-enforced max page size for patient search                                   |
 | `CORS_ORIGIN`                  | Comma-separated browser origins allowed to call the API. Unset disables CORS       |
 | `SEED_SUPERADMIN_PASSWORD`     | Dev-seed SuperAdmin password                                                       |

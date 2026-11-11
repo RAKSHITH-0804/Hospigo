@@ -73,12 +73,11 @@ describe('Import batches (hospigo_test only)', () => {
       data: {
         code: `IMP_${stamp}`,
         name: 'Import Test Hospital',
-        accessCode: `imp-${stamp}`,
         isTest: true,
         branches: {
           create: [
-            { code: 'MAIN', name: 'Main', isMain: true },
-            { code: 'EAST', name: 'East', isMain: false },
+            { code: 'MAIN', name: 'Main', isMain: true, accessCode: `imp-${stamp}` },
+            { code: 'EAST', name: 'East', isMain: false, accessCode: `imp-${stamp}-east` },
           ],
         },
       },
@@ -92,9 +91,10 @@ describe('Import batches (hospigo_test only)', () => {
       data: {
         code: `IMP_O_${stamp}`,
         name: 'Import Other Hospital',
-        accessCode: `impo-${stamp}`,
         isTest: true,
-        branches: { create: { code: 'MAIN', name: 'Main', isMain: true } },
+        branches: {
+          create: { code: 'MAIN', name: 'Main', isMain: true, accessCode: `impo-${stamp}` },
+        },
       },
       include: { branches: true },
     });

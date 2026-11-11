@@ -87,12 +87,11 @@ describe('UHID database-level rules + true concurrency (hospigo_test only)', () 
       data: {
         code: `UDB_${stamp}`,
         name: 'UHID DB Rule Hospital',
-        accessCode: `udb-${stamp}`,
         isTest: true,
         branches: {
           create: [
-            { code: 'MAIN', name: 'Main', isMain: true },
-            { code: 'EAST', name: 'East', isMain: false },
+            { code: 'MAIN', name: 'Main', isMain: true, accessCode: `udb-${stamp}` },
+            { code: 'EAST', name: 'East', isMain: false, accessCode: `udb-${stamp}-east` },
           ],
         },
       },
@@ -470,12 +469,11 @@ describe('UHID database-level rules + true concurrency (hospigo_test only)', () 
         data: {
           code: `C50_${stamp}`,
           name: 'Concurrency 50 Hospital',
-          accessCode: `c50-${stamp}`,
           isTest: true,
           branches: {
             create: [
-              { code: 'MAIN', name: 'Main', isMain: true },
-              { code: 'EAST', name: 'East', isMain: false },
+              { code: 'MAIN', name: 'Main', isMain: true, accessCode: `c50-${stamp}` },
+              { code: 'EAST', name: 'East', isMain: false, accessCode: `c50-${stamp}-east` },
             ],
           },
         },
@@ -566,12 +564,11 @@ describe('UHID database-level rules + true concurrency (hospigo_test only)', () 
         data: {
           code: `C2S_${stamp}`,
           name: 'Two Server Hospital',
-          accessCode: `c2s-${stamp}`,
           isTest: true,
           branches: {
             create: [
-              { code: 'MAIN', name: 'Main', isMain: true },
-              { code: 'EAST', name: 'East', isMain: false },
+              { code: 'MAIN', name: 'Main', isMain: true, accessCode: `c2s-${stamp}` },
+              { code: 'EAST', name: 'East', isMain: false, accessCode: `c2s-${stamp}-east` },
             ],
           },
         },
@@ -660,9 +657,10 @@ describe('UHID database-level rules + true concurrency (hospigo_test only)', () 
         data: {
           code: `NVR_${stamp}`,
           name: 'Never Boundary Hospital',
-          accessCode: `nvr-${stamp}`,
           isTest: true,
-          branches: { create: { code: 'MAIN', name: 'Main', isMain: true } },
+          branches: {
+            create: { code: 'MAIN', name: 'Main', isMain: true, accessCode: `nvr-${stamp}` },
+          },
         },
         include: { branches: true },
       });
@@ -741,9 +739,10 @@ describe('UHID database-level rules + true concurrency (hospigo_test only)', () 
         data: {
           code: `FYB_${stamp}`,
           name: 'FY Boundary Hospital',
-          accessCode: `fyb-${stamp}`,
           isTest: true,
-          branches: { create: { code: 'MAIN', name: 'Main', isMain: true } },
+          branches: {
+            create: { code: 'MAIN', name: 'Main', isMain: true, accessCode: `fyb-${stamp}` },
+          },
         },
         include: { branches: true },
       });

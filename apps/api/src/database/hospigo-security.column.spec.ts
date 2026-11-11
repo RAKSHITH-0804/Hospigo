@@ -15,9 +15,10 @@ describe('hospigo_security column privileges (hospigo_test only)', () => {
       data: {
         code: `SEC_${Date.now()}`,
         name: 'Security Lock Hospital',
-        accessCode: `sec-${Date.now()}`,
         isTest: true,
-        branches: { create: { code: 'MAIN', name: 'Main', isMain: true } },
+        branches: {
+          create: { code: 'MAIN', name: 'Main', isMain: true, accessCode: `sec-${Date.now()}` },
+        },
         roles: { create: { code: 'SUPER_ADMIN', name: 'Super Admin', isSystem: true } },
       },
     });

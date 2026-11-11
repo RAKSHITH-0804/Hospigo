@@ -30,18 +30,20 @@ describe('TenantDb', () => {
       data: {
         code: `TDB_A_${stamp}`,
         name: 'TenantDb A',
-        accessCode: `tdba-${stamp}`,
         isTest: true,
-        branches: { create: { code: 'MAIN', name: 'Main', isMain: true } },
+        branches: {
+          create: { code: 'MAIN', name: 'Main', isMain: true, accessCode: `tdba-${stamp}` },
+        },
       },
     });
     const b = await owner.hospital.create({
       data: {
         code: `TDB_B_${stamp}`,
         name: 'TenantDb B',
-        accessCode: `tdbb-${stamp}`,
         isTest: true,
-        branches: { create: { code: 'MAIN', name: 'Main', isMain: true } },
+        branches: {
+          create: { code: 'MAIN', name: 'Main', isMain: true, accessCode: `tdbb-${stamp}` },
+        },
       },
     });
     tenantA = a.id;

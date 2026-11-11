@@ -5,6 +5,10 @@ import { ensureSystemRolesForTenant } from './reference';
 /**
  * Dev-only fake tenants. Seed data lives here (not in app runtime code).
  * Refuses unless NODE_ENV=development. Passwords come from env.
+ *
+ * Access codes live on branches (not hospitals). Every branch gets a fake code.
+ * Seed users set must_change_password=false so local login demos are not blocked;
+ * application-created accounts keep the schema default (true).
  */
 export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
   if (process.env.NODE_ENV !== 'development') {
@@ -24,19 +28,17 @@ export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
     {
       code: 'DEMO_NORTH',
       name: 'Demo North Clinic',
-      accessCode: 'demo-north-access',
       branches: [
-        { code: 'MAIN', name: 'Main Branch', isMain: true },
-        { code: 'EAST', name: 'East Wing', isMain: false },
+        { code: 'MAIN', name: 'Main Branch', isMain: true, accessCode: 'demo-north-main' },
+        { code: 'EAST', name: 'East Wing', isMain: false, accessCode: 'demo-north-east' },
       ],
     },
     {
       code: 'DEMO_SOUTH',
       name: 'Demo South Clinic',
-      accessCode: 'demo-south-access',
       branches: [
-        { code: 'MAIN', name: 'Main Branch', isMain: true },
-        { code: 'WEST', name: 'West Wing', isMain: false },
+        { code: 'MAIN', name: 'Main Branch', isMain: true, accessCode: 'demo-south-main' },
+        { code: 'WEST', name: 'West Wing', isMain: false, accessCode: 'demo-south-west' },
       ],
     },
   ] as const;
@@ -47,13 +49,11 @@ export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
       create: {
         code: hospitalSeed.code,
         name: hospitalSeed.name,
-        accessCode: hospitalSeed.accessCode,
         status: 'ACTIVE',
         isTest: true,
       },
       update: {
         name: hospitalSeed.name,
-        accessCode: hospitalSeed.accessCode,
         status: 'ACTIVE',
         isTest: true,
         isActive: true,
@@ -75,10 +75,12 @@ export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
           tenantId: hospital.id,
           code: branchSeed.code,
           name: branchSeed.name,
+          accessCode: branchSeed.accessCode,
           isMain: branchSeed.isMain,
         },
         update: {
           name: branchSeed.name,
+          accessCode: branchSeed.accessCode,
           isMain: branchSeed.isMain,
           isActive: true,
         },
@@ -303,12 +305,17 @@ async function upsertUser(
       email: input.email,
       displayName: input.displayName,
       passwordHash,
+      // Dev seed only: skip forced password change so local demos work immediately.
+      mustChangePassword: false,
+      passwordChangedAt: new Date(),
     },
     update: {
       email: input.email,
       displayName: input.displayName,
       passwordHash,
       isActive: true,
+      mustChangePassword: false,
+      passwordChangedAt: new Date(),
     },
   });
 }
