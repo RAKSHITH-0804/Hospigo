@@ -4,11 +4,11 @@ import HomePage from './page';
 import LoginLayout from './login/layout';
 import LoginPage from './login/page';
 import AdminLayout from './admin/layout';
-import AdminPage from './admin/page';
+import { HospitalsScreen } from '@/components/admin/hospitals-screen';
 import StaffLayout from './app/layout';
-import StaffHomePage from './app/page';
+import StaffDashboardPage from './app/page';
 import BookLayout from './book/[code]/layout';
-import BookPage from './book/[code]/page';
+import { BookingScreen } from '@/components/book/booking-screen';
 import { EmptyState } from '@/components/states/empty-state';
 import { ErrorState } from '@/components/states/error-state';
 import { LoadingState } from '@/components/states/loading-state';
@@ -17,23 +17,29 @@ jest.mock('next/navigation', () => ({
   redirect: (path: string) => {
     throw new Error(`REDIRECT:${path}`);
   },
-  useParams: () => ({ code: 'sample-code' }),
+  useParams: () => ({ code: 'DEMOONE' }),
+  usePathname: () => '/admin',
 }));
 
 jest.mock('next/link', () => {
-  return function Link({ href, children }: { href: string; children: ReactNode }) {
-    return <a href={href}>{children}</a>;
+  return function Link({
+    href,
+    children,
+    ...props
+  }: {
+    href: string;
+    children: ReactNode;
+    [key: string]: unknown;
+  }) {
+    return (
+      <a href={href} {...props}>
+        {children}
+      </a>
+    );
   };
 });
 
 describe('web shell smoke', () => {
-  beforeEach(() => {
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ status: 'ok' }),
-    }) as unknown as typeof fetch;
-  });
-
   it('redirects / to /login', () => {
     expect(() => HomePage()).toThrow('REDIRECT:/login');
   });
@@ -47,36 +53,40 @@ describe('web shell smoke', () => {
     expect(screen.getByRole('heading', { name: 'Sign in' })).toBeTruthy();
   });
 
-  it('renders the HQ page and layout', async () => {
+  it('renders the HQ page and layout with page context in the top bar', async () => {
     render(
       <AdminLayout>
-        <AdminPage />
+        <HospitalsScreen loadOptions={{ delayMs: 0 }} />
       </AdminLayout>,
     );
-    expect(screen.getAllByText('Indigo HQ').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Hospigo HQ').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Hospitals').length).toBeGreaterThan(0);
-    expect(await screen.findByText('ok')).toBeTruthy();
+    expect((await screen.findAllByText('Demo Hospital One')).length).toBeGreaterThan(0);
+    const current = screen
+      .getAllByRole('link', { name: 'Hospitals' })
+      .filter((link) => link.getAttribute('aria-current') === 'page');
+    expect(current.length).toBeGreaterThan(0);
   });
 
   it('renders the staff page and layout', () => {
     render(
       <StaffLayout>
-        <StaffHomePage />
+        <StaffDashboardPage />
       </StaffLayout>,
     );
-    expect(screen.getAllByText('Hospital staff').length).toBeGreaterThan(0);
-    expect(screen.getByLabelText('Branch switcher')).toBeTruthy();
-    expect(screen.getByText('No records yet')).toBeTruthy();
+    expect(screen.getAllByText('Demo Hospital One').length).toBeGreaterThan(0);
+    expect(screen.getByLabelText('Branch switcher').textContent).toContain('Main Branch (sample)');
+    expect(screen.getByText('Coming later.')).toBeTruthy();
   });
 
-  it('renders the public booking page and layout', () => {
+  it('renders the public booking page and layout', async () => {
     render(
       <BookLayout>
-        <BookPage />
+        <BookingScreen code="DEMOONE" loadOptions={{ delayMs: 0 }} />
       </BookLayout>,
     );
-    expect(screen.getByRole('heading', { name: 'Book an appointment' })).toBeTruthy();
-    expect(screen.getByText('Access code: sample-code')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Book an OPD appointment' })).toBeTruthy();
+    expect(await screen.findByText('Demo Doctor A')).toBeTruthy();
   });
 
   it('renders loading, empty, and error states', () => {
@@ -97,7 +107,7 @@ describe('web shell smoke', () => {
   it('opens and closes the mobile navigation menu', () => {
     render(
       <AdminLayout>
-        <AdminPage />
+        <HospitalsScreen loadOptions={{ delayMs: 0 }} />
       </AdminLayout>,
     );
 

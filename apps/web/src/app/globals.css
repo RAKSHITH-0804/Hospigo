@@ -4,9 +4,17 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Layout breakpoints — defined ONCE here (media queries need a literal).
+ * --breakpoint-layout: 43.75rem (~700px) — two columns, login split, shell sidebar
+ * --breakpoint-table: 40rem (~640px) — HQ hospitals table vs stacked cards
+ * Mirrored into @theme so Tailwind layout:/table: variants match the same values.
+ */
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: var(--font-sans);
+  --breakpoint-layout: 43.75rem;
+  --breakpoint-table: 40rem;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -38,6 +46,17 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+  --color-login-brand: var(--login-brand);
+  --color-login-brand-foreground: var(--login-brand-foreground);
+  --color-surface-tint: var(--surface-tint);
+  --color-module-chip: var(--module-chip-bg);
+  --color-module-chip-foreground: var(--module-chip-fg);
+  --color-status-consultation: var(--status-consultation);
+  --color-status-consultation-foreground: var(--status-consultation-fg);
+  --color-status-paid: var(--status-paid);
+  --color-status-paid-foreground: var(--status-paid-fg);
+  --color-status-unpaid: var(--status-unpaid);
+  --color-status-unpaid-foreground: var(--status-unpaid-fg);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -45,16 +64,24 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --text-body: var(--font-size-body);
+  --text-label: var(--font-size-label);
+  --text-heading: var(--font-size-heading);
+  --text-title: var(--font-size-title);
+  --text-small: var(--font-size-small);
+  --text-stat: var(--font-size-stat);
+  --text-input: var(--font-size-input);
 }
 
 :root {
+  /* Sample concept theme — look may change at go-live; keep all UI tokens here. */
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --primary: oklch(0.45 0.09 180);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
@@ -65,7 +92,7 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --ring: oklch(0.45 0.09 180);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -74,12 +101,79 @@
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary: oklch(0.45 0.09 180);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-ring: oklch(0.45 0.09 180);
+
+  --login-brand: oklch(0.45 0.09 180);
+  --login-brand-foreground: oklch(0.985 0 0);
+  --surface-tint: oklch(0.97 0.012 180);
+  --module-chip-bg: oklch(0.94 0 0);
+  --module-chip-fg: oklch(0.32 0 0);
+  --status-consultation: oklch(0.93 0.04 250);
+  --status-consultation-fg: oklch(0.35 0.12 250);
+  --status-paid: oklch(0.93 0.05 150);
+  --status-paid-fg: oklch(0.32 0.1 150);
+  --status-unpaid: oklch(0.94 0.06 85);
+  --status-unpaid-fg: oklch(0.4 0.1 70);
+  --brand: var(--primary);
+
+  /* Fluid type (min / preferred / max). Input floor stays ≥ 1rem for iOS. */
+  --font-size-body: clamp(0.9375rem, 0.9rem + 0.2vw, 1.0625rem);
+  --font-size-label: clamp(0.8125rem, 0.78rem + 0.15vw, 0.9375rem);
+  --font-size-heading: clamp(1.125rem, 1rem + 0.55vw, 1.5rem);
+  --font-size-title: clamp(1.25rem, 1.05rem + 0.9vw, 2rem);
+  --font-size-small: clamp(0.6875rem, 0.66rem + 0.12vw, 0.8125rem);
+  --font-size-stat: clamp(1.5rem, 1.25rem + 1vw, 2.25rem);
+  --font-size-input: clamp(1rem, 0.98rem + 0.15vw, 1.125rem);
+
+  /* Fluid spacing */
+  --space-1: clamp(0.25rem, 0.2rem + 0.2vw, 0.375rem);
+  --space-2: clamp(0.5rem, 0.4rem + 0.35vw, 0.75rem);
+  --space-3: clamp(0.75rem, 0.55rem + 0.55vw, 1.125rem);
+  --space-4: clamp(1rem, 0.8rem + 0.7vw, 1.5rem);
+  --space-5: clamp(1.25rem, 1rem + 0.9vw, 2rem);
+  --space-6: clamp(1.5rem, 1.15rem + 1.2vw, 2.5rem);
+  --space-section: clamp(1.25rem, 1rem + 1.2vw, 2.5rem);
+  --space-page-x: clamp(1rem, 0.7rem + 1.6vw, 2rem);
+  --space-page-y: clamp(0.875rem, 0.65rem + 1vw, 1.75rem);
+  --space-card-padding: clamp(1rem, 0.8rem + 0.9vw, 1.75rem);
+  --space-table-x: clamp(0.75rem, 0.55rem + 0.55vw, 1.25rem);
+  --space-table-y: clamp(0.625rem, 0.5rem + 0.4vw, 1rem);
+  --space-login-bar-y: clamp(0.5rem, 0.4rem + 0.25vw, 0.75rem);
+  --space-login-panel: clamp(1.25rem, 0.9rem + 2vw, 2.75rem);
+  --space-selection-y: clamp(0.75rem, 0.55rem + 0.7vw, 1.25rem);
+  --space-selection-x: clamp(0.875rem, 0.7rem + 0.55vw, 1.25rem);
+  --space-chip-y: clamp(0.125rem, 0.1rem + 0.1vw, 0.25rem);
+  --space-chip-x: clamp(0.375rem, 0.3rem + 0.2vw, 0.625rem);
+
+  /* Control sizes */
+  --size-input-height: clamp(2.75rem, 2.45rem + 0.9vw, 3.25rem);
+  --size-button-height: clamp(2.75rem, 2.45rem + 0.9vw, 3.25rem);
+  --size-touch: var(--size-button-height);
+  --size-header-height: clamp(3.25rem, 3rem + 0.5vw, 3.75rem);
+  --size-icon-menu: clamp(1.125rem, 1rem + 0.3vw, 1.375rem);
+  --size-selection-min-height: clamp(2.75rem, 2.35rem + 1.1vw, 3.5rem);
+
+  /* Radius / containers */
+  --radius-card: clamp(0.625rem, 0.5rem + 0.4vw, 1rem);
+  --size-sidebar: clamp(13rem, 12rem + 1.2vw, 16rem);
+  --size-sidebar-mobile-max: 85vw;
+  --size-branch-select: clamp(9rem, 8rem + 2vw, 12rem);
+  --size-content-max: 75rem;
+  --size-form-card-max: 28rem;
+  --size-stat-card-min: 12rem;
+  /* MINIMUM viewport fill only — never use as height/max-height. */
+  --viewport-min-height: 100dvh;
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --space-page-bottom: max(var(--space-page-y), var(--safe-area-bottom));
+
+  /* Aliases kept for older class names */
+  --space-login-mobile-x: var(--space-page-x);
+  --space-login-mobile-y: var(--space-login-bar-y);
 }
 
 .dark {
@@ -89,8 +183,8 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
+  --primary: oklch(0.55 0.09 180);
+  --primary-foreground: oklch(0.145 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
@@ -100,7 +194,7 @@
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --ring: oklch(0.55 0.09 180);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -108,22 +202,644 @@
   --chart-5: oklch(0.269 0 0);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary: oklch(0.55 0.09 180);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: oklch(0.55 0.09 180);
+  --login-brand: oklch(0.35 0.07 180);
+  --login-brand-foreground: oklch(0.985 0 0);
+  --surface-tint: oklch(0.2 0.02 180);
+  --module-chip-bg: oklch(0.28 0 0);
+  --module-chip-fg: oklch(0.9 0 0);
+  --status-consultation: oklch(0.3 0.06 250);
+  --status-consultation-fg: oklch(0.85 0.05 250);
+  --status-paid: oklch(0.3 0.06 150);
+  --status-paid-fg: oklch(0.85 0.05 150);
+  --status-unpaid: oklch(0.32 0.06 85);
+  --status-unpaid-fg: oklch(0.9 0.05 85);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
     @apply font-sans;
+    /* Document scroll only — never lock html/body height or overflow. */
+    height: auto;
+    overflow-x: clip;
+    overflow-y: auto;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-size: var(--font-size-body);
+    min-height: var(--viewport-min-height);
+    height: auto;
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+}
+
+@layer components {
+  .viewport-fill {
+    min-height: var(--viewport-min-height);
+  }
+
+  .content-container {
+    width: 100%;
+    max-width: var(--size-content-max);
+    margin-inline: auto;
+    padding-inline: var(--space-page-x);
+  }
+
+  .content-container-inner {
+    width: 100%;
+    max-width: var(--size-content-max);
+    margin-inline: auto;
+  }
+
+  .type-body {
+    font-size: var(--font-size-body);
+  }
+
+  .type-label {
+    font-size: var(--font-size-label);
+  }
+
+  .type-heading {
+    font-size: var(--font-size-heading);
+  }
+
+  .type-title {
+    font-size: var(--font-size-title);
+  }
+
+  .type-small {
+    font-size: var(--font-size-small);
+  }
+
+  .type-stat {
+    font-size: var(--font-size-stat);
+  }
+
+  .surface-card {
+    border-radius: var(--radius-card);
+    background: var(--card);
+    color: var(--card-foreground);
+    padding: var(--space-card-padding);
+    box-shadow: 0 0 0 1px color-mix(in oklch, var(--foreground) 10%, transparent);
+  }
+
+  .section-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-section);
+  }
+
+  .cluster {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .cluster-between {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .field-label {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    font-size: var(--font-size-label);
+  }
+
+  .field-input {
+    min-height: var(--size-input-height);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--input);
+    background: var(--background);
+    padding-inline: var(--space-3);
+    font-size: var(--font-size-input);
+  }
+
+  .touch-target {
+    min-height: var(--size-button-height);
+  }
+
+  .module-chip {
+    border-radius: var(--radius-md);
+    background: var(--module-chip-bg);
+    color: var(--module-chip-fg);
+    padding: var(--space-chip-y) var(--space-chip-x);
+    font-size: var(--font-size-small);
+  }
+
+  .status-chip {
+    border-radius: var(--radius-md);
+    padding: var(--space-chip-y) var(--space-chip-x);
+    font-size: var(--font-size-small);
+  }
+
+  .status-chip[data-status='In consultation'] {
+    background: var(--status-consultation);
+    color: var(--status-consultation-fg);
+  }
+
+  .status-chip[data-status='Checked in paid'] {
+    background: var(--status-paid);
+    color: var(--status-paid-fg);
+  }
+
+  .status-chip[data-status='Booked unpaid at desk'] {
+    background: var(--status-unpaid);
+    color: var(--status-unpaid-fg);
+  }
+
+  .selection-tile {
+    min-height: var(--size-selection-min-height);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border);
+    padding: var(--space-selection-y) var(--space-selection-x);
+    text-align: left;
+    font-size: var(--font-size-label);
+  }
+
+  .selection-tile[aria-pressed='true'] {
+    border-color: var(--brand);
+    background: color-mix(in oklch, var(--brand) 12%, transparent);
+  }
+
+  .layout-cols {
+    display: grid;
+    gap: var(--space-section);
+    grid-template-columns: 1fr;
+  }
+
+  @media (width >= 43.75rem) {
+    .layout-cols {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .stat-grid {
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--size-stat-card-min)), 1fr));
+  }
+
+  .data-table {
+    width: 100%;
+    min-width: 100%;
+    text-align: left;
+    font-size: var(--font-size-label);
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: var(--space-table-y) var(--space-table-x);
+  }
+
+  .data-table thead {
+    background: color-mix(in oklch, var(--muted) 50%, transparent);
+  }
+
+  .data-table tbody tr {
+    border-top: 1px solid var(--border);
+  }
+
+  .table-panel {
+    overflow-x: auto;
+    border-radius: var(--radius-card);
+    box-shadow: 0 0 0 1px color-mix(in oklch, var(--foreground) 10%, transparent);
+  }
+
+  .hospitals-cards {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .hospitals-table-wrap {
+    display: none;
+  }
+
+  @media (width >= 40rem) {
+    .hospitals-cards {
+      display: none;
+    }
+
+    .hospitals-table-wrap {
+      display: block;
+    }
+  }
+
+  /* Login */
+  .login-page {
+    display: flex;
+    min-height: var(--viewport-min-height);
+    flex-direction: column;
+  }
+
+  .login-brand-panel {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    background: var(--login-brand);
+    color: var(--login-brand-foreground);
+    padding: var(--space-login-bar-y) var(--space-page-x);
+  }
+
+  .login-brand-copy {
+    display: none;
+  }
+
+  .login-form-panel {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: flex-start;
+    justify-content: center;
+    padding: var(--space-login-bar-y) var(--space-page-x) var(--space-page-bottom);
+  }
+
+  .login-form-card {
+    width: 100%;
+    max-width: var(--size-form-card-max);
+    border-radius: var(--radius-card);
+    background: var(--card);
+    color: var(--card-foreground);
+    padding: var(--space-card-padding);
+    box-shadow: 0 0 0 1px color-mix(in oklch, var(--foreground) 10%, transparent);
+  }
+
+  .login-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+    margin-block: var(--space-3) var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--muted);
+    padding: var(--space-1);
+  }
+
+  .login-tab {
+    min-height: var(--size-touch);
+    border-radius: var(--radius-md);
+    padding-inline: var(--space-3);
+    font-size: var(--font-size-label);
+  }
+
+  .login-tab[aria-selected='true'] {
+    background: var(--background);
+    box-shadow: 0 1px 2px color-mix(in oklch, var(--foreground) 8%, transparent);
+  }
+
+  .login-tab[aria-selected='false'] {
+    color: var(--muted-foreground);
+  }
+
+  .login-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  @media (width >= 43.75rem) {
+    .login-page {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .login-brand-panel {
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: space-between;
+      padding: var(--space-login-panel);
+    }
+
+    .login-brand-copy {
+      display: block;
+      padding-block: var(--space-6);
+    }
+
+    .login-form-panel {
+      align-items: center;
+      padding: var(--space-login-panel);
+    }
+  }
+
+  /* Booking */
+  .booking-page {
+    display: flex;
+    min-height: var(--viewport-min-height);
+    flex-direction: column;
+    background: var(--surface-tint);
+  }
+
+  .booking-header {
+    flex-shrink: 0;
+    background: var(--brand);
+    color: var(--primary-foreground);
+    padding: var(--space-4) var(--space-page-x);
+  }
+
+  .booking-header-inner {
+    display: flex;
+    width: 100%;
+    max-width: var(--size-content-max);
+    margin-inline: auto;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .booking-body {
+    display: flex;
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: var(--size-content-max);
+    margin-inline: auto;
+    flex-direction: column;
+    padding: var(--space-page-y) var(--space-page-x) var(--space-page-bottom);
+  }
+
+  .booking-card {
+    /* Grow to fill leftover viewport tint; content stays top-aligned (no flex stretch). */
+    flex: 1 1 auto;
+    border-radius: var(--radius-card);
+    background: var(--card);
+    color: var(--card-foreground);
+    padding: var(--space-card-padding);
+    box-shadow: 0 0 0 1px color-mix(in oklch, var(--foreground) 10%, transparent);
+  }
+
+  .booking-card-grid {
+    display: grid;
+    align-items: start;
+    gap: var(--space-section);
+    grid-template-columns: 1fr;
+  }
+
+  .booking-col {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-section);
+  }
+
+  .booking-summary {
+    display: none;
+    border-radius: var(--radius-card);
+    background: color-mix(in oklch, var(--muted) 60%, transparent);
+    padding: var(--space-card-padding);
+  }
+
+  .booking-pay-note-mobile {
+    display: block;
+    font-size: var(--font-size-label);
+    color: var(--muted-foreground);
+  }
+
+  @media (width >= 43.75rem) {
+    .booking-card-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .booking-summary {
+      display: block;
+    }
+
+    .booking-pay-note-mobile {
+      display: none;
+    }
+  }
+
+  /* Shell */
+  .shell-root {
+    display: flex;
+    min-height: var(--viewport-min-height);
+    /* clip (not hidden): avoid creating a scrollport that traps/clips document scroll */
+    overflow-x: clip;
+    background: var(--background);
+    color: var(--foreground);
+  }
+
+  .shell-sidebar {
+    display: none;
+    width: var(--size-sidebar);
+    flex-shrink: 0;
+    flex-direction: column;
+    border-right: 1px solid var(--sidebar-border);
+    background: var(--sidebar);
+    color: var(--sidebar-foreground);
+  }
+
+  .shell-sidebar-title {
+    border-bottom: 1px solid var(--sidebar-border);
+    padding: var(--space-4);
+    font-size: var(--font-size-label);
+    font-weight: 500;
+  }
+
+  .shell-nav {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-3);
+  }
+
+  .shell-nav-link {
+    display: flex;
+    min-height: var(--size-touch);
+    align-items: center;
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-label);
+  }
+
+  .shell-nav-link:hover {
+    background: var(--sidebar-accent);
+  }
+
+  .shell-nav-link[aria-current='page'] {
+    background: var(--sidebar-accent);
+    font-weight: 500;
+    color: var(--sidebar-accent-foreground);
+  }
+
+  .shell-sidebar-footer {
+    margin-top: auto;
+    border-top: 1px solid var(--sidebar-border);
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--font-size-small);
+    color: var(--muted-foreground);
+  }
+
+  .shell-drawer-root {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+  }
+
+  .shell-drawer-backdrop {
+    position: absolute;
+    inset: 0;
+    background: color-mix(in oklch, var(--foreground) 40%, transparent);
+  }
+
+  .shell-drawer-panel {
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    display: flex;
+    width: var(--size-sidebar);
+    max-width: var(--size-sidebar-mobile-max);
+    flex-direction: column;
+    background: var(--sidebar);
+    color: var(--sidebar-foreground);
+    box-shadow: 0 1rem 2rem color-mix(in oklch, var(--foreground) 20%, transparent);
+  }
+
+  .shell-main-column {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+  }
+
+  .shell-topbar {
+    display: flex;
+    height: var(--size-header-height);
+    min-width: 0;
+    align-items: center;
+    gap: var(--space-2);
+    border-bottom: 1px solid var(--border);
+    padding-inline: var(--space-page-x);
+  }
+
+  .shell-menu-button {
+    display: inline-flex;
+    min-height: var(--size-touch);
+    min-width: var(--size-touch);
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+  }
+
+  .shell-menu-icon {
+    width: var(--size-icon-menu);
+    height: var(--size-icon-menu);
+  }
+
+  .shell-topbar-title {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--font-size-label);
+    font-weight: 500;
+  }
+
+  .shell-topbar-mobile {
+    display: inline;
+  }
+
+  .shell-topbar-desktop {
+    display: none;
+  }
+
+  .shell-main {
+    min-width: 0;
+    flex: 1 1 auto;
+    padding: var(--space-page-y) var(--space-page-x) var(--space-page-bottom);
+  }
+
+  .shell-branch-label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--font-size-label);
+    color: var(--muted-foreground);
+  }
+
+  .shell-branch-caption {
+    display: none;
+  }
+
+  .shell-branch-select {
+    max-width: var(--size-branch-select);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--input);
+    background: var(--background);
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--font-size-label);
+    color: var(--foreground);
+  }
+
+  @media (width >= 43.75rem) {
+    .shell-sidebar {
+      display: flex;
+    }
+
+    .shell-drawer-root {
+      display: none;
+    }
+
+    .shell-menu-button {
+      display: none;
+    }
+
+    .shell-topbar-mobile {
+      display: none;
+    }
+
+    .shell-topbar-desktop {
+      display: inline;
+    }
+
+    .shell-branch-caption {
+      display: inline;
+    }
+  }
+
+  .sample-data-badge {
+    display: inline-flex;
+    border-radius: var(--radius-md);
+    background: var(--muted);
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--font-size-small);
+    font-weight: 500;
+    color: var(--muted-foreground);
+  }
+
+  .tile-grid {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .slot-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+  }
+
+  .chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+
+  .stack-tight {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
   }
 }

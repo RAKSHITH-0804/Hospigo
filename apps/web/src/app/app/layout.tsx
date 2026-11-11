@@ -1,15 +1,19 @@
 import type { ReactNode } from 'react';
+import { BrandScope } from '@/components/brand-scope';
 import { AppShell, BranchSwitcherPlaceholder } from '@/components/shell/app-shell';
-import { staffNavItems } from '@/mock/navigation';
+import { demoStaffHospital, staffNavFromModules } from '@/mock/hospital-app';
 
 export default function StaffLayout({ children }: { children: ReactNode }) {
   return (
-    <AppShell
-      title="Hospital staff"
-      items={staffNavItems}
-      branchSwitcher={<BranchSwitcherPlaceholder />}
-    >
-      {children}
-    </AppShell>
+    <BrandScope brandColor={demoStaffHospital.brandColor}>
+      <AppShell
+        title={demoStaffHospital.name}
+        items={staffNavFromModules()}
+        branchSwitcher={<BranchSwitcherPlaceholder />}
+        sidebarFooter="Powered by Hospigo"
+      >
+        {children}
+      </AppShell>
+    </BrandScope>
   );
 }

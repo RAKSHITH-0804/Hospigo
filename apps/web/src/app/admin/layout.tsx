@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
-import { hqNavItems } from '@/mock/navigation';
+import { hqConceptNavItems } from '@/mock/hq';
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
-    <AppShell title="Indigo HQ" items={hqNavItems}>
+    <AppShell title="Hospigo HQ" items={hqConceptNavItems}>
       {children}
     </AppShell>
   );
