@@ -6,8 +6,15 @@ import { TenantDb } from '../../database/tenant-db';
 import { MembershipHelper } from './membership.helper';
 import { PasswordService } from './password.service';
 
-/** Uniform internal failure — 6a-2 maps this to one generic client error. */
-export type HospitalLoginFailure = { ok: false; reason: 'AUTH_FAILED' };
+/** Uniform internal failure — mapped to one generic client error. */
+export type HospitalLoginFailure = {
+  ok: false;
+  reason: 'AUTH_FAILED';
+  /** Present when the access code resolved (for lockout audit only). */
+  tenantId?: string;
+  branchId?: string;
+  userId?: string;
+};
 
 export type HospitalLoginSuccess = {
   ok: true;
@@ -16,17 +23,31 @@ export type HospitalLoginSuccess = {
   isMain: boolean;
   userId: string;
   email: string;
+  displayName: string;
   mustChangePassword: boolean;
 };
 
 export type HospitalLoginResult = HospitalLoginSuccess | HospitalLoginFailure;
 
-const FAIL: HospitalLoginFailure = { ok: false, reason: 'AUTH_FAILED' };
+function failKnown(branch: {
+  tenantId: string;
+  branchId: string;
+  userId?: string;
+}): HospitalLoginFailure {
+  return {
+    ok: false,
+    reason: 'AUTH_FAILED',
+    tenantId: branch.tenantId,
+    branchId: branch.branchId,
+    userId: branch.userId,
+  };
+}
 
 /**
- * Login-time resolution (no HTTP endpoint yet).
+ * Login-time resolution.
  * Unknown code, unknown email, wrong password, disabled user, inactive branch/hospital,
  * and missing membership all return the same AUTH_FAILED result.
+ * Dummy argon2 verify runs on failure paths that did not check a real hash.
  */
 @Injectable()
 export class HospitalLoginHelper {
@@ -44,7 +65,8 @@ export class HospitalLoginHelper {
   }): Promise<HospitalLoginResult> {
     const branch = await this.branchLookup.findByAccessCode(input.accessCode);
     if (!branch) {
-      return FAIL;
+      await this.passwords.burnVerifyTime();
+      return { ok: false, reason: 'AUTH_FAILED' };
     }
 
     return runWithContext(
@@ -63,17 +85,30 @@ export class HospitalLoginHelper {
           }),
         );
         if (!user || !user.isActive) {
-          return FAIL;
+          await this.passwords.burnVerifyTime();
+          return failKnown({
+            tenantId: branch.tenantId,
+            branchId: branch.branchId,
+            userId: user?.id,
+          });
         }
 
         const passwordOk = await this.passwords.verify(user.passwordHash, input.password);
         if (!passwordOk) {
-          return FAIL;
+          return failKnown({
+            tenantId: branch.tenantId,
+            branchId: branch.branchId,
+            userId: user.id,
+          });
         }
 
         const member = await this.membership.hasActiveBranchMembership(user.id, branch.branchId);
         if (!member) {
-          return FAIL;
+          return failKnown({
+            tenantId: branch.tenantId,
+            branchId: branch.branchId,
+            userId: user.id,
+          });
         }
 
         return {
@@ -83,6 +118,7 @@ export class HospitalLoginHelper {
           isMain: branch.isMain,
           userId: user.id,
           email: user.email,
+          displayName: user.displayName,
           mustChangePassword: user.mustChangePassword,
         };
       },

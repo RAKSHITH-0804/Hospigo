@@ -5,7 +5,8 @@
 | `apps/api`                  | NestJS API (`@hospigo/api`)                                            |
 | `apps/api/prisma`           | Prisma schema, migrations, seeds                                       |
 | `apps/api/src/modules`      | Feature modules (health, storage, auth, …)                             |
-| `apps/api/src/modules/auth` | Auth foundation (config, passwords, tokens, guard; no endpoints yet)   |
+| `apps/api/src/modules/auth` | Auth endpoints, Redis limiter/lockout, tokens, global AuthGuard        |
+| `docs/api-auth.md`          | Auth HTTP endpoint reference (request/response/errors/curl)            |
 | `apps/api/src/database`     | Prisma module, TenantDb, BranchAccessLookup, HqPrismaService, DB tests |
 | `apps/api/scripts`          | API one-time/ops scripts (e.g. `create-hq-admin.ts`)                   |
 | `apps/api/src/generated`    | Generated Prisma Client (local/CI generate; not edited by hand)        |

@@ -41,6 +41,10 @@ export class TokenService {
     },
   ): string {
     const tokenType = claims.tokenType ?? 'HOSPITAL';
+    const expiresIn =
+      tokenType === 'CHANGE_PASSWORD_HOSPITAL'
+        ? this.auth.changePasswordTokenTtlSec
+        : this.auth.accessTokenTtlSec;
     return jwt.sign(
       {
         tokenType,
@@ -50,7 +54,7 @@ export class TokenService {
         sub: claims.userId,
       },
       this.auth.jwtHospitalAccessSecret,
-      { algorithm: 'HS256', expiresIn: this.auth.accessTokenTtlSec },
+      { algorithm: 'HS256', expiresIn },
     );
   }
 
@@ -58,6 +62,10 @@ export class TokenService {
     claims: Omit<HqAccessClaims, 'tokenType'> & { tokenType?: 'HQ' | 'CHANGE_PASSWORD_HQ' },
   ): string {
     const tokenType = claims.tokenType ?? 'HQ';
+    const expiresIn =
+      tokenType === 'CHANGE_PASSWORD_HQ'
+        ? this.auth.changePasswordTokenTtlSec
+        : this.auth.accessTokenTtlSec;
     return jwt.sign(
       {
         tokenType,
@@ -65,8 +73,15 @@ export class TokenService {
         sub: claims.userId,
       },
       this.auth.jwtHqAccessSecret,
-      { algorithm: 'HS256', expiresIn: this.auth.accessTokenTtlSec },
+      { algorithm: 'HS256', expiresIn },
     );
+  }
+
+  accessExpiresInSec(tokenType?: string): number {
+    if (tokenType === 'CHANGE_PASSWORD_HOSPITAL' || tokenType === 'CHANGE_PASSWORD_HQ') {
+      return this.auth.changePasswordTokenTtlSec;
+    }
+    return this.auth.accessTokenTtlSec;
   }
 
   verifyAccess(token: string, allowedTypes: readonly AccessTokenType[]): AccessClaims {
