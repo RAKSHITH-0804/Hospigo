@@ -34,10 +34,19 @@ jest.mock('@/lib/auth/guards', () => ({
     email: 'test@example.test',
     kind,
     hospitalName: kind === 'HOSPITAL' ? 'Demo Hospital One' : null,
-    activeBranchId: null,
-    activeBranchName: null,
+    activeBranchId: kind === 'HOSPITAL' ? 'b1' : null,
+    activeBranchName: kind === 'HOSPITAL' ? 'North Main' : null,
     roleCodes: [],
     mustChangePassword: false,
+    branches: kind === 'HOSPITAL' ? [{ id: 'b1', name: 'North Main', isMain: true }] : [],
+    enabledModules:
+      kind === 'HOSPITAL'
+        ? [
+            { code: 'OPD', name: 'OPD' },
+            { code: 'IPD', name: 'IPD' },
+            { code: 'PHARMACY', name: 'Pharmacy' },
+          ]
+        : [],
   })),
 }));
 
@@ -86,12 +95,24 @@ describe('web shell smoke', () => {
   });
 
   it('renders the staff page and layout', async () => {
-    const layout = await StaffLayout({ children: <StaffDashboardPage /> });
+    const page = await StaffDashboardPage({});
+    const layout = await StaffLayout({ children: page });
     render(layout);
     expect(screen.getAllByText('Demo Hospital One').length).toBeGreaterThan(0);
-    expect(screen.getByLabelText('Branch switcher').textContent).toContain('Main Branch (sample)');
+    expect(screen.getByLabelText('Active branch').textContent).toContain('North Main');
+    expect(screen.getByRole('link', { name: 'Dashboard' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'OPD queue' })).toBeTruthy();
     expect(screen.getByText('Coming later.')).toBeTruthy();
     expect(screen.getByText('Test User')).toBeTruthy();
+  });
+
+  it('shows module unavailable notice on the dashboard', async () => {
+    const page = await StaffDashboardPage({
+      searchParams: Promise.resolve({ notice: 'module-unavailable' }),
+    });
+    const layout = await StaffLayout({ children: page });
+    render(layout);
+    expect(screen.getByRole('status').textContent).toMatch(/not available/i);
   });
 
   it('renders the public booking page and layout', async () => {

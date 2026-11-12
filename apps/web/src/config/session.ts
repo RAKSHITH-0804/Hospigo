@@ -41,6 +41,7 @@ export type SessionConfig = {
   errorInvalidLink: string;
   errorPasswordValidation: string;
   passwordUpdatedNoticeText: string;
+  errorModuleUnavailable: string;
 };
 
 const DEFAULTS = {
@@ -73,6 +74,7 @@ const DEFAULTS = {
   errorInvalidLink: 'This link is invalid or has expired. Request a new one.',
   errorPasswordValidation: 'That password does not meet the requirements.',
   passwordUpdatedNoticeText: 'Your password was updated. You can sign in now.',
+  errorModuleUnavailable: 'That module is not available for your active branch.',
 } as const;
 
 function intEnv(
@@ -212,6 +214,11 @@ export function loadSessionConfig(
       'WEB_PASSWORD_UPDATED_NOTICE_TEXT',
       DEFAULTS.passwordUpdatedNoticeText,
     ),
+    errorModuleUnavailable: strEnv(
+      env,
+      'WEB_ERROR_MODULE_UNAVAILABLE',
+      DEFAULTS.errorModuleUnavailable,
+    ),
   };
 }
 
@@ -260,6 +267,19 @@ export function assertProductionAppUrl(
     return;
   }
   requireAppOrigin(env);
+}
+
+/**
+ * Production startup gate: fail closed if API_INTERNAL_URL is missing/invalid.
+ * Paired with APP_URL so the BFF cannot boot without a reachable API base.
+ */
+export function assertProductionApiInternalUrl(
+  env: Record<string, string | undefined> = process.env,
+): void {
+  if (env['NODE_ENV'] !== 'production') {
+    return;
+  }
+  requireApiInternalUrl(env);
 }
 
 export function cookieSecure(env: Record<string, string | undefined> = process.env): boolean {

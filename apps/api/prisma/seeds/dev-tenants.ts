@@ -1,5 +1,6 @@
 import argon2 from 'argon2';
 import type { PrismaClient } from '../../src/generated/prisma';
+import { assertDevTenantSeedAllowed } from '../../src/config/production-seed-guard';
 import { ensureSystemRolesForTenant } from './reference';
 
 /**
@@ -11,9 +12,7 @@ import { ensureSystemRolesForTenant } from './reference';
  * application-created accounts keep the schema default (true).
  */
 export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
-  if (process.env.NODE_ENV !== 'development') {
-    throw new Error('Dev tenant seed refuses to run unless NODE_ENV=development');
-  }
+  assertDevTenantSeedAllowed(process.env.NODE_ENV);
 
   const superPassword = requiredEnv('SEED_SUPERADMIN_PASSWORD');
   const branchPassword = requiredEnv('SEED_BRANCH_ADMIN_PASSWORD');
@@ -23,6 +22,12 @@ export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
   if (modules.length === 0) {
     throw new Error('Modules catalog is empty; run reference seed first');
   }
+
+  /** Distinct enabled module codes so hospital sidebars differ in the exit demo. */
+  const HOSPITAL_MODULE_CODES: Record<string, readonly string[]> = {
+    DEMO_NORTH: ['OPD', 'IPD', 'PHARMACY'],
+    DEMO_SOUTH: ['OPD', 'LAB'],
+  };
 
   const hospitals = [
     {
@@ -88,13 +93,15 @@ export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
       branchIds[branchSeed.code] = branch.id;
     }
 
+    const enabledCodes = new Set(HOSPITAL_MODULE_CODES[hospitalSeed.code] ?? []);
     for (const module of modules) {
+      const enabled = enabledCodes.has(module.code);
       await prisma.hospitalModuleSubscription.upsert({
         where: {
           tenantId_moduleId: { tenantId: hospital.id, moduleId: module.id },
         },
-        create: { tenantId: hospital.id, moduleId: module.id },
-        update: { isActive: true },
+        create: { tenantId: hospital.id, moduleId: module.id, isActive: enabled },
+        update: { isActive: enabled },
       });
       for (const branchId of Object.values(branchIds)) {
         await prisma.branchModule.upsert({
@@ -109,13 +116,14 @@ export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
             tenantId: hospital.id,
             branchId,
             moduleId: module.id,
-            enabledByIndigo: true,
+            enabledByIndigo: enabled,
             restrictedByHospital: false,
+            isActive: enabled,
           },
           update: {
-            enabledByIndigo: true,
+            enabledByIndigo: enabled,
             restrictedByHospital: false,
-            isActive: true,
+            isActive: enabled,
           },
         });
       }

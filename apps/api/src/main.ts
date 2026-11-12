@@ -6,6 +6,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { applyCors } from './config/cors';
+import { assertNoTestTenantsInProduction } from './config/production-seed-guard';
 import { setupSwagger } from './setup-swagger';
 import type { ApiEnv } from './config/env';
 
@@ -16,6 +17,11 @@ async function bootstrap(): Promise<void> {
   const config = app.get(ConfigService<ApiEnv, true>);
   const auth = config.getOrThrow('auth', { infer: true });
   const nodeEnv = config.getOrThrow('NODE_ENV', { infer: true });
+
+  await assertNoTestTenantsInProduction(
+    nodeEnv,
+    config.getOrThrow('DATABASE_URL_OWNER', { infer: true }),
+  );
 
   if (auth.trustedProxy === 'none') {
     app.set('trust proxy', false);

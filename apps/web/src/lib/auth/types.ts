@@ -7,6 +7,17 @@ export type TokenPairResponse = {
   mustChangePassword: boolean;
 };
 
+export type AuthMeBranch = {
+  id: string;
+  name: string;
+  isMain: boolean;
+};
+
+export type AuthMeModule = {
+  code: string;
+  name: string;
+};
+
 export type AuthMeProfile = {
   id: string;
   displayName: string;
@@ -17,6 +28,8 @@ export type AuthMeProfile = {
   activeBranchName: string | null;
   roleCodes: string[];
   mustChangePassword: boolean;
+  branches: AuthMeBranch[];
+  enabledModules: AuthMeModule[];
 };
 
 export type BrowserAuthErrorCode =

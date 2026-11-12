@@ -127,9 +127,11 @@ HQ access under FORCE RLS uses policies `TO hospigo_hq` / `TO hospigo_security` 
 
 ## Web staff auth (Step 6d)
 
-- Browser → Next.js only. Route handlers call the API with `API_INTERNAL_URL` (server-only; never `NEXT_PUBLIC_*`). Tokens in httpOnly cookies; no JWT verify in the web app (`getSession` calls `GET /auth/me`). Production startup (`instrumentation.ts`) requires `APP_URL`.
+- Browser → Next.js only. Route handlers call the API with `API_INTERNAL_URL` (server-only; never `NEXT_PUBLIC_*`). Tokens in httpOnly cookies; no JWT verify in the web app (`getSession` calls `GET /auth/me`). Production startup (`instrumentation.ts`) requires `APP_URL` and `API_INTERNAL_URL`.
 - Guards in `/admin` and `/app` layouts require HQ vs HOSPITAL; missing/invalid access always → `/api/auth/refresh?next=…` (refresh cookie path is `/api/auth`, so it is only visible on that handler; single-flight rotation). Wrong kind → `/login` (never refresh). `/login` and `/book/**` stay public.
-- Config: `apps/web/src/config/session.ts` (cookie names, lifetimes, error copy, body limit).
+- Config: `apps/web/src/config/session.ts` (cookie names, lifetimes, error copy, body limit); module nav mapping in `apps/web/src/config/modules.ts`.
+- **Exit demo (Step 7):** hospital shell titles and sidebar come from `/auth/me` (`hospitalName`, `activeBranchName`, `enabledModules`). Module pages are guarded with `requireModule`. Page **content** (OPD queue, HQ hospitals list) remains sample data until later phases.
+- **First-live seed:** `seedDevTenants` refuses unless `NODE_ENV=development`. Production API startup fails if any `hospitals.is_test` row exists (`assertNoTestTenantsInProduction`).
 
 ## Ledger design rules (later — OPD billing step)
 

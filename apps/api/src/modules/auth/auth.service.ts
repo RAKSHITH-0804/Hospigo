@@ -21,6 +21,17 @@ export type TokenPairResponse = {
   mustChangePassword: boolean;
 };
 
+export type AuthMeBranch = {
+  id: string;
+  name: string;
+  isMain: boolean;
+};
+
+export type AuthMeModule = {
+  code: string;
+  name: string;
+};
+
 export type AuthMeResponse = {
   id: string;
   displayName: string;
@@ -31,6 +42,14 @@ export type AuthMeResponse = {
   activeBranchName: string | null;
   roleCodes: string[];
   mustChangePassword: boolean;
+  /** Hospital only: branches with an active membership. Empty for HQ. */
+  branches: AuthMeBranch[];
+  /**
+   * Hospital only: modules enabled for the active branch
+   * (subscription + branch_modules flags, same rules as AccessService).
+   * Empty for HQ.
+   */
+  enabledModules: AuthMeModule[];
 };
 
 @Injectable()
@@ -419,8 +438,10 @@ export class AuthService {
               include: {
                 hospital: { select: { name: true } },
                 userBranches: {
-                  where: { branchId: hospitalClaims.branchId, isActive: true },
-                  include: { branch: { select: { id: true, name: true } } },
+                  where: { isActive: true },
+                  include: {
+                    branch: { select: { id: true, name: true, isMain: true, isActive: true } },
+                  },
                 },
                 roleAssignments: {
                   where: { isActive: true },
@@ -428,30 +449,75 @@ export class AuthService {
                 },
               },
             });
-            return user;
+            if (!user) {
+              return null;
+            }
+
+            const branches = user.userBranches
+              .filter((ub) => ub.branch.isActive)
+              .map((ub) => ({
+                id: ub.branch.id,
+                name: ub.branch.name,
+                isMain: ub.branch.isMain,
+              }))
+              .sort((a, b) => a.name.localeCompare(b.name));
+
+            const activeBranch =
+              branches.find((b) => b.id === hospitalClaims.branchId) ??
+              user.userBranches.find((ub) => ub.branchId === hospitalClaims.branchId)?.branch;
+
+            const subscribed = await tx.hospitalModuleSubscription.findMany({
+              where: { isActive: true },
+              select: { moduleId: true },
+            });
+            const subscribedIds = new Set(subscribed.map((s) => s.moduleId));
+
+            const moduleRows = await tx.branchModule.findMany({
+              where: {
+                branchId: hospitalClaims.branchId,
+                isActive: true,
+                enabledByIndigo: true,
+                restrictedByHospital: false,
+                module: { isActive: true },
+              },
+              include: { module: { select: { id: true, code: true, name: true } } },
+            });
+            const enabledModules = moduleRows
+              .filter((row) => subscribedIds.has(row.moduleId))
+              .map((row) => ({ code: row.module.code, name: row.module.name }))
+              .sort((a, b) => a.code.localeCompare(b.code));
+
+            return {
+              user,
+              branches,
+              activeBranchId: activeBranch?.id ?? hospitalClaims.branchId,
+              activeBranchName: activeBranch?.name ?? null,
+              enabledModules,
+            };
           });
           if (!data) {
             authFailed();
           }
-          const branch = data.userBranches[0]?.branch;
           const roleCodes = [
             ...new Set(
-              data.roleAssignments
+              data.user.roleAssignments
                 .filter((a) => a.role.isActive)
                 .map((a) => a.role.code)
                 .sort(),
             ),
           ];
           return {
-            id: data.id,
-            displayName: data.displayName,
-            email: data.email,
+            id: data.user.id,
+            displayName: data.user.displayName,
+            email: data.user.email,
             kind: 'HOSPITAL' as const,
-            hospitalName: data.hospital.name,
-            activeBranchId: branch?.id ?? hospitalClaims.branchId,
-            activeBranchName: branch?.name ?? null,
+            hospitalName: data.user.hospital.name,
+            activeBranchId: data.activeBranchId,
+            activeBranchName: data.activeBranchName,
             roleCodes,
-            mustChangePassword: data.mustChangePassword,
+            mustChangePassword: data.user.mustChangePassword,
+            branches: data.branches,
+            enabledModules: data.enabledModules,
           };
         },
       );
@@ -471,6 +537,8 @@ export class AuthService {
       activeBranchName: null,
       roleCodes: ['HQ_ADMIN'],
       mustChangePassword: user.mustChangePassword,
+      branches: [],
+      enabledModules: [],
     };
   }
 
