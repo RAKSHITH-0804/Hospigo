@@ -10,19 +10,28 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import {
+  ApiAcceptedResponse,
   ApiBearerAuth,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { AuthEmailService } from './auth-email.service';
 import { AuthService } from './auth.service';
 import { AuthRateLimitedError } from './auth-redis.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import {
+  ForgotPasswordAcceptedDto,
+  ForgotPasswordDto,
+  HqForgotPasswordDto,
+} from './dto/forgot-password.dto';
 import { HospitalLoginDto } from './dto/hospital-login.dto';
 import { HqLoginDto } from './dto/hq-login.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshDto } from './dto/refresh.dto';
+import { ActivateDto, ResetPasswordDto } from './dto/reset-activate.dto';
 import { TokenResponseDto } from './dto/token-response.dto';
 import { Public } from './public.decorator';
 import { TokenKinds } from './token-kinds.decorator';
@@ -41,7 +50,10 @@ type HttpRes = {
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly authEmail: AuthEmailService,
+  ) {}
 
   @Public()
   @Post('hospital/login')
@@ -121,6 +133,63 @@ export class AuthController {
       throw new UnauthorizedException('Missing auth context');
     }
     return this.auth.me(req.auth);
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(202)
+  @ApiOperation({
+    summary:
+      'Request hospital password-reset email (always 202; does not reveal account existence)',
+  })
+  @ApiAcceptedResponse({ type: ForgotPasswordAcceptedDto })
+  async forgotPassword(
+    @Body() body: ForgotPasswordDto,
+    @Req() req: HttpReq,
+    @Res({ passthrough: true }) res: HttpRes,
+  ): Promise<ForgotPasswordAcceptedDto> {
+    return this.wrapRateLimit(res, () => this.authEmail.forgotPassword(body, clientMeta(req)));
+  }
+
+  @Public()
+  @Post('hq/forgot-password')
+  @HttpCode(202)
+  @ApiOperation({
+    summary: 'Request HQ password-reset email (always 202; does not reveal account existence)',
+  })
+  @ApiAcceptedResponse({ type: ForgotPasswordAcceptedDto })
+  async hqForgotPassword(
+    @Body() body: HqForgotPasswordDto,
+    @Req() req: HttpReq,
+    @Res({ passthrough: true }) res: HttpRes,
+  ): Promise<ForgotPasswordAcceptedDto> {
+    return this.wrapRateLimit(res, () => this.authEmail.hqForgotPassword(body, clientMeta(req)));
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Complete password reset with email link token' })
+  @ApiNoContentResponse()
+  async resetPassword(
+    @Body() body: ResetPasswordDto,
+    @Req() req: HttpReq,
+    @Res({ passthrough: true }) res: HttpRes,
+  ): Promise<void> {
+    await this.wrapRateLimit(res, () => this.authEmail.resetPassword(body, clientMeta(req)));
+  }
+
+  @Public()
+  @Post('activate')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Activate hospital account with email link token' })
+  @ApiNoContentResponse()
+  async activate(
+    @Body() body: ActivateDto,
+    @Req() req: HttpReq,
+    @Res({ passthrough: true }) res: HttpRes,
+  ): Promise<void> {
+    await this.wrapRateLimit(res, () => this.authEmail.activate(body, clientMeta(req)));
   }
 
   private async wrapRateLimit<T>(res: HttpRes, fn: () => Promise<T>): Promise<T> {

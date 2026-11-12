@@ -165,3 +165,31 @@ export function fetchMe(
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 }
+
+export function forgotPasswordUpstream(
+  request: Request,
+  body: { accessCode: string; email: string },
+): Promise<UpstreamResult<{ accepted: true }>> {
+  return callApi(request, '/auth/forgot-password', { method: 'POST', json: body });
+}
+
+export function hqForgotPasswordUpstream(
+  request: Request,
+  body: { email: string },
+): Promise<UpstreamResult<{ accepted: true }>> {
+  return callApi(request, '/auth/hq/forgot-password', { method: 'POST', json: body });
+}
+
+export function resetPasswordUpstream(
+  request: Request,
+  body: { token: string; newPassword: string },
+): Promise<UpstreamResult<void>> {
+  return callApi(request, '/auth/reset-password', { method: 'POST', json: body });
+}
+
+export function activateUpstream(
+  request: Request,
+  body: { token: string; newPassword: string },
+): Promise<UpstreamResult<void>> {
+  return callApi(request, '/auth/activate', { method: 'POST', json: body });
+}

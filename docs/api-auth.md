@@ -1,6 +1,6 @@
-# Auth API (Step 6a-2) and web session (Step 6d)
+# Auth API (Step 6a-2 / 6b email flows) and web session (Step 6d)
 
-Staff/HQ password auth. No email, OTP, or patient login here.
+Staff/HQ password auth plus activation and password-reset email links (Step 6b part A). No OTP or patient login here.
 
 ## Web browser flow (Step 6d)
 
@@ -27,14 +27,59 @@ Put `API_INTERNAL_URL` and `APP_URL` in `apps/web/.env.local` (gitignored).
 
 ## Endpoints
 
-| Method | Path                    | Auth                                              | Body                                                                                                                                                                                   |
-| ------ | ----------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| POST   | `/auth/hospital/login`  | public                                            | `accessCode`, `email`, `password`                                                                                                                                                      |
-| POST   | `/auth/hq/login`        | public                                            | `email`, `password`                                                                                                                                                                    |
-| POST   | `/auth/refresh`         | public                                            | `refreshToken`                                                                                                                                                                         |
-| POST   | `/auth/logout`          | public                                            | `refreshToken` (idempotent)                                                                                                                                                            |
-| POST   | `/auth/change-password` | Bearer (`HOSPITAL`, `HQ`, or `CHANGE_PASSWORD_*`) | `currentPassword`, `newPassword` (wrong current password → generic 401; per-user lockout under `hospigo:auth:cpw:` with the same failure/lock windows as login; IP rate limit applies) |
-| GET    | `/auth/me`              | Bearer (`HOSPITAL` or `HQ`)                       | —                                                                                                                                                                                      |
+| Method | Path                       | Auth                                              | Body                                                                                                                                                                                   |
+| ------ | -------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/auth/hospital/login`     | public                                            | `accessCode`, `email`, `password`                                                                                                                                                      |
+| POST   | `/auth/hq/login`           | public                                            | `email`, `password`                                                                                                                                                                    |
+| POST   | `/auth/refresh`            | public                                            | `refreshToken`                                                                                                                                                                         |
+| POST   | `/auth/logout`             | public                                            | `refreshToken` (idempotent)                                                                                                                                                            |
+| POST   | `/auth/change-password`    | Bearer (`HOSPITAL`, `HQ`, or `CHANGE_PASSWORD_*`) | `currentPassword`, `newPassword` (wrong current password → generic 401; per-user lockout under `hospigo:auth:cpw:` with the same failure/lock windows as login; IP rate limit applies) |
+| GET    | `/auth/me`                 | Bearer (`HOSPITAL` or `HQ`)                       | —                                                                                                                                                                                      |
+| POST   | `/auth/forgot-password`    | public                                            | `accessCode`, `email` → always **202** `{ accepted: true }` (padded timing; enqueue only for active user+membership)                                                                   |
+| POST   | `/auth/hq/forgot-password` | public                                            | `email` → always **202** `{ accepted: true }`                                                                                                                                          |
+| POST   | `/auth/reset-password`     | public                                            | `token`, `newPassword` → **204**; hospital `h.` or HQ `q.` tokens                                                                                                                      |
+| POST   | `/auth/activate`           | public                                            | `token`, `newPassword` → **204**; hospital activation only                                                                                                                             |
+
+### Email action tokens (Step 6b)
+
+- Hospital: `h.<tenantId>.<tokenId>.<secret>` — purposes `ACTIVATION` \| `PASSWORD_RESET`.
+- HQ: `q.<tokenId>.<secret>` — `PASSWORD_RESET` only.
+- Store **SHA-256 of secret only**; verify with the same constant-time helper as refresh secrets.
+- Links: `${APP_URL}/activate#t=<token>` and `${APP_URL}/reset-password#t=<token>` (secret after `#` only). Never email a password.
+- Mail queue job data is only `{ kind, tenantId|null, userId }` — Redis never holds tokens or emails.
+- Creating a token invalidates earlier unused tokens of the same purpose for that user.
+- Consume is atomic (`UPDATE … SET used_at … WHERE used_at IS NULL AND expires_at > now RETURNING`) in the same transaction as the password change.
+- Invalid / expired / used / wrong-secret tokens share one body: `400 {"statusCode":400,"message":"Invalid or expired link","error":"Bad Request"}`.
+- Weak passwords return the existing `Password rejected: …` 400 **without** consuming the token.
+- Rate limits: per-IP (`AUTH_IP_RATE_LIMIT_*`) on forgot/reset/activate; per-account hash under `hospigo:auth:reset:req:` (`AUTH_RESET_MAX_REQUESTS_PER_WINDOW` / `AUTH_RESET_REQUEST_WINDOW_MS`). Redis down → 503.
+
+### Mailpit (local SMTP)
+
+- SMTP: `127.0.0.1:1025` (`SMTP_USER` / `SMTP_PASSWORD` may be empty; `SMTP_SECURE=false`).
+- Inbox UI: `http://127.0.0.1:8025`.
+- Set `APP_URL` to the web origin used in the browser (e.g. `http://127.0.0.1:3001`).
+
+### Web BFF + pages (Step 6b part B)
+
+Browser never talks to the API with tokens in query strings. Pages:
+
+| Page               | Role                                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------- |
+| `/forgot-password` | Hospital (access code + email) or HQ (`?tab=hq`) → BFF → always neutral confirmation on 202 |
+| `/reset-password`  | Reads `#t=…` in the client, strips the hash, POSTs token in JSON body                       |
+| `/activate`        | Same token handling as reset                                                                |
+| `/login`           | “Forgot password?” link; optional `?notice=password-updated` banner (no secrets)            |
+
+BFF routes under `/api/auth/`:
+
+| BFF                                 | Upstream                   | Browser success       | Notable errors                                                               |
+| ----------------------------------- | -------------------------- | --------------------- | ---------------------------------------------------------------------------- |
+| `POST /api/auth/forgot-password`    | `/auth/forgot-password`    | 202 `{accepted:true}` | 429 `RATE_LIMITED`; 503 `UNAVAILABLE`; other 4xx masked as 202               |
+| `POST /api/auth/hq-forgot-password` | `/auth/hq/forgot-password` | same                  | same                                                                         |
+| `POST /api/auth/reset-password`     | `/auth/reset-password`     | 204                   | 400 `INVALID_LINK` (generic link message); 400 `VALIDATION` (password rules) |
+| `POST /api/auth/activate`           | `/auth/activate`           | 204                   | same as reset                                                                |
+
+Security headers on `/forgot-password`, `/reset-password`, `/activate`: `Referrer-Policy: no-referrer`, `Cache-Control: no-store`.
 
 ### Token response
 

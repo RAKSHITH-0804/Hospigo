@@ -20,4 +20,10 @@ export type AuthMeProfile = {
 };
 
 export type BrowserAuthErrorCode =
-  'INVALID_CREDENTIALS' | 'RATE_LIMITED' | 'UNAVAILABLE' | 'UNKNOWN' | 'VALIDATION' | 'FORBIDDEN';
+  | 'INVALID_CREDENTIALS'
+  | 'RATE_LIMITED'
+  | 'UNAVAILABLE'
+  | 'UNKNOWN'
+  | 'VALIDATION'
+  | 'FORBIDDEN'
+  | 'INVALID_LINK';

@@ -19,9 +19,10 @@ const HQ_ALLOWED: Record<string, Priv> = {
   branch_modules: { select: true, insert: true, update: true, delete: true },
   // Narrow first-SuperAdmin needs: HQ may append audit only; user/role writes go through SECURITY DEFINER.
   audit_logs: { select: false, insert: true, update: false, delete: false },
-  // Step 6a-1: HQ auth tables only (no clinical widening).
+  // Step 6a-1 / 6b: HQ auth tables only (no clinical widening).
   hq_users: { select: true, insert: true, update: true, delete: false },
   hq_auth_sessions: { select: true, insert: true, update: true, delete: true },
+  hq_auth_action_tokens: { select: true, insert: true, update: true, delete: false },
 };
 
 const INSERT_REFUSAL_TABLES = [
@@ -227,6 +228,17 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
       },
     });
     sampleB.auth_sessions = authSession.id;
+
+    const actionToken = await prisma.authActionToken.create({
+      data: {
+        tenantId: tenantB,
+        userId: user.id,
+        purpose: 'PASSWORD_RESET',
+        tokenHash: `sample-action-hash-${stamp}`,
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+      },
+    });
+    sampleB.auth_action_tokens = actionToken.id;
 
     // Hospital with SUPER_ADMIN role ready for first-SuperAdmin (no assignment yet).
     const superHospital = await prisma.hospital.create({

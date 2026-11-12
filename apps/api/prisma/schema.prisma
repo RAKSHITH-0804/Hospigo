@@ -36,6 +36,13 @@ model Permission {
   @@map("permissions")
 }
 
+enum AuthActionPurpose {
+  ACTIVATION
+  PASSWORD_RESET
+
+  @@map("auth_action_purpose")
+}
+
 model HqUser {
   id                 String    @id @default(cuid())
   email              String    @unique
@@ -48,9 +55,27 @@ model HqUser {
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  sessions HqAuthSession[]
+  sessions     HqAuthSession[]
+  actionTokens HqAuthActionToken[]
 
   @@map("hq_users")
+}
+
+/// HQ password-reset action tokens (global). Store token_hash only.
+model HqAuthActionToken {
+  id        String            @id @default(cuid())
+  hqUserId  String            @map("hq_user_id")
+  purpose   AuthActionPurpose
+  tokenHash String            @map("token_hash")
+  expiresAt DateTime          @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime?         @map("used_at") @db.Timestamptz(3)
+  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user HqUser @relation(fields: [hqUserId], references: [id], onDelete: Cascade)
+
+  @@index([hqUserId, purpose])
+  @@index([id])
+  @@map("hq_auth_action_tokens")
 }
 
 /// HQ refresh sessions (global — no tenant_id). Store token_hash only.
@@ -122,6 +147,7 @@ model Hospital {
   roleAssignmentBranches RoleAssignmentBranch[]
   auditLogs     AuditLog[]
   authSessions  AuthSession[]
+  actionTokens  AuthActionToken[]
   patients      Patient[]
   patientIdentifiers PatientIdentifier[]
   patientCustomFields PatientCustomField[]
@@ -240,6 +266,7 @@ model User {
   userBranches    UserBranch[]
   roleAssignments RoleAssignment[]
   authSessions    AuthSession[]
+  actionTokens    AuthActionToken[]
   auditLogs       AuditLog[]       @relation("AuditActor")
   createdPatients Patient[]        @relation("PatientCreatedBy")
   uhidFormatConfigs UhidFormatConfig[] @relation("UhidConfigCreatedBy")
@@ -254,6 +281,26 @@ model User {
   @@unique([tenantId, email])
   @@index([tenantId])
   @@map("users")
+}
+
+/// Hospital activation / password-reset tokens. Store token_hash only.
+model AuthActionToken {
+  id        String            @id @default(cuid())
+  tenantId  String            @map("tenant_id")
+  userId    String            @map("user_id")
+  purpose   AuthActionPurpose
+  tokenHash String            @map("token_hash")
+  expiresAt DateTime          @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime?         @map("used_at") @db.Timestamptz(3)
+  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, userId, purpose])
+  @@index([id])
+  @@map("auth_action_tokens")
 }
 
 /// Hospital staff refresh sessions. Store token_hash only; never the raw refresh secret.

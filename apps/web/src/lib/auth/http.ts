@@ -6,6 +6,9 @@ import type { BrowserAuthErrorCode } from './types';
 /** Nest password-rule messages that are safe to echo (plain string only). */
 const SAFE_PASSWORD_RULE_MESSAGE = /^Password rejected: (TOO_SHORT|COMMON_PASSWORD)$/;
 
+/** Exact Nest body for bad activation/reset links (must match API). */
+export const UPSTREAM_INVALID_LINK_MESSAGE = 'Invalid or expired link';
+
 export function safePasswordRuleMessage(message: unknown): string | undefined {
   if (typeof message !== 'string') {
     return undefined;
@@ -15,6 +18,10 @@ export function safePasswordRuleMessage(message: unknown): string | undefined {
     return undefined;
   }
   return trimmed;
+}
+
+export function isUpstreamInvalidLinkMessage(message: unknown): boolean {
+  return typeof message === 'string' && message.trim() === UPSTREAM_INVALID_LINK_MESSAGE;
 }
 
 export function assertJsonContentType(request: Request): NextResponse | null {

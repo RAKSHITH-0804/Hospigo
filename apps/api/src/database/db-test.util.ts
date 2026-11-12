@@ -10,6 +10,7 @@ export const GLOBAL_TABLES = new Set([
   'permissions',
   'hq_users',
   'hq_auth_sessions',
+  'hq_auth_action_tokens',
   // Prisma's own table, holds no tenant data.
   '_prisma_migrations',
   // Global system field catalog (exact name).
