@@ -4,7 +4,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ErrorState } from '@/components/states/error-state';
 import { LoadingState } from '@/components/states/loading-state';
-import { apiGet, type HealthResponse } from '@/lib/api';
+
+type HealthResponse = {
+  status: string;
+};
 
 export function StorageStatusCard() {
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -12,7 +15,13 @@ export function StorageStatusCard() {
 
   const load = useCallback(() => {
     setPhase('loading');
-    apiGet<HealthResponse>('/health')
+    fetch('/api/health', { headers: { Accept: 'application/json' } })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error('health failed');
+        }
+        return (await response.json()) as HealthResponse;
+      })
       .then((body) => {
         setStatus(body.status);
         setPhase('ready');

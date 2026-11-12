@@ -5,6 +5,21 @@ import { HospitalsScreen } from '@/components/admin/hospitals-screen';
 
 jest.mock('next/navigation', () => ({
   usePathname: () => '/admin',
+  useRouter: () => ({ replace: jest.fn(), refresh: jest.fn() }),
+}));
+
+jest.mock('@/lib/auth/guards', () => ({
+  requireKind: jest.fn(async () => ({
+    id: 'u1',
+    displayName: 'HQ User',
+    email: 'hq@example.test',
+    kind: 'HQ',
+    hospitalName: null,
+    activeBranchId: null,
+    activeBranchName: null,
+    roleCodes: [],
+    mustChangePassword: false,
+  })),
 }));
 
 jest.mock('next/link', () => {
@@ -27,11 +42,8 @@ jest.mock('next/link', () => {
 
 describe('admin hospitals concept screen', () => {
   it('renders mock hospitals, sample badge, Storage wording, and card plus table markup', async () => {
-    render(
-      <AdminLayout>
-        <HospitalsScreen />
-      </AdminLayout>,
-    );
+    const layout = await AdminLayout({ children: <HospitalsScreen /> });
+    render(layout);
 
     expect(screen.getAllByText('Sample data').length).toBeGreaterThan(0);
     expect(
@@ -47,11 +59,10 @@ describe('admin hospitals concept screen', () => {
   });
 
   it('marks Hospitals as the current sidebar page', async () => {
-    render(
-      <AdminLayout>
-        <HospitalsScreen loadOptions={{ delayMs: 0 }} />
-      </AdminLayout>,
-    );
+    const layout = await AdminLayout({
+      children: <HospitalsScreen loadOptions={{ delayMs: 0 }} />,
+    });
+    render(layout);
     await screen.findAllByText('Demo Hospital One');
     const current = screen
       .getAllByRole('link', { name: 'Hospitals' })

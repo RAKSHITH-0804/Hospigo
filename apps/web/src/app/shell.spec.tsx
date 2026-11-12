@@ -19,6 +19,26 @@ jest.mock('next/navigation', () => ({
   },
   useParams: () => ({ code: 'DEMOONE' }),
   usePathname: () => '/admin',
+  useRouter: () => ({ replace: jest.fn(), refresh: jest.fn() }),
+}));
+
+jest.mock('@/lib/auth/session', () => ({
+  getSession: jest.fn(async () => null),
+  homeForKind: (kind: 'HQ' | 'HOSPITAL') => (kind === 'HQ' ? '/admin' : '/app'),
+}));
+
+jest.mock('@/lib/auth/guards', () => ({
+  requireKind: jest.fn(async (kind: 'HQ' | 'HOSPITAL') => ({
+    id: 'u1',
+    displayName: 'Test User',
+    email: 'test@example.test',
+    kind,
+    hospitalName: kind === 'HOSPITAL' ? 'Demo Hospital One' : null,
+    activeBranchId: null,
+    activeBranchName: null,
+    roleCodes: [],
+    mustChangePassword: false,
+  })),
 }));
 
 jest.mock('next/link', () => {
@@ -44,39 +64,34 @@ describe('web shell smoke', () => {
     expect(() => HomePage()).toThrow('REDIRECT:/login');
   });
 
-  it('renders the login page and layout', () => {
-    render(
-      <LoginLayout>
-        <LoginPage />
-      </LoginLayout>,
-    );
+  it('renders the login page and layout', async () => {
+    const layout = await LoginLayout({ children: <LoginPage /> });
+    render(layout);
     expect(screen.getByRole('heading', { name: 'Sign in' })).toBeTruthy();
   });
 
   it('renders the HQ page and layout with page context in the top bar', async () => {
-    render(
-      <AdminLayout>
-        <HospitalsScreen loadOptions={{ delayMs: 0 }} />
-      </AdminLayout>,
-    );
+    const layout = await AdminLayout({
+      children: <HospitalsScreen loadOptions={{ delayMs: 0 }} />,
+    });
+    render(layout);
     expect(screen.getAllByText('Hospigo HQ').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Hospitals').length).toBeGreaterThan(0);
     expect((await screen.findAllByText('Demo Hospital One')).length).toBeGreaterThan(0);
+    expect(screen.getByText('Test User')).toBeTruthy();
     const current = screen
       .getAllByRole('link', { name: 'Hospitals' })
       .filter((link) => link.getAttribute('aria-current') === 'page');
     expect(current.length).toBeGreaterThan(0);
   });
 
-  it('renders the staff page and layout', () => {
-    render(
-      <StaffLayout>
-        <StaffDashboardPage />
-      </StaffLayout>,
-    );
+  it('renders the staff page and layout', async () => {
+    const layout = await StaffLayout({ children: <StaffDashboardPage /> });
+    render(layout);
     expect(screen.getAllByText('Demo Hospital One').length).toBeGreaterThan(0);
     expect(screen.getByLabelText('Branch switcher').textContent).toContain('Main Branch (sample)');
     expect(screen.getByText('Coming later.')).toBeTruthy();
+    expect(screen.getByText('Test User')).toBeTruthy();
   });
 
   it('renders the public booking page and layout', async () => {
@@ -104,12 +119,11 @@ describe('web shell smoke', () => {
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
-  it('opens and closes the mobile navigation menu', () => {
-    render(
-      <AdminLayout>
-        <HospitalsScreen loadOptions={{ delayMs: 0 }} />
-      </AdminLayout>,
-    );
+  it('opens and closes the mobile navigation menu', async () => {
+    const layout = await AdminLayout({
+      children: <HospitalsScreen loadOptions={{ delayMs: 0 }} />,
+    });
+    render(layout);
 
     const openMenu = screen.getByRole('button', { name: 'Open menu' });
     expect(openMenu).toBeTruthy();

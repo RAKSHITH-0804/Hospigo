@@ -13,7 +13,8 @@
     "test": "jest",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
-    "prisma:seed": "tsx prisma/seed.ts"
+    "prisma:seed": "tsx prisma/seed.ts",
+    "create-hq-admin": "tsx scripts/create-hq-admin.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.2.8",

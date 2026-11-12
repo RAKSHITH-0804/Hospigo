@@ -29,6 +29,71 @@
 
 ## Unreleased
 
+## 2026-11-12 — Phase 1 Step 6d fix-up 4 — redirect host uses APP_URL
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** `appUrl()` helper; refresh `Location` built from `APP_URL` origin; refresh single-flight map on `globalThis`
+- **Changed:** docs/`.env.example` note that APP_URL must match the browser origin
+- **Removed:** none
+- **Fixed:** refresh no longer redirects `127.0.0.1` sessions onto `localhost` (cookie host mismatch)
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** none
+- **Tests:** refresh Location origin follows APP_URL when request host is localhost; open-redirect still rejected
+- **Decisions:** absolute redirects use APP_URL; relative `next/navigation` redirects stay relative
+- **Follow-ups and open items:** none
+
+## 2026-11-12 — Phase 1 Step 6d fix-up 3 — change-password BFF errors
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** BFF maps upstream 400→`VALIDATION`, 403→`FORBIDDEN`; safe one-line 500 logs; change-password form keeps fields on error
+- **Changed:** bad/empty 2xx upstream body → 502 `UNAVAILABLE` (not uncaught 500)
+- **Removed:** none
+- **Fixed:** hospital change-password password-rule failures no longer surface as opaque web 500
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** optional `WEB_ERROR_CHANGE_PASSWORD_*` copy overrides
+- **Tests:** VALIDATION/502/safe-log handler tests; form keeps fields for VALIDATION/INVALID_CREDENTIALS/RATE_LIMITED
+- **Decisions:** never forward upstream arrays/stack traces; validation copy stays generic (no hardcoded min length in UI)
+- **Follow-ups and open items:** none
+
+## 2026-11-12 — Phase 1 Step 6d fix-up 2 — health gate + forwarded headers
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** `WEB_TRUST_FORWARDED_HEADERS` (default false); HQ session gate on `GET /api/health`
+- **Changed:** `/api/health` returns only `{ status }`; client IP ignores spoofed XFF unless trust flag is true
+- **Removed:** none
+- **Fixed:** public `/api/health` no longer unauthenticated
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** `WEB_TRUST_FORWARDED_HEADERS`
+- **Tests:** health 401/403/HQ-minimal fields; trust-forwarded true/false IP tests
+- **Decisions:** production proxy needs web trust flag + API `AUTH_TRUSTED_PROXY` hop count together
+- **Follow-ups and open items:** none
+
+## 2026-11-12 — Phase 1 Step 6d cleanup — no browser API URL
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** BFF `GET /api/health`; `instrumentation.ts` production `APP_URL` gate; X-Forwarded-For forwarding test
+- **Changed:** `StorageStatusCard` calls `/api/health` (same-origin); NEXT_PUBLIC scan covers `.env.example` + `jest.env.cjs` and secret-like / API URL names
+- **Removed:** `apps/web/src/lib/api.ts`; `NEXT_PUBLIC_API_URL` from web `.env.example` and `jest.env.cjs`
+- **Fixed:** none
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** none
+- **Tests:** web suite (was 41) + XFF + APP_URL startup + tighter NEXT_PUBLIC scan
+- **Decisions:** browser must never know API URL; production fails at startup if `APP_URL` unset
+- **Follow-ups and open items:** none
+
+## 2026-11-11 — Phase 1 Step 6d — web staff authentication
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** Next BFF auth routes (`/api/auth/*`), httpOnly session cookies, `getSession` / layout guards, real `/login` + `/change-password`, shell display name + Sign out; `apps/web/src/config/session.ts`; `API_INTERNAL_URL` in env examples; `create-hq-admin` npm script on `@hospigo/api`
+- **Changed:** `/login` is live (no sample badge / Step 6 note); `/admin` and `/app` require session kind; docs for web auth flow and trusted-proxy note
+- **Removed:** sample-only login copy
+- **Fixed:** protected layouts always bounce missing access through `/api/auth/refresh` (refresh cookie path `/api/auth` is not sent on `/admin`/`/app`); single-flight cleanup timer `unref`’d; middleware overwrites client `x-pathname`
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** `API_INTERNAL_URL`; optional `WEB_*` session overrides
+- **Tests:** web suite 41 (auth handler/guard/middleware/form/NEXT_PUBLIC scan); refresh-path + x-pathname overwrite covered
+- **Decisions:** tokens never reach browser JS; refresh cookie path `/api/auth`; single-flight refresh map; Origin check on auth POSTs
+- **Follow-ups and open items:** patient login / OTP; replace mock page data with APIs
+
 ## 2026-11-11 — Phase 1 Step 6a-2 — auth endpoints
 
 - **Commit hash(es):** (uncommitted)

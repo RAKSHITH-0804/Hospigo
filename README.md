@@ -152,7 +152,7 @@ Auth, rate limiting, and Mailpit wiring: Not available yet (planned in later ste
 
 ## Web app
 
-`apps/web` is a Next.js app. Copy `apps/web/.env.example` to `apps/web/.env.local` and set `NEXT_PUBLIC_API_URL` to the API origin (default API port is 3000). The dev server listens on port 3001. For the browser to call the API, set `CORS_ORIGIN` on the API to that web origin. Sign-in is a placeholder until auth is connected.
+`apps/web` is a Next.js app. Copy `apps/web/.env.example` to `apps/web/.env.local` and set server-only `API_INTERNAL_URL` (API origin, default port 3000) and `APP_URL` (web origin used for auth Origin checks). The browser never receives the API URL — route handlers call the API server-to-server. The dev server listens on port 3001.
 
 ## Health checks
 
