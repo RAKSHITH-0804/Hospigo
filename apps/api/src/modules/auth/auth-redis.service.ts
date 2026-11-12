@@ -133,6 +133,33 @@ export class AuthRedisService implements OnModuleDestroy {
   }
 
   /**
+   * Per-account forgot-password throttle (hash of code+email or hq|email).
+   * Namespace: {prefix}reset:req:{hash}
+   */
+  async assertResetAccountAllowed(accountHash: string): Promise<void> {
+    const key = `${this.keyPrefix}reset:req:${accountHash}`;
+    try {
+      const count = await this.redis.incr(key);
+      if (count === 1) {
+        await this.redis.pexpire(key, this.auth.resetRequestWindowMs);
+      }
+      if (count > this.auth.resetMaxRequestsPerWindow) {
+        const ttlMs = await this.redis.pttl(key);
+        const retryAfterSec = Math.max(
+          1,
+          Math.ceil((ttlMs > 0 ? ttlMs : this.auth.resetRequestWindowMs) / 1000),
+        );
+        throw new AuthRateLimitedError(retryAfterSec);
+      }
+    } catch (error) {
+      if (error instanceof AuthRateLimitedError) {
+        throw error;
+      }
+      this.failClosed(error);
+    }
+  }
+
+  /**
    * Test helper: Redis PTTL in ms for fail/lock keys (-2 missing, -1 no expiry).
    */
   async getFailLockTtlMs(

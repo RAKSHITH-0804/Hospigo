@@ -518,4 +518,181 @@ describe('auth route handlers', () => {
     expect(setCookie).toContain(sessionConfig.cookieRefreshName);
     expect(setCookie).toMatch(/Max-Age=0|max-age=0/i);
   });
+
+  it('forgot-password always returns 202 accepted for upstream 202', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      status: 202,
+      headers: new Headers(),
+      json: async () => ({ accepted: true }),
+    });
+    const { POST } = await import('@/app/api/auth/forgot-password/route');
+    const response = await POST(
+      new Request('http://127.0.0.1:3001/api/auth/forgot-password', {
+        method: 'POST',
+        headers: originHeaders(),
+        body: JSON.stringify({ accessCode: 'x', email: 'a@example.test' }),
+      }),
+    );
+    expect(response.status).toBe(202);
+    expect(await response.json()).toEqual({ accepted: true });
+  });
+
+  it('forgot-password masks upstream 404 as 202 accepted', async () => {
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 404,
+      headers: new Headers(),
+      json: async () => ({ message: 'nope' }),
+    });
+    const { POST } = await import('@/app/api/auth/forgot-password/route');
+    const response = await POST(
+      new Request('http://127.0.0.1:3001/api/auth/forgot-password', {
+        method: 'POST',
+        headers: originHeaders(),
+        body: JSON.stringify({ accessCode: 'x', email: 'a@example.test' }),
+      }),
+    );
+    expect(response.status).toBe(202);
+    expect(await response.json()).toEqual({ accepted: true });
+    spy.mockRestore();
+  });
+
+  it('forgot-password maps 429 and 503', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      headers: new Headers({ 'retry-after': '30' }),
+      json: async () => ({}),
+    });
+    const { POST } = await import('@/app/api/auth/forgot-password/route');
+    const limited = await POST(
+      new Request('http://127.0.0.1:3001/api/auth/forgot-password', {
+        method: 'POST',
+        headers: originHeaders(),
+        body: JSON.stringify({ accessCode: 'x', email: 'a@example.test' }),
+      }),
+    );
+    expect(limited.status).toBe(429);
+    expect((await limited.json()).code).toBe('RATE_LIMITED');
+
+    (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('down'));
+    const unavailable = await POST(
+      new Request('http://127.0.0.1:3001/api/auth/forgot-password', {
+        method: 'POST',
+        headers: originHeaders(),
+        body: JSON.stringify({ accessCode: 'x', email: 'a@example.test' }),
+      }),
+    );
+    expect(unavailable.status).toBe(503);
+    expect(await unavailable.json()).toEqual({ code: 'UNAVAILABLE' });
+  });
+
+  it('forgot-password rejects missing Origin and non-JSON', async () => {
+    const { POST } = await import('@/app/api/auth/forgot-password/route');
+    const noOrigin = await POST(
+      new Request('http://127.0.0.1:3001/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessCode: 'x', email: 'a@example.test' }),
+      }),
+    );
+    expect(noOrigin.status).toBe(403);
+    const badCt = await POST(
+      new Request('http://127.0.0.1:3001/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { Origin: 'http://127.0.0.1:3001', 'Content-Type': 'text/plain' },
+        body: 'x',
+      }),
+    );
+    expect(badCt.status).toBe(415);
+  });
+
+  it('reset-password maps invalid link and never logs the token', async () => {
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const secretToken = 'h.tenant.tokenid.supersecrettokenvalue000';
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 400,
+      headers: new Headers(),
+      json: async () => ({
+        statusCode: 400,
+        message: 'Invalid or expired link',
+        error: 'Bad Request',
+      }),
+    });
+    const { POST } = await import('@/app/api/auth/reset-password/route');
+    const response = await POST(
+      new Request('http://127.0.0.1:3001/api/auth/reset-password', {
+        method: 'POST',
+        headers: originHeaders({ 'x-request-id': 'reset-1' }),
+        body: JSON.stringify({ token: secretToken, newPassword: 'StrongEnough9!' }),
+      }),
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ code: 'INVALID_LINK' });
+    const logged = spy.mock.calls.map((args) => args.map(String).join(' ')).join('\n');
+    expect(logged).not.toContain(secretToken);
+    expect(logged).not.toContain('supersecrettokenvalue');
+    spy.mockRestore();
+  });
+
+  it('reset-password maps password rules to VALIDATION and 204 on success', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      headers: new Headers(),
+      json: async () => ({ message: 'Password rejected: TOO_SHORT' }),
+    });
+    const { POST } = await import('@/app/api/auth/reset-password/route');
+    const weak = await POST(
+      new Request('http://127.0.0.1:3001/api/auth/reset-password', {
+        method: 'POST',
+        headers: originHeaders(),
+        body: JSON.stringify({ token: 'h.a.b.c', newPassword: 'short' }),
+      }),
+    );
+    expect(weak.status).toBe(400);
+    expect(await weak.json()).toEqual({
+      code: 'VALIDATION',
+      message: 'Password rejected: TOO_SHORT',
+    });
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+      headers: new Headers(),
+      json: async () => {
+        throw new Error('no body');
+      },
+    });
+    const ok = await POST(
+      new Request('http://127.0.0.1:3001/api/auth/reset-password', {
+        method: 'POST',
+        headers: originHeaders(),
+        body: JSON.stringify({ token: 'h.a.b.c', newPassword: 'StrongEnough9!' }),
+      }),
+    );
+    expect(ok.status).toBe(204);
+  });
+
+  it('activate maps INVALID_LINK like reset-password', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 400,
+      headers: new Headers(),
+      json: async () => ({ message: 'Invalid or expired link' }),
+    });
+    const { POST } = await import('@/app/api/auth/activate/route');
+    const response = await POST(
+      new Request('http://127.0.0.1:3001/api/auth/activate', {
+        method: 'POST',
+        headers: originHeaders(),
+        body: JSON.stringify({ token: 'h.a.b.c', newPassword: 'StrongEnough9!' }),
+      }),
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ code: 'INVALID_LINK' });
+  });
 });

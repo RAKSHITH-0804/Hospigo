@@ -29,6 +29,45 @@
 
 ## Unreleased
 
+## 2026-11-12 — Phase 1 Step 6b fix — Strict Mode hash token capture
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** StrictMode page tests for reset/activate; activate page spec
+- **Changed:** `takeActionTokenFromHash` idempotent module capture so a cleared `#t=` is not treated as missing
+- **Removed:** none
+- **Fixed:** first open of a valid email reset/activate link no longer shows invalid-link under React Strict Mode
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** none
+- **Tests:** StrictMode + missing/malformed hash + POST body token
+- **Decisions:** first hash read wins in memory; never re-decide from an empty fragment on the same path
+- **Follow-ups and open items:** none
+
+## 2026-11-12 — Phase 1 Step 6b part B — web activate / forgot / reset
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** BFF `forgot-password`, `hq-forgot-password`, `reset-password`, `activate`; pages `/forgot-password`, `/reset-password`, `/activate`; login forgot link + `?notice=password-updated`; Referrer-Policy/Cache-Control headers; web tests + API activate weak-password coverage
+- **Changed:** session config copy/paths for email flows; docs for web flow
+- **Removed:** none
+- **Fixed:** none
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** optional `WEB_FORGOT_*` / `WEB_ERROR_INVALID_LINK` / `WEB_ERROR_PASSWORD_VALIDATION` / `WEB_PASSWORD_UPDATED_NOTICE*`
+- **Tests:** web handler/page/headers/token-query-scan; API activate weak-password then reuse token
+- **Decisions:** token only in `#t=` then memory + POST body; forgot BFF masks non-429 4xx as 202
+- **Follow-ups and open items:** none for 6b B
+
+## 2026-11-12 — Phase 1 Step 6b part A — email activation / reset API
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** `auth_action_tokens` / `hq_auth_action_tokens`; mail module (nodemailer + BullMQ `mail` queue); `POST /auth/forgot-password`, `/auth/hq/forgot-password`, `/auth/reset-password`, `/auth/activate`; `send-activation` script
+- **Changed:** SMTP_USER/PASSWORD optional; APP_URL + SMTP_SECURE in API env validation
+- **Removed:** none
+- **Fixed:** none
+- **Database (migrations, roles, RLS):** `20261112150000_auth_action_tokens` — hospigo_app SELECT/INSERT/UPDATE on tenant table; hospigo_hq SELECT/INSERT/UPDATE on HQ table; mutual REVOKE
+- **New .env keys (names only):** `APP_URL`, `SMTP_SECURE`; `AUTH_FORGOT_PASSWORD_MIN_RESPONSE_MS`, `AUTH_RESET_MAX_REQUESTS_PER_WINDOW`, `AUTH_RESET_REQUEST_WINDOW_MS`, `AUTH_MAIL_JOB_*`
+- **Tests:** email token lifecycle / concurrency / forgot-password 202 uniformity / HQ reset / activation
+- **Decisions:** job payload never holds tokens/emails; link secret only after `#`; invalid links share one generic 400
+- **Follow-ups and open items:** Step 6b part B web screens for activate/reset
+
 ## 2026-11-12 — Phase 1 Step 6d fix-up 4 — redirect host uses APP_URL
 
 - **Commit hash(es):** (uncommitted)

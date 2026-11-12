@@ -1,7 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { sessionConfig } from '@/config/session';
 
@@ -13,6 +14,16 @@ export default function LoginPage() {
   const [tab, setTab] = useState<LoginTab>('hospital');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<FormError>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const flag = params.get('notice');
+    if (flag === sessionConfig.passwordUpdatedNotice) {
+      setNotice(sessionConfig.passwordUpdatedNoticeText);
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, []);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -72,6 +83,9 @@ export default function LoginPage() {
           ? sessionConfig.errorUnavailable
           : null;
 
+  const forgotHref =
+    tab === 'hq' ? `${sessionConfig.forgotPasswordPath}?tab=hq` : sessionConfig.forgotPasswordPath;
+
   return (
     <div className="login-page">
       <section className="login-brand-panel">
@@ -92,6 +106,12 @@ export default function LoginPage() {
           <div className="cluster-between mb-[var(--space-3)]">
             <h2 className="type-heading font-medium">Sign in</h2>
           </div>
+
+          {notice ? (
+            <p role="status" className="type-label mb-[var(--space-3)] text-muted-foreground">
+              {notice}
+            </p>
+          ) : null}
 
           <div role="tablist" aria-label="Sign-in type" className="login-tabs">
             <button
@@ -166,6 +186,12 @@ export default function LoginPage() {
               {pending ? 'Signing in…' : 'Sign in'}
             </Button>
           </form>
+
+          <p className="type-label mt-[var(--space-3)]">
+            <Link href={forgotHref} className="text-primary underline-offset-4 hover:underline">
+              Forgot password?
+            </Link>
+          </p>
         </div>
       </section>
     </div>

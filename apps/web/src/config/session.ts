@@ -24,6 +24,11 @@ export type SessionConfig = {
   homeHospital: string;
   loginPath: string;
   changePasswordPath: string;
+  forgotPasswordPath: string;
+  resetPasswordPath: string;
+  activatePath: string;
+  /** Plain login query flag after reset/activate (no secrets). */
+  passwordUpdatedNotice: string;
   errorInvalidCredentials: string;
   errorRateLimited: string;
   errorUnavailable: string;
@@ -32,6 +37,10 @@ export type SessionConfig = {
   errorChangePasswordInvalid: string;
   errorChangePasswordRateLimited: string;
   errorChangePasswordUnavailable: string;
+  forgotPasswordConfirmation: string;
+  errorInvalidLink: string;
+  errorPasswordValidation: string;
+  passwordUpdatedNoticeText: string;
 };
 
 const DEFAULTS = {
@@ -48,6 +57,10 @@ const DEFAULTS = {
   homeHospital: '/app',
   loginPath: '/login',
   changePasswordPath: '/change-password',
+  forgotPasswordPath: '/forgot-password',
+  resetPasswordPath: '/reset-password',
+  activatePath: '/activate',
+  passwordUpdatedNotice: 'password-updated',
   errorInvalidCredentials: 'Sign-in failed. Check your details and try again.',
   errorRateLimited: 'Too many attempts. Wait a moment and try again.',
   errorUnavailable: 'Sign-in is temporarily unavailable. Please try again shortly.',
@@ -56,6 +69,10 @@ const DEFAULTS = {
   errorChangePasswordInvalid: 'Current password is incorrect.',
   errorChangePasswordRateLimited: 'Too many attempts. Try again later.',
   errorChangePasswordUnavailable: 'Service temporarily unavailable. Try again.',
+  forgotPasswordConfirmation: 'If an account exists, we have sent instructions.',
+  errorInvalidLink: 'This link is invalid or has expired. Request a new one.',
+  errorPasswordValidation: 'That password does not meet the requirements.',
+  passwordUpdatedNoticeText: 'Your password was updated. You can sign in now.',
 } as const;
 
 function intEnv(
@@ -144,6 +161,14 @@ export function loadSessionConfig(
     homeHospital: strEnv(env, 'WEB_HOME_HOSPITAL', DEFAULTS.homeHospital),
     loginPath: strEnv(env, 'WEB_LOGIN_PATH', DEFAULTS.loginPath),
     changePasswordPath: strEnv(env, 'WEB_CHANGE_PASSWORD_PATH', DEFAULTS.changePasswordPath),
+    forgotPasswordPath: strEnv(env, 'WEB_FORGOT_PASSWORD_PATH', DEFAULTS.forgotPasswordPath),
+    resetPasswordPath: strEnv(env, 'WEB_RESET_PASSWORD_PATH', DEFAULTS.resetPasswordPath),
+    activatePath: strEnv(env, 'WEB_ACTIVATE_PATH', DEFAULTS.activatePath),
+    passwordUpdatedNotice: strEnv(
+      env,
+      'WEB_PASSWORD_UPDATED_NOTICE',
+      DEFAULTS.passwordUpdatedNotice,
+    ),
     errorInvalidCredentials: strEnv(
       env,
       'WEB_ERROR_INVALID_CREDENTIALS',
@@ -170,6 +195,22 @@ export function loadSessionConfig(
       env,
       'WEB_ERROR_CHANGE_PASSWORD_UNAVAILABLE',
       DEFAULTS.errorChangePasswordUnavailable,
+    ),
+    forgotPasswordConfirmation: strEnv(
+      env,
+      'WEB_FORGOT_PASSWORD_CONFIRMATION',
+      DEFAULTS.forgotPasswordConfirmation,
+    ),
+    errorInvalidLink: strEnv(env, 'WEB_ERROR_INVALID_LINK', DEFAULTS.errorInvalidLink),
+    errorPasswordValidation: strEnv(
+      env,
+      'WEB_ERROR_PASSWORD_VALIDATION',
+      DEFAULTS.errorPasswordValidation,
+    ),
+    passwordUpdatedNoticeText: strEnv(
+      env,
+      'WEB_PASSWORD_UPDATED_NOTICE_TEXT',
+      DEFAULTS.passwordUpdatedNoticeText,
     ),
   };
 }

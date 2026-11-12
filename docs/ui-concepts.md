@@ -44,6 +44,13 @@ Media queries cannot reliably read CSS variables, so the rem literals match the 
 - **From layout breakpoint up:** full-height split — brand panel with “One platform. Every hospital.” and “A product by Indigo”, card on the right.
 - Tabs: **Hospital staff** (access code, email, password) and **Indigo HQ** (email, password only).
 - Real form: Hospital staff (access code, email, password) or Indigo HQ (email, password). Generic error / rate-limit / unavailable copy from session config. No Sample data badge on login. Sign in uses the theme primary (teal). Forced password change goes to `/change-password`.
+- **Forgot password?** under the form → `/forgot-password` (HQ tab uses `?tab=hq`). After reset/activate, `/login?notice=password-updated` shows a one-time success line from session config.
+
+## 1b. Forgot / reset / activate (Step 6b part B)
+
+- **`/forgot-password`:** same login split look; tabs Hospital staff (access code + email) and Indigo HQ (email). Every successful submit shows the neutral confirmation from config (“If an account exists…”). Rate-limit / unavailable copy matches login.
+- **`/reset-password` and `/activate`:** new password + confirm; loading / error / retry; form stays visible for validation failures. Token arrives only in `#t=…`, is read in a client effect, removed with `history.replaceState`, and sent in the POST body — never query, cookies, or storage. Missing/bad link → invalid-link copy + link to forgot-password.
+- Pages use theme tokens only; copy lives in `sessionConfig` / env overrides.
 
 ## 2. Indigo HQ (`/admin`)
 

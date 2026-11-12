@@ -123,7 +123,7 @@ HQ access under FORCE RLS uses policies `TO hospigo_hq` / `TO hospigo_security` 
 - **Forced change:** login with `must_change_password` returns only a `CHANGE_PASSWORD_*` access token (no refresh). Accepted on change-password only; other routes refuse it.
 - **Logout design:** `@Public` + `refreshToken` in body (idempotent). Safer than requiring a live access Bearer — an expired access token can still end the session when the refresh secret is presented.
 - **Audits (tenant known):** `AUTH_LOGIN_SUCCESS`, `AUTH_PASSWORD_CHANGE`, `AUTH_REFRESH_REUSE`, `AUTH_LOCKOUT` → `audit_logs` (no passwords/tokens/raw emails). HQ events and unknown-tenant failures → Nest Logger only (`audit_logs.tenant_id` is required; HQ has no tenant row).
-- Email, OTP, and patient login remain out of scope.
+- **Email flows (Step 6b part A):** activation + password-reset via BullMQ `mail` queue and nodemailer. Job data is `{kind,tenantId,userId}` only; the worker creates hashed action tokens and sends links with the secret after `#`. OTP and patient login remain out of scope.
 
 ## Web staff auth (Step 6d)
 

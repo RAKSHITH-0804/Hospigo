@@ -1,6 +1,6 @@
 /**
  * Single source for auth limits and token lifetimes.
- * Defaults are approved Step 6a values; every value is env-overridable.
+ * Defaults are approved Step 6a/6b values; every value is env-overridable.
  */
 
 export type AuthConfig = {
@@ -10,7 +10,7 @@ export type AuthConfig = {
   loginFailureWindowMs: number;
   loginLockoutMs: number;
   ipRateLimitPerMinute: number;
-  /** Sliding window for the per-IP login/refresh counter. */
+  /** Sliding window for the per-IP login/refresh/reset counter. */
   ipRateLimitWindowMs: number;
   accessTokenTtlSec: number;
   refreshTokenTtlSec: number;
@@ -24,6 +24,15 @@ export type AuthConfig = {
    * Set to a hop count (e.g. `1`) or `true` only behind a known reverse proxy.
    */
   trustedProxy: 'none' | true | number;
+  /** Pad forgot-password responses so hit/miss paths take similar time. */
+  forgotPasswordMinResponseMs: number;
+  /** Max forgot-password requests per normalised account hash within the window. */
+  resetMaxRequestsPerWindow: number;
+  resetRequestWindowMs: number;
+  mailJobAttempts: number;
+  mailJobBackoffMs: number;
+  mailRemoveOnCompleteCount: number;
+  mailRemoveOnFailCount: number;
   jwtHospitalAccessSecret: string;
   jwtHqAccessSecret: string;
 };
@@ -42,6 +51,13 @@ const DEFAULTS = {
   activationLinkTtlSec: 48 * 60 * 60,
   resetLinkTtlSec: 30 * 60,
   requestBodyLimitBytes: 100 * 1024,
+  forgotPasswordMinResponseMs: 250,
+  resetMaxRequestsPerWindow: 5,
+  resetRequestWindowMs: 15 * 60 * 1000,
+  mailJobAttempts: 5,
+  mailJobBackoffMs: 5_000,
+  mailRemoveOnCompleteCount: 100,
+  mailRemoveOnFailCount: 50,
 } as const;
 
 export const AUTH_JWT_MIN_SECRET_LENGTH = 32;
@@ -129,6 +145,49 @@ export function loadAuthConfig(env: Record<string, unknown> = process.env): Auth
       10 * 1024 * 1024,
     ),
     trustedProxy: parseTrustedProxy(env['AUTH_TRUSTED_PROXY']),
+    forgotPasswordMinResponseMs: intEnv(
+      env,
+      'AUTH_FORGOT_PASSWORD_MIN_RESPONSE_MS',
+      DEFAULTS.forgotPasswordMinResponseMs,
+      0,
+      10_000,
+    ),
+    resetMaxRequestsPerWindow: intEnv(
+      env,
+      'AUTH_RESET_MAX_REQUESTS_PER_WINDOW',
+      DEFAULTS.resetMaxRequestsPerWindow,
+      1,
+      100,
+    ),
+    resetRequestWindowMs: intEnv(
+      env,
+      'AUTH_RESET_REQUEST_WINDOW_MS',
+      DEFAULTS.resetRequestWindowMs,
+      60_000,
+      86_400_000,
+    ),
+    mailJobAttempts: intEnv(env, 'AUTH_MAIL_JOB_ATTEMPTS', DEFAULTS.mailJobAttempts, 1, 20),
+    mailJobBackoffMs: intEnv(
+      env,
+      'AUTH_MAIL_JOB_BACKOFF_MS',
+      DEFAULTS.mailJobBackoffMs,
+      100,
+      600_000,
+    ),
+    mailRemoveOnCompleteCount: intEnv(
+      env,
+      'AUTH_MAIL_REMOVE_ON_COMPLETE',
+      DEFAULTS.mailRemoveOnCompleteCount,
+      0,
+      10_000,
+    ),
+    mailRemoveOnFailCount: intEnv(
+      env,
+      'AUTH_MAIL_REMOVE_ON_FAIL',
+      DEFAULTS.mailRemoveOnFailCount,
+      0,
+      10_000,
+    ),
     jwtHospitalAccessSecret,
     jwtHqAccessSecret,
   };

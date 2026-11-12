@@ -23,6 +23,13 @@ describe('auth config', () => {
     expect(cfg.resetLinkTtlSec).toBe(30 * 60);
     expect(cfg.requestBodyLimitBytes).toBe(100 * 1024);
     expect(cfg.trustedProxy).toBe('none');
+    expect(cfg.forgotPasswordMinResponseMs).toBe(250);
+    expect(cfg.resetMaxRequestsPerWindow).toBe(5);
+    expect(cfg.resetRequestWindowMs).toBe(15 * 60 * 1000);
+    expect(cfg.mailJobAttempts).toBe(5);
+    expect(cfg.mailJobBackoffMs).toBe(5_000);
+    expect(cfg.mailRemoveOnCompleteCount).toBe(100);
+    expect(cfg.mailRemoveOnFailCount).toBe(50);
   });
 
   it('rejects missing, short, or identical JWT secrets', () => {
