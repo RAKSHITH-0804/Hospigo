@@ -6,7 +6,9 @@ import { useEffect, useId, useState, type ReactNode } from 'react';
 import { SignOutButton } from '@/components/shell/sign-out-button';
 import { AuthGuard } from '@/lib/auth-guard';
 import { cn } from '@/lib/utils';
-import type { NavItem } from '@/mock/navigation';
+import type { ShellNavItem } from '@/config/modules';
+
+type NavItem = ShellNavItem;
 
 function matchNavItem(items: NavItem[], pathname: string): NavItem | undefined {
   return items
@@ -153,18 +155,19 @@ export function AppShell({
   );
 }
 
-export function BranchSwitcherPlaceholder() {
+/** Read-only active branch (no switcher yet). */
+export function ActiveBranchLabel({ name }: { name: string }) {
   return (
-    <label className="shell-branch-label">
+    <div className="shell-branch-label">
       <span className="shell-branch-caption">Branch</span>
-      <select
-        disabled
-        aria-label="Branch switcher"
-        className="shell-branch-select"
-        defaultValue="main-sample"
-      >
-        <option value="main-sample">Main Branch (sample)</option>
-      </select>
-    </label>
+      <span className="shell-branch-select" aria-label="Active branch">
+        {name}
+      </span>
+    </div>
   );
+}
+
+/** @deprecated Prefer ActiveBranchLabel with the session branch name. */
+export function BranchSwitcherPlaceholder() {
+  return <ActiveBranchLabel name="—" />;
 }

@@ -6,6 +6,8 @@ export async function register(): Promise<void> {
   if (process.env.NODE_ENV !== 'production') {
     return;
   }
-  const { assertProductionAppUrl } = await import('./config/session');
+  const { assertProductionAppUrl, assertProductionApiInternalUrl } =
+    await import('./config/session');
   assertProductionAppUrl();
+  assertProductionApiInternalUrl();
 }

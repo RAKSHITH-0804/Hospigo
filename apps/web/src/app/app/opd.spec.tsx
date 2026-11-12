@@ -19,6 +19,12 @@ jest.mock('@/lib/auth/guards', () => ({
     activeBranchName: 'Main',
     roleCodes: [],
     mustChangePassword: false,
+    branches: [{ id: 'b1', name: 'Main', isMain: true }],
+    enabledModules: [
+      { code: 'OPD', name: 'OPD' },
+      { code: 'IPD', name: 'IPD' },
+      { code: 'PHARMACY', name: 'Pharmacy' },
+    ],
   })),
 }));
 
@@ -80,12 +86,12 @@ describe('OPD queue concept screen', () => {
     expect(current.length).toBeGreaterThan(0);
   });
 
-  it('shows Main Branch (sample) in the branch switcher', async () => {
+  it('shows the active branch name from the session', async () => {
     const layout = await StaffLayout({
       children: <OpdQueueScreen loadOptions={{ delayMs: 0 }} />,
     });
     render(layout);
-    expect(screen.getByLabelText('Branch switcher').textContent).toContain('Main Branch (sample)');
+    expect(screen.getByLabelText('Active branch').textContent).toContain('Main');
   });
 
   it('shows loading, empty, and error with retry', async () => {

@@ -126,7 +126,7 @@ jobs:
             echo "SMTP_PORT=587"
             echo "SMTP_USER=hospigo"
             echo "SMTP_FROM=noreply@hospigo.indigocomputers.in"
-            echo "APP_URL=https://hospigo.indigocomputers.in"
+            echo "APP_URL=http://127.0.0.1:3001"
             echo "API_URL=https://api.hospigo.indigocomputers.in"
             echo "STAGING_URL=https://staging.hospigo.indigocomputers.in"
             echo "PATIENT_SEARCH_MAX_PAGE_SIZE=50"
@@ -135,7 +135,7 @@ jobs:
           # create-roles.mjs reads passwords and URLs from the repo-root .env file only
           # (not from process.env). prisma.config.ts and Jest also load this file.
           cat > .env <<EOF
-          APP_URL=https://hospigo.indigocomputers.in
+          APP_URL=http://127.0.0.1:3001
           API_URL=https://api.hospigo.indigocomputers.in
           STAGING_URL=https://staging.hospigo.indigocomputers.in
           NODE_ENV=test

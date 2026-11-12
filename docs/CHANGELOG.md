@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-12 — Phase 1 Step 7 — hardening and exit demo
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** `/auth/me` `branches` + `enabledModules` (hospital); web module mapping + `requireModule`; distinct DEMO_NORTH/SOUTH module sets; first-live seed guard + production `isTest` refuse; `docs/env-reference.md`, `docs/engineering-tracker.md`, `docs/staging-checklist.md`; auth/me shell HTTP tests; web modules/module-guard tests
+- **Changed:** hospital shell reads real session (no mock branch label); CI `APP_URL` → throwaway `http://127.0.0.1:3001`; web production instrumentation also requires `API_INTERNAL_URL`
+- **Removed:** none
+- **Fixed:** none
+- **Database (migrations, roles, RLS):** none (seed-only module subscription differences)
+- **New .env keys (names only):** optional `WEB_ERROR_MODULE_UNAVAILABLE`
+- **Tests:** API shell/me + seed guards; web mapping/guard/shell; prior isolation/auth suites retained
+- **Decisions:** production demo detection uses `hospitals.isTest` only; module nav labels live in `config/modules.ts` not components
+- **Follow-ups and open items:** backups/FTP, WebSocket auth, load tests, release runbook (see engineering-tracker)
+
 ## 2026-11-12 — Phase 1 Step 6b fix — Strict Mode hash token capture
 
 - **Commit hash(es):** (uncommitted)

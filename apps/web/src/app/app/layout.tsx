@@ -1,22 +1,25 @@
 import type { ReactNode } from 'react';
-import { BrandScope } from '@/components/brand-scope';
-import { AppShell, BranchSwitcherPlaceholder } from '@/components/shell/app-shell';
+import { AppShell, ActiveBranchLabel } from '@/components/shell/app-shell';
+import { shellNavFromEnabledModules } from '@/config/modules';
 import { requireKind } from '@/lib/auth/guards';
-import { demoStaffHospital, staffNavFromModules } from '@/mock/hospital-app';
 
 export default async function StaffLayout({ children }: { children: ReactNode }) {
   const session = await requireKind('HOSPITAL');
+  const items = shellNavFromEnabledModules(session.enabledModules ?? []);
+  const hospitalTitle = session.hospitalName?.trim() || 'Hospital';
+  const branchName = session.activeBranchName?.trim() || 'Branch';
+
   return (
-    <BrandScope brandColor={demoStaffHospital.brandColor}>
+    <div className="viewport-fill">
       <AppShell
-        title={demoStaffHospital.name}
-        items={staffNavFromModules()}
-        branchSwitcher={<BranchSwitcherPlaceholder />}
+        title={hospitalTitle}
+        items={items}
+        branchSwitcher={<ActiveBranchLabel name={branchName} />}
         sidebarFooter="Powered by Hospigo"
         userDisplayName={session.displayName}
       >
         {children}
       </AppShell>
-    </BrandScope>
+    </div>
   );
 }

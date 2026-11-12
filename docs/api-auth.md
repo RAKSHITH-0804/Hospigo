@@ -96,7 +96,16 @@ When `mustChangePassword` is true (forced change), login returns only `accessTok
 
 ### GET `/auth/me`
 
-Returns only: `id`, `displayName`, `email`, `kind` (`HOSPITAL` \| `HQ`), `hospitalName`, `activeBranchId`, `activeBranchName`, `roleCodes`, `mustChangePassword`. Never password hashes, tokens, or other tenants’ data.
+Returns: `id`, `displayName`, `email`, `kind` (`HOSPITAL` \| `HQ`), `hospitalName`, `activeBranchId`, `activeBranchName`, `roleCodes`, `mustChangePassword`, plus:
+
+| Field            | HOSPITAL                                                                                                                                        | HQ   |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| `branches`       | Assigned active branches: `{ id, name, isMain }[]`                                                                                              | `[]` |
+| `enabledModules` | Modules enabled for the **active branch** (hospital subscription **and** branch_modules flags, same rules as AccessService): `{ code, name }[]` | `[]` |
+
+Tenant ids and module lists come from the access token context — never from client-supplied ids. Never password hashes, tokens, or other tenants’ data.
+
+**Web shell (Step 7):** hospital `/app` layout reads this profile for hospital title, active branch label, and sidebar items via `apps/web/src/config/modules.ts` (`MODULE_NAV_BY_CODE`). Dashboard is always shown. Module routes use `requireModule` and redirect to `/app?notice=module-unavailable` when not enabled.
 
 ## Errors
 
