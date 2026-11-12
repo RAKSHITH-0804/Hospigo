@@ -125,6 +125,12 @@ HQ access under FORCE RLS uses policies `TO hospigo_hq` / `TO hospigo_security` 
 - **Audits (tenant known):** `AUTH_LOGIN_SUCCESS`, `AUTH_PASSWORD_CHANGE`, `AUTH_REFRESH_REUSE`, `AUTH_LOCKOUT` → `audit_logs` (no passwords/tokens/raw emails). HQ events and unknown-tenant failures → Nest Logger only (`audit_logs.tenant_id` is required; HQ has no tenant row).
 - Email, OTP, and patient login remain out of scope.
 
+## Web staff auth (Step 6d)
+
+- Browser → Next.js only. Route handlers call the API with `API_INTERNAL_URL` (server-only; never `NEXT_PUBLIC_*`). Tokens in httpOnly cookies; no JWT verify in the web app (`getSession` calls `GET /auth/me`). Production startup (`instrumentation.ts`) requires `APP_URL`.
+- Guards in `/admin` and `/app` layouts require HQ vs HOSPITAL; missing/invalid access always → `/api/auth/refresh?next=…` (refresh cookie path is `/api/auth`, so it is only visible on that handler; single-flight rotation). Wrong kind → `/login` (never refresh). `/login` and `/book/**` stay public.
+- Config: `apps/web/src/config/session.ts` (cookie names, lifetimes, error copy, body limit).
+
 ## Ledger design rules (later — OPD billing step)
 
 When billing/ledger arrives:

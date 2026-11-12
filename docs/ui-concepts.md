@@ -1,6 +1,6 @@
 # Hospigo UI concepts (Phase 1 Step 5b)
 
-Short description of the four concept screens. Taken from `docs/Hospigo_UI_concepts.pdf`, with the corrections below. These screens are **mock UI only**; real sign-in and live data arrive in Step 6.
+Short description of the four concept screens. Taken from `docs/Hospigo_UI_concepts.pdf`, with the corrections below. **Sign-in is real (Step 6d)**; HQ/hospital/booking content pages still use mock data with a Sample data badge until later steps.
 
 ## Theming and fluid layout
 
@@ -35,7 +35,7 @@ Media queries cannot reliably read CSS variables, so the rem literals match the 
 - Hospital names are clearly fake demo names (for example Demo Hospital One / `DEMOONE`). They live only under `apps/web/src/mock`.
 - Sign-in and booking form fields start **empty** (no pre-filled values).
 - **Colours:** Hospigo / Indigo HQ screens use teal theme tokens. The hospital staff app and the public booking page take the hospital brand colour from mock config through CSS variables (`BrandScope`).
-- Viewing a screen never changes data. Buttons such as Sign in, Call next patient, and Send OTP do nothing real.
+- Viewing mock screens never changes data. Call next patient and Send OTP do nothing real. **Sign in** posts to the Next auth BFF (Step 6d).
 - Patients never see hospital access codes on the public booking page. Access codes appear only on staff login and the HQ hospitals list.
 
 ## 1. Sign in (`/login`)
@@ -43,7 +43,7 @@ Media queries cannot reliably read CSS variables, so the rem literals match the 
 - **Phone (below layout breakpoint):** slim teal top bar shows only “Hospigo”. Headline and Indigo tagline are hidden. Sign-in card sits directly under the bar so Sign in stays reachable without scrolling on common phone sizes (e.g. 375×667, 360×800). Full viewport height via `--viewport-min-height` (min-height only).
 - **From layout breakpoint up:** full-height split — brand panel with “One platform. Every hospital.” and “A product by Indigo”, card on the right.
 - Tabs: **Hospital staff** (access code, email, password) and **Indigo HQ** (email, password only).
-- One **Sample data** badge (inside the card). Sign in uses the theme primary (teal). Note: sample screen — login arrives in Step 6.
+- Real form: Hospital staff (access code, email, password) or Indigo HQ (email, password). Generic error / rate-limit / unavailable copy from session config. No Sample data badge on login. Sign in uses the theme primary (teal). Forced password change goes to `/change-password`.
 
 ## 2. Indigo HQ (`/admin`)
 

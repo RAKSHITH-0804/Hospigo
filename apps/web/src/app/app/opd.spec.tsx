@@ -5,6 +5,21 @@ import { OpdQueueScreen } from '@/components/app/opd-queue-screen';
 
 jest.mock('next/navigation', () => ({
   usePathname: () => '/app/opd',
+  useRouter: () => ({ replace: jest.fn(), refresh: jest.fn() }),
+}));
+
+jest.mock('@/lib/auth/guards', () => ({
+  requireKind: jest.fn(async () => ({
+    id: 'u1',
+    displayName: 'Staff User',
+    email: 'staff@demo-north.example.test',
+    kind: 'HOSPITAL',
+    hospitalName: 'Demo Hospital One',
+    activeBranchId: 'b1',
+    activeBranchName: 'Main',
+    roleCodes: [],
+    mustChangePassword: false,
+  })),
 }));
 
 jest.mock('next/link', () => {
@@ -27,11 +42,8 @@ jest.mock('next/link', () => {
 
 describe('OPD queue concept screen', () => {
   it('renders mock queue data, sample badge, and three status chip variants', async () => {
-    render(
-      <StaffLayout>
-        <OpdQueueScreen />
-      </StaffLayout>,
-    );
+    const layout = await StaffLayout({ children: <OpdQueueScreen /> });
+    render(layout);
 
     expect(screen.getAllByText('Sample data').length).toBeGreaterThan(0);
     expect(screen.getByText('Powered by Hospigo')).toBeTruthy();
@@ -57,11 +69,10 @@ describe('OPD queue concept screen', () => {
   });
 
   it('marks OPD queue as the current sidebar page', async () => {
-    render(
-      <StaffLayout>
-        <OpdQueueScreen loadOptions={{ delayMs: 0 }} />
-      </StaffLayout>,
-    );
+    const layout = await StaffLayout({
+      children: <OpdQueueScreen loadOptions={{ delayMs: 0 }} />,
+    });
+    render(layout);
     await screen.findByText('Sample Patient 01');
     const current = screen
       .getAllByRole('link', { name: 'OPD queue' })
@@ -69,12 +80,11 @@ describe('OPD queue concept screen', () => {
     expect(current.length).toBeGreaterThan(0);
   });
 
-  it('shows Main Branch (sample) in the branch switcher', () => {
-    render(
-      <StaffLayout>
-        <OpdQueueScreen loadOptions={{ delayMs: 0 }} />
-      </StaffLayout>,
-    );
+  it('shows Main Branch (sample) in the branch switcher', async () => {
+    const layout = await StaffLayout({
+      children: <OpdQueueScreen loadOptions={{ delayMs: 0 }} />,
+    });
+    render(layout);
     expect(screen.getByLabelText('Branch switcher').textContent).toContain('Main Branch (sample)');
   });
 

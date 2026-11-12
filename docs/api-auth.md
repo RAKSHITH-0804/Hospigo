@@ -1,8 +1,29 @@
-# Auth API (Step 6a-2)
+# Auth API (Step 6a-2) and web session (Step 6d)
 
 Staff/HQ password auth. No email, OTP, or patient login here.
 
-Client IP comes from Express. `AUTH_TRUSTED_PROXY` defaults to `none` so `X-Forwarded-For` is **not** trusted. Set a hop count (or `true`) only behind a known reverse proxy.
+## Web browser flow (Step 6d)
+
+The browser talks **only** to the Next.js app. Route handlers under `apps/web/src/app/api/auth/` call the API server-to-server using **`API_INTERNAL_URL`** (server-only; never `NEXT_PUBLIC_*`). Tokens stay in **httpOnly** cookies — never in browser JavaScript or storage. The API does not need CORS for the web app.
+
+| Cookie (name from `apps/web/src/config/session.ts`)                  | httpOnly | Path             | maxAge                                                                    |
+| -------------------------------------------------------------------- | -------- | ---------------- | ------------------------------------------------------------------------- |
+| Access (`WEB_COOKIE_ACCESS_NAME`, default `hospigo_access`)          | yes      | `/`              | API `expiresIn`                                                           |
+| Refresh (`WEB_COOKIE_REFRESH_NAME`, default `hospigo_refresh`)       | yes      | `/api/auth` only | `WEB_REFRESH_COOKIE_MAX_AGE_SEC` (default 7d)                             |
+| Change-password (`WEB_COOKIE_CHANGE_NAME`, default `hospigo_change`) | yes      | `/`              | min(API expiresIn, `WEB_CHANGE_PASSWORD_COOKIE_MAX_AGE_SEC`, default 10m) |
+
+`Secure` when `NODE_ENV=production` or `APP_URL` is https; `SameSite=Lax`.
+
+**Client IP / proxy:** Web BFF forwards a chosen client IP to the API as `X-Forwarded-For`.
+
+- `WEB_TRUST_FORWARDED_HEADERS` (web, default `false`): when false, `resolveClientIp` uses **only** the TCP socket address and **ignores** incoming `x-forwarded-for` / `x-real-ip` (safe for local/dev and direct exposure). When true (web sits behind our own IIS or nginx), it prefers `x-forwarded-for`, then `x-real-ip`, then socket.
+- `AUTH_TRUSTED_PROXY` (API, default `none`): Express trust setting. With `none` the API **ignores** `X-Forwarded-For` (typical local/dev).
+
+Production behind a reverse proxy needs **both**: set `WEB_TRUST_FORWARDED_HEADERS=true` on the web app **and** set the API’s `AUTH_TRUSTED_PROXY` to match the real hop count (or `true` only behind a known proxy). Otherwise spoofed headers are trusted on one side, or every user shares the proxy IP for rate limits on the other. The API must listen only on a private interface in that setup.
+
+Put `API_INTERNAL_URL` and `APP_URL` in `apps/web/.env.local` (gitignored).
+
+**`APP_URL`:** must equal the public origin users type in the browser. Absolute BFF redirects (refresh success/failure) use `APP_URL`, not `request.url` / Host from a mismatched alias. Open the web app at exactly `APP_URL` in development — `http://127.0.0.1:3001` and `http://localhost:3001` are different cookie hosts.
 
 ## Endpoints
 
@@ -41,6 +62,17 @@ Returns only: `id`, `displayName`, `email`, `kind` (`HOSPITAL` \| `HQ`), `hospit
 | 503    | Redis unavailable (fail-closed on login/refresh/change-password).                                                                                                                                                                                        |
 | 400    | Validation (unknown fields, bad types).                                                                                                                                                                                                                  |
 | 413    | Body over `AUTH_REQUEST_BODY_LIMIT_BYTES`.                                                                                                                                                                                                               |
+
+### Web BFF error mapping (`apps/web` `/api/auth/*`)
+
+| Web status | `code`                | When                                                                                           |
+| ---------- | --------------------- | ---------------------------------------------------------------------------------------------- |
+| 400        | `VALIDATION`          | Upstream 400 (password rules); optional safe `message` only for known password-rule strings    |
+| 401        | `INVALID_CREDENTIALS` | Upstream 401                                                                                   |
+| 403        | `FORBIDDEN`           | Upstream 403                                                                                   |
+| 429        | `RATE_LIMITED`        | Upstream 429 (`Retry-After` forwarded when present)                                            |
+| 502 / 503  | `UNAVAILABLE`         | Bad/empty 2xx upstream body (502) or network/Redis-style 503                                   |
+| 500        | `UNKNOWN`             | Unexpected upstream status (logged server-side without bodies/tokens/passwords/emails/cookies) |
 
 ## Example curls (placeholders only)
 

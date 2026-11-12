@@ -2,7 +2,7 @@
 module.exports = {
   testEnvironment: 'jsdom',
   rootDir: '.',
-  testMatch: ['<rootDir>/src/**/*.spec.tsx'],
+  testMatch: ['<rootDir>/src/**/*.spec.tsx', '<rootDir>/src/**/*.spec.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '\\.(css)$': '<rootDir>/src/test/style-mock.cjs',

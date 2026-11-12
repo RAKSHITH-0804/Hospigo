@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useId, useState, type ReactNode } from 'react';
+import { SignOutButton } from '@/components/shell/sign-out-button';
 import { AuthGuard } from '@/lib/auth-guard';
 import { cn } from '@/lib/utils';
 import type { NavItem } from '@/mock/navigation';
@@ -49,12 +50,14 @@ export function AppShell({
   items,
   branchSwitcher,
   sidebarFooter,
+  userDisplayName,
   children,
 }: {
   title: ReactNode;
   items: NavItem[];
   branchSwitcher?: ReactNode;
   sidebarFooter?: ReactNode;
+  userDisplayName?: string;
   children: ReactNode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -136,6 +139,12 @@ export function AppShell({
               <span className="shell-topbar-desktop">{pageLabel ?? title}</span>
             </div>
             {branchSwitcher ? <div className="shrink-0">{branchSwitcher}</div> : null}
+            {userDisplayName ? (
+              <div className="ml-auto flex shrink-0 items-center gap-[var(--space-2)]">
+                <span className="type-label text-muted-foreground">{userDisplayName}</span>
+                <SignOutButton />
+              </div>
+            ) : null}
           </header>
           <main className="shell-main">{children}</main>
         </div>
