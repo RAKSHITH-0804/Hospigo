@@ -63,6 +63,12 @@ HQ access under FORCE RLS uses policies `TO hospigo_hq` / `TO hospigo_security` 
 
 **Patients, clinical data, and UHID tables are never granted to `hospigo_hq`.** Indigo-side UHID/start-number tooling is Phase 2.
 
+## OPD masters (Phase 2 Step 2)
+
+- Eleven tenant tables: doctor profiles/timings/leave, charge items, medicines, vitals fields, payment modes, `opd_settings` (one row per hospital), `number_series_settings`.
+- Charge item prices and doctor fees are **versioned** (`effective_from`) and **append-only** (DB triggers refuse UPDATE/DELETE for app and owner).
+- App grants: masters SELECT/INSERT/UPDATE (no DELETE); price tables SELECT/INSERT only. `hospigo_hq` / `hospigo_patient` get nothing. Services live in `OpdMastersModule` (no HTTP yet).
+
 ## Patients (Step 3b-1)
 
 - `patients`: plain id, `tenant_id`, text `uhid` (never a number), `registered_branch_id`, required trimmed `name`, optional demographics/address, `dob_is_estimated` when only age is known (store estimated DOB — never store age as a number), `is_active` archive flag (no hard delete). Unique `(tenant_id, uhid)`. Phone is indexed but **not** unique (families share numbers). No consultant column yet (comes with visits).

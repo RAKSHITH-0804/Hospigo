@@ -8,7 +8,6 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { config as loadEnv } from 'dotenv';
 import pg from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -25,7 +24,7 @@ function fsExists(p: string): boolean {
   return fs.existsSync(p);
 }
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// CJS-compatible paths so Jest can import this module (tsx also provides __dirname).
 const apiRoot = path.resolve(__dirname, '..');
 const repoRoot = path.resolve(apiRoot, '../..');
 
@@ -281,8 +280,9 @@ async function main(): Promise<void> {
   );
 }
 
-const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-if (isMain) {
+const invokedDirectly =
+  typeof process.argv[1] === 'string' && path.resolve(process.argv[1]) === path.resolve(__filename);
+if (invokedDirectly) {
   main().catch((error: unknown) => {
     console.error(error instanceof Error ? error.message : error);
     process.exit(1);

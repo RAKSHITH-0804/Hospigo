@@ -464,6 +464,134 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
       },
     });
     sampleB.import_exceptions = iex.id;
+
+    // Samples for Phase 2 Step 2 OPD masters (picked up by the full-table isolation loop).
+    const doctorUser = await prisma.user.create({
+      data: {
+        tenantId: tenantB,
+        code: `ISO_DR_${stamp}`,
+        email: `iso_dr_${stamp}@example.test`,
+        displayName: 'Isolation Doctor',
+        passwordHash: 'test-hash-not-a-secret',
+      },
+    });
+    const doctorProfile = await prisma.doctorProfile.create({
+      data: {
+        tenantId: tenantB,
+        userId: doctorUser.id,
+        code: `ISO_DR_${stamp}`,
+        availabilityOn: true,
+        active: true,
+      },
+    });
+    sampleB.doctor_profiles = doctorProfile.id;
+
+    const timing = await prisma.doctorTiming.create({
+      data: {
+        tenantId: tenantB,
+        doctorProfileId: doctorProfile.id,
+        branchId: branchB,
+        weekday: 1,
+        startTime: new Date(Date.UTC(1970, 0, 1, 9, 0, 0, 0)),
+        endTime: new Date(Date.UTC(1970, 0, 1, 17, 0, 0, 0)),
+      },
+    });
+    sampleB.doctor_timings = timing.id;
+
+    const leave = await prisma.doctorLeave.create({
+      data: {
+        tenantId: tenantB,
+        doctorProfileId: doctorProfile.id,
+        fromDate: new Date('2030-01-01T00:00:00.000Z'),
+        toDate: new Date('2030-01-02T00:00:00.000Z'),
+        reason: 'iso',
+      },
+    });
+    sampleB.doctor_leave = leave.id;
+
+    const chargeItem = await prisma.chargeItem.create({
+      data: {
+        tenantId: tenantB,
+        code: `ISO_CI_${stamp}`,
+        name: 'Isolation charge',
+        kind: 'REGISTRATION',
+      },
+    });
+    sampleB.charge_items = chargeItem.id;
+
+    const chargePrice = await prisma.chargeItemPrice.create({
+      data: {
+        tenantId: tenantB,
+        chargeItemId: chargeItem.id,
+        amountPaise: 100,
+        effectiveFrom: new Date('2020-01-01T00:00:00.000Z'),
+        createdBy: sampleB.users,
+      },
+    });
+    sampleB.charge_item_prices = chargePrice.id;
+
+    const doctorFee = await prisma.doctorFee.create({
+      data: {
+        tenantId: tenantB,
+        doctorProfileId: doctorProfile.id,
+        visitType: 'NEW',
+        amountPaise: 200,
+        effectiveFrom: new Date('2020-01-01T00:00:00.000Z'),
+        createdBy: sampleB.users,
+      },
+    });
+    sampleB.doctor_fees = doctorFee.id;
+
+    const medicine = await prisma.medicine.create({
+      data: {
+        tenantId: tenantB,
+        code: `ISO_MED_${stamp}`,
+        name: 'Isolation medicine',
+      },
+    });
+    sampleB.medicines = medicine.id;
+
+    const vitals = await prisma.vitalsField.create({
+      data: {
+        tenantId: tenantB,
+        code: `ISO_VF_${stamp}`,
+        name: 'Isolation vital',
+        unit: 'u',
+        valueKind: 'NUMBER',
+        displayOrder: 1,
+      },
+    });
+    sampleB.vitals_fields = vitals.id;
+
+    const payMode = await prisma.paymentMode.create({
+      data: {
+        tenantId: tenantB,
+        code: `ISO_PM_${stamp}`,
+        name: 'Isolation pay',
+        requiresReference: false,
+      },
+    });
+    sampleB.payment_modes = payMode.id;
+
+    const opdSettings = await prisma.opdSettings.create({
+      data: { tenantId: tenantB },
+    });
+    sampleB.opd_settings = opdSettings.id;
+
+    const series = await prisma.numberSeriesSettings.create({
+      data: {
+        tenantId: tenantB,
+        series: 'BILL',
+        format: [
+          { type: 'FINANCIAL_YEAR', style: 'SHORT' },
+          { type: 'SEPARATOR', text: '/' },
+          { type: 'RUNNING', width: 5 },
+        ],
+        resetRule: 'FINANCIAL_YEAR',
+        fyStartMonth: 4,
+      },
+    });
+    sampleB.number_series_settings = series.id;
   });
 
   afterAll(async () => {

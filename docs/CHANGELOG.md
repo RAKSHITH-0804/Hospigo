@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-14 — Phase 2 Step 2 — OPD masters, settings and mock data
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** 11 OPD tenant tables (doctor profiles/timings/leave, charge items + append-only prices, doctor fees, medicines, vitals fields, payment modes, opd_settings, number_series_settings); `OpdMastersModule` services (Price, DoctorAvailability, OpdSettings, number-series format); four `opd.*` permissions; Receptionist/Nurse/Doctor roles + mock staff in dev seed
+- **Changed:** isolation catalog samples for new tables; engineering tracker Phase 2 step list; schema-opd “As built”
+- **Removed:** none
+- **Fixed:** none
+- **Database (migrations, roles, RLS):** `20261114100000_opd_masters_and_settings`; FORCE RLS; app SELECT/INSERT/UPDATE (no DELETE) on masters; SELECT/INSERT only on price tables; append-only UPDATE/DELETE/TRUNCATE triggers on price tables; hq/patient no grants; reused `uhid_reset_rule` for series reset
+- **New .env keys (names only):** none
+- **Tests:** OPD isolation/privileges/constraints/services/permissions/seed; existing API suite retained
+- **Decisions:** separate number-series format helper reusing UHID FY/pad helpers; `FINANCIAL_YEAR` ≡ design YEARLY; print_templates deferred; services only (no controllers)
+- **Follow-ups and open items:** Step 3a counters + patient register API
+
 ## 2026-11-13 — Phase 1 Step 6e — patient web login (BFF)
 
 - **Commit hash(es):** (uncommitted)

@@ -7,7 +7,18 @@ module.exports = {
     '^.+\\.ts$': [
       'ts-jest',
       {
-        tsconfig: '<rootDir>/../tsconfig.json',
+        // Inline options so ../scripts/*.ts (imported by seed cleanup) compile as CJS too.
+        tsconfig: {
+          module: 'commonjs',
+          moduleResolution: 'node',
+          esModuleInterop: true,
+          verbatimModuleSyntax: false,
+          experimentalDecorators: true,
+          emitDecoratorMetadata: true,
+          strict: true,
+          skipLibCheck: true,
+          target: 'ES2022',
+        },
       },
     ],
   },

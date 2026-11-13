@@ -238,6 +238,17 @@ model Hospital {
   importBatches ImportBatch[]
   importBatchRows ImportBatchRow[]
   importExceptions ImportException[]
+  doctorProfiles DoctorProfile[]
+  doctorTimings DoctorTiming[]
+  doctorLeaves DoctorLeave[]
+  chargeItems ChargeItem[]
+  chargeItemPrices ChargeItemPrice[]
+  doctorFees DoctorFee[]
+  medicines Medicine[]
+  vitalsFields VitalsField[]
+  paymentModes PaymentMode[]
+  opdSettings OpdSettings[]
+  numberSeriesSettings NumberSeriesSettings[]
 
   @@map("hospitals")
 }
@@ -279,6 +290,7 @@ model Branch {
   authSessions  AuthSession[]
   registeredPatients Patient[]
   importBatches ImportBatch[]
+  doctorTimings DoctorTiming[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -353,6 +365,9 @@ model User {
   importBatchesApproved ImportBatch[] @relation("ImportBatchApprovedBy")
   importBatchesUndone ImportBatch[] @relation("ImportBatchUndoneBy")
   importExceptionsResolved ImportException[] @relation("ImportExceptionResolvedBy")
+  doctorProfiles DoctorProfile[]
+  chargeItemPricesCreated ChargeItemPrice[] @relation("ChargeItemPriceCreatedBy")
+  doctorFeesCreated DoctorFee[] @relation("DoctorFeeCreatedBy")
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -908,4 +923,253 @@ model ImportException {
   @@unique([tenantId, id])
   @@index([tenantId, batchId])
   @@map("import_exceptions")
+}
+
+// --- OPD masters and settings (Phase 2 Step 2) ---
+
+enum ChargeItemKind {
+  CONSULTATION
+  REGISTRATION
+  INVESTIGATION
+
+  @@map("charge_item_kind")
+}
+
+enum VisitType {
+  NEW
+  FOLLOW_UP
+
+  @@map("visit_type")
+}
+
+enum VitalsValueKind {
+  NUMBER
+  TEXT
+
+  @@map("vitals_value_kind")
+}
+
+enum NumberSeriesKind {
+  BILL
+  RECEIPT
+  REFUND
+
+  @@map("number_series_kind")
+}
+
+model DoctorProfile {
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  userId          String   @map("user_id")
+  code            String
+  department      String?
+  availabilityOn  Boolean  @default(true) @map("availability_on")
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User           @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Restrict)
+  timings  DoctorTiming[]
+  leaves   DoctorLeave[]
+  fees     DoctorFee[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, userId])
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("doctor_profiles")
+}
+
+model DoctorTiming {
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  doctorProfileId String   @map("doctor_profile_id")
+  branchId        String   @map("branch_id")
+  weekday         Int      @db.SmallInt
+  startTime       DateTime @map("start_time") @db.Time(6)
+  endTime         DateTime @map("end_time") @db.Time(6)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  doctor   DoctorProfile @relation(fields: [tenantId, doctorProfileId], references: [tenantId, id], onDelete: Cascade)
+  branch   Branch        @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, doctorProfileId, branchId])
+  @@map("doctor_timings")
+}
+
+model DoctorLeave {
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  doctorProfileId String   @map("doctor_profile_id")
+  fromDate        DateTime @map("from_date") @db.Date
+  toDate          DateTime @map("to_date") @db.Date
+  reason          String?
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  doctor   DoctorProfile @relation(fields: [tenantId, doctorProfileId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, doctorProfileId])
+  @@map("doctor_leave")
+}
+
+model ChargeItem {
+  id        String         @id @default(cuid())
+  tenantId  String         @map("tenant_id")
+  code      String
+  name      String
+  kind      ChargeItemKind
+  taxable   Boolean        @default(false)
+  taxRateBp Int            @default(0) @map("tax_rate_bp")
+  active    Boolean        @default(true)
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  prices   ChargeItemPrice[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("charge_items")
+}
+
+model ChargeItemPrice {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  chargeItemId String   @map("charge_item_id")
+  amountPaise  Int      @map("amount_paise")
+  effectiveFrom DateTime @map("effective_from") @db.Timestamptz(3)
+  createdBy    String   @map("created_by")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  hospital   Hospital   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  chargeItem ChargeItem @relation(fields: [tenantId, chargeItemId], references: [tenantId, id], onDelete: Restrict)
+  creator    User       @relation("ChargeItemPriceCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, chargeItemId, effectiveFrom])
+  @@index([tenantId, chargeItemId, effectiveFrom])
+  @@map("charge_item_prices")
+}
+
+model DoctorFee {
+  id              String    @id @default(cuid())
+  tenantId        String    @map("tenant_id")
+  doctorProfileId String    @map("doctor_profile_id")
+  visitType       VisitType @map("visit_type")
+  amountPaise     Int       @map("amount_paise")
+  effectiveFrom   DateTime  @map("effective_from") @db.Timestamptz(3)
+  createdBy       String    @map("created_by")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  hospital Hospital      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  doctor   DoctorProfile @relation(fields: [tenantId, doctorProfileId], references: [tenantId, id], onDelete: Restrict)
+  creator  User          @relation("DoctorFeeCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, doctorProfileId, visitType, effectiveFrom])
+  @@index([tenantId, doctorProfileId, visitType, effectiveFrom])
+  @@map("doctor_fees")
+}
+
+model Medicine {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  code        String
+  name        String
+  composition String?
+  form        String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("medicines")
+}
+
+model VitalsField {
+  id           String         @id @default(cuid())
+  tenantId     String         @map("tenant_id")
+  code         String
+  name         String
+  unit         String
+  valueKind    VitalsValueKind @map("value_kind")
+  displayOrder Int            @default(0) @map("display_order")
+  warnMin      Decimal?       @map("warn_min") @db.Decimal(10, 2)
+  warnMax      Decimal?       @map("warn_max") @db.Decimal(10, 2)
+  active       Boolean        @default(true)
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("vitals_fields")
+}
+
+model PaymentMode {
+  id                String   @id @default(cuid())
+  tenantId          String   @map("tenant_id")
+  code              String
+  name              String
+  requiresReference Boolean  @default(false) @map("requires_reference")
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, code])
+  @@map("payment_modes")
+}
+
+model OpdSettings {
+  id                 String   @id @default(cuid())
+  tenantId           String   @map("tenant_id")
+  followUpFreeDays   Int      @default(7) @map("follow_up_free_days")
+  tokenPrefix        String   @default("T") @map("token_prefix")
+  timezone           String   @default("Asia/Kolkata")
+  taxEnabled         Boolean  @default(false) @map("tax_enabled")
+  taxName            String?  @map("tax_name")
+  taxRegistrationNo  String?  @map("tax_registration_no")
+  taxInclusive       Boolean  @default(false) @map("tax_inclusive")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId])
+  @@map("opd_settings")
+}
+
+model NumberSeriesSettings {
+  id          String           @id @default(cuid())
+  tenantId    String           @map("tenant_id")
+  series      NumberSeriesKind
+  format      Json
+  resetRule   UhidResetRule    @map("reset_rule")
+  fyStartMonth Int             @default(4) @map("fy_start_month")
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, series])
+  @@map("number_series_settings")
 }
