@@ -50,6 +50,7 @@ async function reapplySchemaHardening(client: pg.Client): Promise<void> {
   await client.query('GRANT USAGE, CREATE ON SCHEMA public TO hospigo_owner');
   await client.query('GRANT USAGE ON SCHEMA public TO hospigo_app');
   await client.query('GRANT USAGE ON SCHEMA public TO hospigo_hq');
+  await client.query('GRANT USAGE ON SCHEMA public TO hospigo_patient');
   await client.query('GRANT USAGE, CREATE ON SCHEMA public TO hospigo_security');
   await client.query('ALTER SCHEMA public OWNER TO hospigo_owner');
 }
@@ -163,6 +164,37 @@ export async function assertTenantTablesEmpty(): Promise<void> {
     if (leftovers.length > 0) {
       throw new Error(
         `hospigo_test has leftover tenant rows at suite start: ${JSON.stringify(leftovers)}`,
+      );
+    }
+
+    // After reference seed only: no hospitals, users, hq_users, or is_test tenants.
+    const zeros = await owner.query<{
+      hospitals: string;
+      users: string;
+      hq_users: string;
+      is_test: string;
+    }>(`
+      SELECT
+        (SELECT COUNT(*)::bigint FROM hospitals) AS hospitals,
+        (SELECT COUNT(*)::bigint FROM users) AS users,
+        (SELECT COUNT(*)::bigint FROM hq_users) AS hq_users,
+        (SELECT COUNT(*)::bigint FROM hospitals WHERE is_test = true) AS is_test
+    `);
+    const row = zeros.rows[0]!;
+    const counts = {
+      hospitals: Number(row.hospitals),
+      users: Number(row.users),
+      hq_users: Number(row.hq_users),
+      is_test: Number(row.is_test),
+    };
+    if (
+      counts.hospitals !== 0 ||
+      counts.users !== 0 ||
+      counts.hq_users !== 0 ||
+      counts.is_test !== 0
+    ) {
+      throw new Error(
+        `After reference seed only, expected zero hospitals/users/hq_users/is_test; got ${JSON.stringify(counts)}`,
       );
     }
   } finally {

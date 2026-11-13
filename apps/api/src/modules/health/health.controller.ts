@@ -1,10 +1,12 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Public } from '../auth/public.decorator';
 import { HealthService } from './health.service';
 import type { HealthDetails } from './service-checker';
 
 @ApiTags('health')
 @Controller('health')
+@Public()
 export class HealthController {
   constructor(private readonly healthService: HealthService) {}
 
@@ -19,7 +21,7 @@ export class HealthController {
     return this.healthService.getLiveness();
   }
 
-  // TODO: restrict /health/details to HQ admins when auth exists (Step 4).
+  // TODO: restrict /health/details to HQ admins (later).
   @Get('details')
   @ApiOperation({ summary: 'Dependency health details' })
   @ApiOkResponse({

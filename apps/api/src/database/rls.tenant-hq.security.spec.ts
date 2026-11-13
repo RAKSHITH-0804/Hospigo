@@ -19,6 +19,10 @@ const HQ_ALLOWED: Record<string, Priv> = {
   branch_modules: { select: true, insert: true, update: true, delete: true },
   // Narrow first-SuperAdmin needs: HQ may append audit only; user/role writes go through SECURITY DEFINER.
   audit_logs: { select: false, insert: true, update: false, delete: false },
+  // Step 6a-1 / 6b: HQ auth tables only (no clinical widening).
+  hq_users: { select: true, insert: true, update: true, delete: false },
+  hq_auth_sessions: { select: true, insert: true, update: true, delete: true },
+  hq_auth_action_tokens: { select: true, insert: true, update: true, delete: false },
 };
 
 const INSERT_REFUSAL_TABLES = [
@@ -88,9 +92,10 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
       data: {
         code: `ISO_A_${stamp}`,
         name: 'Isolation A',
-        accessCode: `iso-a-${stamp}`,
         isTest: true,
-        branches: { create: { code: 'MAIN', name: 'Main', isMain: true } },
+        branches: {
+          create: { code: 'MAIN', name: 'Main', isMain: true, accessCode: `iso-a-${stamp}` },
+        },
       },
       include: { branches: true },
     });
@@ -98,9 +103,10 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
       data: {
         code: `ISO_B_${stamp}`,
         name: 'Isolation B',
-        accessCode: `iso-b-${stamp}`,
         isTest: true,
-        branches: { create: { code: 'MAIN', name: 'Main', isMain: true } },
+        branches: {
+          create: { code: 'MAIN', name: 'Main', isMain: true, accessCode: `iso-b-${stamp}` },
+        },
       },
       include: { branches: true },
     });
@@ -211,15 +217,39 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
     });
     sampleB.audit_logs = audit.id;
 
+    const authSession = await prisma.authSession.create({
+      data: {
+        tenantId: tenantB,
+        userId: user.id,
+        branchId: branchB,
+        tokenHash: `sample-hash-${stamp}`,
+        familyId: `family-${stamp}`,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+    sampleB.auth_sessions = authSession.id;
+
+    const actionToken = await prisma.authActionToken.create({
+      data: {
+        tenantId: tenantB,
+        userId: user.id,
+        purpose: 'PASSWORD_RESET',
+        tokenHash: `sample-action-hash-${stamp}`,
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+      },
+    });
+    sampleB.auth_action_tokens = actionToken.id;
+
     // Hospital with SUPER_ADMIN role ready for first-SuperAdmin (no assignment yet).
     const superHospital = await prisma.hospital.create({
       data: {
         code: `ISO_SA_${stamp}`,
         name: 'SuperAdmin Target',
-        accessCode: `iso-sa-${stamp}`,
         isTest: true,
         status: 'ACTIVE',
-        branches: { create: { code: 'MAIN', name: 'Main', isMain: true } },
+        branches: {
+          create: { code: 'MAIN', name: 'Main', isMain: true, accessCode: `iso-sa-${stamp}` },
+        },
         roles: {
           create: {
             code: 'SUPER_ADMIN',
@@ -235,11 +265,12 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
       data: {
         code: `ISO_IN_${stamp}`,
         name: 'Inactive Target',
-        accessCode: `iso-in-${stamp}`,
         isTest: true,
         status: 'INACTIVE',
         isActive: false,
-        branches: { create: { code: 'MAIN', name: 'Main', isMain: true } },
+        branches: {
+          create: { code: 'MAIN', name: 'Main', isMain: true, accessCode: `iso-in-${stamp}` },
+        },
         roles: {
           create: {
             code: 'SUPER_ADMIN',
@@ -255,11 +286,12 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
       data: {
         code: `ISO_SU_${stamp}`,
         name: 'Suspended Target',
-        accessCode: `iso-su-${stamp}`,
         isTest: true,
         status: 'SUSPENDED',
         isActive: true,
-        branches: { create: { code: 'MAIN', name: 'Main', isMain: true } },
+        branches: {
+          create: { code: 'MAIN', name: 'Main', isMain: true, accessCode: `iso-su-${stamp}` },
+        },
         roles: {
           create: {
             code: 'SUPER_ADMIN',
@@ -275,10 +307,11 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
       data: {
         code: `ISO_RC_${stamp}`,
         name: 'Race Target',
-        accessCode: `iso-rc-${stamp}`,
         isTest: true,
         status: 'ACTIVE',
-        branches: { create: { code: 'MAIN', name: 'Main', isMain: true } },
+        branches: {
+          create: { code: 'MAIN', name: 'Main', isMain: true, accessCode: `iso-rc-${stamp}` },
+        },
         roles: {
           create: {
             code: 'SUPER_ADMIN',
@@ -873,9 +906,9 @@ function insertSqlForForeignTenant(
   switch (table) {
     case 'branches':
       return {
-        text: `INSERT INTO branches (id, tenant_id, code, name, is_main, is_active, created_at, updated_at)
-               VALUES ($1, $2, $3, 'X', false, true, NOW(), NOW())`,
-        values: [id, ctx.tenantB, `X_${ctx.stamp}`],
+        text: `INSERT INTO branches (id, tenant_id, code, name, access_code, is_main, is_active, created_at, updated_at)
+               VALUES ($1, $2, $3, 'X', $4, false, true, NOW(), NOW())`,
+        values: [id, ctx.tenantB, `X_${ctx.stamp}`, `xcode_${ctx.stamp}`],
       };
     case 'users':
       return {

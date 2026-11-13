@@ -30,18 +30,20 @@ describe('TenantDb', () => {
       data: {
         code: `TDB_A_${stamp}`,
         name: 'TenantDb A',
-        accessCode: `tdba-${stamp}`,
         isTest: true,
-        branches: { create: { code: 'MAIN', name: 'Main', isMain: true } },
+        branches: {
+          create: { code: 'MAIN', name: 'Main', isMain: true, accessCode: `tdba-${stamp}` },
+        },
       },
     });
     const b = await owner.hospital.create({
       data: {
         code: `TDB_B_${stamp}`,
         name: 'TenantDb B',
-        accessCode: `tdbb-${stamp}`,
         isTest: true,
-        branches: { create: { code: 'MAIN', name: 'Main', isMain: true } },
+        branches: {
+          create: { code: 'MAIN', name: 'Main', isMain: true, accessCode: `tdbb-${stamp}` },
+        },
       },
     });
     tenantA = a.id;
@@ -102,6 +104,24 @@ describe('TenantDb', () => {
         () => db.withTenant(async () => 1),
       ),
     ).rejects.toThrow(/HQ context cannot open a tenant transaction/);
+    await app.$disconnect();
+  });
+
+  it('PATIENT context refused', async () => {
+    const app = createAppPrisma();
+    const db = createTenantDb(app);
+    await expect(
+      runWithContext(
+        {
+          tenantId: null,
+          userId: 'patient-account',
+          kind: 'PATIENT',
+          activeBranchId: null,
+          requestId: 'patient',
+        },
+        () => db.withTenant(async () => 1),
+      ),
+    ).rejects.toThrow(/PATIENT context cannot open a tenant transaction/);
     await app.$disconnect();
   });
 

@@ -28,10 +28,14 @@ describe('Postgres RLS and security (hospigo_test only)', () => {
       data: {
         code: `T_A_${Date.now()}`,
         name: 'Tenant A Fixture',
-        accessCode: `access-a-${Date.now()}`,
         isTest: true,
         branches: {
-          create: { code: 'MAIN', name: 'Main', isMain: true },
+          create: {
+            code: 'MAIN',
+            name: 'Main',
+            isMain: true,
+            accessCode: `access-a-${Date.now()}`,
+          },
         },
       },
       include: { branches: true },
@@ -40,10 +44,14 @@ describe('Postgres RLS and security (hospigo_test only)', () => {
       data: {
         code: `T_B_${Date.now()}`,
         name: 'Tenant B Fixture',
-        accessCode: `access-b-${Date.now()}`,
         isTest: true,
         branches: {
-          create: { code: 'MAIN', name: 'Main', isMain: true },
+          create: {
+            code: 'MAIN',
+            name: 'Main',
+            isMain: true,
+            accessCode: `access-b-${Date.now()}`,
+          },
         },
       },
       include: { branches: true },
@@ -243,37 +251,53 @@ describe('Postgres RLS and security (hospigo_test only)', () => {
           code: `MAIN2_${Date.now()}`,
           name: 'Second Main',
           isMain: true,
+          accessCode: `second-main-${Date.now()}`,
         },
       }),
     ).rejects.toThrow();
   });
 
-  it('login function returns id for active codes and nothing otherwise', async () => {
+  it('lookup_branch_by_access_code returns active hits and identical empties otherwise', async () => {
     const client = createPgClient('app');
     await client.connect();
     try {
-      const hospital = await prisma.hospital.findUniqueOrThrow({ where: { id: tenantA } });
-      const ok = await client.query<{ lookup_hospital_id_by_access_code: string | null }>(
-        `SELECT lookup_hospital_id_by_access_code($1)`,
-        [hospital.accessCode],
+      const branch = await prisma.branch.findUniqueOrThrow({ where: { id: branchA } });
+      type Row = { branch_id: string; tenant_id: string; is_main: boolean };
+      const ok = await client.query<Row>(
+        `SELECT branch_id, tenant_id, is_main FROM lookup_branch_by_access_code($1)`,
+        [branch.accessCode],
       );
-      expect(ok.rows[0]?.lookup_hospital_id_by_access_code).toBe(tenantA);
+      expect(ok.rows).toEqual([{ branch_id: branchA, tenant_id: tenantA, is_main: true }]);
 
-      const missing = await client.query<{ lookup_hospital_id_by_access_code: string | null }>(
-        `SELECT lookup_hospital_id_by_access_code($1)`,
+      const missing = await client.query<Row>(
+        `SELECT branch_id, tenant_id, is_main FROM lookup_branch_by_access_code($1)`,
         ['definitely-unknown-code'],
       );
-      expect(missing.rows[0]?.lookup_hospital_id_by_access_code).toBeNull();
+      expect(missing.rows).toEqual([]);
+
+      await prisma.branch.update({
+        where: { id: branchA },
+        data: { isActive: false },
+      });
+      const inactiveBranch = await client.query<Row>(
+        `SELECT branch_id, tenant_id, is_main FROM lookup_branch_by_access_code($1)`,
+        [branch.accessCode],
+      );
+      expect(inactiveBranch.rows).toEqual([]);
+      await prisma.branch.update({
+        where: { id: branchA },
+        data: { isActive: true },
+      });
 
       await prisma.hospital.update({
         where: { id: tenantA },
         data: { status: 'INACTIVE' },
       });
-      const inactive = await client.query<{ lookup_hospital_id_by_access_code: string | null }>(
-        `SELECT lookup_hospital_id_by_access_code($1)`,
-        [hospital.accessCode],
+      const inactiveHospital = await client.query<Row>(
+        `SELECT branch_id, tenant_id, is_main FROM lookup_branch_by_access_code($1)`,
+        [branch.accessCode],
       );
-      expect(inactive.rows[0]?.lookup_hospital_id_by_access_code).toBeNull();
+      expect(inactiveHospital.rows).toEqual([]);
       await prisma.hospital.update({
         where: { id: tenantA },
         data: { status: 'ACTIVE' },
@@ -323,7 +347,7 @@ describe('Postgres RLS and security (hospigo_test only)', () => {
     await hq.connect();
     await app.connect();
     try {
-      await expect(hq.query(`SELECT lookup_hospital_id_by_access_code('x')`)).rejects.toThrow(
+      await expect(hq.query(`SELECT lookup_branch_by_access_code('x')`)).rejects.toThrow(
         /permission denied/i,
       );
       await expect(

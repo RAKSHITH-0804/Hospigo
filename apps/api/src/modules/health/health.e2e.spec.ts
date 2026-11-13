@@ -44,6 +44,13 @@ const defaults: Record<string, string> = {
   SMTP_PASSWORD: process.env.SMTP_PASSWORD || 'change-me',
   SMTP_FROM: process.env.SMTP_FROM || 'noreply@hospigo.indigocomputers.in',
   PATIENT_SEARCH_MAX_PAGE_SIZE: process.env.PATIENT_SEARCH_MAX_PAGE_SIZE || '50',
+  JWT_HOSPITAL_ACCESS_SECRET:
+    process.env.JWT_HOSPITAL_ACCESS_SECRET || 'test-hospital-access-secret-min-32-chars!!',
+  JWT_HQ_ACCESS_SECRET:
+    process.env.JWT_HQ_ACCESS_SECRET || 'test-hq-access-secret-min-32-characters!!',
+  JWT_PATIENT_ACCESS_SECRET:
+    process.env.JWT_PATIENT_ACCESS_SECRET || 'test-patient-access-secret-min-32-chars!!',
+  OTP_HASH_SECRET: process.env.OTP_HASH_SECRET || 'test-otp-hash-secret-min-32-characters!!',
 };
 
 for (const [key, value] of Object.entries(defaults)) {

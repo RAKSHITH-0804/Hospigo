@@ -29,6 +29,188 @@
 
 ## Unreleased
 
+## 2026-11-13 — Phase 1 Step 6e — patient web login (BFF)
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** patient httpOnly cookies; `/api/patient-auth/*` BFF; `/patient/login` + `/patient` pages; `requirePatient`; patient upstream timeout; web + API tests
+- **Changed:** patient API verify/refresh responses drop `mustChangePassword`; session config patient keys; refresh single-flight namespace `patient`
+- **Removed:** `mustChangePassword` from patient token JSON
+- **Fixed:** none
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** `WEB_PATIENT_COOKIE_*`, `WEB_PATIENT_REFRESH_COOKIE_*`, `WEB_PATIENT_LOGIN_PATH`, `WEB_PATIENT_HOME_PATH`, `WEB_PATIENT_UPSTREAM_TIMEOUT_MS`, `WEB_PATIENT_OTP_CODE_LENGTH`, `WEB_PATIENT_*` UI copy
+- **Tests:** web patient BFF/guards/login/home; API shape without mustChangePassword; existing suites retained
+- **Decisions:** patient cookies path `/api/patient-auth` (no prefix overlap with staff `/api/auth`); tokens never in browser JSON
+- **Follow-ups and open items:** hospital profile linking; book/[code] still mock OTP
+
+## 2026-11-13 — Phase 1 Step 6c — patient OTP login API
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** global `patient_accounts` / `patient_otp_challenges` / `patient_auth_sessions`; role `hospigo_patient`; `PatientPrismaService`; OTP request/verify/refresh/logout + `GET /patient/me`; `MessageProvider` + `DevMessageProvider`; phone normalize; Redis `otp:` limits
+- **Changed:** `TokenService` / `RequestKind` / AuthGuard for `PATIENT`; TenantDb refuses PATIENT; create-roles + CI env for patient DB/JWT/OTP secrets
+- **Removed:** none
+- **Fixed:** atomic OTP attempt/consume via parameterized `$queryRaw`/`$executeRaw` (DB `now()`); request-otp invalidate+insert in one SQL statement; patient logout `@Public` + family revoke (refreshToken only)
+- **Database (migrations, roles, RLS):** `20261113100000_patient_accounts_and_otp` — SIU to `hospigo_patient` only; REVOKE from app/hq/PUBLIC; no tenant RLS
+- **New .env keys (names only):** `DATABASE_URL_PATIENT`, `HOSPIGO_PATIENT_PASSWORD`, `JWT_PATIENT_ACCESS_SECRET`, `OTP_HASH_SECRET`, `OTP_*`, `PATIENT_*_TOKEN_TTL_SEC`
+- **Tests:** phone normalize; OTP HTTP e2e (incl. parallel wrong/correct verify races + public logout); role grants; token separation; Redis fail-closed; existing suite retained
+- **Decisions:** direct OTP send (not BullMQ) — code never stored plaintext; queue would require putting code in job data or regenerating. Dev driver only; production refuses DevMessageProvider. Request-otp uses single-statement CTE (not Prisma `$transaction`) because TenantDb safety-net hard-forbids `$transaction` in feature modules.
+- **Follow-ups and open items:** hospital patient record linking; real WhatsApp/SMS providers; BOOKING OTP purpose
+
+## 2026-11-12 — Phase 1 Step 7 — hardening and exit demo
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** `/auth/me` `branches` + `enabledModules` (hospital); web module mapping + `requireModule`; distinct DEMO_NORTH/SOUTH module sets; first-live seed guard + production `isTest` refuse; `docs/env-reference.md`, `docs/engineering-tracker.md`, `docs/staging-checklist.md`; auth/me shell HTTP tests; web modules/module-guard tests
+- **Changed:** hospital shell reads real session (no mock branch label); CI `APP_URL` → throwaway `http://127.0.0.1:3001`; web production instrumentation also requires `API_INTERNAL_URL`
+- **Removed:** none
+- **Fixed:** none
+- **Database (migrations, roles, RLS):** none (seed-only module subscription differences)
+- **New .env keys (names only):** optional `WEB_ERROR_MODULE_UNAVAILABLE`
+- **Tests:** API shell/me + seed guards; web mapping/guard/shell; prior isolation/auth suites retained
+- **Decisions:** production demo detection uses `hospitals.isTest` only; module nav labels live in `config/modules.ts` not components
+- **Follow-ups and open items:** backups/FTP, WebSocket auth, load tests, release runbook (see engineering-tracker)
+
+## 2026-11-12 — Phase 1 Step 6b fix — Strict Mode hash token capture
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** StrictMode page tests for reset/activate; activate page spec
+- **Changed:** `takeActionTokenFromHash` idempotent module capture so a cleared `#t=` is not treated as missing
+- **Removed:** none
+- **Fixed:** first open of a valid email reset/activate link no longer shows invalid-link under React Strict Mode
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** none
+- **Tests:** StrictMode + missing/malformed hash + POST body token
+- **Decisions:** first hash read wins in memory; never re-decide from an empty fragment on the same path
+- **Follow-ups and open items:** none
+
+## 2026-11-12 — Phase 1 Step 6b part B — web activate / forgot / reset
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** BFF `forgot-password`, `hq-forgot-password`, `reset-password`, `activate`; pages `/forgot-password`, `/reset-password`, `/activate`; login forgot link + `?notice=password-updated`; Referrer-Policy/Cache-Control headers; web tests + API activate weak-password coverage
+- **Changed:** session config copy/paths for email flows; docs for web flow
+- **Removed:** none
+- **Fixed:** none
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** optional `WEB_FORGOT_*` / `WEB_ERROR_INVALID_LINK` / `WEB_ERROR_PASSWORD_VALIDATION` / `WEB_PASSWORD_UPDATED_NOTICE*`
+- **Tests:** web handler/page/headers/token-query-scan; API activate weak-password then reuse token
+- **Decisions:** token only in `#t=` then memory + POST body; forgot BFF masks non-429 4xx as 202
+- **Follow-ups and open items:** none for 6b B
+
+## 2026-11-12 — Phase 1 Step 6b part A — email activation / reset API
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** `auth_action_tokens` / `hq_auth_action_tokens`; mail module (nodemailer + BullMQ `mail` queue); `POST /auth/forgot-password`, `/auth/hq/forgot-password`, `/auth/reset-password`, `/auth/activate`; `send-activation` script
+- **Changed:** SMTP_USER/PASSWORD optional; APP_URL + SMTP_SECURE in API env validation
+- **Removed:** none
+- **Fixed:** none
+- **Database (migrations, roles, RLS):** `20261112150000_auth_action_tokens` — hospigo_app SELECT/INSERT/UPDATE on tenant table; hospigo_hq SELECT/INSERT/UPDATE on HQ table; mutual REVOKE
+- **New .env keys (names only):** `APP_URL`, `SMTP_SECURE`; `AUTH_FORGOT_PASSWORD_MIN_RESPONSE_MS`, `AUTH_RESET_MAX_REQUESTS_PER_WINDOW`, `AUTH_RESET_REQUEST_WINDOW_MS`, `AUTH_MAIL_JOB_*`
+- **Tests:** email token lifecycle / concurrency / forgot-password 202 uniformity / HQ reset / activation
+- **Decisions:** job payload never holds tokens/emails; link secret only after `#`; invalid links share one generic 400
+- **Follow-ups and open items:** Step 6b part B web screens for activate/reset
+
+## 2026-11-12 — Phase 1 Step 6d fix-up 4 — redirect host uses APP_URL
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** `appUrl()` helper; refresh `Location` built from `APP_URL` origin; refresh single-flight map on `globalThis`
+- **Changed:** docs/`.env.example` note that APP_URL must match the browser origin
+- **Removed:** none
+- **Fixed:** refresh no longer redirects `127.0.0.1` sessions onto `localhost` (cookie host mismatch)
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** none
+- **Tests:** refresh Location origin follows APP_URL when request host is localhost; open-redirect still rejected
+- **Decisions:** absolute redirects use APP_URL; relative `next/navigation` redirects stay relative
+- **Follow-ups and open items:** none
+
+## 2026-11-12 — Phase 1 Step 6d fix-up 3 — change-password BFF errors
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** BFF maps upstream 400→`VALIDATION`, 403→`FORBIDDEN`; safe one-line 500 logs; change-password form keeps fields on error
+- **Changed:** bad/empty 2xx upstream body → 502 `UNAVAILABLE` (not uncaught 500)
+- **Removed:** none
+- **Fixed:** hospital change-password password-rule failures no longer surface as opaque web 500
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** optional `WEB_ERROR_CHANGE_PASSWORD_*` copy overrides
+- **Tests:** VALIDATION/502/safe-log handler tests; form keeps fields for VALIDATION/INVALID_CREDENTIALS/RATE_LIMITED
+- **Decisions:** never forward upstream arrays/stack traces; validation copy stays generic (no hardcoded min length in UI)
+- **Follow-ups and open items:** none
+
+## 2026-11-12 — Phase 1 Step 6d fix-up 2 — health gate + forwarded headers
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** `WEB_TRUST_FORWARDED_HEADERS` (default false); HQ session gate on `GET /api/health`
+- **Changed:** `/api/health` returns only `{ status }`; client IP ignores spoofed XFF unless trust flag is true
+- **Removed:** none
+- **Fixed:** public `/api/health` no longer unauthenticated
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** `WEB_TRUST_FORWARDED_HEADERS`
+- **Tests:** health 401/403/HQ-minimal fields; trust-forwarded true/false IP tests
+- **Decisions:** production proxy needs web trust flag + API `AUTH_TRUSTED_PROXY` hop count together
+- **Follow-ups and open items:** none
+
+## 2026-11-12 — Phase 1 Step 6d cleanup — no browser API URL
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** BFF `GET /api/health`; `instrumentation.ts` production `APP_URL` gate; X-Forwarded-For forwarding test
+- **Changed:** `StorageStatusCard` calls `/api/health` (same-origin); NEXT_PUBLIC scan covers `.env.example` + `jest.env.cjs` and secret-like / API URL names
+- **Removed:** `apps/web/src/lib/api.ts`; `NEXT_PUBLIC_API_URL` from web `.env.example` and `jest.env.cjs`
+- **Fixed:** none
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** none
+- **Tests:** web suite (was 41) + XFF + APP_URL startup + tighter NEXT_PUBLIC scan
+- **Decisions:** browser must never know API URL; production fails at startup if `APP_URL` unset
+- **Follow-ups and open items:** none
+
+## 2026-11-11 — Phase 1 Step 6d — web staff authentication
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** Next BFF auth routes (`/api/auth/*`), httpOnly session cookies, `getSession` / layout guards, real `/login` + `/change-password`, shell display name + Sign out; `apps/web/src/config/session.ts`; `API_INTERNAL_URL` in env examples; `create-hq-admin` npm script on `@hospigo/api`
+- **Changed:** `/login` is live (no sample badge / Step 6 note); `/admin` and `/app` require session kind; docs for web auth flow and trusted-proxy note
+- **Removed:** sample-only login copy
+- **Fixed:** protected layouts always bounce missing access through `/api/auth/refresh` (refresh cookie path `/api/auth` is not sent on `/admin`/`/app`); single-flight cleanup timer `unref`’d; middleware overwrites client `x-pathname`
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** `API_INTERNAL_URL`; optional `WEB_*` session overrides
+- **Tests:** web suite 41 (auth handler/guard/middleware/form/NEXT_PUBLIC scan); refresh-path + x-pathname overwrite covered
+- **Decisions:** tokens never reach browser JS; refresh cookie path `/api/auth`; single-flight refresh map; Origin check on auth POSTs
+- **Follow-ups and open items:** patient login / OTP; replace mock page data with APIs
+
+## 2026-11-11 — Phase 1 Step 6a-2 — auth endpoints
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** `AuthController` / `AuthService` / DTOs; `AuthRedisService` (IP rate limit + account lockout, fail-closed); global `APP_GUARD` AuthGuard; helmet; `docs/api-auth.md`; HTTP endpoint tests (login failures, lockout, rate limit, refresh reuse, forced change, guard, validation, audits)
+- **Changed:** `AuthGuard` is global (deny by default); `@Public` on health + login/refresh/logout; ValidationPipe whitelist/forbidNonWhitelisted/transform; body size + trust-proxy from `auth.config.ts`; Swagger mounted only when `NODE_ENV !== 'production'`; dev seed adds one `must_change_password=true` user (`MC001`); architecture / folder-guide / ci docs
+- **Removed:** none
+- **Fixed:** change-password brute-force lockout (separate Redis `cpw:` keys); seed emails use hyphenated domains so `@IsEmail` accepts them; refresh/session coverage expanded
+- **Database (migrations, roles, RLS):** none (reuses `auth_sessions` / `hq_auth_sessions` / `audit_logs`)
+- **New .env keys (names only):** `AUTH_CHANGE_PASSWORD_TOKEN_TTL_SEC`, `AUTH_REQUEST_BODY_LIMIT_BYTES`, `AUTH_TRUSTED_PROXY`, `AUTH_IP_RATE_LIMIT_WINDOW_MS` (plus existing optional `AUTH_*` from 6a-1)
+- **Tests:** auth endpoint suite + Redis fail-closed unit tests; keep prior suite green (was 135 before this step)
+- **Decisions:** logout is `@Public` + refreshToken body (idempotent); Redis down → 503 on login/refresh; HQ events stay in Nest Logger (`audit_logs` requires `tenant_id`); CI Redis service already present from 6a-1 (`REDIS_URL=redis://127.0.0.1:6379`)
+- **Follow-ups and open items:** email/OTP/patient login (6b/6c); WebSocket auth (gateway is currently unauthenticated); restrict `/health/details`
+
+## 2026-11-11 — Phase 1 Step 6a-1 — auth foundation (no endpoints)
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** auth module (`PasswordService`, `TokenService`, `AuthGuard`, `@Public` / `@TokenKinds`, login + membership helpers); `HqPrismaService` (`DATABASE_URL_HQ`); `BranchAccessLookup`; `auth.config.ts`; one-time `apps/api/scripts/create-hq-admin.ts`; migrations for branch access codes, lookup function, password flags, `auth_sessions` / `hq_auth_sessions`
+- **Changed:** access codes live on branches (not hospitals); JWT env keys split into `JWT_HOSPITAL_ACCESS_SECRET` + `JWT_HQ_ACCESS_SECRET`; argon2 moved to API runtime deps; CI writes the two JWT secrets; README / architecture / folder-guide updated
+- **Removed:** `hospitals.access_code`, `lookup_hospital_id_by_access_code`, `JWT_SECRET` from `.env.example` / CI / env validation
+- **Fixed:** access JWT sign/verify pin HS256 only; refresh verification uses constant-time `timingSafeEqual`; removed unused `@nestjs/jwt` dependency
+- **Database (migrations, roles, RLS):** `20261111190000_branch_access_code` (column + case-insensitive unique index; Main Branch backfill; other branches `dev-placeholder-<id>`); `20261111190100_lookup_branch_by_access_code`; `20261111190200_drop_hospital_access_code`; `20261111190300_user_password_flags`; `20261111190400_auth_sessions` (RLS on `auth_sessions`; grants: `hospigo_app` SIUD on `auth_sessions`; `hospigo_hq` SIU on `hq_users` + SIUD on `hq_auth_sessions` — no other HQ widen)
+- **New .env keys (names only):** `JWT_HOSPITAL_ACCESS_SECRET`, `JWT_HQ_ACCESS_SECRET`; optional `AUTH_*` overrides listed in `.env.example`
+- **Tests:** branch-code uniqueness; lookup active/unknown/inactive; auth_sessions RLS + HQ grant checks; PasswordService (incl. verifyRefreshSecret); TokenService (HS256 pin, reject none/HS384/wrong family); AuthGuard probe controller; membership login helper; auth config validation (plus existing suite kept green)
+- **Decisions:** refresh format `h.<tenantId>.<sessionId>.<secret>` / `q.<sessionId>.<secret>` so hospital session lookup can set tenant context without a cross-tenant scan; AuthGuard not global until 6a-2; seed users set `must_change_password=false` for local demos only; TokenService uses `jsonwebtoken` with HS256 pinned; every refresh check must use `verifyRefreshSecret`
+- **Follow-ups and open items:** 6a-2 login/refresh/logout endpoints; register AuthGuard globally when endpoints land; email/OTP/patient login later; local `.env` must replace `JWT_SECRET` with the two new JWT keys (not edited by this step)
+
+## 2026-11-11 — Phase 1 Step 5b — four concept screens with fake data
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** concept screens on `/login`, `/admin` (Hospitals), `/app/opd` (OPD queue), `/book/[code]`; Coming later stubs for other HQ and hospital nav items; `apps/web/src/mock` fake data; async mock loader + loading/empty/error states; `docs/ui-concepts.md`; fluid theme tokens (type, spacing, controls, containers) plus login/surface/status colour tokens
+- **Changed:** HQ and hospital sidebars use Step 5b nav; staff/booking shells take brand colour from mock hospital config; folder guide lists mock and ui-concepts paths; login phone layout (slim brand bar, no scroll goal) and full-height split from layout breakpoint (~700px); booking full-viewport fluid card with two columns from the same breakpoint; sidebar current-page highlight and desktop page-context top bar; HQ hospitals stacked cards under table breakpoint; auto-fit stat grids; branch label Main Branch (sample); primary colour teal for concept screens; booking/page wrappers use min-height only with document scroll and top-aligned sections
+- **Removed:** admin page dependency on the live `/health` Storage status card for this concept step; duplicate Sample data badge on the login brand panel; fixed-device Tailwind size classes from concept screens in favour of theme utility classes; patient-visible access code on `/book/[code]`
+- **Fixed:** UI revision rounds 2–4 (contrast, Send OTP gating, fluid layout, clipped non-scrolling pages, stretch gaps between booking sections)
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** none
+- **Tests:** Jest render tests for login (one sample badge), hospitals (card+table markup, current nav), OPD queue (three status chip variants, current nav, branch label), booking (no access code, Send OTP disabled until filled, load states); theme hardcode scan; scroll-lock scan (min-height only on page wrappers); shell smoke tests updated
+- **Decisions:** PDF is image-based so text description follows the Step 5b prompt plus listed corrections; Platform health remains Coming later while System health card on Hospitals uses Storage wording; concept look is sample-only and driven by CSS variables; layout breakpoint literals documented once beside `@theme` tokens because media queries cannot read variables; `overflow-x: clip` on shell/html instead of `hidden` so document scroll is not trapped; no API calls
+- **Follow-ups and open items:** Step 6 real auth; replace mock folder with APIs; wire Onboard hospital, Call next patient, Send OTP
+
 ## 2026-11-06 — Phase 1 — CI starts the compiled API and checks /health
 
 - **Commit hash(es):** (uncommitted)
@@ -40,7 +222,33 @@
 - **New .env keys (names only):** none
 - **Tests:** local start of the compiled API against the developer `.env`, then `/health`, then the process was stopped
 - **Decisions:** no new service container; Redis is already provided and is not contacted by the liveness route
-- **Follow-ups and open items:** this branch's workflow has no web build or web test steps, so the new step is the last step in the `ci` job
+- **Follow-ups and open items:** the compiled-API check runs after the API tests and before the web build and web test steps
+
+## 2026-11-06 — Phase 1 Step 5a fix — cn helper and web CI
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** direct `clsx` and `tailwind-merge` dependencies for the web `cn` helper
+- **Changed:** CI `ci` job builds and tests `@hospigo/web` after the API tests
+- **Removed:** direct `cn` npm dependency from `@hospigo/web`
+- **Fixed:** `apps/web/src/lib/utils.ts` now merges class names with `clsx` and `tailwind-merge` instead of the `cn` package
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** none
+- **Tests:** web smoke tests and API suite re-run locally; `tsc --noEmit` and web build
+- **Decisions:** `shadcn` stays in dependencies because `globals.css` imports `shadcn/tailwind.css`
+- **Follow-ups and open items:** `shadcn` still depends on its own `cn` package; production audit findings from `shadcn` and existing Nest `multer` were not auto-fixed
+
+## 2026-11-06 — Phase 1 Step 5a — web shell
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** Next.js App Router shell in `apps/web` (login, Indigo HQ, hospital staff, public booking); shared loading, empty, and error states; API client; auth-guard stub; mock navigation; web smoke tests; optional API `CORS_ORIGIN`; root `.nvmrc` and `engines`
+- **Changed:** `apps/web` is no longer a placeholder; README setup notes for the web app and `CORS_ORIGIN`
+- **Removed:** nothing
+- **Fixed:** nothing
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** `CORS_ORIGIN` (API, optional), `NEXT_PUBLIC_API_URL` (web)
+- **Tests:** API CORS origin test; web Jest smoke tests for each route page and layout plus the three state components
+- **Decisions:** Next.js 16.4.5 (supports Node 22.14); no Hospigo UI concepts file, so a neutral shadcn style; Jest for web tests because it is already the API runner; did not add `eslint-config-next` because it requires ESLint 9 and the repo stays on ESLint 8
+- **Follow-ups and open items:** Step 6 replaces the auth-guard stub; remove `src/mock` when navigation comes from the API
 
 ## 2026-11-05 — Phase 1 — CI audit job uses npm ci --ignore-scripts
 

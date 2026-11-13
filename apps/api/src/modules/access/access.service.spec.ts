@@ -42,14 +42,19 @@ describe('AccessService', () => {
       data: {
         code: `ACS_${stamp}`,
         name: 'Access Hospital',
-        accessCode: `acs-${stamp}`,
         isTest: true,
         status: 'ACTIVE',
         branches: {
           create: [
-            { code: 'MAIN', name: 'Main', isMain: true },
-            { code: 'EAST', name: 'East', isMain: false },
-            { code: 'OLD', name: 'Archived', isMain: false, isActive: false },
+            { code: 'MAIN', name: 'Main', isMain: true, accessCode: `acs-${stamp}` },
+            { code: 'EAST', name: 'East', isMain: false, accessCode: `acs-${stamp}-east` },
+            {
+              code: 'OLD',
+              name: 'Archived',
+              isMain: false,
+              isActive: false,
+              accessCode: `acs-${stamp}-old`,
+            },
           ],
         },
       },

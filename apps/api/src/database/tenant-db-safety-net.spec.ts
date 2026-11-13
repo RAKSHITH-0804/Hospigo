@@ -18,6 +18,10 @@ const RAW_SQL_ALLOWLIST = new Map<string, string>([
     'modules/imports/import-batch.service.ts',
     'Batch row lock uses $queryRaw FOR UPDATE on TenantDb tx',
   ],
+  [
+    'modules/patient-auth/patient-auth.service.ts',
+    'OTP attempt/consume + request invalidate+insert use $queryRaw/$executeRaw on PatientPrisma (global tables)',
+  ],
 ]);
 
 const HARD_FORBIDDEN = [

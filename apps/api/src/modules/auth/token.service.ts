@@ -1,0 +1,312 @@
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import jwt from 'jsonwebtoken';
+import type { ApiEnv } from '../../config/env';
+import type { AuthConfig } from './auth.config';
+import { PasswordService } from './password.service';
+import {
+  isAccessTokenType,
+  isHospitalTokenType,
+  isHqTokenType,
+  isPatientTokenType,
+  type AccessClaims,
+  type AccessTokenType,
+  type HospitalAccessClaims,
+  type HqAccessClaims,
+  type PatientAccessClaims,
+  type RefreshTokenParts,
+} from './token.types';
+
+type JwtPayload = {
+  tokenType?: unknown;
+  tenantId?: unknown;
+  userId?: unknown;
+  branchId?: unknown;
+  accountId?: unknown;
+  sub?: unknown;
+};
+
+/** Access/refresh token helpers. Access JWTs are always HS256-only. */
+@Injectable()
+export class TokenService {
+  private readonly auth: AuthConfig;
+
+  constructor(
+    private readonly passwords: PasswordService,
+    config: ConfigService<ApiEnv, true>,
+  ) {
+    this.auth = config.getOrThrow('auth', { infer: true });
+  }
+
+  signHospitalAccess(
+    claims: Omit<HospitalAccessClaims, 'tokenType'> & {
+      tokenType?: 'HOSPITAL' | 'CHANGE_PASSWORD_HOSPITAL';
+    },
+  ): string {
+    const tokenType = claims.tokenType ?? 'HOSPITAL';
+    const expiresIn =
+      tokenType === 'CHANGE_PASSWORD_HOSPITAL'
+        ? this.auth.changePasswordTokenTtlSec
+        : this.auth.accessTokenTtlSec;
+    return jwt.sign(
+      {
+        tokenType,
+        tenantId: claims.tenantId,
+        userId: claims.userId,
+        branchId: claims.branchId,
+        sub: claims.userId,
+      },
+      this.auth.jwtHospitalAccessSecret,
+      { algorithm: 'HS256', expiresIn },
+    );
+  }
+
+  signHqAccess(
+    claims: Omit<HqAccessClaims, 'tokenType'> & { tokenType?: 'HQ' | 'CHANGE_PASSWORD_HQ' },
+  ): string {
+    const tokenType = claims.tokenType ?? 'HQ';
+    const expiresIn =
+      tokenType === 'CHANGE_PASSWORD_HQ'
+        ? this.auth.changePasswordTokenTtlSec
+        : this.auth.accessTokenTtlSec;
+    return jwt.sign(
+      {
+        tokenType,
+        userId: claims.userId,
+        sub: claims.userId,
+      },
+      this.auth.jwtHqAccessSecret,
+      { algorithm: 'HS256', expiresIn },
+    );
+  }
+
+  signPatientAccess(claims: { accountId: string }): string {
+    return jwt.sign(
+      {
+        tokenType: 'PATIENT' as const,
+        accountId: claims.accountId,
+        sub: claims.accountId,
+      },
+      this.auth.jwtPatientAccessSecret,
+      { algorithm: 'HS256', expiresIn: this.auth.patientAccessTokenTtlSec },
+    );
+  }
+
+  accessExpiresInSec(tokenType?: string): number {
+    if (tokenType === 'CHANGE_PASSWORD_HOSPITAL' || tokenType === 'CHANGE_PASSWORD_HQ') {
+      return this.auth.changePasswordTokenTtlSec;
+    }
+    if (tokenType === 'PATIENT') {
+      return this.auth.patientAccessTokenTtlSec;
+    }
+    return this.auth.accessTokenTtlSec;
+  }
+
+  verifyAccess(token: string, allowedTypes: readonly AccessTokenType[]): AccessClaims {
+    if (allowedTypes.length === 0) {
+      throw new UnauthorizedException('No token types allowed');
+    }
+
+    const hospitalAllowed = allowedTypes.some(isHospitalTokenType);
+    const hqAllowed = allowedTypes.some(isHqTokenType);
+    const patientAllowed = allowedTypes.some(isPatientTokenType);
+
+    let lastError: unknown;
+    if (hospitalAllowed) {
+      try {
+        return this.verifyWithSecret(
+          token,
+          this.auth.jwtHospitalAccessSecret,
+          allowedTypes,
+          'hospital',
+        );
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (hqAllowed) {
+      try {
+        return this.verifyWithSecret(token, this.auth.jwtHqAccessSecret, allowedTypes, 'hq');
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (patientAllowed) {
+      try {
+        return this.verifyWithSecret(
+          token,
+          this.auth.jwtPatientAccessSecret,
+          allowedTypes,
+          'patient',
+        );
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (lastError instanceof UnauthorizedException) {
+      throw lastError;
+    }
+    throw new UnauthorizedException('Invalid access token');
+  }
+
+  /**
+   * Issue an opaque refresh token string and the hash to store.
+   * Format:
+   * - hospital: `h.<tenantId>.<sessionId>.<secret>`
+   * - hq: `q.<sessionId>.<secret>`
+   * - patient: `p.<sessionId>.<secret>`
+   */
+  issueRefreshToken(input: { kind: 'hospital'; tenantId: string; sessionId: string }): {
+    raw: string;
+    tokenHash: string;
+  };
+  issueRefreshToken(input: { kind: 'hq'; sessionId: string }): {
+    raw: string;
+    tokenHash: string;
+  };
+  issueRefreshToken(input: { kind: 'patient'; sessionId: string }): {
+    raw: string;
+    tokenHash: string;
+  };
+  issueRefreshToken(input: {
+    kind: 'hospital' | 'hq' | 'patient';
+    tenantId?: string;
+    sessionId: string;
+  }): {
+    raw: string;
+    tokenHash: string;
+  } {
+    const secret = this.passwords.randomRefreshSecret();
+    const tokenHash = this.passwords.hashRefreshSecret(secret);
+    if (input.kind === 'hospital') {
+      if (!input.tenantId) {
+        throw new Error('tenantId is required for hospital refresh tokens');
+      }
+      return {
+        raw: `h.${input.tenantId}.${input.sessionId}.${secret}`,
+        tokenHash,
+      };
+    }
+    if (input.kind === 'patient') {
+      return {
+        raw: `p.${input.sessionId}.${secret}`,
+        tokenHash,
+      };
+    }
+    return {
+      raw: `q.${input.sessionId}.${secret}`,
+      tokenHash,
+    };
+  }
+
+  parseRefreshToken(raw: string): RefreshTokenParts | null {
+    const parts = raw.split('.');
+    if (parts[0] === 'h' && parts.length === 4) {
+      const [, tenantId, sessionId, secret] = parts;
+      if (!tenantId || !sessionId || !secret) {
+        return null;
+      }
+      return { kind: 'hospital', tenantId, sessionId, secret };
+    }
+    if (parts[0] === 'q' && parts.length === 3) {
+      const [, sessionId, secret] = parts;
+      if (!sessionId || !secret) {
+        return null;
+      }
+      return { kind: 'hq', sessionId, secret };
+    }
+    if (parts[0] === 'p' && parts.length === 3) {
+      const [, sessionId, secret] = parts;
+      if (!sessionId || !secret) {
+        return null;
+      }
+      return { kind: 'patient', sessionId, secret };
+    }
+    return null;
+  }
+
+  refreshTokenHashFromSecret(secret: string): string {
+    return this.passwords.hashRefreshSecret(secret);
+  }
+
+  /**
+   * Every refresh-token verification must use PasswordService.verifyRefreshSecret
+   * (constant-time). Do not compare hashes with ===.
+   */
+  verifyRefreshSecret(rawSecret: string, storedHash: string): boolean {
+    return this.passwords.verifyRefreshSecret(rawSecret, storedHash);
+  }
+
+  private verifyWithSecret(
+    token: string,
+    secret: string,
+    allowedTypes: readonly AccessTokenType[],
+    keyKind: 'hospital' | 'hq' | 'patient',
+  ): AccessClaims {
+    let payload: JwtPayload;
+    try {
+      payload = jwt.verify(token, secret, { algorithms: ['HS256'] }) as JwtPayload;
+    } catch {
+      throw new UnauthorizedException('Invalid or expired access token');
+    }
+
+    if (!isAccessTokenType(payload.tokenType)) {
+      throw new UnauthorizedException('Invalid token type');
+    }
+    if (!allowedTypes.includes(payload.tokenType)) {
+      throw new UnauthorizedException('Token type not allowed for this route');
+    }
+    if (keyKind === 'hospital' && !isHospitalTokenType(payload.tokenType)) {
+      throw new UnauthorizedException('Token type does not match signing key');
+    }
+    if (keyKind === 'hq' && !isHqTokenType(payload.tokenType)) {
+      throw new UnauthorizedException('Token type does not match signing key');
+    }
+    if (keyKind === 'patient' && !isPatientTokenType(payload.tokenType)) {
+      throw new UnauthorizedException('Token type does not match signing key');
+    }
+
+    const tokenType = payload.tokenType;
+    if (isHospitalTokenType(tokenType)) {
+      if (
+        typeof payload.userId !== 'string' ||
+        payload.userId.length === 0 ||
+        typeof payload.tenantId !== 'string' ||
+        typeof payload.branchId !== 'string'
+      ) {
+        throw new UnauthorizedException('Invalid hospital token claims');
+      }
+      const hospitalClaims: HospitalAccessClaims = {
+        tokenType,
+        tenantId: payload.tenantId,
+        userId: payload.userId,
+        branchId: payload.branchId,
+      };
+      return hospitalClaims;
+    }
+
+    if (isHqTokenType(tokenType)) {
+      if (typeof payload.userId !== 'string' || payload.userId.length === 0) {
+        throw new UnauthorizedException('Invalid token subject');
+      }
+      const hqClaims: HqAccessClaims = {
+        tokenType,
+        userId: payload.userId,
+      };
+      return hqClaims;
+    }
+
+    if (isPatientTokenType(tokenType)) {
+      if (typeof payload.accountId !== 'string' || payload.accountId.length === 0) {
+        throw new UnauthorizedException('Invalid patient token claims');
+      }
+      const patientClaims: PatientAccessClaims = {
+        tokenType,
+        accountId: payload.accountId,
+      };
+      return patientClaims;
+    }
+
+    throw new UnauthorizedException('Invalid token type');
+  }
+}

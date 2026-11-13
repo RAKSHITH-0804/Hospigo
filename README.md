@@ -28,7 +28,7 @@ This repository is the npm workspaces monorepo for the API, web app, and shared 
 ## Prerequisites
 
 - Git
-- Node.js 22 LTS
+- Node.js 22 LTS (`.nvmrc` is `22`; root `engines` accepts `>=22.14.0 <23`)
 - PostgreSQL 16 with pgAdmin
 - Memurai (Redis-compatible) on Windows
 - Cursor
@@ -68,35 +68,38 @@ openssl rand -hex 24
 
 ### `.env` keys (names only — never commit real values)
 
-| Key                          | Purpose                                                                            |
-| ---------------------------- | ---------------------------------------------------------------------------------- |
-| `APP_URL`                    | Public web app URL                                                                 |
-| `API_URL`                    | Public API URL                                                                     |
-| `STAGING_URL`                | Staging URL                                                                        |
-| `NODE_ENV`                   | `development`, `production`, or `test`                                             |
-| `API_PORT`                   | HTTP port for the API process                                                      |
-| `PGHOST`                     | Postgres host used by bootstrap scripts                                            |
-| `PGPORT`                     | Postgres port used by bootstrap scripts                                            |
-| `POSTGRES_SUPERUSER_URL`     | Superuser URL for one-time role/DB bootstrap only (not used by the API at runtime) |
-| `HOSPIGO_OWNER_PASSWORD`     | Password for the `hospigo_owner` role                                              |
-| `HOSPIGO_APP_PASSWORD`       | Password for the `hospigo_app` role                                                |
-| `HOSPIGO_HQ_PASSWORD`        | Password for the `hospigo_hq` role                                                 |
-| `DATABASE_URL`               | Runtime app DB URL (`hospigo_app` → `hospigo`)                                     |
-| `DATABASE_URL_OWNER`         | Migrate/seed URL (`hospigo_owner` → `hospigo`)                                     |
-| `DATABASE_URL_TEST`          | App test DB URL (must use database `hospigo_test`)                                 |
-| `DATABASE_URL_OWNER_TEST`    | Owner test DB URL (must use database `hospigo_test`)                               |
-| `DATABASE_URL_HQ`            | HQ role URL                                                                        |
-| `REDIS_URL`                  | Redis/Memurai URL — use `127.0.0.1`, not `localhost`                               |
-| `STORAGE_ROOT_PATH`          | Absolute path to an existing, writable folder **outside** the repo                 |
-| `SMTP_HOST`                  | SMTP host                                                                          |
-| `SMTP_PORT`                  | SMTP port                                                                          |
-| `SMTP_USER`                  | SMTP username                                                                      |
-| `SMTP_PASSWORD`              | SMTP password                                                                      |
-| `SMTP_FROM`                  | From address for outbound mail                                                     |
-| `JWT_SECRET`                 | JWT signing secret (auth Step 6)                                                   |
-| `SEED_SUPERADMIN_PASSWORD`   | Dev-seed SuperAdmin password                                                       |
-| `SEED_BRANCH_ADMIN_PASSWORD` | Dev-seed Branch Admin password                                                     |
-| `SEED_STAFF_PASSWORD`        | Dev-seed staff password                                                            |
+| Key                            | Purpose                                                                            |
+| ------------------------------ | ---------------------------------------------------------------------------------- |
+| `APP_URL`                      | Public web app URL                                                                 |
+| `API_URL`                      | Public API URL                                                                     |
+| `STAGING_URL`                  | Staging URL                                                                        |
+| `NODE_ENV`                     | `development`, `production`, or `test`                                             |
+| `API_PORT`                     | HTTP port for the API process                                                      |
+| `PGHOST`                       | Postgres host used by bootstrap scripts                                            |
+| `PGPORT`                       | Postgres port used by bootstrap scripts                                            |
+| `POSTGRES_SUPERUSER_URL`       | Superuser URL for one-time role/DB bootstrap only (not used by the API at runtime) |
+| `HOSPIGO_OWNER_PASSWORD`       | Password for the `hospigo_owner` role                                              |
+| `HOSPIGO_APP_PASSWORD`         | Password for the `hospigo_app` role                                                |
+| `HOSPIGO_HQ_PASSWORD`          | Password for the `hospigo_hq` role                                                 |
+| `DATABASE_URL`                 | Runtime app DB URL (`hospigo_app` → `hospigo`)                                     |
+| `DATABASE_URL_OWNER`           | Migrate/seed URL (`hospigo_owner` → `hospigo`)                                     |
+| `DATABASE_URL_TEST`            | App test DB URL (must use database `hospigo_test`)                                 |
+| `DATABASE_URL_OWNER_TEST`      | Owner test DB URL (must use database `hospigo_test`)                               |
+| `DATABASE_URL_HQ`              | HQ role URL                                                                        |
+| `REDIS_URL`                    | Redis/Memurai URL — use `127.0.0.1`, not `localhost`                               |
+| `STORAGE_ROOT_PATH`            | Absolute path to an existing, writable folder **outside** the repo                 |
+| `SMTP_HOST`                    | SMTP host                                                                          |
+| `SMTP_PORT`                    | SMTP port                                                                          |
+| `SMTP_USER`                    | SMTP username                                                                      |
+| `SMTP_PASSWORD`                | SMTP password                                                                      |
+| `SMTP_FROM`                    | From address for outbound mail                                                     |
+| `JWT_HOSPITAL_ACCESS_SECRET`   | Hospital access-token signing secret (≥32 chars; must differ from HQ secret)       |
+| `JWT_HQ_ACCESS_SECRET`         | HQ access-token signing secret (≥32 chars; must differ from hospital secret)       |
+| `PATIENT_SEARCH_MAX_PAGE_SIZE` | Server-enforced max page size for patient search                                   |
+| `CORS_ORIGIN`                  | Comma-separated browser origins allowed to call the API. Unset disables CORS       |
+| `SEED_SUPERADMIN_PASSWORD`     | Dev-seed SuperAdmin password                                                       |
+| `SEED_BRANCH_ADMIN_PASSWORD`   | Dev-seed Branch Admin password                                                     |
+| `SEED_STAFF_PASSWORD`          | Dev-seed staff password                                                            |
 
 ## Database setup
 
@@ -140,9 +143,16 @@ Auth, rate limiting, and Mailpit wiring: Not available yet (planned in later ste
 | `npm run build -w @hospigo/api`           | Generate Prisma Client, then build the API      |
 | `npm run start -w @hospigo/api`           | Start the built API                             |
 | `npm test -w @hospigo/api`                | Run API tests (DB suites expect `hospigo_test`) |
+| `npm run dev -w @hospigo/web`             | Start the web app on port 3001                  |
+| `npm run build -w @hospigo/web`           | Build the web app                               |
+| `npm test -w @hospigo/web`                | Run web smoke tests                             |
 | `npm run prisma:generate -w @hospigo/api` | Generate Prisma Client                          |
 | `npm run prisma:migrate -w @hospigo/api`  | Apply migrations                                |
 | `npm run prisma:seed -w @hospigo/api`     | Run seeds                                       |
+
+## Web app
+
+`apps/web` is a Next.js app. Copy `apps/web/.env.example` to `apps/web/.env.local` and set server-only `API_INTERNAL_URL` (API origin, default port 3000) and `APP_URL` (web origin used for auth Origin checks). The browser never receives the API URL — route handlers call the API server-to-server. The dev server listens on port 3001.
 
 ## Health checks
 
@@ -172,7 +182,7 @@ With the API running (default port from `API_PORT`):
 
 ## CI
 
-GitHub Actions runs lint, format check, API build, DB role bootstrap, API tests, and a compiled-API `/health` check on pushes to `develop` / `feature/**` and on PRs into `develop` / `main`. An `audit` job reports `npm audit` findings without blocking. Details: [docs/ci.md](docs/ci.md).
+GitHub Actions runs lint, format check, API build, DB role bootstrap, API tests, a compiled-API `/health` check, then the web build and web tests on pushes to `develop` / `feature/**` and on PRs into `develop` / `main`. An `audit` job reports `npm audit` findings without blocking. Details: [docs/ci.md](docs/ci.md).
 
 ## Docs index
 

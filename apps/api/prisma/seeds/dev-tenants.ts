@@ -1,15 +1,18 @@
 import argon2 from 'argon2';
 import type { PrismaClient } from '../../src/generated/prisma';
+import { assertDevTenantSeedAllowed } from '../../src/config/production-seed-guard';
 import { ensureSystemRolesForTenant } from './reference';
 
 /**
  * Dev-only fake tenants. Seed data lives here (not in app runtime code).
  * Refuses unless NODE_ENV=development. Passwords come from env.
+ *
+ * Access codes live on branches (not hospitals). Every branch gets a fake code.
+ * Seed users set must_change_password=false so local login demos are not blocked;
+ * application-created accounts keep the schema default (true).
  */
 export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
-  if (process.env.NODE_ENV !== 'development') {
-    throw new Error('Dev tenant seed refuses to run unless NODE_ENV=development');
-  }
+  assertDevTenantSeedAllowed(process.env.NODE_ENV);
 
   const superPassword = requiredEnv('SEED_SUPERADMIN_PASSWORD');
   const branchPassword = requiredEnv('SEED_BRANCH_ADMIN_PASSWORD');
@@ -20,23 +23,27 @@ export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
     throw new Error('Modules catalog is empty; run reference seed first');
   }
 
+  /** Distinct enabled module codes so hospital sidebars differ in the exit demo. */
+  const HOSPITAL_MODULE_CODES: Record<string, readonly string[]> = {
+    DEMO_NORTH: ['OPD', 'IPD', 'PHARMACY'],
+    DEMO_SOUTH: ['OPD', 'LAB'],
+  };
+
   const hospitals = [
     {
       code: 'DEMO_NORTH',
       name: 'Demo North Clinic',
-      accessCode: 'demo-north-access',
       branches: [
-        { code: 'MAIN', name: 'Main Branch', isMain: true },
-        { code: 'EAST', name: 'East Wing', isMain: false },
+        { code: 'MAIN', name: 'Main Branch', isMain: true, accessCode: 'demo-north-main' },
+        { code: 'EAST', name: 'East Wing', isMain: false, accessCode: 'demo-north-east' },
       ],
     },
     {
       code: 'DEMO_SOUTH',
       name: 'Demo South Clinic',
-      accessCode: 'demo-south-access',
       branches: [
-        { code: 'MAIN', name: 'Main Branch', isMain: true },
-        { code: 'WEST', name: 'West Wing', isMain: false },
+        { code: 'MAIN', name: 'Main Branch', isMain: true, accessCode: 'demo-south-main' },
+        { code: 'WEST', name: 'West Wing', isMain: false, accessCode: 'demo-south-west' },
       ],
     },
   ] as const;
@@ -47,13 +54,11 @@ export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
       create: {
         code: hospitalSeed.code,
         name: hospitalSeed.name,
-        accessCode: hospitalSeed.accessCode,
         status: 'ACTIVE',
         isTest: true,
       },
       update: {
         name: hospitalSeed.name,
-        accessCode: hospitalSeed.accessCode,
         status: 'ACTIVE',
         isTest: true,
         isActive: true,
@@ -75,10 +80,12 @@ export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
           tenantId: hospital.id,
           code: branchSeed.code,
           name: branchSeed.name,
+          accessCode: branchSeed.accessCode,
           isMain: branchSeed.isMain,
         },
         update: {
           name: branchSeed.name,
+          accessCode: branchSeed.accessCode,
           isMain: branchSeed.isMain,
           isActive: true,
         },
@@ -86,13 +93,15 @@ export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
       branchIds[branchSeed.code] = branch.id;
     }
 
+    const enabledCodes = new Set(HOSPITAL_MODULE_CODES[hospitalSeed.code] ?? []);
     for (const module of modules) {
+      const enabled = enabledCodes.has(module.code);
       await prisma.hospitalModuleSubscription.upsert({
         where: {
           tenantId_moduleId: { tenantId: hospital.id, moduleId: module.id },
         },
-        create: { tenantId: hospital.id, moduleId: module.id },
-        update: { isActive: true },
+        create: { tenantId: hospital.id, moduleId: module.id, isActive: enabled },
+        update: { isActive: enabled },
       });
       for (const branchId of Object.values(branchIds)) {
         await prisma.branchModule.upsert({
@@ -107,22 +116,26 @@ export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
             tenantId: hospital.id,
             branchId,
             moduleId: module.id,
-            enabledByIndigo: true,
+            enabledByIndigo: enabled,
             restrictedByHospital: false,
+            isActive: enabled,
           },
           update: {
-            enabledByIndigo: true,
+            enabledByIndigo: enabled,
             restrictedByHospital: false,
-            isActive: true,
+            isActive: enabled,
           },
         });
       }
     }
 
+    // Domains use hyphens (not underscores) so class-validator @IsEmail accepts them.
+    const emailDomain = `${hospitalSeed.code.toLowerCase().replace(/_/g, '-')}.example.test`;
+
     const superAdmin = await upsertUser(prisma, {
       tenantId: hospital.id,
       code: 'SA001',
-      email: `superadmin@${hospitalSeed.code.toLowerCase()}.example.test`,
+      email: `superadmin@${emailDomain}`,
       displayName: 'Seed SuperAdmin',
       password: superPassword,
     });
@@ -132,7 +145,7 @@ export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
     const branchAdmin = await upsertUser(prisma, {
       tenantId: hospital.id,
       code: 'BA001',
-      email: `branchadmin@${hospitalSeed.code.toLowerCase()}.example.test`,
+      email: `branchadmin@${emailDomain}`,
       displayName: 'Seed Branch Admin',
       password: branchPassword,
     });
@@ -142,7 +155,7 @@ export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
     const staff = await upsertUser(prisma, {
       tenantId: hospital.id,
       code: 'ST001',
-      email: `staff@${hospitalSeed.code.toLowerCase()}.example.test`,
+      email: `staff@${emailDomain}`,
       displayName: 'Seed Staff Dual',
       password: staffPassword,
     });
@@ -159,6 +172,18 @@ export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
       await ensureHospitalRole(prisma, hospital.id, staff.id, superAdminRoleId);
       await ensureBranchRole(prisma, hospital.id, staff.id, branchAdminRoleId, otherBranchId);
     }
+
+    // Dev-only user to exercise forced password change (must_change_password=true).
+    const mustChange = await upsertUser(prisma, {
+      tenantId: hospital.id,
+      code: 'MC001',
+      email: `mustchange@${emailDomain}`,
+      displayName: 'Seed Must Change',
+      password: staffPassword,
+      mustChangePassword: true,
+    });
+    await ensureMembership(prisma, hospital.id, mustChange.id, branchIds.MAIN!);
+    await ensureBranchRole(prisma, hospital.id, mustChange.id, branchAdminRoleId, branchIds.MAIN!);
 
     await seedDefaultFieldSettings(prisma, hospital.id, superAdmin.id);
     await seedExampleUhidFormat(prisma, hospital.id, superAdmin.id, hospitalSeed.code);
@@ -292,8 +317,11 @@ async function upsertUser(
     email: string;
     displayName: string;
     password: string;
+    /** Default false for demo users; set true for forced-change path testing. */
+    mustChangePassword?: boolean;
   },
 ) {
+  const mustChangePassword = input.mustChangePassword === true;
   const passwordHash = await argon2.hash(input.password);
   return prisma.user.upsert({
     where: { tenantId_code: { tenantId: input.tenantId, code: input.code } },
@@ -303,12 +331,16 @@ async function upsertUser(
       email: input.email,
       displayName: input.displayName,
       passwordHash,
+      mustChangePassword,
+      passwordChangedAt: mustChangePassword ? null : new Date(),
     },
     update: {
       email: input.email,
       displayName: input.displayName,
       passwordHash,
       isActive: true,
+      mustChangePassword,
+      passwordChangedAt: mustChangePassword ? null : new Date(),
     },
   });
 }

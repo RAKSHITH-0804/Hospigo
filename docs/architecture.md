@@ -10,7 +10,8 @@
 ## Request context (Step 4)
 
 - `AsyncLocalStorage` holder: `tenantId`, `userId`, `kind` (`HOSPITAL` | `HQ`), `activeBranchId`, `requestId`.
-- API: `runWithContext`, `getContext`, `requireContext`. No token parsing here — Step 6 fills the same interface.
+- API: `runWithContext`, `enterWithContext`, `getContext`, `requireContext`.
+- AuthGuard (Step 6a-1) verifies Bearer JWTs and calls `enterWithContext` so `TenantDb.withTenant` works from HTTP handlers.
 - Parallel async flows keep isolated stores (verified by test).
 
 ## TenantDb (Step 4)
@@ -99,9 +100,46 @@ HQ access under FORCE RLS uses policies `TO hospigo_hq` / `TO hospigo_security` 
 - `ImportBatchService`: create / preview / approve / post / undo / fail / recordException / resolveException; every transition writes `audit_logs`.
 - **Later (patient import handler):** after posting imported UHIDs, raise the hospital UHID counter past the highest imported UHID via `setStartNumber` so staff registrations never collide with imported numbers.
 
-## Auth note (Step 6)
+## Patient platform identity (Step 6c)
 
-`lookup_hospital_id_by_access_code` returns only the hospital id for active codes (identical empty result for unknown/inactive). Rate limiting and uniform wrong-password responses are implemented in auth (Step 6), not here. Controllers/UI for patients are also Step 6+. Step 6 will populate request context from tokens; AccessService and TenantDb already consume that interface.
+- Patient login accounts are **global** (no `tenant_id`, no hospital link yet): `patient_accounts`, `patient_otp_challenges`, `patient_auth_sessions`.
+- Dedicated DB role `hospigo_patient` (`DATABASE_URL_PATIENT`) with SELECT/INSERT/UPDATE on those three tables only — same isolation pattern as `hospigo_hq`. App and HQ are REVOKEd.
+- **Patient web BFF (Step 6e):** browser → Next `/api/patient-auth/*` → API `/patient/auth/*` via `API_INTERNAL_URL`. Tokens live only in patient httpOnly cookies (`hospigo_patient_*`, refresh path `/api/patient-auth`); never in JSON to the browser. Staff/HQ cookies stay separate.
+- Access JWT `tokenType: PATIENT` signed with `JWT_PATIENT_ACCESS_SECRET`. Request context `kind: PATIENT` has `tenantId: null`. `TenantDb.withTenant` refuses PATIENT (and HQ) so no tenant-scoped path can run.
+- OTP delivery: `MessageProvider` interface; only `DevMessageProvider` (logs message; refuses `NODE_ENV=production`). Real WhatsApp/SMS later.
+
+## Auth foundation (Step 6a-1)
+
+- **Branch access codes:** `branches.access_code` is NOT NULL, globally unique case-insensitive (`lower(trim(access_code))`). Hospitals no longer store access codes. Main Branch inherited the hospital code in migration; other existing branches got `dev-placeholder-<id>` (dev/test data only).
+- **Lookup:** `lookup_branch_by_access_code(code)` (SECURITY DEFINER, fixed `search_path`) returns `(branch_id, tenant_id, is_main)` only when the branch and hospital are active. Unknown / inactive branch / inactive hospital all return the same empty result. Execute granted to `hospigo_app` only.
+- **Password flags:** `users` and `hq_users` have `must_change_password` (default **true**), `password_changed_at`, `last_login_at`. Dev seeds set `must_change_password=false` for local demos only.
+- **Sessions:** `auth_sessions` (tenant RLS) and `hq_auth_sessions` (global; HQ role only) store **hashed** refresh secrets (`token_hash`), `family_id`, expiry/revocation/rotation fields. Never store raw refresh tokens.
+- **Refresh token format:** hospital `h.<tenantId>.<sessionId>.<secret>` (tenant id lets the server set RLS context before looking up the session); HQ `q.<sessionId>.<secret>`.
+- **Config:** single file `apps/api/src/modules/auth/auth.config.ts` — password/lockout/rate/token/link lifetimes with env overrides. JWT secrets: `JWT_HOSPITAL_ACCESS_SECRET` and `JWT_HQ_ACCESS_SECRET` (required, ≥32 chars, must differ).
+- **Token types:** `HOSPITAL`, `HQ`, `CHANGE_PASSWORD_HOSPITAL`, `CHANGE_PASSWORD_HQ`. Separate signing keys for hospital vs HQ. Hospital access claims include `tenantId`, `userId`, `branchId` (the branch whose code was used). Access JWTs pin **HS256** on sign and verify; refresh secret checks use constant-time `timingSafeEqual` (`PasswordService.verifyRefreshSecret`).
+- **AuthGuard + `@Public()` + `@TokenKinds(...)`:** registered **globally** (`APP_GUARD`) in Step 6a-2 — deny by default. Verifies Bearer token, enforces allowed types, sets request context. HQ tokens refused on hospital routes and the reverse. `CHANGE_PASSWORD_*` accepted only where listed. Non-HTTP contexts (Socket.IO) are skipped.
+- **HQ DB:** `HqPrismaService` uses `DATABASE_URL_HQ` (`hospigo_hq`). Provided only inside `AuthModule` — other modules must not import it.
+- **Login helper:** access code → branch → tenant, then user lookup under `runWithContext`; membership requires active `user_branches` for that branch. All failure modes return the same internal `AUTH_FAILED` result.
+
+## Auth endpoints (Step 6a-2)
+
+- **HTTP:** `POST /auth/hospital/login`, `POST /auth/hq/login`, `POST /auth/refresh`, `POST /auth/logout`, `POST /auth/change-password`, `GET /auth/me`. See `docs/api-auth.md`.
+- **Public routes:** hospital/hq login, refresh, logout (refresh body), health. Swagger at `/docs` only when `NODE_ENV !== 'production'`.
+- **Generic 401:** unknown access code, inactive branch/hospital, unknown email, wrong password, disabled user, missing membership, and account lockout share one status and body. Dummy argon2 verify runs on paths that never check a real hash (timing).
+- **Lockout / rate limit:** Redis (`AuthRedisService`, key prefix `hospigo:auth:`). IP limit and per-account lockout (hashed code+email keys); change-password uses a separate `cpw:` sub-prefix keyed by user id. **Fail closed:** if Redis is unreachable, login, refresh, and change-password return 503 — never allowed through. Lockout responses stay generic 401.
+- **Refresh:** rotate every use; reuse of a revoked/replaced token revokes the whole family and audits `AUTH_REFRESH_REUSE`. Refresh re-checks user/branch/hospital/membership; failure revokes the family.
+- **Forced change:** login with `must_change_password` returns only a `CHANGE_PASSWORD_*` access token (no refresh). Accepted on change-password only; other routes refuse it.
+- **Logout design:** `@Public` + `refreshToken` in body (idempotent). Safer than requiring a live access Bearer — an expired access token can still end the session when the refresh secret is presented.
+- **Audits (tenant known):** `AUTH_LOGIN_SUCCESS`, `AUTH_PASSWORD_CHANGE`, `AUTH_REFRESH_REUSE`, `AUTH_LOCKOUT` → `audit_logs` (no passwords/tokens/raw emails). HQ events and unknown-tenant failures → Nest Logger only (`audit_logs.tenant_id` is required; HQ has no tenant row).
+- **Email flows (Step 6b part A):** activation + password-reset via BullMQ `mail` queue and nodemailer. Job data is `{kind,tenantId,userId}` only; the worker creates hashed action tokens and sends links with the secret after `#`. OTP and patient login remain out of scope.
+
+## Web staff auth (Step 6d)
+
+- Browser → Next.js only. Route handlers call the API with `API_INTERNAL_URL` (server-only; never `NEXT_PUBLIC_*`). Tokens in httpOnly cookies; no JWT verify in the web app (`getSession` calls `GET /auth/me`). Production startup (`instrumentation.ts`) requires `APP_URL` and `API_INTERNAL_URL`.
+- Guards in `/admin` and `/app` layouts require HQ vs HOSPITAL; missing/invalid access always → `/api/auth/refresh?next=…` (refresh cookie path is `/api/auth`, so it is only visible on that handler; single-flight rotation). Wrong kind → `/login` (never refresh). `/login` and `/book/**` stay public.
+- Config: `apps/web/src/config/session.ts` (cookie names, lifetimes, error copy, body limit); module nav mapping in `apps/web/src/config/modules.ts`.
+- **Exit demo (Step 7):** hospital shell titles and sidebar come from `/auth/me` (`hospitalName`, `activeBranchName`, `enabledModules`). Module pages are guarded with `requireModule`. Page **content** (OPD queue, HQ hospitals list) remains sample data until later phases.
+- **First-live seed:** `seedDevTenants` refuses unless `NODE_ENV=development`. Production API startup fails if any `hospitals.is_test` row exists (`assertNoTestTenantsInProduction`).
 
 ## Ledger design rules (later — OPD billing step)
 
