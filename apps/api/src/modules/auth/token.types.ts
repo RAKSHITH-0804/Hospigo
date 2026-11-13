@@ -3,6 +3,7 @@ export const ACCESS_TOKEN_TYPES = [
   'HQ',
   'CHANGE_PASSWORD_HOSPITAL',
   'CHANGE_PASSWORD_HQ',
+  'PATIENT',
 ] as const;
 
 export type AccessTokenType = (typeof ACCESS_TOKEN_TYPES)[number];
@@ -21,6 +22,12 @@ export function isHqTokenType(type: AccessTokenType): type is HqAccessClaims['to
   return type === 'HQ' || type === 'CHANGE_PASSWORD_HQ';
 }
 
+export function isPatientTokenType(
+  type: AccessTokenType,
+): type is PatientAccessClaims['tokenType'] {
+  return type === 'PATIENT';
+}
+
 export type HospitalAccessClaims = {
   tokenType: 'HOSPITAL' | 'CHANGE_PASSWORD_HOSPITAL';
   tenantId: string;
@@ -33,7 +40,12 @@ export type HqAccessClaims = {
   userId: string;
 };
 
-export type AccessClaims = HospitalAccessClaims | HqAccessClaims;
+export type PatientAccessClaims = {
+  tokenType: 'PATIENT';
+  accountId: string;
+};
+
+export type AccessClaims = HospitalAccessClaims | HqAccessClaims | PatientAccessClaims;
 
 /** Hospital refresh: h.&lt;tenantId&gt;.&lt;sessionId&gt;.&lt;secret&gt; — tenantId lets RLS resolve without cross-tenant scan. */
 export type HospitalRefreshParts = {
@@ -50,4 +62,11 @@ export type HqRefreshParts = {
   secret: string;
 };
 
-export type RefreshTokenParts = HospitalRefreshParts | HqRefreshParts;
+/** Patient refresh: p.&lt;sessionId&gt;.&lt;secret&gt; — no tenant. */
+export type PatientRefreshParts = {
+  kind: 'patient';
+  sessionId: string;
+  secret: string;
+};
+
+export type RefreshTokenParts = HospitalRefreshParts | HqRefreshParts | PatientRefreshParts;

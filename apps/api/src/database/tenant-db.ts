@@ -16,11 +16,11 @@ export class TenantDb {
 
   async withTenant<T>(fn: (tx: TenantTx) => Promise<T>): Promise<T> {
     const ctx = requireContext();
+    if (ctx.kind === 'HQ' || ctx.kind === 'PATIENT') {
+      throw new Error(`TenantDb refused: ${ctx.kind} context cannot open a tenant transaction`);
+    }
     if (!ctx.tenantId) {
       throw new Error('TenantDb refused: no tenant in request context');
-    }
-    if (ctx.kind === 'HQ') {
-      throw new Error('TenantDb refused: HQ context cannot open a tenant transaction');
     }
     const tenantId = ctx.tenantId;
     return this.prisma.$transaction(async (tx) => {

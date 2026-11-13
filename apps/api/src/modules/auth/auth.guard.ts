@@ -7,9 +7,13 @@ import { TOKEN_KINDS_KEY } from './token-kinds.decorator';
 import { TokenService } from './token.service';
 import {
   isHospitalTokenType,
+  isHqTokenType,
+  isPatientTokenType,
   type AccessClaims,
   type AccessTokenType,
   type HospitalAccessClaims,
+  type HqAccessClaims,
+  type PatientAccessClaims,
 } from './token.types';
 
 type AuthedRequest = {
@@ -78,9 +82,23 @@ function claimsToContext(claims: AccessClaims): RequestContext {
       requestId: randomUUID(),
     };
   }
+  if (isPatientTokenType(claims.tokenType)) {
+    const patient = claims as PatientAccessClaims;
+    return {
+      tenantId: null,
+      userId: patient.accountId,
+      kind: 'PATIENT',
+      activeBranchId: null,
+      requestId: randomUUID(),
+    };
+  }
+  if (!isHqTokenType(claims.tokenType)) {
+    throw new UnauthorizedException('Unsupported token type');
+  }
+  const hq = claims as HqAccessClaims;
   return {
     tenantId: null,
-    userId: claims.userId,
+    userId: hq.userId,
     kind: 'HQ',
     activeBranchId: null,
     requestId: randomUUID(),

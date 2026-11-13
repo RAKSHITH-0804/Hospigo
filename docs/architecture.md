@@ -100,6 +100,13 @@ HQ access under FORCE RLS uses policies `TO hospigo_hq` / `TO hospigo_security` 
 - `ImportBatchService`: create / preview / approve / post / undo / fail / recordException / resolveException; every transition writes `audit_logs`.
 - **Later (patient import handler):** after posting imported UHIDs, raise the hospital UHID counter past the highest imported UHID via `setStartNumber` so staff registrations never collide with imported numbers.
 
+## Patient platform identity (Step 6c)
+
+- Patient login accounts are **global** (no `tenant_id`, no hospital link yet): `patient_accounts`, `patient_otp_challenges`, `patient_auth_sessions`.
+- Dedicated DB role `hospigo_patient` (`DATABASE_URL_PATIENT`) with SELECT/INSERT/UPDATE on those three tables only — same isolation pattern as `hospigo_hq`. App and HQ are REVOKEd.
+- Access JWT `tokenType: PATIENT` signed with `JWT_PATIENT_ACCESS_SECRET`. Request context `kind: PATIENT` has `tenantId: null`. `TenantDb.withTenant` refuses PATIENT (and HQ) so no tenant-scoped path can run.
+- OTP delivery: `MessageProvider` interface; only `DevMessageProvider` (logs message; refuses `NODE_ENV=production`). Real WhatsApp/SMS later.
+
 ## Auth foundation (Step 6a-1)
 
 - **Branch access codes:** `branches.access_code` is NOT NULL, globally unique case-insensitive (`lower(trim(access_code))`). Hospitals no longer store access codes. Main Branch inherited the hospital code in migration; other existing branches got `dev-placeholder-<id>` (dev/test data only).

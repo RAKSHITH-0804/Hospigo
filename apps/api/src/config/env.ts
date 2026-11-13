@@ -13,6 +13,8 @@ export interface ApiEnv {
   DATABASE_URL_OWNER: string;
   /** HQ role connection (hospigo_hq). Used only by HqPrismaService / HQ auth. */
   DATABASE_URL_HQ: string;
+  /** Patient role connection (hospigo_patient). Used only by PatientPrismaService. */
+  DATABASE_URL_PATIENT: string;
   REDIS_URL: string;
   STORAGE_ROOT_PATH: string;
   SMTP_HOST: string;
@@ -35,6 +37,8 @@ export interface ApiEnv {
   CORS_ORIGIN: string | undefined;
   JWT_HOSPITAL_ACCESS_SECRET: string;
   JWT_HQ_ACCESS_SECRET: string;
+  JWT_PATIENT_ACCESS_SECRET: string;
+  OTP_HASH_SECRET: string;
   auth: AuthConfig;
 }
 
@@ -57,6 +61,11 @@ export function validateEnv(config: Record<string, unknown>): ApiEnv {
     errors,
   );
   const databaseUrlHq = parseDatabaseUrl(config['DATABASE_URL_HQ'], 'DATABASE_URL_HQ', errors);
+  const databaseUrlPatient = parseDatabaseUrl(
+    config['DATABASE_URL_PATIENT'],
+    'DATABASE_URL_PATIENT',
+    errors,
+  );
   const redisUrl = requireText(config, 'REDIS_URL', errors);
   const storageRootPath = parseStorageRoot(config['STORAGE_ROOT_PATH'], errors);
   const smtpHost = requireText(config, 'SMTP_HOST', errors);
@@ -95,6 +104,7 @@ export function validateEnv(config: Record<string, unknown>): ApiEnv {
     DATABASE_URL: databaseUrl,
     DATABASE_URL_OWNER: databaseUrlOwner,
     DATABASE_URL_HQ: databaseUrlHq,
+    DATABASE_URL_PATIENT: databaseUrlPatient,
     REDIS_URL: redisUrl,
     STORAGE_ROOT_PATH: storageRootPath,
     SMTP_HOST: smtpHost,
@@ -108,6 +118,8 @@ export function validateEnv(config: Record<string, unknown>): ApiEnv {
     CORS_ORIGIN: corsOrigin,
     JWT_HOSPITAL_ACCESS_SECRET: auth!.jwtHospitalAccessSecret,
     JWT_HQ_ACCESS_SECRET: auth!.jwtHqAccessSecret,
+    JWT_PATIENT_ACCESS_SECRET: auth!.jwtPatientAccessSecret,
+    OTP_HASH_SECRET: auth!.otpHashSecret,
     auth: auth!,
   };
 }

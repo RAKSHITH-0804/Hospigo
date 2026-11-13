@@ -132,6 +132,90 @@ export class AuthRedisService implements OnModuleDestroy {
     }
   }
 
+  /** SHA-256 of E.164 phone — never put raw phone in Redis keys. */
+  phoneKeyMaterial(phoneE164: string): string {
+    return createHash('sha256').update(phoneE164.trim(), 'utf8').digest('hex');
+  }
+
+  /** Per-IP OTP request limit under `{prefix}otp:ip:{ip}`. */
+  async assertOtpIpAllowed(ip: string): Promise<void> {
+    const key = `${this.keyPrefix}otp:ip:${ip}`;
+    try {
+      const count = await this.redis.incr(key);
+      if (count === 1) {
+        await this.redis.pexpire(key, this.auth.otpIpRateLimitWindowMs);
+      }
+      if (count > this.auth.otpIpRateLimitPerMinute) {
+        const ttlMs = await this.redis.pttl(key);
+        const retryAfterSec = Math.max(
+          1,
+          Math.ceil((ttlMs > 0 ? ttlMs : this.auth.otpIpRateLimitWindowMs) / 1000),
+        );
+        throw new AuthRateLimitedError(retryAfterSec);
+      }
+    } catch (error) {
+      if (error instanceof AuthRateLimitedError) {
+        throw error;
+      }
+      this.failClosed(error);
+    }
+  }
+
+  /**
+   * Resend cooldown under `{prefix}otp:cool:{phoneHash}`.
+   * Returns retryAfterSec when still cooling down.
+   */
+  async assertOtpResendAllowed(phoneHash: string): Promise<void> {
+    const key = `${this.keyPrefix}otp:cool:${phoneHash}`;
+    try {
+      const exists = await this.redis.get(key);
+      if (exists !== null) {
+        const ttlMs = await this.redis.pttl(key);
+        const retryAfterSec = Math.max(
+          1,
+          Math.ceil((ttlMs > 0 ? ttlMs : this.auth.otpResendCooldownSec * 1000) / 1000),
+        );
+        throw new AuthRateLimitedError(retryAfterSec);
+      }
+    } catch (error) {
+      if (error instanceof AuthRateLimitedError) {
+        throw error;
+      }
+      this.failClosed(error);
+    }
+  }
+
+  async markOtpResendCooldown(phoneHash: string): Promise<void> {
+    const key = `${this.keyPrefix}otp:cool:${phoneHash}`;
+    try {
+      await this.redis.set(key, '1', 'PX', this.auth.otpResendCooldownSec * 1000);
+    } catch (error) {
+      this.failClosed(error);
+    }
+  }
+
+  /** Hourly per-phone OTP request cap under `{prefix}otp:hour:{phoneHash}`. */
+  async assertOtpPhoneHourlyAllowed(phoneHash: string): Promise<void> {
+    const key = `${this.keyPrefix}otp:hour:${phoneHash}`;
+    const windowMs = 60 * 60 * 1000;
+    try {
+      const count = await this.redis.incr(key);
+      if (count === 1) {
+        await this.redis.pexpire(key, windowMs);
+      }
+      if (count > this.auth.otpMaxRequestsPerPhonePerHour) {
+        const ttlMs = await this.redis.pttl(key);
+        const retryAfterSec = Math.max(1, Math.ceil((ttlMs > 0 ? ttlMs : windowMs) / 1000));
+        throw new AuthRateLimitedError(retryAfterSec);
+      }
+    } catch (error) {
+      if (error instanceof AuthRateLimitedError) {
+        throw error;
+      }
+      this.failClosed(error);
+    }
+  }
+
   /**
    * Per-account forgot-password throttle (hash of code+email or hq|email).
    * Namespace: {prefix}reset:req:{hash}

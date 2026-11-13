@@ -107,6 +107,24 @@ describe('TenantDb', () => {
     await app.$disconnect();
   });
 
+  it('PATIENT context refused', async () => {
+    const app = createAppPrisma();
+    const db = createTenantDb(app);
+    await expect(
+      runWithContext(
+        {
+          tenantId: null,
+          userId: 'patient-account',
+          kind: 'PATIENT',
+          activeBranchId: null,
+          requestId: 'patient',
+        },
+        () => db.withTenant(async () => 1),
+      ),
+    ).rejects.toThrow(/PATIENT context cannot open a tenant transaction/);
+    await app.$disconnect();
+  });
+
   it('connection reuse: pool of one — A then bare query sees zero — then B cannot see A', async () => {
     const pool = new Pool({ connectionString: requireTestDatabaseUrl(), max: 1 });
     const prisma = new (await import('../generated/prisma')).PrismaClient({

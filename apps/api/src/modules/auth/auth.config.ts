@@ -35,6 +35,21 @@ export type AuthConfig = {
   mailRemoveOnFailCount: number;
   jwtHospitalAccessSecret: string;
   jwtHqAccessSecret: string;
+  jwtPatientAccessSecret: string;
+  otpHashSecret: string;
+  otpCodeLength: number;
+  otpTtlSec: number;
+  otpMaxAttempts: number;
+  otpResendCooldownSec: number;
+  otpMaxRequestsPerPhonePerHour: number;
+  otpIpRateLimitPerMinute: number;
+  /** Window for OTP IP counter (fixed 60s, same shape as staff IP window override via AUTH). */
+  otpIpRateLimitWindowMs: number;
+  patientAccessTokenTtlSec: number;
+  patientRefreshTokenTtlSec: number;
+  otpDefaultChannel: 'WHATSAPP' | 'SMS';
+  otpFallbackChannel: 'WHATSAPP' | 'SMS';
+  otpDriver: 'dev';
 };
 
 const DEFAULTS = {
@@ -58,6 +73,18 @@ const DEFAULTS = {
   mailJobBackoffMs: 5_000,
   mailRemoveOnCompleteCount: 100,
   mailRemoveOnFailCount: 50,
+  otpCodeLength: 6,
+  otpTtlSec: 300,
+  otpMaxAttempts: 5,
+  otpResendCooldownSec: 30,
+  otpMaxRequestsPerPhonePerHour: 5,
+  otpIpRateLimitPerMinute: 10,
+  otpIpRateLimitWindowMs: 60 * 1000,
+  patientAccessTokenTtlSec: 15 * 60,
+  patientRefreshTokenTtlSec: 30 * 24 * 60 * 60,
+  otpDefaultChannel: 'WHATSAPP' as const,
+  otpFallbackChannel: 'SMS' as const,
+  otpDriver: 'dev' as const,
 } as const;
 
 export const AUTH_JWT_MIN_SECRET_LENGTH = 32;
@@ -66,8 +93,16 @@ export const AUTH_REDIS_KEY_PREFIX = 'hospigo:auth:';
 export function loadAuthConfig(env: Record<string, unknown> = process.env): AuthConfig {
   const jwtHospitalAccessSecret = requireSecret(env, 'JWT_HOSPITAL_ACCESS_SECRET');
   const jwtHqAccessSecret = requireSecret(env, 'JWT_HQ_ACCESS_SECRET');
+  const jwtPatientAccessSecret = requireSecret(env, 'JWT_PATIENT_ACCESS_SECRET');
+  const otpHashSecret = requireSecret(env, 'OTP_HASH_SECRET');
   if (jwtHospitalAccessSecret === jwtHqAccessSecret) {
     throw new Error('JWT_HOSPITAL_ACCESS_SECRET and JWT_HQ_ACCESS_SECRET must differ');
+  }
+  if (
+    jwtPatientAccessSecret === jwtHospitalAccessSecret ||
+    jwtPatientAccessSecret === jwtHqAccessSecret
+  ) {
+    throw new Error('JWT_PATIENT_ACCESS_SECRET must differ from hospital and HQ secrets');
   }
 
   return {
@@ -190,7 +225,69 @@ export function loadAuthConfig(env: Record<string, unknown> = process.env): Auth
     ),
     jwtHospitalAccessSecret,
     jwtHqAccessSecret,
+    jwtPatientAccessSecret,
+    otpHashSecret,
+    otpCodeLength: intEnv(env, 'OTP_CODE_LENGTH', DEFAULTS.otpCodeLength, 4, 10),
+    otpTtlSec: intEnv(env, 'OTP_TTL_SEC', DEFAULTS.otpTtlSec, 60, 3600),
+    otpMaxAttempts: intEnv(env, 'OTP_MAX_ATTEMPTS', DEFAULTS.otpMaxAttempts, 1, 20),
+    otpResendCooldownSec: intEnv(
+      env,
+      'OTP_RESEND_COOLDOWN_SEC',
+      DEFAULTS.otpResendCooldownSec,
+      5,
+      3600,
+    ),
+    otpMaxRequestsPerPhonePerHour: intEnv(
+      env,
+      'OTP_MAX_REQUESTS_PER_PHONE_PER_HOUR',
+      DEFAULTS.otpMaxRequestsPerPhonePerHour,
+      1,
+      100,
+    ),
+    otpIpRateLimitPerMinute: intEnv(
+      env,
+      'OTP_IP_RATE_LIMIT_PER_MIN',
+      DEFAULTS.otpIpRateLimitPerMinute,
+      1,
+      1000,
+    ),
+    otpIpRateLimitWindowMs: DEFAULTS.otpIpRateLimitWindowMs,
+    patientAccessTokenTtlSec: intEnv(
+      env,
+      'PATIENT_ACCESS_TOKEN_TTL_SEC',
+      DEFAULTS.patientAccessTokenTtlSec,
+      60,
+      86_400,
+    ),
+    patientRefreshTokenTtlSec: intEnv(
+      env,
+      'PATIENT_REFRESH_TOKEN_TTL_SEC',
+      DEFAULTS.patientRefreshTokenTtlSec,
+      3600,
+      90 * 24 * 60 * 60,
+    ),
+    otpDefaultChannel: parseChannel(env['OTP_DEFAULT_CHANNEL'], DEFAULTS.otpDefaultChannel),
+    otpFallbackChannel: parseChannel(env['OTP_FALLBACK_CHANNEL'], DEFAULTS.otpFallbackChannel),
+    otpDriver: parseOtpDriver(env['OTP_DRIVER']),
   };
+}
+
+function parseChannel(raw: unknown, fallback: 'WHATSAPP' | 'SMS'): 'WHATSAPP' | 'SMS' {
+  if (raw === undefined || raw === '') {
+    return fallback;
+  }
+  const v = String(raw).trim().toUpperCase();
+  if (v === 'WHATSAPP' || v === 'SMS') {
+    return v;
+  }
+  throw new Error('OTP channel must be WHATSAPP or SMS');
+}
+
+function parseOtpDriver(raw: unknown): 'dev' {
+  if (raw === undefined || raw === '' || raw === 'dev') {
+    return 'dev';
+  }
+  throw new Error('OTP_DRIVER must be "dev" (other drivers are not implemented yet)');
 }
 
 function parseTrustedProxy(raw: unknown): AuthConfig['trustedProxy'] {

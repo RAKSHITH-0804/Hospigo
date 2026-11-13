@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-13 — Phase 1 Step 6c — patient OTP login API
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** global `patient_accounts` / `patient_otp_challenges` / `patient_auth_sessions`; role `hospigo_patient`; `PatientPrismaService`; OTP request/verify/refresh/logout + `GET /patient/me`; `MessageProvider` + `DevMessageProvider`; phone normalize; Redis `otp:` limits
+- **Changed:** `TokenService` / `RequestKind` / AuthGuard for `PATIENT`; TenantDb refuses PATIENT; create-roles + CI env for patient DB/JWT/OTP secrets
+- **Removed:** none
+- **Fixed:** atomic OTP attempt/consume via parameterized `$queryRaw`/`$executeRaw` (DB `now()`); request-otp invalidate+insert in one SQL statement; patient logout `@Public` + family revoke (refreshToken only)
+- **Database (migrations, roles, RLS):** `20261113100000_patient_accounts_and_otp` — SIU to `hospigo_patient` only; REVOKE from app/hq/PUBLIC; no tenant RLS
+- **New .env keys (names only):** `DATABASE_URL_PATIENT`, `HOSPIGO_PATIENT_PASSWORD`, `JWT_PATIENT_ACCESS_SECRET`, `OTP_HASH_SECRET`, `OTP_*`, `PATIENT_*_TOKEN_TTL_SEC`
+- **Tests:** phone normalize; OTP HTTP e2e (incl. parallel wrong/correct verify races + public logout); role grants; token separation; Redis fail-closed; existing suite retained
+- **Decisions:** direct OTP send (not BullMQ) — code never stored plaintext; queue would require putting code in job data or regenerating. Dev driver only; production refuses DevMessageProvider. Request-otp uses single-statement CTE (not Prisma `$transaction`) because TenantDb safety-net hard-forbids `$transaction` in feature modules.
+- **Follow-ups and open items:** hospital patient record linking; real WhatsApp/SMS providers; BOOKING OTP purpose
+
 ## 2026-11-12 — Phase 1 Step 7 — hardening and exit demo
 
 - **Commit hash(es):** (uncommitted)

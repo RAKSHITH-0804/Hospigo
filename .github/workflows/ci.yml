@@ -65,8 +65,11 @@ jobs:
           OWNER_PW="$(openssl rand -hex 24)"
           APP_PW="$(openssl rand -hex 24)"
           HQ_PW="$(openssl rand -hex 24)"
+          PATIENT_PW="$(openssl rand -hex 24)"
           JWT_HOSPITAL_ACCESS_SECRET="$(openssl rand -hex 24)"
           JWT_HQ_ACCESS_SECRET="$(openssl rand -hex 24)"
+          JWT_PATIENT_ACCESS_SECRET="$(openssl rand -hex 24)"
+          OTP_HASH_SECRET="$(openssl rand -hex 24)"
           SMTP_PASSWORD="$(openssl rand -hex 24)"
           SEED_SUPERADMIN_PASSWORD="$(openssl rand -hex 24)"
           SEED_BRANCH_ADMIN_PASSWORD="$(openssl rand -hex 24)"
@@ -75,8 +78,11 @@ jobs:
           echo "::add-mask::${OWNER_PW}"
           echo "::add-mask::${APP_PW}"
           echo "::add-mask::${HQ_PW}"
+          echo "::add-mask::${PATIENT_PW}"
           echo "::add-mask::${JWT_HOSPITAL_ACCESS_SECRET}"
           echo "::add-mask::${JWT_HQ_ACCESS_SECRET}"
+          echo "::add-mask::${JWT_PATIENT_ACCESS_SECRET}"
+          echo "::add-mask::${OTP_HASH_SECRET}"
           echo "::add-mask::${SMTP_PASSWORD}"
           echo "::add-mask::${SEED_SUPERADMIN_PASSWORD}"
           echo "::add-mask::${SEED_BRANCH_ADMIN_PASSWORD}"
@@ -98,14 +104,18 @@ jobs:
           DATABASE_URL_TEST="postgresql://hospigo_app:${APP_PW}@${HOST}:${PORT}/hospigo_test"
           DATABASE_URL_OWNER_TEST="postgresql://hospigo_owner:${OWNER_PW}@${HOST}:${PORT}/hospigo_test"
           DATABASE_URL_HQ="postgresql://hospigo_hq:${HQ_PW}@${HOST}:${PORT}/hospigo"
+          DATABASE_URL_PATIENT="postgresql://hospigo_patient:${PATIENT_PW}@${HOST}:${PORT}/hospigo"
           REDIS_URL="redis://${HOST}:6379"
 
           {
             echo "HOSPIGO_OWNER_PASSWORD=${OWNER_PW}"
             echo "HOSPIGO_APP_PASSWORD=${APP_PW}"
             echo "HOSPIGO_HQ_PASSWORD=${HQ_PW}"
+            echo "HOSPIGO_PATIENT_PASSWORD=${PATIENT_PW}"
             echo "JWT_HOSPITAL_ACCESS_SECRET=${JWT_HOSPITAL_ACCESS_SECRET}"
             echo "JWT_HQ_ACCESS_SECRET=${JWT_HQ_ACCESS_SECRET}"
+            echo "JWT_PATIENT_ACCESS_SECRET=${JWT_PATIENT_ACCESS_SECRET}"
+            echo "OTP_HASH_SECRET=${OTP_HASH_SECRET}"
             echo "SMTP_PASSWORD=${SMTP_PASSWORD}"
             echo "SEED_SUPERADMIN_PASSWORD=${SEED_SUPERADMIN_PASSWORD}"
             echo "SEED_BRANCH_ADMIN_PASSWORD=${SEED_BRANCH_ADMIN_PASSWORD}"
@@ -116,6 +126,7 @@ jobs:
             echo "DATABASE_URL_TEST=${DATABASE_URL_TEST}"
             echo "DATABASE_URL_OWNER_TEST=${DATABASE_URL_OWNER_TEST}"
             echo "DATABASE_URL_HQ=${DATABASE_URL_HQ}"
+            echo "DATABASE_URL_PATIENT=${DATABASE_URL_PATIENT}"
             echo "REDIS_URL=${REDIS_URL}"
             echo "STORAGE_ROOT_PATH=${STORAGE_ROOT_PATH}"
             echo "PGHOST=${HOST}"
@@ -146,11 +157,13 @@ jobs:
           HOSPIGO_OWNER_PASSWORD=${OWNER_PW}
           HOSPIGO_APP_PASSWORD=${APP_PW}
           HOSPIGO_HQ_PASSWORD=${HQ_PW}
+          HOSPIGO_PATIENT_PASSWORD=${PATIENT_PW}
           DATABASE_URL=${DATABASE_URL}
           DATABASE_URL_OWNER=${DATABASE_URL_OWNER}
           DATABASE_URL_TEST=${DATABASE_URL_TEST}
           DATABASE_URL_OWNER_TEST=${DATABASE_URL_OWNER_TEST}
           DATABASE_URL_HQ=${DATABASE_URL_HQ}
+          DATABASE_URL_PATIENT=${DATABASE_URL_PATIENT}
           REDIS_URL=${REDIS_URL}
           STORAGE_ROOT_PATH=${STORAGE_ROOT_PATH}
           SMTP_HOST=127.0.0.1
@@ -160,6 +173,8 @@ jobs:
           SMTP_FROM=noreply@hospigo.indigocomputers.in
           JWT_HOSPITAL_ACCESS_SECRET=${JWT_HOSPITAL_ACCESS_SECRET}
           JWT_HQ_ACCESS_SECRET=${JWT_HQ_ACCESS_SECRET}
+          JWT_PATIENT_ACCESS_SECRET=${JWT_PATIENT_ACCESS_SECRET}
+          OTP_HASH_SECRET=${OTP_HASH_SECRET}
           PATIENT_SEARCH_MAX_PAGE_SIZE=50
           SEED_SUPERADMIN_PASSWORD=${SEED_SUPERADMIN_PASSWORD}
           SEED_BRANCH_ADMIN_PASSWORD=${SEED_BRANCH_ADMIN_PASSWORD}

@@ -57,6 +57,16 @@ function hqUrlOnTestDb(): string {
   return u.toString();
 }
 
+function patientUrlOnTestDb(): string {
+  const raw = process.env.DATABASE_URL_PATIENT;
+  if (!raw) {
+    throw new Error('DATABASE_URL_PATIENT is required for patient auth tests');
+  }
+  const u = new URL(raw);
+  u.pathname = '/hospigo_test';
+  return u.toString();
+}
+
 const appDatabaseUrl = requireAppTestDatabaseUrl();
 const ownerDatabaseUrl = requireOwnerTestDatabaseUrl();
 
@@ -65,6 +75,7 @@ const defaults: Record<string, string> = {
   DATABASE_URL: appDatabaseUrl,
   DATABASE_URL_OWNER: ownerDatabaseUrl,
   DATABASE_URL_HQ: hqUrlOnTestDb(),
+  DATABASE_URL_PATIENT: patientUrlOnTestDb(),
   REDIS_URL: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
   AUTH_IP_RATE_LIMIT_PER_MIN: '100',
   AUTH_LOGIN_MAX_FAILURES: '3',
@@ -75,6 +86,9 @@ const defaults: Record<string, string> = {
     process.env.JWT_HOSPITAL_ACCESS_SECRET || 'test-hospital-access-secret-min-32-chars!!',
   JWT_HQ_ACCESS_SECRET:
     process.env.JWT_HQ_ACCESS_SECRET || 'test-hq-access-secret-min-32-characters!!',
+  JWT_PATIENT_ACCESS_SECRET:
+    process.env.JWT_PATIENT_ACCESS_SECRET || 'test-patient-access-secret-min-32-chars!!',
+  OTP_HASH_SECRET: process.env.OTP_HASH_SECRET || 'test-otp-hash-secret-min-32-characters!!',
 };
 
 for (const [key, value] of Object.entries(defaults)) {

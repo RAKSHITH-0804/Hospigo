@@ -6,6 +6,7 @@ import { AccessModule } from './modules/access/access.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
 import { ImportsModule } from './modules/imports/imports.module';
+import { PatientAuthModule } from './modules/patient-auth/patient-auth.module';
 import { PatientsModule } from './modules/patients/patients.module';
 import { StorageModule } from './modules/storage/storage.module';
 
@@ -19,6 +20,7 @@ import { StorageModule } from './modules/storage/storage.module';
     }),
     PrismaModule,
     AuthModule,
+    PatientAuthModule,
     AccessModule,
     StorageModule,
     HealthModule,

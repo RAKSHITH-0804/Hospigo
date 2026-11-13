@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 
-export type RequestKind = 'HOSPITAL' | 'HQ';
+export type RequestKind = 'HOSPITAL' | 'HQ' | 'PATIENT';
 
 /**
  * Per-request ambient context. AuthGuard (Step 6a-1) fills this from access tokens

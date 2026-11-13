@@ -39,6 +39,7 @@ import { TokenService } from './token.service';
     PasswordService,
     TokenService,
     AuthGuard,
+    AuthRedisService,
     MembershipHelper,
     HospitalLoginHelper,
     ActionTokenService,

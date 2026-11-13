@@ -9,6 +9,8 @@ function service(): PasswordService {
   const auth = loadAuthConfig({
     JWT_HOSPITAL_ACCESS_SECRET: HOSPITAL,
     JWT_HQ_ACCESS_SECRET: HQ,
+    JWT_PATIENT_ACCESS_SECRET: 'patient-access-secret-value-32chars!!',
+    OTP_HASH_SECRET: 'otp-hash-secret-value-min-32-characters!',
   });
   const config = {
     getOrThrow: (key: string) => {

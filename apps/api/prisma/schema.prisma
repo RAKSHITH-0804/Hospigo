@@ -102,6 +102,84 @@ model HqAuthSession {
   @@map("hq_auth_sessions")
 }
 
+// --- Patient platform identity (global; hospigo_patient role only; no tenant RLS) ---
+
+enum PatientAccountStatus {
+  ACTIVE
+  DISABLED
+
+  @@map("patient_account_status")
+}
+
+enum PatientOtpPurpose {
+  LOGIN
+  BOOKING
+
+  @@map("patient_otp_purpose")
+}
+
+enum PatientOtpChannel {
+  WHATSAPP
+  SMS
+
+  @@map("patient_otp_channel")
+}
+
+/// Platform-level patient login accounts (phone + OTP). Not linked to hospital patients yet.
+model PatientAccount {
+  id          String               @id @default(cuid())
+  phoneE164   String               @unique @map("phone_e164")
+  status      PatientAccountStatus @default(ACTIVE)
+  createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  lastLoginAt DateTime?            @map("last_login_at") @db.Timestamptz(3)
+
+  sessions PatientAuthSession[]
+
+  @@map("patient_accounts")
+}
+
+/// OTP challenges. Store code_hmac only — never the plaintext code.
+model PatientOtpChallenge {
+  id                 String            @id @default(cuid())
+  phoneE164          String            @map("phone_e164")
+  purpose            PatientOtpPurpose
+  codeHmac           String            @map("code_hmac")
+  channel            PatientOtpChannel
+  expiresAt          DateTime          @map("expires_at") @db.Timestamptz(3)
+  attempts           Int               @default(0)
+  consumedAt         DateTime?         @map("consumed_at") @db.Timestamptz(3)
+  resendAvailableAt  DateTime          @map("resend_available_at") @db.Timestamptz(3)
+  createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([phoneE164, createdAt])
+  @@map("patient_otp_challenges")
+}
+
+/// Patient refresh sessions (global — mirror hq_auth_sessions).
+model PatientAuthSession {
+  id           String    @id @default(cuid())
+  accountId    String    @map("account_id")
+  tokenHash    String    @map("token_hash")
+  familyId     String    @map("family_id")
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz(3)
+  replacedById String?   @map("replaced_by_id")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastUsedAt   DateTime? @map("last_used_at") @db.Timestamptz(3)
+  ip           String?
+  userAgent    String?   @map("user_agent")
+
+  account    PatientAccount      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  replacedBy PatientAuthSession? @relation("PatientSessionReplacement", fields: [replacedById], references: [id], onDelete: SetNull)
+  replaces   PatientAuthSession[] @relation("PatientSessionReplacement")
+
+  @@index([tokenHash])
+  @@index([familyId])
+  @@index([accountId])
+  @@map("patient_auth_sessions")
+}
+
 /// Global system field catalog (no tenant). Defaults only — hospitals override via patient_field_settings.
 model PatientFieldCatalog {
   key            String  @id

@@ -2,21 +2,22 @@
 
 Status as of Step 7 hardening. Evidence is repo-local unless noted.
 
-| #   | Item                                | Status        | Evidence                                                                                                                                 |
-| --- | ----------------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Monorepo / packages                 | Done          | `apps/*`, `packages/shared`, npm workspaces                                                                                              |
-| 2   | TypeScript strict + ESLint/Prettier | Done          | `tsconfig.base.json` strict; `npm run lint`; Prettier; husky pre-commit lint                                                             |
-| 3   | Env / secrets management            | Done          | `.env` gitignored; `.env.example` placeholders; CI generates secrets; `docs/env-reference.md`                                            |
-| 4   | Postgres roles + RLS                | Done          | create-roles; FORCE RLS; isolation specs                                                                                                 |
-| 5   | TenantDb + AccessService            | Done          | `TenantDb`, AccessService deny-by-default                                                                                                |
-| 6   | Auth (hospital/HQ) + web BFF        | Done          | Step 6a–6d; httpOnly cookies; `docs/api-auth.md`                                                                                         |
-| 7   | Email activation / reset            | Done          | Step 6b mail queue + web pages                                                                                                           |
-| 8   | Exit demo shell from real session   | Done (Step 7) | `/auth/me` branches + enabledModules; web module mapping + guard                                                                         |
-| 9   | Concept UI (sample data)            | Partial       | OPD/HQ hospitals still sample; Sample data badge                                                                                         |
-| 10  | Health checks                       | Done          | `/health`, `/health/details`                                                                                                             |
-| 11  | CI/CD                               | Done          | `.github/workflows/ci.yml` — lint, build, tests, Postgres + Redis services, required check; `APP_URL` throwaway local; audit report-only |
-| 12  | Automated tests                     | Done          | API ~174+; web ~82+; isolation, auth, theme-hardcode, scroll-lock, next-public-scan                                                      |
-| 13  | Docs                                | Ongoing       | architecture, folder-guide, api-auth, ci, staging-checklist, this tracker                                                                |
+| #   | Item                                | Status         | Evidence                                                                                                                                 |
+| --- | ----------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Monorepo / packages                 | Done           | `apps/*`, `packages/shared`, npm workspaces                                                                                              |
+| 2   | TypeScript strict + ESLint/Prettier | Done           | `tsconfig.base.json` strict; `npm run lint`; Prettier; husky pre-commit lint                                                             |
+| 3   | Env / secrets management            | Done           | `.env` gitignored; `.env.example` placeholders; CI generates secrets; `docs/env-reference.md`                                            |
+| 4   | Postgres roles + RLS                | Done           | create-roles; FORCE RLS; isolation specs                                                                                                 |
+| 5   | TenantDb + AccessService            | Done           | `TenantDb`, AccessService deny-by-default                                                                                                |
+| 6   | Auth (hospital/HQ) + web BFF        | Done           | Step 6a–6d; httpOnly cookies; `docs/api-auth.md`                                                                                         |
+| 7   | Email activation / reset            | Done           | Step 6b mail queue + web pages                                                                                                           |
+| 7c  | Patient OTP login API               | Done (Step 6c) | `/patient/auth/*`; global patient tables; `hospigo_patient` role; no hospital link yet                                                   |
+| 8   | Exit demo shell from real session   | Done (Step 7)  | `/auth/me` branches + enabledModules; web module mapping + guard                                                                         |
+| 9   | Concept UI (sample data)            | Partial        | OPD/HQ hospitals still sample; Sample data badge                                                                                         |
+| 10  | Health checks                       | Done           | `/health`, `/health/details`                                                                                                             |
+| 11  | CI/CD                               | Done           | `.github/workflows/ci.yml` — lint, build, tests, Postgres + Redis services, required check; `APP_URL` throwaway local; audit report-only |
+| 12  | Automated tests                     | Done           | API ~174+; web ~82+; isolation, auth, theme-hardcode, scroll-lock, next-public-scan                                                      |
+| 13  | Docs                                | Ongoing        | architecture, folder-guide, api-auth, ci, staging-checklist, this tracker                                                                |
 
 ## Security layer
 
