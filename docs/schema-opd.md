@@ -331,3 +331,16 @@ Discounts, insurance and organisation billing, lab results, pharmacy stock, appo
 | 2   | After a reversed registration fee, charge again next visit?   | Yes                                      |
 | 3   | Branch-specific prices                                        | Not supported; prices are hospital-wide  |
 | 4   | Tax rules                                                     | Off; columns exist                       |
+
+## As built (Step 2)
+
+Migration `20261114100000_opd_masters_and_settings` implements sections 1, 3 (masters/settings only) and 7 (append-only on `charge_item_prices` / `doctor_fees`). Differences from this document:
+
+| Topic                               | Document                                   | As built                                                                                                  |
+| ----------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `number_series_settings.reset_rule` | YEARLY / NEVER                             | Reuses existing `uhid_reset_rule`: `FINANCIAL_YEAR` (≡ YEARLY) / `NEVER`                                  |
+| `print_templates`                   | Listed in §3                               | Not in Step 2 (deferred to Step 7)                                                                        |
+| Consultation prices                 | Could be read as charge_items CONSULTATION | Consultation fees live in `doctor_fees` only in mock seed; REGISTRATION + INVESTIGATION in `charge_items` |
+| Permissions                         | Not named in schema doc                    | `opd.masters.read/write`, `opd.prices.write`, `opd.settings.write`                                        |
+| HTTP API                            | Implied later                              | Services only in Step 2 (no controllers)                                                                  |
+| Append-only TRUNCATE                | Implied with §7 append-only                | Statement-level `refuse_opd_price_truncate` BEFORE TRUNCATE on price tables (same idea as `audit_logs`)   |

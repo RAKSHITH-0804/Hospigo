@@ -38,6 +38,17 @@ npm run create-hq-admin -w @hospigo/api -- <email>
 
 The script prints a random one-time password once (copy it from the terminal, never into chat or Git). The first login forces a password change. Example email used in dev: `hqdemo@indigo-demo.example.test`.
 
+## OPD mock staff (Phase 2 Step 2; same `SEED_STAFF_PASSWORD`)
+
+Invented emails only. Roles Receptionist / Nurse / Doctor get `opd.masters.read` (not price/settings write).
+
+| Hospital code | Emails                                                                                                                                |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| DEMO_NORTH    | `doctor1@…` … `doctor5@demo-north.example.test`; `receptionist1@…` / `receptionist2@…`; `nurse1@…` / `nurse2@demo-north.example.test` |
+| DEMO_SOUTH    | `doctor1@…` … `doctor3@demo-south.example.test`; `receptionist1@…` / `receptionist2@…`; `nurse1@…` / `nurse2@demo-south.example.test` |
+
+Doctor 1 at DEMO_NORTH has availability switch off; one DEMO_SOUTH doctor has leave for tomorrow (IST). Login still uses the branch access codes above.
+
 ## Useful to know
 
 - **Open the web app at exactly the host in `APP_URL`** (`http://127.0.0.1:3001` in dev). Cookies are per host, and the Origin check compares against `APP_URL`.

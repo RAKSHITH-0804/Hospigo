@@ -20,6 +20,10 @@ const PERMISSIONS = [
   { code: 'role.write', description: 'Write roles' },
   { code: 'module.read', description: 'Read module subscriptions' },
   { code: 'audit.read', description: 'Read audit logs' },
+  { code: 'opd.masters.read', description: 'Read OPD masters' },
+  { code: 'opd.masters.write', description: 'Write OPD masters' },
+  { code: 'opd.prices.write', description: 'Write OPD prices and fees' },
+  { code: 'opd.settings.write', description: 'Write OPD settings' },
 ] as const;
 
 /** Idempotent prod-safe catalog seed (modules, permissions). System role templates are per-tenant. */

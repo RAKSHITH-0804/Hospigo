@@ -4,7 +4,10 @@
 | ---------------------------------------------- | ------------------------------------------------------------------------ |
 | `apps/api`                                     | NestJS API (`@hospigo/api`)                                              |
 | `apps/api/prisma`                              | Prisma schema, migrations, seeds                                         |
-| `apps/api/src/modules`                         | Feature modules (health, storage, auth, …)                               |
+| `apps/api/src/modules`                         | Feature modules (health, storage, auth, opd-masters, …)                  |
+| `apps/api/src/modules/opd-masters`             | OPD masters/settings services (no controllers yet; Phase 2 Step 2)       |
+| `docs/schema-opd.md`                           | OPD schema design + Step 2 as-built notes                                |
+| `docs/use-cases-opd.md`                        | OPD use cases                                                            |
 | `apps/api/src/modules/auth`                    | Auth endpoints, Redis limiter/lockout, tokens, global AuthGuard          |
 | `apps/api/src/modules/patient-auth`            | Patient OTP login (platform accounts; separate DB role)                  |
 | `apps/api/src/modules/messaging`               | OTP `MessageProvider` + dev driver                                       |
