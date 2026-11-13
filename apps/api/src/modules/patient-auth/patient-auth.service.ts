@@ -17,9 +17,8 @@ import { maskPhoneE164, normalizePhoneIN } from './phone.normalize';
 
 export type PatientTokenPair = {
   accessToken: string;
-  refreshToken?: string;
+  refreshToken: string;
   expiresIn: number;
-  mustChangePassword: boolean;
 };
 
 type OtpPurpose = 'LOGIN' | 'BOOKING';
@@ -277,7 +276,6 @@ export class PatientAuthService {
       accessToken,
       refreshToken: issued.raw,
       expiresIn: this.tokens.accessExpiresInSec('PATIENT'),
-      mustChangePassword: false,
     };
   }
 
@@ -352,7 +350,6 @@ export class PatientAuthService {
       accessToken,
       refreshToken: issued.raw,
       expiresIn: this.tokens.accessExpiresInSec('PATIENT'),
-      mustChangePassword: false,
     };
   }
 

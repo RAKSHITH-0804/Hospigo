@@ -19,11 +19,11 @@ import {
 import { AuthRateLimitedError } from '../auth/auth-redis.service';
 import { LogoutDto } from '../auth/dto/logout.dto';
 import { RefreshDto } from '../auth/dto/refresh.dto';
-import { TokenResponseDto } from '../auth/dto/token-response.dto';
 import { Public } from '../auth/public.decorator';
 import { TokenKinds } from '../auth/token-kinds.decorator';
 import type { AccessClaims, PatientAccessClaims } from '../auth/token.types';
 import { isPatientTokenType } from '../auth/token.types';
+import { PatientTokenResponseDto } from './dto/patient-token-response.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { PatientAuthService } from './patient-auth.service';
@@ -61,13 +61,13 @@ export class PatientAuthController {
   @Post('auth/verify-otp')
   @HttpCode(200)
   @ApiOperation({ summary: 'Verify OTP and issue patient access + refresh tokens' })
-  @ApiOkResponse({ type: TokenResponseDto })
+  @ApiOkResponse({ type: PatientTokenResponseDto })
   @ApiUnauthorizedResponse({ description: 'Generic authentication failure' })
   async verifyOtp(
     @Body() body: VerifyOtpDto,
     @Req() req: HttpReq,
     @Res({ passthrough: true }) res: HttpRes,
-  ): Promise<TokenResponseDto> {
+  ): Promise<PatientTokenResponseDto> {
     return this.wrapRateLimit(res, () =>
       this.patientAuth.verifyOtp(body.phone, body.code, 'LOGIN', clientIp(req), {
         userAgent: headerString(req.headers['user-agent']),
@@ -79,12 +79,12 @@ export class PatientAuthController {
   @Post('auth/refresh')
   @HttpCode(200)
   @ApiOperation({ summary: 'Rotate patient refresh token' })
-  @ApiOkResponse({ type: TokenResponseDto })
+  @ApiOkResponse({ type: PatientTokenResponseDto })
   async refresh(
     @Body() body: RefreshDto,
     @Req() req: HttpReq,
     @Res({ passthrough: true }) res: HttpRes,
-  ): Promise<TokenResponseDto> {
+  ): Promise<PatientTokenResponseDto> {
     return this.wrapRateLimit(res, () =>
       this.patientAuth.refresh(body.refreshToken, {
         ip: clientIp(req),

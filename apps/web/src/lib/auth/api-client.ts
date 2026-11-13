@@ -1,6 +1,12 @@
 import { requireApiInternalUrl, sessionConfig } from '@/config/session';
 import { logBffError } from './log';
-import type { AuthMeProfile, TokenPairResponse } from './types';
+import type {
+  AuthMeProfile,
+  PatientMeProfile,
+  PatientRequestOtpResponse,
+  PatientTokenPairResponse,
+  TokenPairResponse,
+} from './types';
 
 export type UpstreamResult<T> =
   | { ok: true; data: T; retryAfter?: string }
@@ -56,7 +62,7 @@ function extractUpstreamMessage(body: unknown): string | undefined {
 async function callApi<T>(
   request: Request,
   path: string,
-  init: RequestInit & { json?: unknown } = {},
+  init: RequestInit & { json?: unknown; timeoutMs?: number } = {},
 ): Promise<UpstreamResult<T>> {
   const base = requireApiInternalUrl();
   // Fresh headers only — never copy Cookie / Authorization from the browser Request.
@@ -71,16 +77,35 @@ async function callApi<T>(
     headers.set('Content-Type', 'application/json');
     body = JSON.stringify(init.json);
   }
+
+  const { timeoutMs, json: _json, ...fetchInit } = init;
+  let abortController: AbortController | undefined;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  let signal = fetchInit.signal;
+  if (typeof timeoutMs === 'number' && timeoutMs > 0) {
+    abortController = new AbortController();
+    signal = abortController.signal;
+    timeoutId = setTimeout(() => abortController?.abort(), timeoutMs);
+    if (typeof timeoutId.unref === 'function') {
+      timeoutId.unref();
+    }
+  }
+
   let response: Response;
   try {
     response = await fetch(`${base}${path}`, {
-      ...init,
+      ...fetchInit,
       headers,
       body,
+      signal,
       cache: 'no-store',
     });
   } catch {
     return { ok: false, status: 503 };
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
   }
   const retryAfter = response.headers.get('retry-after') ?? undefined;
   if (!response.ok) {
@@ -192,4 +217,63 @@ export function activateUpstream(
   body: { token: string; newPassword: string },
 ): Promise<UpstreamResult<void>> {
   return callApi(request, '/auth/activate', { method: 'POST', json: body });
+}
+
+function patientTimeout(): number {
+  return sessionConfig.patientUpstreamTimeoutMs;
+}
+
+export function patientRequestOtp(
+  request: Request,
+  body: { phone: string },
+): Promise<UpstreamResult<PatientRequestOtpResponse>> {
+  return callApi(request, '/patient/auth/request-otp', {
+    method: 'POST',
+    json: body,
+    timeoutMs: patientTimeout(),
+  });
+}
+
+export function patientVerifyOtp(
+  request: Request,
+  body: { phone: string; code: string },
+): Promise<UpstreamResult<PatientTokenPairResponse>> {
+  return callApi(request, '/patient/auth/verify-otp', {
+    method: 'POST',
+    json: body,
+    timeoutMs: patientTimeout(),
+  });
+}
+
+export function patientRefresh(
+  request: Request,
+  refreshToken: string,
+): Promise<UpstreamResult<PatientTokenPairResponse>> {
+  return callApi(request, '/patient/auth/refresh', {
+    method: 'POST',
+    json: { refreshToken },
+    timeoutMs: patientTimeout(),
+  });
+}
+
+export function patientLogout(
+  request: Request,
+  refreshToken: string,
+): Promise<UpstreamResult<{ ok: true }>> {
+  return callApi(request, '/patient/auth/logout', {
+    method: 'POST',
+    json: { refreshToken },
+    timeoutMs: patientTimeout(),
+  });
+}
+
+export function patientMe(
+  request: Request,
+  accessToken: string,
+): Promise<UpstreamResult<PatientMeProfile>> {
+  return callApi(request, '/patient/me', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    timeoutMs: patientTimeout(),
+  });
 }
