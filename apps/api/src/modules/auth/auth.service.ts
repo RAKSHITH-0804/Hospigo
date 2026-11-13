@@ -11,8 +11,8 @@ import { authFailed } from './auth.errors';
 import { HospitalLoginHelper } from './hospital-login.helper';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
-import type { AccessClaims, HospitalAccessClaims } from './token.types';
-import { isHospitalTokenType } from './token.types';
+import type { AccessClaims, HospitalAccessClaims, HqAccessClaims } from './token.types';
+import { isHospitalTokenType, isHqTokenType } from './token.types';
 
 export type TokenPairResponse = {
   accessToken: string;
@@ -236,7 +236,11 @@ export class AuthService {
     if (parts.kind === 'hospital') {
       return this.refreshHospital(parts, meta);
     }
-    return this.refreshHq(parts, meta);
+    if (parts.kind === 'hq') {
+      return this.refreshHq(parts, meta);
+    }
+    // Patient refresh belongs on /patient/auth/refresh only.
+    authFailed();
   }
 
   /**
@@ -280,6 +284,11 @@ export class AuthService {
           });
         },
       );
+      return { ok: true };
+    }
+
+    if (parts.kind === 'patient') {
+      // Patient logout is /patient/auth/logout only.
       return { ok: true };
     }
 
@@ -381,14 +390,18 @@ export class AuthService {
       );
     }
 
-    const accountHash = this.redis.changePasswordKeyMaterial('hq', null, claims.userId);
+    if (!isHqTokenType(claims.tokenType)) {
+      authFailed();
+    }
+    const hqClaims = claims as HqAccessClaims;
+    const accountHash = this.redis.changePasswordKeyMaterial('hq', null, hqClaims.userId);
     if (await this.redis.isAccountLocked(accountHash, 'cpw')) {
       await this.passwords.burnVerifyTime();
-      this.logger.warn(`HQ change-password locked userId=${claims.userId}`);
+      this.logger.warn(`HQ change-password locked userId=${hqClaims.userId}`);
       authFailed();
     }
 
-    const user = await this.hqPrisma.hqUser.findUnique({ where: { id: claims.userId } });
+    const user = await this.hqPrisma.hqUser.findUnique({ where: { id: hqClaims.userId } });
     if (!user || !user.isActive) {
       authFailed();
     }
@@ -523,7 +536,11 @@ export class AuthService {
       );
     }
 
-    const user = await this.hqPrisma.hqUser.findUnique({ where: { id: claims.userId } });
+    if (!isHqTokenType(claims.tokenType)) {
+      authFailed();
+    }
+    const hqClaims = claims as HqAccessClaims;
+    const user = await this.hqPrisma.hqUser.findUnique({ where: { id: hqClaims.userId } });
     if (!user) {
       authFailed();
     }

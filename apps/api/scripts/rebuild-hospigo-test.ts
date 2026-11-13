@@ -50,6 +50,7 @@ async function reapplySchemaHardening(client: pg.Client): Promise<void> {
   await client.query('GRANT USAGE, CREATE ON SCHEMA public TO hospigo_owner');
   await client.query('GRANT USAGE ON SCHEMA public TO hospigo_app');
   await client.query('GRANT USAGE ON SCHEMA public TO hospigo_hq');
+  await client.query('GRANT USAGE ON SCHEMA public TO hospigo_patient');
   await client.query('GRANT USAGE, CREATE ON SCHEMA public TO hospigo_security');
   await client.query('ALTER SCHEMA public OWNER TO hospigo_owner');
 }

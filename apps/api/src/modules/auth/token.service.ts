@@ -8,10 +8,12 @@ import {
   isAccessTokenType,
   isHospitalTokenType,
   isHqTokenType,
+  isPatientTokenType,
   type AccessClaims,
   type AccessTokenType,
   type HospitalAccessClaims,
   type HqAccessClaims,
+  type PatientAccessClaims,
   type RefreshTokenParts,
 } from './token.types';
 
@@ -20,6 +22,7 @@ type JwtPayload = {
   tenantId?: unknown;
   userId?: unknown;
   branchId?: unknown;
+  accountId?: unknown;
   sub?: unknown;
 };
 
@@ -77,9 +80,24 @@ export class TokenService {
     );
   }
 
+  signPatientAccess(claims: { accountId: string }): string {
+    return jwt.sign(
+      {
+        tokenType: 'PATIENT' as const,
+        accountId: claims.accountId,
+        sub: claims.accountId,
+      },
+      this.auth.jwtPatientAccessSecret,
+      { algorithm: 'HS256', expiresIn: this.auth.patientAccessTokenTtlSec },
+    );
+  }
+
   accessExpiresInSec(tokenType?: string): number {
     if (tokenType === 'CHANGE_PASSWORD_HOSPITAL' || tokenType === 'CHANGE_PASSWORD_HQ') {
       return this.auth.changePasswordTokenTtlSec;
+    }
+    if (tokenType === 'PATIENT') {
+      return this.auth.patientAccessTokenTtlSec;
     }
     return this.auth.accessTokenTtlSec;
   }
@@ -91,18 +109,36 @@ export class TokenService {
 
     const hospitalAllowed = allowedTypes.some(isHospitalTokenType);
     const hqAllowed = allowedTypes.some(isHqTokenType);
+    const patientAllowed = allowedTypes.some(isPatientTokenType);
 
     let lastError: unknown;
     if (hospitalAllowed) {
       try {
-        return this.verifyWithSecret(token, this.auth.jwtHospitalAccessSecret, allowedTypes, true);
+        return this.verifyWithSecret(
+          token,
+          this.auth.jwtHospitalAccessSecret,
+          allowedTypes,
+          'hospital',
+        );
       } catch (error) {
         lastError = error;
       }
     }
     if (hqAllowed) {
       try {
-        return this.verifyWithSecret(token, this.auth.jwtHqAccessSecret, allowedTypes, false);
+        return this.verifyWithSecret(token, this.auth.jwtHqAccessSecret, allowedTypes, 'hq');
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (patientAllowed) {
+      try {
+        return this.verifyWithSecret(
+          token,
+          this.auth.jwtPatientAccessSecret,
+          allowedTypes,
+          'patient',
+        );
       } catch (error) {
         lastError = error;
       }
@@ -118,6 +154,7 @@ export class TokenService {
    * Format:
    * - hospital: `h.<tenantId>.<sessionId>.<secret>`
    * - hq: `q.<sessionId>.<secret>`
+   * - patient: `p.<sessionId>.<secret>`
    */
   issueRefreshToken(input: { kind: 'hospital'; tenantId: string; sessionId: string }): {
     raw: string;
@@ -127,7 +164,15 @@ export class TokenService {
     raw: string;
     tokenHash: string;
   };
-  issueRefreshToken(input: { kind: 'hospital' | 'hq'; tenantId?: string; sessionId: string }): {
+  issueRefreshToken(input: { kind: 'patient'; sessionId: string }): {
+    raw: string;
+    tokenHash: string;
+  };
+  issueRefreshToken(input: {
+    kind: 'hospital' | 'hq' | 'patient';
+    tenantId?: string;
+    sessionId: string;
+  }): {
     raw: string;
     tokenHash: string;
   } {
@@ -139,6 +184,12 @@ export class TokenService {
       }
       return {
         raw: `h.${input.tenantId}.${input.sessionId}.${secret}`,
+        tokenHash,
+      };
+    }
+    if (input.kind === 'patient') {
+      return {
+        raw: `p.${input.sessionId}.${secret}`,
         tokenHash,
       };
     }
@@ -164,6 +215,13 @@ export class TokenService {
       }
       return { kind: 'hq', sessionId, secret };
     }
+    if (parts[0] === 'p' && parts.length === 3) {
+      const [, sessionId, secret] = parts;
+      if (!sessionId || !secret) {
+        return null;
+      }
+      return { kind: 'patient', sessionId, secret };
+    }
     return null;
   }
 
@@ -183,7 +241,7 @@ export class TokenService {
     token: string,
     secret: string,
     allowedTypes: readonly AccessTokenType[],
-    expectHospitalKey: boolean,
+    keyKind: 'hospital' | 'hq' | 'patient',
   ): AccessClaims {
     let payload: JwtPayload;
     try {
@@ -198,20 +256,24 @@ export class TokenService {
     if (!allowedTypes.includes(payload.tokenType)) {
       throw new UnauthorizedException('Token type not allowed for this route');
     }
-    if (expectHospitalKey && !isHospitalTokenType(payload.tokenType)) {
+    if (keyKind === 'hospital' && !isHospitalTokenType(payload.tokenType)) {
       throw new UnauthorizedException('Token type does not match signing key');
     }
-    if (!expectHospitalKey && !isHqTokenType(payload.tokenType)) {
+    if (keyKind === 'hq' && !isHqTokenType(payload.tokenType)) {
       throw new UnauthorizedException('Token type does not match signing key');
     }
-
-    if (typeof payload.userId !== 'string' || payload.userId.length === 0) {
-      throw new UnauthorizedException('Invalid token subject');
+    if (keyKind === 'patient' && !isPatientTokenType(payload.tokenType)) {
+      throw new UnauthorizedException('Token type does not match signing key');
     }
 
     const tokenType = payload.tokenType;
     if (isHospitalTokenType(tokenType)) {
-      if (typeof payload.tenantId !== 'string' || typeof payload.branchId !== 'string') {
+      if (
+        typeof payload.userId !== 'string' ||
+        payload.userId.length === 0 ||
+        typeof payload.tenantId !== 'string' ||
+        typeof payload.branchId !== 'string'
+      ) {
         throw new UnauthorizedException('Invalid hospital token claims');
       }
       const hospitalClaims: HospitalAccessClaims = {
@@ -224,11 +286,25 @@ export class TokenService {
     }
 
     if (isHqTokenType(tokenType)) {
+      if (typeof payload.userId !== 'string' || payload.userId.length === 0) {
+        throw new UnauthorizedException('Invalid token subject');
+      }
       const hqClaims: HqAccessClaims = {
         tokenType,
         userId: payload.userId,
       };
       return hqClaims;
+    }
+
+    if (isPatientTokenType(tokenType)) {
+      if (typeof payload.accountId !== 'string' || payload.accountId.length === 0) {
+        throw new UnauthorizedException('Invalid patient token claims');
+      }
+      const patientClaims: PatientAccessClaims = {
+        tokenType,
+        accountId: payload.accountId,
+      };
+      return patientClaims;
     }
 
     throw new UnauthorizedException('Invalid token type');

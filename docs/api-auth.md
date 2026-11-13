@@ -94,6 +94,20 @@ Security headers on `/forgot-password`, `/reset-password`, `/activate`: `Referre
 
 When `mustChangePassword` is true (forced change), login returns only `accessToken` + `expiresIn` + `mustChangePassword: true` (a short-lived `CHANGE_PASSWORD_*` token; no refresh token).
 
+## Patient OTP login (Step 6c)
+
+Platform-level patient accounts (phone + OTP). Separate JWT secret and DB role (`hospigo_patient`). Not linked to hospital patient records yet. Dev message driver only (`OTP_DRIVER=dev`).
+
+| Method | Path                        | Auth             | Body                                                      |
+| ------ | --------------------------- | ---------------- | --------------------------------------------------------- |
+| POST   | `/patient/auth/request-otp` | public           | `phone` → always `{ ok: true, resendAfterSec }`           |
+| POST   | `/patient/auth/verify-otp`  | public           | `phone`, `code` → token pair                              |
+| POST   | `/patient/auth/refresh`     | public           | `refreshToken`                                            |
+| POST   | `/patient/auth/logout`      | public           | `refreshToken` (idempotent; revokes whole family)         |
+| GET    | `/patient/me`               | Bearer `PATIENT` | → `{ id, phone (masked), createdAt, linkedProfiles: [] }` |
+
+Phone normalized to E.164 (`+91…`). OTP stored as HMAC only. Refresh format `p.<sessionId>.<secret>`. Patient tokens are refused on staff/HQ routes and the reverse.
+
 ### GET `/auth/me`
 
 Returns: `id`, `displayName`, `email`, `kind` (`HOSPITAL` \| `HQ`), `hospitalName`, `activeBranchId`, `activeBranchName`, `roleCodes`, `mustChangePassword`, plus:

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * LABEL: Step 3a — one-time / idempotent Postgres bootstrap
- * Creates roles (hospigo_owner, hospigo_app, hospigo_hq, hospigo_security),
+ * Creates roles (hospigo_owner, hospigo_app, hospigo_hq, hospigo_patient, hospigo_security),
  * databases (hospigo, hospigo_test), and revokes PUBLIC on schema public.
  * Runs as Postgres superuser via POSTGRES_SUPERUSER_URL from .env.
  * Passwords are read from .env only; never logged.
@@ -87,6 +87,7 @@ for (const key of [
   'HOSPIGO_OWNER_PASSWORD',
   'HOSPIGO_APP_PASSWORD',
   'HOSPIGO_HQ_PASSWORD',
+  'HOSPIGO_PATIENT_PASSWORD',
   'SEED_SUPERADMIN_PASSWORD',
   'SEED_BRANCH_ADMIN_PASSWORD',
   'SEED_STAFF_PASSWORD',
@@ -104,6 +105,7 @@ if (Object.keys(generated).length > 0) {
 const ownerPassword = required(fileEnv, 'HOSPIGO_OWNER_PASSWORD');
 const appPassword = required(fileEnv, 'HOSPIGO_APP_PASSWORD');
 const hqPassword = required(fileEnv, 'HOSPIGO_HQ_PASSWORD');
+const patientPassword = required(fileEnv, 'HOSPIGO_PATIENT_PASSWORD');
 
 const ownerUrl = buildUrl({
   user: 'hospigo_owner',
@@ -140,6 +142,13 @@ const hqUrl = buildUrl({
   port,
   database: 'hospigo',
 });
+const patientUrl = buildUrl({
+  user: 'hospigo_patient',
+  password: patientPassword,
+  host,
+  port,
+  database: 'hospigo',
+});
 
 upsertEnv(envPath, {
   DATABASE_URL: appUrl,
@@ -147,6 +156,7 @@ upsertEnv(envPath, {
   DATABASE_URL_TEST: appTestUrl,
   DATABASE_URL_OWNER_TEST: ownerTestUrl,
   DATABASE_URL_HQ: hqUrl,
+  DATABASE_URL_PATIENT: patientUrl,
   PGHOST: host,
   PGPORT: port,
 });
@@ -215,6 +225,11 @@ await ensureLoginRole(
   hqPassword,
   'NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS',
 );
+await ensureLoginRole(
+  'hospigo_patient',
+  patientPassword,
+  'NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS',
+);
 await ensureNoLoginRole(
   'hospigo_security',
   'NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS',
@@ -239,6 +254,7 @@ for (const dbName of ['hospigo', 'hospigo_test']) {
   await dbClient.query('GRANT USAGE, CREATE ON SCHEMA public TO hospigo_owner');
   await dbClient.query('GRANT USAGE ON SCHEMA public TO hospigo_app');
   await dbClient.query('GRANT USAGE ON SCHEMA public TO hospigo_hq');
+  await dbClient.query('GRANT USAGE ON SCHEMA public TO hospigo_patient');
   // CREATE required so ALTER FUNCTION ... OWNER TO hospigo_security can succeed.
   await dbClient.query('GRANT USAGE, CREATE ON SCHEMA public TO hospigo_security');
   await dbClient.query('ALTER SCHEMA public OWNER TO hospigo_owner');
@@ -259,6 +275,7 @@ for (const dbName of ['hospigo', 'hospigo_test']) {
   await exec(`GRANT CONNECT ON DATABASE ${quoteIdent(dbName)} TO hospigo_owner`);
   await exec(`GRANT CONNECT ON DATABASE ${quoteIdent(dbName)} TO hospigo_app`);
   await exec(`GRANT CONNECT ON DATABASE ${quoteIdent(dbName)} TO hospigo_hq`);
+  await exec(`GRANT CONNECT ON DATABASE ${quoteIdent(dbName)} TO hospigo_patient`);
   console.log(`hardened_connect on ${dbName}`);
 }
 

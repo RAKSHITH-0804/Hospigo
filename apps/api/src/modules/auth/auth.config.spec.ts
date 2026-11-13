@@ -8,6 +8,8 @@ describe('auth config', () => {
     const cfg = loadAuthConfig({
       JWT_HOSPITAL_ACCESS_SECRET: HOSPITAL,
       JWT_HQ_ACCESS_SECRET: HQ,
+      JWT_PATIENT_ACCESS_SECRET: 'patient-access-secret-value-32chars!!',
+      OTP_HASH_SECRET: 'otp-hash-secret-value-min-32-characters!',
     });
     expect(cfg.passwordMinLength).toBe(10);
     expect(cfg.tempPasswordLength).toBe(14);
@@ -38,12 +40,16 @@ describe('auth config', () => {
       loadAuthConfig({
         JWT_HOSPITAL_ACCESS_SECRET: 'short',
         JWT_HQ_ACCESS_SECRET: HQ,
+        JWT_PATIENT_ACCESS_SECRET: 'patient-access-secret-value-32chars!!',
+        OTP_HASH_SECRET: 'otp-hash-secret-value-min-32-characters!',
       }),
     ).toThrow(new RegExp(`at least ${AUTH_JWT_MIN_SECRET_LENGTH}`));
     expect(() =>
       loadAuthConfig({
         JWT_HOSPITAL_ACCESS_SECRET: HOSPITAL,
         JWT_HQ_ACCESS_SECRET: HOSPITAL,
+        JWT_PATIENT_ACCESS_SECRET: 'patient-access-secret-value-32chars!!',
+        OTP_HASH_SECRET: 'otp-hash-secret-value-min-32-characters!',
       }),
     ).toThrow(/must differ/);
   });
