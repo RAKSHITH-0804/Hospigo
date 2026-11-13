@@ -42,6 +42,43 @@ export type SessionConfig = {
   errorPasswordValidation: string;
   passwordUpdatedNoticeText: string;
   errorModuleUnavailable: string;
+  /** Patient session cookies (separate from staff/HQ). */
+  patientCookieAccessName: string;
+  patientCookieRefreshName: string;
+  /** Must not equal or path-prefix-overlap staff refreshCookiePath. */
+  patientRefreshCookiePath: string;
+  patientRefreshMaxAgeSec: number;
+  patientLoginPath: string;
+  patientHomePath: string;
+  patientUpstreamTimeoutMs: number;
+  patientOtpCodeLength: number;
+  patientErrorInvalidPhone: string;
+  patientErrorInvalidCode: string;
+  patientErrorRateLimited: string;
+  patientErrorUnavailable: string;
+  patientCodeSentNotice: string;
+  patientResendCountdownLabel: string;
+  patientSignedOutNotice: string;
+  patientEmptyProfilesTitle: string;
+  patientEmptyProfilesDescription: string;
+  patientWelcomeText: string;
+  patientBrandTitle: string;
+  patientBrandSubtitle: string;
+  patientStepPhoneHeading: string;
+  patientStepCodeHeading: string;
+  patientPhoneLabel: string;
+  patientCodeLabel: string;
+  patientSendCodeLabel: string;
+  patientSendingLabel: string;
+  patientVerifyLabel: string;
+  patientVerifyingLabel: string;
+  patientResendLabel: string;
+  patientChangeNumberLabel: string;
+  patientSignOutLabel: string;
+  patientSigningOutLabel: string;
+  patientLinkedProfilesHeading: string;
+  /** Fallback list label; `{n}` is the 1-based index. */
+  patientProfileFallbackLabel: string;
 };
 
 const DEFAULTS = {
@@ -75,7 +112,56 @@ const DEFAULTS = {
   errorPasswordValidation: 'That password does not meet the requirements.',
   passwordUpdatedNoticeText: 'Your password was updated. You can sign in now.',
   errorModuleUnavailable: 'That module is not available for your active branch.',
+  patientCookieAccessName: 'hospigo_patient_access',
+  patientCookieRefreshName: 'hospigo_patient_refresh',
+  patientRefreshCookiePath: '/api/patient-auth',
+  patientRefreshMaxAgeSec: 30 * 24 * 60 * 60,
+  patientLoginPath: '/patient/login',
+  patientHomePath: '/patient',
+  patientUpstreamTimeoutMs: 8000,
+  patientOtpCodeLength: 6,
+  patientErrorInvalidPhone: 'Enter a valid mobile number and try again.',
+  patientErrorInvalidCode: 'That code is invalid or has expired. Request a new one.',
+  patientErrorRateLimited: 'Too many attempts. Wait a moment and try again.',
+  patientErrorUnavailable: 'Sign-in is temporarily unavailable. Please try again shortly.',
+  patientCodeSentNotice: 'If that number can receive messages, a code is on its way to {phone}.',
+  patientResendCountdownLabel: 'Resend available in {sec}s',
+  patientSignedOutNotice: 'You have been signed out.',
+  patientEmptyProfilesTitle: 'No profiles linked yet',
+  patientEmptyProfilesDescription: 'Hospital profiles will appear here when linking is available.',
+  patientWelcomeText: 'Welcome. You are signed in.',
+  patientBrandTitle: 'Patient sign in',
+  patientBrandSubtitle: 'Verify with a one-time code sent to your mobile',
+  patientStepPhoneHeading: 'Enter mobile number',
+  patientStepCodeHeading: 'Enter verification code',
+  patientPhoneLabel: 'Mobile number',
+  patientCodeLabel: 'Verification code',
+  patientSendCodeLabel: 'Send code',
+  patientSendingLabel: 'Sending…',
+  patientVerifyLabel: 'Verify',
+  patientVerifyingLabel: 'Verifying…',
+  patientResendLabel: 'Resend code',
+  patientChangeNumberLabel: 'Change number',
+  patientSignOutLabel: 'Sign out',
+  patientSigningOutLabel: 'Signing out…',
+  patientLinkedProfilesHeading: 'Linked profiles',
+  patientProfileFallbackLabel: 'Profile {n}',
 } as const;
+
+/**
+ * Cookie Path attributes must not collide: a path that is a prefix of another
+ * causes the browser to send both cookies on overlapping routes.
+ */
+export function assertRefreshCookiePathsDistinct(staffPath: string, patientPath: string): void {
+  if (staffPath === patientPath) {
+    throw new Error('WEB_REFRESH_COOKIE_PATH and WEB_PATIENT_REFRESH_COOKIE_PATH must differ');
+  }
+  const a = staffPath.endsWith('/') ? staffPath.slice(0, -1) : staffPath;
+  const b = patientPath.endsWith('/') ? patientPath.slice(0, -1) : patientPath;
+  if (a.startsWith(`${b}/`) || b.startsWith(`${a}/`)) {
+    throw new Error('Staff and patient refresh cookie paths must not be prefixes of each other');
+  }
+}
 
 function intEnv(
   env: Record<string, string | undefined>,
@@ -121,11 +207,19 @@ function boolEnv(env: Record<string, string | undefined>, key: string, fallback:
 export function loadSessionConfig(
   env: Record<string, string | undefined> = process.env,
 ): SessionConfig {
+  const refreshCookiePath = strEnv(env, 'WEB_REFRESH_COOKIE_PATH', DEFAULTS.refreshCookiePath);
+  const patientRefreshCookiePath = strEnv(
+    env,
+    'WEB_PATIENT_REFRESH_COOKIE_PATH',
+    DEFAULTS.patientRefreshCookiePath,
+  );
+  assertRefreshCookiePathsDistinct(refreshCookiePath, patientRefreshCookiePath);
+
   return {
     cookieAccessName: strEnv(env, 'WEB_COOKIE_ACCESS_NAME', DEFAULTS.cookieAccessName),
     cookieRefreshName: strEnv(env, 'WEB_COOKIE_REFRESH_NAME', DEFAULTS.cookieRefreshName),
     cookieChangeName: strEnv(env, 'WEB_COOKIE_CHANGE_NAME', DEFAULTS.cookieChangeName),
-    refreshCookiePath: strEnv(env, 'WEB_REFRESH_COOKIE_PATH', DEFAULTS.refreshCookiePath),
+    refreshCookiePath,
     refreshMaxAgeSec: intEnv(
       env,
       'WEB_REFRESH_COOKIE_MAX_AGE_SEC',
@@ -218,6 +312,130 @@ export function loadSessionConfig(
       env,
       'WEB_ERROR_MODULE_UNAVAILABLE',
       DEFAULTS.errorModuleUnavailable,
+    ),
+    patientCookieAccessName: strEnv(
+      env,
+      'WEB_PATIENT_COOKIE_ACCESS_NAME',
+      DEFAULTS.patientCookieAccessName,
+    ),
+    patientCookieRefreshName: strEnv(
+      env,
+      'WEB_PATIENT_COOKIE_REFRESH_NAME',
+      DEFAULTS.patientCookieRefreshName,
+    ),
+    patientRefreshCookiePath,
+    patientRefreshMaxAgeSec: intEnv(
+      env,
+      'WEB_PATIENT_REFRESH_COOKIE_MAX_AGE_SEC',
+      DEFAULTS.patientRefreshMaxAgeSec,
+      60,
+      90 * 24 * 60 * 60,
+    ),
+    patientLoginPath: strEnv(env, 'WEB_PATIENT_LOGIN_PATH', DEFAULTS.patientLoginPath),
+    patientHomePath: strEnv(env, 'WEB_PATIENT_HOME_PATH', DEFAULTS.patientHomePath),
+    patientUpstreamTimeoutMs: intEnv(
+      env,
+      'WEB_PATIENT_UPSTREAM_TIMEOUT_MS',
+      DEFAULTS.patientUpstreamTimeoutMs,
+      1000,
+      60_000,
+    ),
+    patientOtpCodeLength: intEnv(
+      env,
+      'WEB_PATIENT_OTP_CODE_LENGTH',
+      DEFAULTS.patientOtpCodeLength,
+      4,
+      10,
+    ),
+    patientErrorInvalidPhone: strEnv(
+      env,
+      'WEB_PATIENT_ERROR_INVALID_PHONE',
+      DEFAULTS.patientErrorInvalidPhone,
+    ),
+    patientErrorInvalidCode: strEnv(
+      env,
+      'WEB_PATIENT_ERROR_INVALID_CODE',
+      DEFAULTS.patientErrorInvalidCode,
+    ),
+    patientErrorRateLimited: strEnv(
+      env,
+      'WEB_PATIENT_ERROR_RATE_LIMITED',
+      DEFAULTS.patientErrorRateLimited,
+    ),
+    patientErrorUnavailable: strEnv(
+      env,
+      'WEB_PATIENT_ERROR_UNAVAILABLE',
+      DEFAULTS.patientErrorUnavailable,
+    ),
+    patientCodeSentNotice: strEnv(
+      env,
+      'WEB_PATIENT_CODE_SENT_NOTICE',
+      DEFAULTS.patientCodeSentNotice,
+    ),
+    patientResendCountdownLabel: strEnv(
+      env,
+      'WEB_PATIENT_RESEND_COUNTDOWN_LABEL',
+      DEFAULTS.patientResendCountdownLabel,
+    ),
+    patientSignedOutNotice: strEnv(
+      env,
+      'WEB_PATIENT_SIGNED_OUT_NOTICE',
+      DEFAULTS.patientSignedOutNotice,
+    ),
+    patientEmptyProfilesTitle: strEnv(
+      env,
+      'WEB_PATIENT_EMPTY_PROFILES_TITLE',
+      DEFAULTS.patientEmptyProfilesTitle,
+    ),
+    patientEmptyProfilesDescription: strEnv(
+      env,
+      'WEB_PATIENT_EMPTY_PROFILES_DESCRIPTION',
+      DEFAULTS.patientEmptyProfilesDescription,
+    ),
+    patientWelcomeText: strEnv(env, 'WEB_PATIENT_WELCOME_TEXT', DEFAULTS.patientWelcomeText),
+    patientBrandTitle: strEnv(env, 'WEB_PATIENT_BRAND_TITLE', DEFAULTS.patientBrandTitle),
+    patientBrandSubtitle: strEnv(env, 'WEB_PATIENT_BRAND_SUBTITLE', DEFAULTS.patientBrandSubtitle),
+    patientStepPhoneHeading: strEnv(
+      env,
+      'WEB_PATIENT_STEP_PHONE_HEADING',
+      DEFAULTS.patientStepPhoneHeading,
+    ),
+    patientStepCodeHeading: strEnv(
+      env,
+      'WEB_PATIENT_STEP_CODE_HEADING',
+      DEFAULTS.patientStepCodeHeading,
+    ),
+    patientPhoneLabel: strEnv(env, 'WEB_PATIENT_PHONE_LABEL', DEFAULTS.patientPhoneLabel),
+    patientCodeLabel: strEnv(env, 'WEB_PATIENT_CODE_LABEL', DEFAULTS.patientCodeLabel),
+    patientSendCodeLabel: strEnv(env, 'WEB_PATIENT_SEND_CODE_LABEL', DEFAULTS.patientSendCodeLabel),
+    patientSendingLabel: strEnv(env, 'WEB_PATIENT_SENDING_LABEL', DEFAULTS.patientSendingLabel),
+    patientVerifyLabel: strEnv(env, 'WEB_PATIENT_VERIFY_LABEL', DEFAULTS.patientVerifyLabel),
+    patientVerifyingLabel: strEnv(
+      env,
+      'WEB_PATIENT_VERIFYING_LABEL',
+      DEFAULTS.patientVerifyingLabel,
+    ),
+    patientResendLabel: strEnv(env, 'WEB_PATIENT_RESEND_LABEL', DEFAULTS.patientResendLabel),
+    patientChangeNumberLabel: strEnv(
+      env,
+      'WEB_PATIENT_CHANGE_NUMBER_LABEL',
+      DEFAULTS.patientChangeNumberLabel,
+    ),
+    patientSignOutLabel: strEnv(env, 'WEB_PATIENT_SIGN_OUT_LABEL', DEFAULTS.patientSignOutLabel),
+    patientSigningOutLabel: strEnv(
+      env,
+      'WEB_PATIENT_SIGNING_OUT_LABEL',
+      DEFAULTS.patientSigningOutLabel,
+    ),
+    patientLinkedProfilesHeading: strEnv(
+      env,
+      'WEB_PATIENT_LINKED_PROFILES_HEADING',
+      DEFAULTS.patientLinkedProfilesHeading,
+    ),
+    patientProfileFallbackLabel: strEnv(
+      env,
+      'WEB_PATIENT_PROFILE_FALLBACK_LABEL',
+      DEFAULTS.patientProfileFallbackLabel,
     ),
   };
 }

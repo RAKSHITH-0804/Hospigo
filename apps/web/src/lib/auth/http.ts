@@ -176,6 +176,21 @@ export function sanitizeNextPath(raw: string | null, fallback: string): string {
 }
 
 /**
+ * Patient refresh `next` — must be under `/patient` (exact or `/patient/...`), never `//`.
+ */
+export function sanitizePatientNextPath(raw: string | null, fallback: string): string {
+  const safe = sanitizeNextPath(raw, fallback);
+  if (safe === '/patient' || safe.startsWith('/patient/')) {
+    return safe;
+  }
+  return fallback;
+}
+
+export function noStoreHeaders(): HeadersInit {
+  return { 'Cache-Control': 'no-store' };
+}
+
+/**
  * Public origin for absolute redirects. Prefer APP_URL so cookies stay on the
  * host the user typed (127.0.0.1 vs localhost are different cookie jars).
  * Non-production fallback: incoming Host header (never request.url).

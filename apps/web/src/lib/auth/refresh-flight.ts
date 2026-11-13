@@ -1,9 +1,14 @@
 import { createHash } from 'node:crypto';
 import { sessionConfig } from '@/config/session';
-import type { TokenPairResponse } from './types';
+
+export type RefreshFlightPair = {
+  accessToken: string;
+  refreshToken?: string;
+  expiresIn: number;
+};
 
 type FlightEntry = {
-  promise: Promise<{ ok: true; data: TokenPairResponse } | { ok: false; status: number }>;
+  promise: Promise<{ ok: true; data: RefreshFlightPair } | { ok: false; status: number }>;
   expiresAt: number;
   cleanupTimer?: ReturnType<typeof setTimeout>;
 };
@@ -23,8 +28,15 @@ function flightsMap(): Map<string, FlightEntry> {
   return g[GLOBAL_FLIGHTS_KEY];
 }
 
-export function refreshFlightKey(refreshToken: string): string {
-  return createHash('sha256').update(refreshToken, 'utf8').digest('hex');
+/**
+ * Single-flight key. Namespace (`staff` | `patient`) is hashed in so staff and
+ * patient never share a flight even if token strings somehow collided.
+ */
+export function refreshFlightKey(
+  refreshToken: string,
+  namespace: 'staff' | 'patient' = 'staff',
+): string {
+  return createHash('sha256').update(`${namespace}:${refreshToken}`, 'utf8').digest('hex');
 }
 
 /**
@@ -32,10 +44,11 @@ export function refreshFlightKey(refreshToken: string): string {
  */
 export function runRefreshSingleFlight(
   refreshToken: string,
-  fn: () => Promise<{ ok: true; data: TokenPairResponse } | { ok: false; status: number }>,
-): Promise<{ ok: true; data: TokenPairResponse } | { ok: false; status: number }> {
+  fn: () => Promise<{ ok: true; data: RefreshFlightPair } | { ok: false; status: number }>,
+  namespace: 'staff' | 'patient' = 'staff',
+): Promise<{ ok: true; data: RefreshFlightPair } | { ok: false; status: number }> {
   const flights = flightsMap();
-  const key = refreshFlightKey(refreshToken);
+  const key = refreshFlightKey(refreshToken, namespace);
   const now = Date.now();
   const existing = flights.get(key);
   if (existing && existing.expiresAt > now) {

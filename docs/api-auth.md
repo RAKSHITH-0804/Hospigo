@@ -6,11 +6,15 @@ Staff/HQ password auth plus activation and password-reset email links (Step 6b p
 
 The browser talks **only** to the Next.js app. Route handlers under `apps/web/src/app/api/auth/` call the API server-to-server using **`API_INTERNAL_URL`** (server-only; never `NEXT_PUBLIC_*`). Tokens stay in **httpOnly** cookies — never in browser JavaScript or storage. The API does not need CORS for the web app.
 
-| Cookie (name from `apps/web/src/config/session.ts`)                  | httpOnly | Path             | maxAge                                                                    |
-| -------------------------------------------------------------------- | -------- | ---------------- | ------------------------------------------------------------------------- |
-| Access (`WEB_COOKIE_ACCESS_NAME`, default `hospigo_access`)          | yes      | `/`              | API `expiresIn`                                                           |
-| Refresh (`WEB_COOKIE_REFRESH_NAME`, default `hospigo_refresh`)       | yes      | `/api/auth` only | `WEB_REFRESH_COOKIE_MAX_AGE_SEC` (default 7d)                             |
-| Change-password (`WEB_COOKIE_CHANGE_NAME`, default `hospigo_change`) | yes      | `/`              | min(API expiresIn, `WEB_CHANGE_PASSWORD_COOKIE_MAX_AGE_SEC`, default 10m) |
+| Cookie (name from `apps/web/src/config/session.ts`)                                    | httpOnly | Path                     | maxAge                                                                    |
+| -------------------------------------------------------------------------------------- | -------- | ------------------------ | ------------------------------------------------------------------------- |
+| Access (`WEB_COOKIE_ACCESS_NAME`, default `hospigo_access`)                            | yes      | `/`                      | API `expiresIn`                                                           |
+| Refresh (`WEB_COOKIE_REFRESH_NAME`, default `hospigo_refresh`)                         | yes      | `/api/auth` only         | `WEB_REFRESH_COOKIE_MAX_AGE_SEC` (default 7d)                             |
+| Change-password (`WEB_COOKIE_CHANGE_NAME`, default `hospigo_change`)                   | yes      | `/`                      | min(API expiresIn, `WEB_CHANGE_PASSWORD_COOKIE_MAX_AGE_SEC`, default 10m) |
+| Patient access (`WEB_PATIENT_COOKIE_ACCESS_NAME`, default `hospigo_patient_access`)    | yes      | `/`                      | API `expiresIn`                                                           |
+| Patient refresh (`WEB_PATIENT_COOKIE_REFRESH_NAME`, default `hospigo_patient_refresh`) | yes      | `/api/patient-auth` only | `WEB_PATIENT_REFRESH_COOKIE_MAX_AGE_SEC` (default 30d)                    |
+
+Patient and staff refresh paths must not equal or prefix-overlap (enforced in `loadSessionConfig`).
 
 `Secure` when `NODE_ENV=production` or `APP_URL` is https; `SameSite=Lax`.
 
@@ -98,15 +102,17 @@ When `mustChangePassword` is true (forced change), login returns only `accessTok
 
 Platform-level patient accounts (phone + OTP). Separate JWT secret and DB role (`hospigo_patient`). Not linked to hospital patient records yet. Dev message driver only (`OTP_DRIVER=dev`).
 
-| Method | Path                        | Auth             | Body                                                      |
-| ------ | --------------------------- | ---------------- | --------------------------------------------------------- |
-| POST   | `/patient/auth/request-otp` | public           | `phone` → always `{ ok: true, resendAfterSec }`           |
-| POST   | `/patient/auth/verify-otp`  | public           | `phone`, `code` → token pair                              |
-| POST   | `/patient/auth/refresh`     | public           | `refreshToken`                                            |
-| POST   | `/patient/auth/logout`      | public           | `refreshToken` (idempotent; revokes whole family)         |
-| GET    | `/patient/me`               | Bearer `PATIENT` | → `{ id, phone (masked), createdAt, linkedProfiles: [] }` |
+| Method | Path                        | Auth             | Body                                                                                   |
+| ------ | --------------------------- | ---------------- | -------------------------------------------------------------------------------------- |
+| POST   | `/patient/auth/request-otp` | public           | `phone` → always `{ ok: true, resendAfterSec }`                                        |
+| POST   | `/patient/auth/verify-otp`  | public           | `phone`, `code` → `{ accessToken, refreshToken, expiresIn }` (no `mustChangePassword`) |
+| POST   | `/patient/auth/refresh`     | public           | `refreshToken` → same shape                                                            |
+| POST   | `/patient/auth/logout`      | public           | `refreshToken` (idempotent; revokes whole family)                                      |
+| GET    | `/patient/me`               | Bearer `PATIENT` | → `{ id, phone (masked), createdAt, linkedProfiles: [] }`                              |
 
 Phone normalized to E.164 (`+91…`). OTP stored as HMAC only. Refresh format `p.<sessionId>.<secret>`. Patient tokens are refused on staff/HQ routes and the reverse.
+
+**Web patient BFF (Step 6e):** browser uses `/api/patient-auth/request-otp`, `verify-otp` (sets cookies; JSON `{ ok: true }` only), `GET refresh` (sanitized `next` under `/patient`), `POST logout`. Pages: `/patient/login`, `/patient`.
 
 ### GET `/auth/me`
 

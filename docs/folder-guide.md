@@ -19,7 +19,9 @@
 | `docs/env-reference.md`                        | Every API/web env var (names only)                                       |
 | `docs/engineering-tracker.md`                  | Roadmap + security layer status                                          |
 | `docs/staging-checklist.md`                    | Staging / first-live checklist                                           |
-| `apps/web/src/app/api/auth`                    | BFF auth route handlers (cookies; server→API)                            |
+| `apps/web/src/app/api/auth`                    | BFF staff/HQ auth route handlers (cookies; server→API)                   |
+| `apps/web/src/app/api/patient-auth`            | BFF patient OTP auth (separate cookies; server→API)                      |
+| `apps/web/src/app/patient`                     | Patient login + home (no staff AppShell)                                 |
 | `apps/web/src/app/forgot-password`             | Forgot-password page (hospital / HQ tabs)                                |
 | `apps/web/src/app/reset-password`              | Reset-password page (hash token → BFF)                                   |
 | `apps/web/src/app/activate`                    | Activation page (hash token → BFF)                                       |

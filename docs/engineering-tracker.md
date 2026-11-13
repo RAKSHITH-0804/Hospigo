@@ -12,6 +12,7 @@ Status as of Step 7 hardening. Evidence is repo-local unless noted.
 | 6   | Auth (hospital/HQ) + web BFF        | Done           | Step 6a–6d; httpOnly cookies; `docs/api-auth.md`                                                                                         |
 | 7   | Email activation / reset            | Done           | Step 6b mail queue + web pages                                                                                                           |
 | 7c  | Patient OTP login API               | Done (Step 6c) | `/patient/auth/*`; global patient tables; `hospigo_patient` role; no hospital link yet                                                   |
+| 7e  | Patient web login (BFF)             | Done (Step 6e) | `/patient/login`, `/patient`; `/api/patient-auth/*`; separate httpOnly cookies; no hospital link yet                                     |
 | 8   | Exit demo shell from real session   | Done (Step 7)  | `/auth/me` branches + enabledModules; web module mapping + guard                                                                         |
 | 9   | Concept UI (sample data)            | Partial        | OPD/HQ hospitals still sample; Sample data badge                                                                                         |
 | 10  | Health checks                       | Done           | `/health`, `/health/details`                                                                                                             |

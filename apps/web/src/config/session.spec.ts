@@ -4,6 +4,8 @@
 import {
   assertProductionApiInternalUrl,
   assertProductionAppUrl,
+  assertRefreshCookiePathsDistinct,
+  loadSessionConfig,
   requireApiInternalUrl,
   requireAppOrigin,
 } from './session';
@@ -44,6 +46,42 @@ describe('API_INTERNAL_URL production startup gate', () => {
   it('requireApiInternalUrl rejects non-http values', () => {
     expect(() => requireApiInternalUrl({ API_INTERNAL_URL: 'ftp://x' })).toThrow(
       /must start with http/,
+    );
+  });
+});
+
+describe('patient session config', () => {
+  it('loads patient cookie defaults distinct from staff', () => {
+    const cfg = loadSessionConfig({});
+    expect(cfg.patientCookieAccessName).toBe('hospigo_patient_access');
+    expect(cfg.patientCookieRefreshName).toBe('hospigo_patient_refresh');
+    expect(cfg.patientRefreshCookiePath).toBe('/api/patient-auth');
+    expect(cfg.patientLoginPath).toBe('/patient/login');
+    expect(cfg.patientHomePath).toBe('/patient');
+    expect(cfg.patientUpstreamTimeoutMs).toBe(8000);
+    expect(cfg.patientOtpCodeLength).toBe(6);
+    expect(cfg.patientCookieAccessName).not.toBe(cfg.cookieAccessName);
+    expect(cfg.patientCookieRefreshName).not.toBe(cfg.cookieRefreshName);
+    expect(cfg.patientRefreshCookiePath).not.toBe(cfg.refreshCookiePath);
+  });
+
+  it('rejects overlapping staff/patient refresh cookie paths', () => {
+    expect(() => assertRefreshCookiePathsDistinct('/api/auth', '/api/auth')).toThrow(/must differ/);
+    expect(() => assertRefreshCookiePathsDistinct('/api', '/api/auth')).toThrow(/prefixes/);
+    expect(() =>
+      loadSessionConfig({
+        WEB_REFRESH_COOKIE_PATH: '/api/auth',
+        WEB_PATIENT_REFRESH_COOKIE_PATH: '/api/auth/patient',
+      }),
+    ).toThrow(/prefixes/);
+  });
+
+  it('rejects invalid patient timeout and code length', () => {
+    expect(() => loadSessionConfig({ WEB_PATIENT_UPSTREAM_TIMEOUT_MS: '500' })).toThrow(
+      /WEB_PATIENT_UPSTREAM_TIMEOUT_MS/,
+    );
+    expect(() => loadSessionConfig({ WEB_PATIENT_OTP_CODE_LENGTH: '2' })).toThrow(
+      /WEB_PATIENT_OTP_CODE_LENGTH/,
     );
   });
 });

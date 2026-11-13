@@ -16,8 +16,14 @@ jest.mock('./session', () => ({
   homeForKind: (kind: 'HQ' | 'HOSPITAL') => (kind === 'HQ' ? '/admin' : '/app'),
 }));
 
+jest.mock('./patient-session', () => ({
+  getPatientSession: jest.fn(),
+  currentPatientPathname: jest.fn(async () => '/patient'),
+}));
+
+import { getPatientSession, currentPatientPathname } from './patient-session';
 import { getSession, currentPathname } from './session';
-import { requireKind } from './guards';
+import { requireKind, requirePatient } from './guards';
 
 describe('requireKind guards', () => {
   beforeEach(() => {
@@ -77,5 +83,43 @@ describe('requireKind guards', () => {
     (getSession as jest.Mock).mockResolvedValue(null);
     (currentPathname as jest.Mock).mockResolvedValue('/admin');
     await expect(requireKind('HQ')).rejects.toThrow('REDIRECT:/api/auth/refresh?next=%2Fadmin');
+  });
+
+  it('patient-only cookie session does not satisfy requireKind (getSession stays null)', async () => {
+    (getSession as jest.Mock).mockResolvedValue(null);
+    (currentPathname as jest.Mock).mockResolvedValue('/app');
+    await expect(requireKind('HOSPITAL')).rejects.toThrow('REDIRECT:/api/auth/refresh?next=%2Fapp');
+  });
+});
+
+describe('requirePatient guard', () => {
+  beforeEach(() => {
+    redirectMock.mockClear();
+    (getPatientSession as jest.Mock).mockReset();
+    (currentPatientPathname as jest.Mock).mockResolvedValue('/patient');
+  });
+
+  it('redirects to patient refresh when there is no patient session', async () => {
+    (getPatientSession as jest.Mock).mockResolvedValue(null);
+    (currentPatientPathname as jest.Mock).mockResolvedValue('/patient');
+    await expect(requirePatient()).rejects.toThrow(
+      'REDIRECT:/api/patient-auth/refresh?next=%2Fpatient',
+    );
+  });
+
+  it('returns patient session when present', async () => {
+    const session = {
+      id: 'p1',
+      phone: '+91XXXXXX3210',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      linkedProfiles: [],
+    };
+    (getPatientSession as jest.Mock).mockResolvedValue(session);
+    await expect(requirePatient()).resolves.toEqual(session);
+  });
+
+  it('staff/HQ session does not satisfy requirePatient (getPatientSession independent)', async () => {
+    (getPatientSession as jest.Mock).mockResolvedValue(null);
+    await expect(requirePatient()).rejects.toThrow(/\/api\/patient-auth\/refresh/);
   });
 });

@@ -74,3 +74,51 @@ export function applyChangePasswordCookie(
     maxAge: Math.min(expiresIn, sessionConfig.changePasswordMaxAgeSec),
   });
 }
+
+export function patientAccessCookieOptions(expiresInSec: number) {
+  return {
+    httpOnly: true as const,
+    secure: cookieSecure(),
+    sameSite: 'lax' as const,
+    path: '/',
+    maxAge: expiresInSec,
+  };
+}
+
+export function patientRefreshCookieOptions() {
+  return {
+    httpOnly: true as const,
+    secure: cookieSecure(),
+    sameSite: 'lax' as const,
+    path: sessionConfig.patientRefreshCookiePath,
+    maxAge: sessionConfig.patientRefreshMaxAgeSec,
+  };
+}
+
+/** Clear only patient auth cookies (never touch staff/HQ cookies). */
+export function applyClearPatientCookies(response: NextResponse): void {
+  const secure = cookieSecure();
+  const base = { httpOnly: true, secure, sameSite: 'lax' as const, maxAge: 0 };
+  response.cookies.set(sessionConfig.patientCookieAccessName, '', { ...base, path: '/' });
+  response.cookies.set(sessionConfig.patientCookieRefreshName, '', {
+    ...base,
+    path: sessionConfig.patientRefreshCookiePath,
+  });
+  response.cookies.set(sessionConfig.patientCookieRefreshName, '', { ...base, path: '/' });
+}
+
+export function applyPatientSessionCookies(
+  response: NextResponse,
+  tokens: { accessToken: string; refreshToken: string; expiresIn: number },
+): void {
+  response.cookies.set(
+    sessionConfig.patientCookieAccessName,
+    tokens.accessToken,
+    patientAccessCookieOptions(tokens.expiresIn),
+  );
+  response.cookies.set(
+    sessionConfig.patientCookieRefreshName,
+    tokens.refreshToken,
+    patientRefreshCookieOptions(),
+  );
+}

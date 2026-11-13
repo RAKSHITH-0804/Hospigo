@@ -7,6 +7,7 @@ Use before first live or staging promote. Names only — fill values in the envi
 - Web: `WEB_TRUST_FORWARDED_HEADERS=true` only behind our own IIS/nginx.
 - API: `AUTH_TRUSTED_PROXY` set to the real hop count (not `none`) so Express trusts the same path.
 - Pair them: trusting forwarded headers on one side only breaks rate limits or allows spoofing.
+- **Go-live (patient OTP):** set both correctly. If the API sees only the web server's IP, every patient shares one per-IP OTP limit.
 - API must listen on a **private** interface (not public 0.0.0.0 without a proxy).
 
 ## URLs per environment

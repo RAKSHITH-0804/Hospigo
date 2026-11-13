@@ -7,6 +7,25 @@ export type TokenPairResponse = {
   mustChangePassword: boolean;
 };
 
+/** Patient OTP token pair (no password / mustChangePassword). */
+export type PatientTokenPairResponse = {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+};
+
+export type PatientMeProfile = {
+  id: string;
+  phone: string;
+  createdAt: string;
+  linkedProfiles: Array<Record<string, unknown>>;
+};
+
+export type PatientRequestOtpResponse = {
+  ok: true;
+  resendAfterSec: number;
+};
+
 export type AuthMeBranch = {
   id: string;
   name: string;

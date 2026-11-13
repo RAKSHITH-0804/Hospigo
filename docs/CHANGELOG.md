@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-13 — Phase 1 Step 6e — patient web login (BFF)
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** patient httpOnly cookies; `/api/patient-auth/*` BFF; `/patient/login` + `/patient` pages; `requirePatient`; patient upstream timeout; web + API tests
+- **Changed:** patient API verify/refresh responses drop `mustChangePassword`; session config patient keys; refresh single-flight namespace `patient`
+- **Removed:** `mustChangePassword` from patient token JSON
+- **Fixed:** none
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** `WEB_PATIENT_COOKIE_*`, `WEB_PATIENT_REFRESH_COOKIE_*`, `WEB_PATIENT_LOGIN_PATH`, `WEB_PATIENT_HOME_PATH`, `WEB_PATIENT_UPSTREAM_TIMEOUT_MS`, `WEB_PATIENT_OTP_CODE_LENGTH`, `WEB_PATIENT_*` UI copy
+- **Tests:** web patient BFF/guards/login/home; API shape without mustChangePassword; existing suites retained
+- **Decisions:** patient cookies path `/api/patient-auth` (no prefix overlap with staff `/api/auth`); tokens never in browser JSON
+- **Follow-ups and open items:** hospital profile linking; book/[code] still mock OTP
+
 ## 2026-11-13 — Phase 1 Step 6c — patient OTP login API
 
 - **Commit hash(es):** (uncommitted)

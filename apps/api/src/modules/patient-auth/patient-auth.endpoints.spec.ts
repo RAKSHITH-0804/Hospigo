@@ -192,6 +192,10 @@ describe('Patient OTP auth (HTTP)', () => {
     const first = await verifyOtp(phoneA, code).expect(200);
     expect(first.body.accessToken).toBeTruthy();
     expect(first.body.refreshToken).toMatch(/^p\./);
+    expect(first.body).not.toHaveProperty('mustChangePassword');
+    expect(Object.keys(first.body).sort()).toEqual(
+      ['accessToken', 'expiresIn', 'refreshToken'].sort(),
+    );
     const id1 = (
       await request(app.getHttpServer())
         .get('/patient/me')

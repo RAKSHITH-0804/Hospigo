@@ -104,6 +104,7 @@ HQ access under FORCE RLS uses policies `TO hospigo_hq` / `TO hospigo_security` 
 
 - Patient login accounts are **global** (no `tenant_id`, no hospital link yet): `patient_accounts`, `patient_otp_challenges`, `patient_auth_sessions`.
 - Dedicated DB role `hospigo_patient` (`DATABASE_URL_PATIENT`) with SELECT/INSERT/UPDATE on those three tables only — same isolation pattern as `hospigo_hq`. App and HQ are REVOKEd.
+- **Patient web BFF (Step 6e):** browser → Next `/api/patient-auth/*` → API `/patient/auth/*` via `API_INTERNAL_URL`. Tokens live only in patient httpOnly cookies (`hospigo_patient_*`, refresh path `/api/patient-auth`); never in JSON to the browser. Staff/HQ cookies stay separate.
 - Access JWT `tokenType: PATIENT` signed with `JWT_PATIENT_ACCESS_SECRET`. Request context `kind: PATIENT` has `tenantId: null`. `TenantDb.withTenant` refuses PATIENT (and HQ) so no tenant-scoped path can run.
 - OTP delivery: `MessageProvider` interface; only `DevMessageProvider` (logs message; refuses `NODE_ENV=production`). Real WhatsApp/SMS later.
 
