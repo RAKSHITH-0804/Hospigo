@@ -75,10 +75,20 @@ export class PatientsController {
     });
   }
 
+  @Get('uhid/start-number')
+  @RequirePermission('hospital.settings.read')
+  @ApiOperation({
+    summary: 'Current next UHID running number and formatted preview (read-only)',
+  })
+  async getUhidStart(@Req() req: HttpReq) {
+    const { tenantId, branchId } = hospitalAuth(req);
+    return this.patients.getUhidStartNumber({ tenantId, branchId });
+  }
+
   @Put('uhid/start-number')
   @RequirePermission('hospital.settings.write')
   @ApiOperation({
-    summary: 'Raise-only UHID start number (maps to UhidService.setStartNumber periodYear=0)',
+    summary: 'Raise-only UHID start number for the current period (from effective format config)',
   })
   async setUhidStart(@Req() req: HttpReq, @Body() body: UhidStartNumberDto) {
     const { tenantId, userId } = hospitalAuth(req);

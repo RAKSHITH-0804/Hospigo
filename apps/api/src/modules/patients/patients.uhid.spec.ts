@@ -528,6 +528,254 @@ describe('Patients + UHID engine (hospigo_test only)', () => {
     ).rejects.toThrow(/FINANCIAL_YEAR/);
   });
 
+  it('getStartNumberPreview: NEVER with no counter row stays read-only at next 1', async () => {
+    const stamp = Date.now();
+    const hospital = await owner.hospital.create({
+      data: {
+        code: `PREV_N_${stamp}`,
+        name: 'Preview Never',
+        isTest: true,
+        branches: {
+          create: { code: 'MAIN', name: 'Main', isMain: true, accessCode: `prev-n-${stamp}` },
+        },
+      },
+      include: { branches: true },
+    });
+    const user = await owner.user.create({
+      data: {
+        tenantId: hospital.id,
+        code: 'U1',
+        email: `prev_n_${stamp}@example.test`,
+        displayName: 'U',
+        passwordHash: 'x',
+      },
+    });
+    await owner.uhidFormatConfig.create({
+      data: {
+        tenantId: hospital.id,
+        effectiveFrom: new Date('2000-01-01T00:00:00.000Z'),
+        resetRule: 'NEVER',
+        fyStartMonth: 4,
+        timezone: 'Asia/Kolkata',
+        createdBy: user.id,
+        blocks: {
+          create: [
+            { position: 1, blockType: 'FIXED_TEXT', textValue: 'PREV' },
+            { position: 2, blockType: 'RUNNING_NUMBER', minWidth: 4 },
+          ],
+        },
+      },
+    });
+    const previewDb = createTenantDb(app);
+    const previewUhid = autoHospitalContext(new UhidService(previewDb, clock));
+
+    expect(
+      await owner.uhidCounter.findUnique({
+        where: { tenantId_periodYear: { tenantId: hospital.id, periodYear: 0 } },
+      }),
+    ).toBeNull();
+
+    const preview = await previewUhid.getStartNumberPreview({
+      tenantId: hospital.id,
+      branchId: hospital.branches[0]!.id,
+    });
+    expect(preview.nextNumber).toBe(1n);
+    expect(preview.nextUhidPreview).toBe('PREV0001');
+    expect(preview.resetRule).toBe('NEVER');
+    expect(preview.periodYear).toBe(0);
+    expect(preview.periodLabel).toBeNull();
+
+    expect(
+      await owner.uhidCounter.findUnique({
+        where: { tenantId_periodYear: { tenantId: hospital.id, periodYear: 0 } },
+      }),
+    ).toBeNull();
+    expect(
+      await owner.auditLog.count({
+        where: { tenantId: hospital.id, action: 'UHID_SET_START_NUMBER' },
+      }),
+    ).toBe(0);
+  });
+
+  it('getStartNumberPreview: FINANCIAL_YEAR periodLabel and FY boundary with fake clock', async () => {
+    const stamp = Date.now();
+    const hospital = await owner.hospital.create({
+      data: {
+        code: `PREV_FY_${stamp}`,
+        name: 'Preview FY',
+        isTest: true,
+        branches: {
+          create: { code: 'MAIN', name: 'Main', isMain: true, accessCode: `prev-fy-${stamp}` },
+        },
+      },
+      include: { branches: true },
+    });
+    const user = await owner.user.create({
+      data: {
+        tenantId: hospital.id,
+        code: 'U1',
+        email: `prev_fy_${stamp}@example.test`,
+        displayName: 'U',
+        passwordHash: 'x',
+      },
+    });
+    await owner.uhidFormatConfig.create({
+      data: {
+        tenantId: hospital.id,
+        effectiveFrom: new Date('2000-01-01T00:00:00.000Z'),
+        resetRule: 'FINANCIAL_YEAR',
+        fyStartMonth: 4,
+        timezone: 'Asia/Kolkata',
+        createdBy: user.id,
+        blocks: {
+          create: [
+            { position: 1, blockType: 'FINANCIAL_YEAR', fyStyle: 'SHORT' },
+            { position: 2, blockType: 'SEPARATOR', textValue: '/' },
+            { position: 3, blockType: 'RUNNING_NUMBER', minWidth: 5 },
+          ],
+        },
+      },
+    });
+    const fyClock = new FakeClock(new Date('2026-03-31T18:29:00.000Z'));
+    const fyDb = createTenantDb(app);
+    const fyUhid = autoHospitalContext(new UhidService(fyDb, fyClock));
+    const branchId = hospital.branches[0]!.id;
+
+    const before = await fyUhid.getStartNumberPreview({ tenantId: hospital.id, branchId });
+    expect(before.periodYear).toBe(2025);
+    expect(before.periodLabel).toBe('2526');
+    expect(before.nextUhidPreview).toBe('2526/00001');
+    expect(before.resetRule).toBe('FINANCIAL_YEAR');
+
+    fyClock.set(new Date('2026-03-31T18:30:00.000Z'));
+    const after = await fyUhid.getStartNumberPreview({ tenantId: hospital.id, branchId });
+    expect(after.periodYear).toBe(2026);
+    expect(after.periodLabel).toBe('2627');
+    expect(after.nextUhidPreview).toBe('2627/00001');
+  });
+
+  it('getStartNumberPreview after register advances by one; two reads match; PUT raises current FY period', async () => {
+    const stamp = Date.now();
+    const hospital = await owner.hospital.create({
+      data: {
+        code: `PUT_FY_${stamp}`,
+        name: 'Put FY',
+        isTest: true,
+        branches: {
+          create: { code: 'MAIN', name: 'Main', isMain: true, accessCode: `put-fy-${stamp}` },
+        },
+      },
+      include: { branches: true },
+    });
+    const user = await owner.user.create({
+      data: {
+        tenantId: hospital.id,
+        code: 'U1',
+        email: `put_fy_${stamp}@example.test`,
+        displayName: 'U',
+        passwordHash: 'x',
+      },
+    });
+    for (const c of await owner.patientFieldCatalog.findMany()) {
+      await owner.patientFieldSetting.create({
+        data: {
+          tenantId: hospital.id,
+          catalogKey: c.key,
+          isEnabled: true,
+          isRequired: c.alwaysRequired,
+          label: c.defaultLabel,
+          sortOrder: 0,
+          changedBy: user.id,
+        },
+      });
+    }
+    await owner.uhidFormatConfig.create({
+      data: {
+        tenantId: hospital.id,
+        effectiveFrom: new Date('2000-01-01T00:00:00.000Z'),
+        resetRule: 'FINANCIAL_YEAR',
+        fyStartMonth: 4,
+        timezone: 'Asia/Kolkata',
+        createdBy: user.id,
+        blocks: {
+          create: [
+            { position: 1, blockType: 'FINANCIAL_YEAR', fyStyle: 'SHORT' },
+            { position: 2, blockType: 'SEPARATOR', textValue: '/' },
+            { position: 3, blockType: 'RUNNING_NUMBER', minWidth: 5 },
+          ],
+        },
+      },
+    });
+
+    const fyClock = new FakeClock(new Date('2026-06-15T12:00:00.000Z'));
+    const fyDb = createTenantDb(app);
+    const fyUhid = autoHospitalContext(new UhidService(fyDb, fyClock));
+    const fyPatients = autoHospitalContext(
+      new PatientsService(fyDb, autoHospitalContext(new PatientFieldsService(fyDb)), fyUhid, {
+        get: () => 10,
+      } as never),
+    );
+    const branchId = hospital.branches[0]!.id;
+
+    const beforeReg = await fyUhid.getStartNumberPreview({ tenantId: hospital.id, branchId });
+    expect(beforeReg.periodYear).toBe(2026);
+    expect(beforeReg.nextNumber).toBe(1n);
+
+    const reg = await fyPatients.register({
+      tenantId: hospital.id,
+      registeredBranchId: branchId,
+      createdBy: user.id,
+      name: 'First FY',
+    });
+    expect(reg.uhid).toBe(beforeReg.nextUhidPreview);
+
+    const a = await fyUhid.getStartNumberPreview({ tenantId: hospital.id, branchId });
+    const b = await fyUhid.getStartNumberPreview({ tenantId: hospital.id, branchId });
+    expect(a.nextNumber).toBe(2n);
+    expect(b.nextNumber).toBe(2n);
+    expect(a.nextUhidPreview).toBe(b.nextUhidPreview);
+
+    await fyUhid.setStartNumber({
+      tenantId: hospital.id,
+      nextNumber: 50n,
+      reason: 'raise current FY',
+      actorUserId: user.id,
+    });
+
+    const period0 = await owner.uhidCounter.findUnique({
+      where: { tenantId_periodYear: { tenantId: hospital.id, periodYear: 0 } },
+    });
+    expect(period0).toBeNull();
+    const period2026 = await owner.uhidCounter.findUniqueOrThrow({
+      where: { tenantId_periodYear: { tenantId: hospital.id, periodYear: 2026 } },
+    });
+    expect(period2026.lastNumber).toBe(49n);
+
+    const audit = await owner.auditLog.findFirst({
+      where: { tenantId: hospital.id, action: 'UHID_SET_START_NUMBER' },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect((audit!.metadata as { periodYear?: number }).periodYear).toBe(2026);
+
+    const raised = await fyPatients.register({
+      tenantId: hospital.id,
+      registeredBranchId: branchId,
+      createdBy: user.id,
+      name: 'Raised FY',
+    });
+    expect(raised.uhid).toBe('2627/00050');
+
+    // 1 Apr 2027 00:00 IST = 2027-03-31T18:30:00.000Z
+    fyClock.set(new Date('2027-03-31T18:30:00.000Z'));
+    const rolled = await fyPatients.register({
+      tenantId: hospital.id,
+      registeredBranchId: branchId,
+      createdBy: user.id,
+      name: 'Next FY',
+    });
+    expect(rolled.uhid).toBe('2728/00001');
+  });
+
   it('field settings: required/optional/disabled; name cannot be disabled; audit on change', async () => {
     await expect(
       fields.updateSystemFieldSetting({

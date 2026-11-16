@@ -4,11 +4,12 @@ Fake data only. Grows with each OPD step.
 
 ## Permissions
 
-| Code                      | Used by                        |
-| ------------------------- | ------------------------------ |
-| `patients.registry.read`  | form-config, search, detail    |
-| `patients.registry.write` | register, update               |
-| `hospital.settings.write` | UHID start-number (raise-only) |
+| Code                      | Used by                            |
+| ------------------------- | ---------------------------------- |
+| `patients.registry.read`  | form-config, search, detail        |
+| `patients.registry.write` | register, update                   |
+| `hospital.settings.read`  | UHID start-number GET (preview)    |
+| `hospital.settings.write` | UHID start-number PUT (raise-only) |
 
 All patient routes require a **HOSPITAL** access token and (except start-number) an enabled **OPD** branch module.
 
@@ -145,6 +146,30 @@ Audit `PATIENT_UPDATE` with metadata `{ changedFields: [...] }` only (no old/new
 
 ---
 
+## GET /patients/uhid/start-number
+
+**Permission:** `hospital.settings.read` (no OPD module gate)
+
+Read-only. Does not insert a counter row, increment, or write audit. Declared before `GET /patients/:id` so `uhid` is not treated as an id.
+
+**Response 200**
+
+```json
+{
+  "nextNumber": 1,
+  "nextUhidPreview": "TESTA0001",
+  "resetRule": "NEVER",
+  "periodYear": 0,
+  "periodLabel": null
+}
+```
+
+`periodLabel` is `null` when `resetRule` is `NEVER`; otherwise the financial-year label from the effective format (same helper as UHID rendering). Preview uses the caller’s active branch code when the format includes a `BRANCH_CODE` block. Missing counter row → `nextNumber` 1.
+
+**Errors:** `400` if no effective UHID format config; `401` / `403` as for other patient routes.
+
+---
+
 ## PUT /patients/uhid/start-number
 
 **Permission:** `hospital.settings.write` (no OPD module gate)
@@ -155,9 +180,9 @@ Audit `PATIENT_UPDATE` with metadata `{ changedFields: [...] }` only (no old/new
 { "startNumber": 5000, "reason": "Skip imported block" }
 ```
 
-Maps to `UhidService.setStartNumber({ periodYear: 0, nextNumber: startNumber, reason, actorUserId })` — raise-only on the NEVER counter. Existing audit `UHID_SET_START_NUMBER` unchanged.
+Raises the counter for the **current period** resolved from the effective UHID format (`NEVER` → `periodYear` 0; `FINANCIAL_YEAR` → current FY start year). Raise-only: `startNumber` must be greater than the period’s current `last_number` (so `startNumber` equal to the current next number is allowed and leaves `last_number` unchanged). Audit `UHID_SET_START_NUMBER` with metadata `{ periodYear, previousLastNumber, nextNumber }`.
 
-**Errors:** `400` if decrease attempted or reason empty; `403` without permission.
+**Errors:** `400` if decrease attempted, reason empty/whitespace, or no effective format; `403` without permission.
 
 ---
 

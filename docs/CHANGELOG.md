@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-16 — Phase 2 Step 3c Chunk 0a — UHID start-number GET + current-period PUT
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** `GET /patients/uhid/start-number` (`hospital.settings.read`) — next number + preview, no writes
+- **Changed:** `PUT /patients/uhid/start-number` raises the current period from the effective format (not always period 0)
+- **Removed:** none
+- **Fixed:** yearly hospitals could not raise the active FY counter via HTTP
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** none
+- **Tests:** UHID preview + FY boundary; registry GET route order/auth/isolation; PUT current period
+- **Decisions:** none
+- **Follow-ups and open items:** Step 3c reception patient screens
+
 ## 2026-11-16 — Phase 2 Step 3b — application frame polish (layout round 4)
 
 - **Commit hash(es):** (uncommitted)

@@ -67,6 +67,7 @@ const TEST_PREFIX = 'hospigo:pat:reg:';
 const ROUTES = [
   { method: 'get' as const, path: '/patients/form-config' },
   { method: 'get' as const, path: '/patients/search?name=Abc' },
+  { method: 'get' as const, path: '/patients/uhid/start-number' },
   { method: 'get' as const, path: '/patients/000000000000000000000000' },
   { method: 'post' as const, path: '/patients' },
   { method: 'patch' as const, path: '/patients/000000000000000000000000' },
@@ -88,7 +89,9 @@ describe('Patients registry endpoints (HTTP)', () => {
   let northStaffNoPermEmail: string;
   let northAdminEmail: string;
   let southRecvEmail: string;
+  let southAdminEmail: string;
   let northTenantId: string;
+  let southTenantId: string;
   let northMainId: string;
   let northEastId: string;
   let hqEmail: string;
@@ -106,11 +109,13 @@ describe('Patients registry endpoints (HTTP)', () => {
     northStaffNoPermEmail = `preg_np_n_${stamp}@example.test`;
     northAdminEmail = `preg_sa_n_${stamp}@example.test`;
     southRecvEmail = `preg_rc_s_${stamp}@example.test`;
+    southAdminEmail = `preg_sa_s_${stamp}@example.test`;
     hqEmail = `preg_hq_${stamp}@example.test`;
 
     for (const code of [
       'patients.registry.read',
       'patients.registry.write',
+      'hospital.settings.read',
       'hospital.settings.write',
     ]) {
       await owner.permission.upsert({
@@ -127,7 +132,12 @@ describe('Patients registry endpoints (HTTP)', () => {
     const perms = await owner.permission.findMany({
       where: {
         code: {
-          in: ['patients.registry.read', 'patients.registry.write', 'hospital.settings.write'],
+          in: [
+            'patients.registry.read',
+            'patients.registry.write',
+            'hospital.settings.read',
+            'hospital.settings.write',
+          ],
         },
       },
     });
@@ -405,14 +415,16 @@ describe('Patients registry endpoints (HTTP)', () => {
     northMainId = north.mainId;
     northEastId = north.eastId!;
 
-    await seedHospital({
+    const south = await seedHospital({
       code: `PREG_S_${stamp}`,
       accessMain: southAccess,
       recvEmail: southRecvEmail,
+      adminEmail: southAdminEmail,
       withCustomTitle: false,
       phoneRequired: true,
       uhidPrefix: 'SREG',
     });
+    southTenantId = south.tenantId;
 
     await owner.hqUser.create({
       data: {
@@ -780,6 +792,121 @@ describe('Patients registry endpoints (HTTP)', () => {
       .set('Authorization', `Bearer ${adminTok}`)
       .send({ startNumber: 10, reason: 'lower refused' })
       .expect(400);
+  });
+
+  it('GET /patients/uhid/start-number is not captured as /patients/:id', async () => {
+    const adminTok = await hospitalLogin(northAccess, northAdminEmail);
+    const res = await request(app.getHttpServer())
+      .get('/patients/uhid/start-number')
+      .set('Authorization', `Bearer ${adminTok}`)
+      .expect(200);
+    expect(res.body.nextNumber).toBeDefined();
+    expect(res.body.nextUhidPreview).toBeDefined();
+    expect(res.body).not.toHaveProperty('id');
+    expect(res.body).not.toHaveProperty('uhid');
+  });
+
+  it('GET uhid/start-number: preview, no writes, auth, isolation; PUT raises current NEVER period', async () => {
+    const adminTok = await hospitalLogin(northAccess, northAdminEmail);
+    const southAdminTok = await hospitalLogin(southAccess, southAdminEmail);
+
+    const beforeCounters = await owner.uhidCounter.count({ where: { tenantId: northTenantId } });
+    const beforeAudits = await owner.auditLog.count({
+      where: { tenantId: northTenantId, action: 'UHID_SET_START_NUMBER' },
+    });
+
+    const first = await request(app.getHttpServer())
+      .get('/patients/uhid/start-number')
+      .set('Authorization', `Bearer ${adminTok}`)
+      .expect(200);
+    expect(first.body.nextNumber).toBeGreaterThanOrEqual(1);
+    expect(first.body.nextUhidPreview).toMatch(/^NREG/);
+    expect(first.body.resetRule).toBe('NEVER');
+    expect(first.body.periodYear).toBe(0);
+    expect(first.body.periodLabel).toBeNull();
+
+    const second = await request(app.getHttpServer())
+      .get('/patients/uhid/start-number')
+      .set('Authorization', `Bearer ${adminTok}`)
+      .expect(200);
+    expect(second.body.nextNumber).toBe(first.body.nextNumber);
+    expect(second.body.nextUhidPreview).toBe(first.body.nextUhidPreview);
+
+    expect(await owner.uhidCounter.count({ where: { tenantId: northTenantId } })).toBe(
+      beforeCounters,
+    );
+    expect(
+      await owner.auditLog.count({
+        where: { tenantId: northTenantId, action: 'UHID_SET_START_NUMBER' },
+      }),
+    ).toBe(beforeAudits);
+
+    const recv = await hospitalLogin(northAccess, northRecvEmail);
+    await request(app.getHttpServer())
+      .get('/patients/uhid/start-number')
+      .set('Authorization', `Bearer ${recv}`)
+      .expect(403);
+
+    await request(app.getHttpServer()).get('/patients/uhid/start-number').expect(401);
+
+    const southPreview = await request(app.getHttpServer())
+      .get('/patients/uhid/start-number')
+      .set('Authorization', `Bearer ${southAdminTok}`)
+      .expect(200);
+    expect(southPreview.body.nextUhidPreview).toMatch(/^SREG/);
+    expect(southPreview.body.nextUhidPreview).not.toBe(first.body.nextUhidPreview);
+    expect(southTenantId).not.toBe(northTenantId);
+
+    await request(app.getHttpServer())
+      .post('/patients')
+      .set('Authorization', `Bearer ${recv}`)
+      .send({ name: 'After Preview', dateOfBirth: '1994-04-04', phone: '9111000222' })
+      .expect((res) => expect([200, 201]).toContain(res.status));
+
+    const afterReg = await request(app.getHttpServer())
+      .get('/patients/uhid/start-number')
+      .set('Authorization', `Bearer ${adminTok}`)
+      .expect(200);
+    expect(afterReg.body.nextNumber).toBe(first.body.nextNumber + 1);
+
+    const raiseTo = afterReg.body.nextNumber + 100;
+    await request(app.getHttpServer())
+      .put('/patients/uhid/start-number')
+      .set('Authorization', `Bearer ${adminTok}`)
+      .send({ startNumber: raiseTo, reason: 'raise never period' })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .put('/patients/uhid/start-number')
+      .set('Authorization', `Bearer ${adminTok}`)
+      .send({ startNumber: raiseTo - 1, reason: 'decrease refused' })
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .put('/patients/uhid/start-number')
+      .set('Authorization', `Bearer ${adminTok}`)
+      .send({ startNumber: raiseTo + 1, reason: '   ' })
+      .expect(400);
+
+    const audit = await owner.auditLog.findFirst({
+      where: { tenantId: northTenantId, action: 'UHID_SET_START_NUMBER' },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(audit).toBeTruthy();
+    expect((audit!.metadata as { periodYear?: number }).periodYear).toBe(0);
+
+    const afterRaise = await request(app.getHttpServer())
+      .get('/patients/uhid/start-number')
+      .set('Authorization', `Bearer ${adminTok}`)
+      .expect(200);
+    expect(afterRaise.body.nextNumber).toBe(raiseTo);
+
+    const nextPatient = await request(app.getHttpServer())
+      .post('/patients')
+      .set('Authorization', `Bearer ${recv}`)
+      .send({ name: 'Raised Number', dateOfBirth: '1995-05-05', phone: '9111000333' })
+      .expect((res) => expect([200, 201]).toContain(res.status));
+    expect(nextPatient.body.uhid).toBe(afterRaise.body.nextUhidPreview);
   });
 
   it('audit entries contain no personal data', async () => {

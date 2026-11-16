@@ -566,8 +566,39 @@ export class PatientsService {
   }
 
   /**
-   * Maps HTTP { startNumber, reason } onto UhidService.setStartNumber:
-   * periodYear 0 (NEVER counter; raise-only for the hospital-wide sequence),
+   * Read-only next UHID running number + formatted preview for the active branch.
+   */
+  async getUhidStartNumber(input: { tenantId: string; branchId: string }): Promise<{
+    nextNumber: number;
+    nextUhidPreview: string;
+    resetRule: string;
+    periodYear: number;
+    periodLabel: string | null;
+  }> {
+    try {
+      const preview = await this.uhid.getStartNumberPreview({
+        tenantId: input.tenantId,
+        branchId: input.branchId,
+      });
+      return {
+        nextNumber: Number(preview.nextNumber),
+        nextUhidPreview: preview.nextUhidPreview,
+        resetRule: preview.resetRule,
+        periodYear: preview.periodYear,
+        periodLabel: preview.periodLabel,
+      };
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      throw new BadRequestException(message);
+    }
+  }
+
+  /**
+   * Maps HTTP { startNumber, reason } onto UhidService.setStartNumber for the
+   * current period (from effective format config), raise-only.
    * nextNumber = startNumber (the next value to issue).
    */
   async setUhidStartNumber(input: {
@@ -579,7 +610,6 @@ export class PatientsService {
     try {
       await this.uhid.setStartNumber({
         tenantId: input.tenantId,
-        periodYear: 0,
         nextNumber: input.startNumber,
         reason: input.reason,
         actorUserId: input.actorUserId,
