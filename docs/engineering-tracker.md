@@ -1,25 +1,25 @@
 # Engineering tracker (Phase 1 + Phase 2)
 
-Status as of Phase 2 Step 2 (in progress). Evidence is repo-local unless noted.
+Status as of Phase 2 Step 3a (in progress). Evidence is repo-local unless noted.
 
 ## Phase 2 (OPD)
 
-| Step | Item                                              | Status      | Notes                                                |
-| ---- | ------------------------------------------------- | ----------- | ---------------------------------------------------- |
-| 1    | Design documents                                  | Done        | `docs/schema-opd.md`, `docs/use-cases-opd.md`        |
-| 2    | Masters, settings and mock data                   | In progress | Migration + services + mock seed + tests (this step) |
-| 3a   | Counters, patient search, register and update API | Planned     | Bill/receipt/token counters; UC-01–03 API            |
-| 3b   | Reception web: patients                           | Planned     |                                                      |
-| 4a   | Visits, billing and payments API                  | Planned     |                                                      |
-| 4b   | Reception web: visit and billing                  | Planned     |                                                      |
-| 5a   | Vitals, queue and consultation API                | Planned     |                                                      |
-| 5b   | Nurse and doctor web                              | Planned     |                                                      |
-| 6a   | Investigations and refunds API                    | Planned     |                                                      |
-| 6b   | Investigations and refunds web                    | Planned     |                                                      |
-| 7    | Print templates and reports                       | Planned     |                                                      |
-| 8a   | NestJS 12 upgrade                                 | Planned     |                                                      |
-| 8b   | Excel upload of masters                           | Planned     |                                                      |
-| 9    | OPD hardening and exit                            | Planned     |                                                      |
+| Step | Item                                              | Status      | Notes                                                            |
+| ---- | ------------------------------------------------- | ----------- | ---------------------------------------------------------------- |
+| 1    | Design documents                                  | Done        | `docs/schema-opd.md`, `docs/use-cases-opd.md`                    |
+| 2    | Masters, settings and mock data                   | Done        | Migration + services + mock seed + tests                         |
+| 3a   | Counters, patient search, register and update API | In progress | Counters + PermissionGuard + `/patients` API + tests (this step) |
+| 3b   | Reception web: patients                           | Planned     |                                                                  |
+| 4a   | Visits, billing and payments API                  | Planned     |                                                                  |
+| 4b   | Reception web: visit and billing                  | Planned     |                                                                  |
+| 5a   | Vitals, queue and consultation API                | Planned     |                                                                  |
+| 5b   | Nurse and doctor web                              | Planned     |                                                                  |
+| 6a   | Investigations and refunds API                    | Planned     |                                                                  |
+| 6b   | Investigations and refunds web                    | Planned     |                                                                  |
+| 7    | Print templates and reports                       | Planned     |                                                                  |
+| 8a   | NestJS 12 upgrade                                 | Planned     |                                                                  |
+| 8b   | Excel upload of masters                           | Planned     |                                                                  |
+| 9    | OPD hardening and exit                            | Planned     |                                                                  |
 
 ## Phase 1
 

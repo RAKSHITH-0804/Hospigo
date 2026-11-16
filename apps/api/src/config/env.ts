@@ -33,6 +33,8 @@ export interface ApiEnv {
   APP_URL: string;
   /** Max page size for patient search (server-enforced). */
   PATIENT_SEARCH_MAX_PAGE_SIZE: number;
+  /** Minimum name prefix length for patient search (server-enforced). */
+  PATIENT_SEARCH_MIN_NAME_LENGTH: number;
   /** Comma-separated browser origins. Unset means CORS stays off. */
   CORS_ORIGIN: string | undefined;
   JWT_HOSPITAL_ACCESS_SECRET: string;
@@ -81,6 +83,12 @@ export function validateEnv(config: Record<string, unknown>): ApiEnv {
     50,
     errors,
   );
+  const patientSearchMinNameLength = parseOptionalPortLike(
+    config['PATIENT_SEARCH_MIN_NAME_LENGTH'],
+    'PATIENT_SEARCH_MIN_NAME_LENGTH',
+    3,
+    errors,
+  );
   const corsOrigin = optionalText(config, 'CORS_ORIGIN', errors);
 
   if (redisUrl !== '' && !/^rediss?:\/\//.test(redisUrl)) {
@@ -115,6 +123,7 @@ export function validateEnv(config: Record<string, unknown>): ApiEnv {
     SMTP_SECURE: smtpSecure,
     APP_URL: appUrl,
     PATIENT_SEARCH_MAX_PAGE_SIZE: patientSearchMaxPageSize,
+    PATIENT_SEARCH_MIN_NAME_LENGTH: patientSearchMinNameLength,
     CORS_ORIGIN: corsOrigin,
     JWT_HOSPITAL_ACCESS_SECRET: auth!.jwtHospitalAccessSecret,
     JWT_HQ_ACCESS_SECRET: auth!.jwtHqAccessSecret,

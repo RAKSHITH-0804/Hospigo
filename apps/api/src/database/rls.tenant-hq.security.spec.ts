@@ -592,6 +592,26 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
       },
     });
     sampleB.number_series_settings = series.id;
+
+    await prisma.numberSeries.create({
+      data: {
+        tenantId: tenantB,
+        series: 'BILL',
+        periodYear: 0,
+        lastNumber: 0n,
+      },
+    });
+    sampleB.number_series = 'composite';
+
+    await prisma.tokenCounter.create({
+      data: {
+        tenantId: tenantB,
+        branchId: branchB,
+        tokenDate: new Date('2030-01-01T00:00:00.000Z'),
+        lastToken: 0,
+      },
+    });
+    sampleB.token_counters = 'composite';
   });
 
   afterAll(async () => {
@@ -714,10 +734,10 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
         await withTenant(client, tenantA, async () => {
           if (canUpdate.rows[0]?.ok) {
             let upd;
-            if (!hasId && table === 'uhid_counters') {
+            if (!hasId) {
               upd = await client.query(
-                `UPDATE uhid_counters SET last_number = last_number
-                 WHERE tenant_id = $1 AND period_year = 0 RETURNING tenant_id`,
+                `UPDATE ${quoteIdent(table)} SET tenant_id = tenant_id
+                 WHERE tenant_id = $1 RETURNING tenant_id`,
                 [tenantB],
               );
             } else {
@@ -738,7 +758,7 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
               hasId
                 ? client.query(`UPDATE ${quoteIdent(table)} SET id = id WHERE id = $1`, [sampleId])
                 : client.query(
-                    `UPDATE uhid_counters SET last_number = last_number WHERE tenant_id = $1`,
+                    `UPDATE ${quoteIdent(table)} SET tenant_id = tenant_id WHERE tenant_id = $1`,
                     [tenantB],
                   ),
             ).rejects.toThrow();
@@ -750,7 +770,7 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
                   sampleId,
                 ])
               : await client.query(
-                  `DELETE FROM uhid_counters WHERE tenant_id = $1 AND period_year = 0 RETURNING tenant_id`,
+                  `DELETE FROM ${quoteIdent(table)} WHERE tenant_id = $1 RETURNING tenant_id`,
                   [tenantB],
                 );
             expect({ table, deleted: del.rowCount }).toEqual({ table, deleted: 0 });
@@ -758,10 +778,7 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
             await expect(
               hasId
                 ? client.query(`DELETE FROM ${quoteIdent(table)} WHERE id = $1`, [sampleId])
-                : client.query(
-                    `DELETE FROM uhid_counters WHERE tenant_id = $1 AND period_year = 0`,
-                    [tenantB],
-                  ),
+                : client.query(`DELETE FROM ${quoteIdent(table)} WHERE tenant_id = $1`, [tenantB]),
             ).rejects.toThrow();
           }
         });

@@ -645,7 +645,7 @@ describe('Patients + UHID engine (hospigo_test only)', () => {
   it('search pagination is capped and tenant-scoped', async () => {
     const page = await patients.search({
       tenantId,
-      namePrefix: 'C',
+      namePrefix: 'Cus',
       page: 1,
       pageSize: 999,
     });

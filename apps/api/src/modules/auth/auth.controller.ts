@@ -33,6 +33,7 @@ import { LogoutDto } from './dto/logout.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { ActivateDto, ResetPasswordDto } from './dto/reset-activate.dto';
 import { TokenResponseDto } from './dto/token-response.dto';
+import { AuthenticatedOnly } from '../access/permission.decorators';
 import { Public } from './public.decorator';
 import { TokenKinds } from './token-kinds.decorator';
 import type { AccessClaims } from './token.types';
@@ -107,6 +108,7 @@ export class AuthController {
 
   @Post('change-password')
   @HttpCode(200)
+  @AuthenticatedOnly()
   @TokenKinds('HOSPITAL', 'HQ', 'CHANGE_PASSWORD_HOSPITAL', 'CHANGE_PASSWORD_HQ')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Change password; revokes other sessions; returns fresh tokens' })
@@ -125,6 +127,7 @@ export class AuthController {
   }
 
   @Get('me')
+  @AuthenticatedOnly()
   @TokenKinds('HOSPITAL', 'HQ')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Current user profile (no secrets)' })

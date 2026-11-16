@@ -344,3 +344,20 @@ Migration `20261114100000_opd_masters_and_settings` implements sections 1, 3 (ma
 | Permissions                         | Not named in schema doc                    | `opd.masters.read/write`, `opd.prices.write`, `opd.settings.write`                                        |
 | HTTP API                            | Implied later                              | Services only in Step 2 (no controllers)                                                                  |
 | Append-only TRUNCATE                | Implied with §7 append-only                | Statement-level `refuse_opd_price_truncate` BEFORE TRUNCATE on price tables (same idea as `audit_logs`)   |
+
+## As built (Step 3a)
+
+Migration `20261116100000_number_counters` + patient registry HTTP API. Differences from this document / use-cases where the Step 3a prompt wins:
+
+| Topic                       | Document (§4 / UC)                    | As built                                                                                          |
+| --------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `number_series` PK          | `(tenant_id, series, financial_year)` | `(tenant_id, series, period_year)` — same meaning as `uhid_counters.period_year` (0 = NEVER)      |
+| `number_series.last_number` | int                                   | `bigint` (matches UHID counter style)                                                             |
+| Token service name          | TokenService                          | `TokenCounterService` (avoids clash with auth JWT `TokenService`)                                 |
+| Search indexes              | Implied                               | Already existed from patients migration; not recreated                                            |
+| UHID / registered branch    | Immutable by convention               | DB trigger `patients_refuse_identity_update` refuses UPDATE that changes either column            |
+| Patient search phone        | May imply partial                     | Exact match after `normalizePhoneIN` only (partial later)                                         |
+| Duplicate response          | UC wording varies                     | `409` + `code: POSSIBLE_DUPLICATE` + `matches[{id,uhid,name}]` unless `confirmDuplicate`          |
+| PATIENT_UPDATE audit        | Could store old/new                   | Metadata `{ changedFields }` only — no personal values (DPDP)                                     |
+| Permissions                 | Not fully named in schema             | `patients.registry.read/write`; start-number uses existing `hospital.settings.write`              |
+| Access markers              | Not in schema doc                     | Global PermissionGuard: `@Public` / `@AuthenticatedOnly` / `@RequirePermission` (deny by default) |

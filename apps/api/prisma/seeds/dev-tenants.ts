@@ -240,6 +240,9 @@ export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
       staffPassword,
       emailDomain,
     });
+    if (hospitalSeed.code === 'DEMO_NORTH') {
+      await seedDemoNorthCustomPatientFields(prisma, hospital.id);
+    }
   }
 
   console.log('Dev tenant seed complete.');
@@ -260,9 +263,15 @@ async function seedOpdMasters(
   const region = labelRegion(args.hospitalCode);
   const doctorCount = MOCK_DOCTOR_COUNT[args.hospitalCode] ?? 0;
 
-  const mastersRead = await prisma.permission.findUniqueOrThrow({
-    where: { code: 'opd.masters.read' },
-  });
+  const rolePermissionCodes: Record<string, readonly string[]> = {
+    [OPD_ROLE_CODES.RECEPTIONIST]: [
+      'opd.masters.read',
+      'patients.registry.read',
+      'patients.registry.write',
+    ],
+    [OPD_ROLE_CODES.NURSE]: ['opd.masters.read', 'patients.registry.read'],
+    [OPD_ROLE_CODES.DOCTOR]: ['opd.masters.read', 'patients.registry.read'],
+  };
 
   const roleDefs = [
     {
@@ -293,21 +302,24 @@ async function seedOpdMasters(
       },
     });
     roleIds[def.code] = role.id;
-    await prisma.rolePermission.upsert({
-      where: {
-        tenantId_roleId_permissionId: {
+    for (const permCode of rolePermissionCodes[def.code] ?? []) {
+      const perm = await prisma.permission.findUniqueOrThrow({ where: { code: permCode } });
+      await prisma.rolePermission.upsert({
+        where: {
+          tenantId_roleId_permissionId: {
+            tenantId: args.tenantId,
+            roleId: role.id,
+            permissionId: perm.id,
+          },
+        },
+        create: {
           tenantId: args.tenantId,
           roleId: role.id,
-          permissionId: mastersRead.id,
+          permissionId: perm.id,
         },
-      },
-      create: {
-        tenantId: args.tenantId,
-        roleId: role.id,
-        permissionId: mastersRead.id,
-      },
-      update: { isActive: true },
-    });
+        update: { isActive: true },
+      });
+    }
   }
 
   const doctorProfileIds: string[] = [];
@@ -728,6 +740,105 @@ function tomorrowDateInTimezone(timeZone: string): Date {
  * Real new-hospital defaults come from Phase 2 onboarding — until then registration without a
  * UHID format config refuses with a clear error.
  */
+/** DEMO_NORTH-only custom fields so the two demo hospitals' form-config differs. */
+async function seedDemoNorthCustomPatientFields(
+  prisma: PrismaClient,
+  tenantId: string,
+): Promise<void> {
+  const defs: Array<{
+    code: string;
+    label: string;
+    dataType: 'TEXT' | 'DROPDOWN';
+    options?: readonly string[];
+    sortOrder: number;
+  }> = [
+    {
+      code: 'title',
+      label: 'Title',
+      dataType: 'DROPDOWN',
+      options: ['Mr', 'Mrs', 'Ms', 'Master', 'Baby', 'Dr'],
+      sortOrder: 100,
+    },
+    {
+      code: 'relation_type',
+      label: 'Relation',
+      dataType: 'DROPDOWN',
+      options: ['S/O', 'D/O', 'W/O', 'C/O'],
+      sortOrder: 101,
+    },
+    { code: 'relative_name', label: 'Relative name', dataType: 'TEXT', sortOrder: 102 },
+    { code: 'referred_by', label: 'Referred by', dataType: 'TEXT', sortOrder: 103 },
+    {
+      code: 'category',
+      label: 'Category',
+      dataType: 'DROPDOWN',
+      options: ['General', 'Staff'],
+      sortOrder: 104,
+    },
+    { code: 'organisation', label: 'Organisation', dataType: 'TEXT', sortOrder: 105 },
+    { code: 'staff_number', label: 'Staff number', dataType: 'TEXT', sortOrder: 106 },
+  ];
+
+  for (const def of defs) {
+    const field = await prisma.patientCustomField.upsert({
+      where: { tenantId_code: { tenantId, code: def.code } },
+      create: {
+        tenantId,
+        code: def.code,
+        label: def.label,
+        dataType: def.dataType,
+        isActive: true,
+      },
+      update: { label: def.label, dataType: def.dataType, isActive: true },
+    });
+
+    if (def.options) {
+      let optOrder = 0;
+      for (const label of def.options) {
+        const existing = await prisma.patientCustomFieldOption.findFirst({
+          where: { tenantId, fieldId: field.id, label },
+        });
+        if (existing) {
+          await prisma.patientCustomFieldOption.update({
+            where: { id: existing.id },
+            data: { sortOrder: optOrder++, isActive: true },
+          });
+        } else {
+          await prisma.patientCustomFieldOption.create({
+            data: {
+              tenantId,
+              fieldId: field.id,
+              label,
+              sortOrder: optOrder++,
+              isActive: true,
+            },
+          });
+        }
+      }
+    }
+
+    await prisma.patientFieldSetting.upsert({
+      where: {
+        tenantId_customFieldId: { tenantId, customFieldId: field.id },
+      },
+      create: {
+        tenantId,
+        customFieldId: field.id,
+        isEnabled: true,
+        isRequired: false,
+        label: def.label,
+        sortOrder: def.sortOrder,
+      },
+      update: {
+        isEnabled: true,
+        isRequired: false,
+        label: def.label,
+        sortOrder: def.sortOrder,
+      },
+    });
+  }
+}
+
 async function seedDefaultFieldSettings(
   prisma: PrismaClient,
   tenantId: string,

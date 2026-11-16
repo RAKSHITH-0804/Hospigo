@@ -13,7 +13,18 @@ const RAW_SQL_ALLOWLIST = new Map<string, string>([
     'modules/patients/uhid.service.ts',
     'UHID counter bump uses $executeRaw/$queryRaw on TenantDb tx',
   ],
-  ['modules/patients/patients.service.ts', 'Name-prefix search uses $queryRaw on TenantDb tx'],
+  [
+    'modules/patients/patients.service.ts',
+    'Name-prefix search and duplicate lookup use $queryRaw on TenantDb tx',
+  ],
+  [
+    'modules/numbering/number-series.service.ts',
+    'Bill/receipt/refund counter bump uses $executeRaw/$queryRaw on caller tx',
+  ],
+  [
+    'modules/numbering/token-counter.service.ts',
+    'Token counter bump uses $executeRaw/$queryRaw on caller tx',
+  ],
   [
     'modules/imports/import-batch.service.ts',
     'Batch row lock uses $queryRaw FOR UPDATE on TenantDb tx',
