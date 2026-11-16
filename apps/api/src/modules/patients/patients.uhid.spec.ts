@@ -12,6 +12,7 @@ import {
   requireTestDatabaseUrl,
 } from '../../database/db-test.util';
 import { PatientFieldsService } from './patient-fields.service';
+import { testRegisterIdentity } from './test-register.helpers';
 import { PatientsService } from './patients.service';
 import { UhidService } from './uhid.service';
 import { buildUhid, resolvePeriodYear } from './uhid.util';
@@ -58,16 +59,20 @@ describe('Patients + UHID engine (hospigo_test only)', () => {
       'address_state',
       'address_pincode',
     ]) {
+      const alwaysRequired = key === 'phone' || key === 'date_of_birth';
       await owner.patientFieldCatalog.upsert({
         where: { key },
         create: {
           key,
           defaultLabel: key,
           dataType: key === 'date_of_birth' ? 'DATE' : 'TEXT',
-          canDisable: true,
-          alwaysRequired: false,
+          canDisable: !alwaysRequired,
+          alwaysRequired,
         },
-        update: {},
+        update: {
+          canDisable: !alwaysRequired,
+          alwaysRequired,
+        },
       });
     }
 
@@ -288,10 +293,10 @@ describe('Patients + UHID engine (hospigo_test only)', () => {
   it('50 concurrent registrations across two branches yield 50 distinct consecutive numbers', async () => {
     const jobs = Array.from({ length: 50 }, (_, i) =>
       patients.register({
+        ...testRegisterIdentity({ name: `Concurrent ${i}` }),
         tenantId,
         registeredBranchId: i % 2 === 0 ? branchMain : branchEast,
         createdBy: actorId,
-        name: `Concurrent ${i}`,
       }),
     );
     const results = await Promise.all(jobs);
@@ -387,10 +392,10 @@ describe('Patients + UHID engine (hospigo_test only)', () => {
     });
     await expect(
       patients.register({
+        ...testRegisterIdentity({ name: 'Will collide' }),
         tenantId,
         registeredBranchId: branchMain,
         createdBy: actorId,
-        name: 'Will collide',
       }),
     ).rejects.toThrow(/collision|Unique|refused/i);
     const after = await owner.uhidCounter.findUniqueOrThrow({
@@ -470,19 +475,19 @@ describe('Patients + UHID engine (hospigo_test only)', () => {
       } as never),
     );
     const beforeRoll = await fyPatients.register({
+      ...testRegisterIdentity({ name: 'Before roll' }),
       tenantId: fyHospital.id,
       registeredBranchId: fyHospital.branches[0]!.id,
       createdBy: fyUser.id,
-      name: 'Before roll',
     });
     expect(beforeRoll.uhid.startsWith('2526/')).toBe(true);
 
     fyClock.set(new Date('2026-03-31T18:30:00.000Z')); // 1 Apr 00:00 IST
     const afterRoll = await fyPatients.register({
+      ...testRegisterIdentity({ name: 'After roll' }),
       tenantId: fyHospital.id,
       registeredBranchId: fyHospital.branches[0]!.id,
       createdBy: fyUser.id,
-      name: 'After roll',
     });
     expect(afterRoll.uhid).toBe('2627/00001');
 
@@ -505,10 +510,10 @@ describe('Patients + UHID engine (hospigo_test only)', () => {
     });
     clock.set(new Date('2026-06-15T12:00:00.000Z'));
     const reg = await patients.register({
+      ...testRegisterIdentity({ name: `Still old format ${stamp}` }),
       tenantId,
       registeredBranchId: branchMain,
       createdBy: actorId,
-      name: `Still old format ${stamp}`,
     });
     expect(reg.uhid.startsWith('TESTA')).toBe(true);
     expect(reg.uhid.startsWith('NEW')).toBe(false);
@@ -722,10 +727,10 @@ describe('Patients + UHID engine (hospigo_test only)', () => {
     expect(beforeReg.nextNumber).toBe(1n);
 
     const reg = await fyPatients.register({
+      ...testRegisterIdentity({ name: 'First FY' }),
       tenantId: hospital.id,
       registeredBranchId: branchId,
       createdBy: user.id,
-      name: 'First FY',
     });
     expect(reg.uhid).toBe(beforeReg.nextUhidPreview);
 
@@ -758,22 +763,46 @@ describe('Patients + UHID engine (hospigo_test only)', () => {
     expect((audit!.metadata as { periodYear?: number }).periodYear).toBe(2026);
 
     const raised = await fyPatients.register({
+      ...testRegisterIdentity({ name: 'Raised FY' }),
       tenantId: hospital.id,
       registeredBranchId: branchId,
       createdBy: user.id,
-      name: 'Raised FY',
     });
     expect(raised.uhid).toBe('2627/00050');
 
     // 1 Apr 2027 00:00 IST = 2027-03-31T18:30:00.000Z
     fyClock.set(new Date('2027-03-31T18:30:00.000Z'));
     const rolled = await fyPatients.register({
+      ...testRegisterIdentity({ name: 'Next FY' }),
       tenantId: hospital.id,
       registeredBranchId: branchId,
       createdBy: user.id,
-      name: 'Next FY',
     });
     expect(rolled.uhid).toBe('2728/00001');
+  });
+
+  it('always-required name, phone, date_of_birth cannot be disabled or made optional (settings rejects)', async () => {
+    for (const catalogKey of ['name', 'phone', 'date_of_birth'] as const) {
+      await expect(
+        fields.updateSystemFieldSetting({
+          tenantId,
+          catalogKey,
+          isEnabled: false,
+          isRequired: true,
+          changedBy: actorId,
+        }),
+      ).rejects.toThrow(/cannot be disabled|always required/i);
+
+      await expect(
+        fields.updateSystemFieldSetting({
+          tenantId,
+          catalogKey,
+          isEnabled: true,
+          isRequired: false,
+          changedBy: actorId,
+        }),
+      ).rejects.toThrow(/always required/i);
+    }
   });
 
   it('field settings: required/optional/disabled; name cannot be disabled; audit on change', async () => {
@@ -787,24 +816,36 @@ describe('Patients + UHID engine (hospigo_test only)', () => {
       }),
     ).rejects.toThrow(/cannot be disabled/i);
 
+    await expect(
+      fields.updateSystemFieldSetting({
+        tenantId,
+        catalogKey: 'phone',
+        isEnabled: false,
+        isRequired: false,
+        changedBy: actorId,
+      }),
+    ).rejects.toThrow(/cannot be disabled|always required/i);
+
     await fields.updateSystemFieldSetting({
       tenantId,
-      catalogKey: 'phone',
+      catalogKey: 'email',
       isEnabled: false,
       isRequired: false,
       changedBy: actorId,
     });
     const audits = await owner.auditLog.findMany({
-      where: { tenantId, action: 'PATIENT_FIELD_SETTING_CHANGE', entityId: 'phone' },
+      where: { tenantId, action: 'PATIENT_FIELD_SETTING_CHANGE', entityId: 'email' },
     });
     expect(audits.length).toBeGreaterThan(0);
 
     const validated = await fields.validateForRegistration(tenantId, {
-      name: 'Has Phone',
+      name: 'Has Email',
       phone: '9999999999',
+      dateOfBirth: new Date('1990-01-01'),
+      email: 'ignored@example.test',
     });
-    expect(validated.ignoredDisabled).toContain('phone');
-    expect(validated.cleaned.phone).toBeUndefined();
+    expect(validated.ignoredDisabled).toContain('email');
+    expect(validated.cleaned.email).toBeUndefined();
 
     await fields.updateSystemFieldSetting({
       tenantId,
@@ -813,9 +854,15 @@ describe('Patients + UHID engine (hospigo_test only)', () => {
       isRequired: true,
       changedBy: actorId,
     });
-    await expect(fields.validateForRegistration(tenantId, { name: 'No Gender' })).rejects.toThrow(
-      /gender/i,
-    );
+    await expect(
+      fields.validateForRegistration(tenantId, {
+        name: 'No Gender',
+        phone: '9888777666',
+        dateOfBirth: new Date('1991-01-01'),
+      }),
+    ).rejects.toMatchObject({
+      response: { fieldErrors: { gender: 'REQUIRED' } },
+    });
 
     // Old patient not invalidated when rule tightens
     const old = await owner.patient.create({
@@ -840,7 +887,7 @@ describe('Patients + UHID engine (hospigo_test only)', () => {
     });
     await fields.updateSystemFieldSetting({
       tenantId,
-      catalogKey: 'phone',
+      catalogKey: 'email',
       isEnabled: true,
       isRequired: false,
       changedBy: actorId,
@@ -868,10 +915,10 @@ describe('Patients + UHID engine (hospigo_test only)', () => {
       },
     });
     const reg = await patients.register({
+      ...testRegisterIdentity({ name: 'Custom Field Patient' }),
       tenantId,
       registeredBranchId: branchMain,
       createdBy: actorId,
-      name: 'Custom Field Patient',
       customValues: [{ fieldId: cf.id, valueText: 'approx 40' }],
     });
     const values = await owner.patientCustomFieldValue.findMany({

@@ -5,6 +5,12 @@ import {
   loadAuthConfig,
   type AuthConfig,
 } from '../modules/auth/auth.config';
+import {
+  PATIENT_LIST_Q_MAX_LENGTH,
+  PATIENT_LIST_Q_MIN_NAME_LENGTH,
+  PATIENT_LIST_Q_MIN_PHONE_DIGITS,
+  PATIENT_LIST_Q_MIN_UHID_LENGTH,
+} from '../modules/patients/patients.config';
 
 export interface ApiEnv {
   NODE_ENV: 'development' | 'production' | 'test';
@@ -35,6 +41,14 @@ export interface ApiEnv {
   PATIENT_SEARCH_MAX_PAGE_SIZE: number;
   /** Minimum name prefix length for patient search (server-enforced). */
   PATIENT_SEARCH_MIN_NAME_LENGTH: number;
+  /** Max length of free-text list `q` (trimmed). */
+  PATIENT_LIST_Q_MAX_LENGTH: number;
+  /** Min `q` length before name-prefix / word-prefix matching is enabled. */
+  PATIENT_LIST_Q_MIN_NAME_LENGTH: number;
+  /** Min `q` length before UHID-prefix matching is enabled. */
+  PATIENT_LIST_Q_MIN_UHID_LENGTH: number;
+  /** Min digit count in `q` before phone-prefix matching is enabled. */
+  PATIENT_LIST_Q_MIN_PHONE_DIGITS: number;
   /** Comma-separated browser origins. Unset means CORS stays off. */
   CORS_ORIGIN: string | undefined;
   JWT_HOSPITAL_ACCESS_SECRET: string;
@@ -89,6 +103,30 @@ export function validateEnv(config: Record<string, unknown>): ApiEnv {
     3,
     errors,
   );
+  const patientListQMaxLength = parseOptionalPortLike(
+    config['PATIENT_LIST_Q_MAX_LENGTH'],
+    'PATIENT_LIST_Q_MAX_LENGTH',
+    PATIENT_LIST_Q_MAX_LENGTH,
+    errors,
+  );
+  const patientListQMinNameLength = parseOptionalPortLike(
+    config['PATIENT_LIST_Q_MIN_NAME_LENGTH'],
+    'PATIENT_LIST_Q_MIN_NAME_LENGTH',
+    PATIENT_LIST_Q_MIN_NAME_LENGTH,
+    errors,
+  );
+  const patientListQMinUhidLength = parseOptionalPortLike(
+    config['PATIENT_LIST_Q_MIN_UHID_LENGTH'],
+    'PATIENT_LIST_Q_MIN_UHID_LENGTH',
+    PATIENT_LIST_Q_MIN_UHID_LENGTH,
+    errors,
+  );
+  const patientListQMinPhoneDigits = parseOptionalPortLike(
+    config['PATIENT_LIST_Q_MIN_PHONE_DIGITS'],
+    'PATIENT_LIST_Q_MIN_PHONE_DIGITS',
+    PATIENT_LIST_Q_MIN_PHONE_DIGITS,
+    errors,
+  );
   const corsOrigin = optionalText(config, 'CORS_ORIGIN', errors);
 
   if (redisUrl !== '' && !/^rediss?:\/\//.test(redisUrl)) {
@@ -124,6 +162,10 @@ export function validateEnv(config: Record<string, unknown>): ApiEnv {
     APP_URL: appUrl,
     PATIENT_SEARCH_MAX_PAGE_SIZE: patientSearchMaxPageSize,
     PATIENT_SEARCH_MIN_NAME_LENGTH: patientSearchMinNameLength,
+    PATIENT_LIST_Q_MAX_LENGTH: patientListQMaxLength,
+    PATIENT_LIST_Q_MIN_NAME_LENGTH: patientListQMinNameLength,
+    PATIENT_LIST_Q_MIN_UHID_LENGTH: patientListQMinUhidLength,
+    PATIENT_LIST_Q_MIN_PHONE_DIGITS: patientListQMinPhoneDigits,
     CORS_ORIGIN: corsOrigin,
     JWT_HOSPITAL_ACCESS_SECRET: auth!.jwtHospitalAccessSecret,
     JWT_HQ_ACCESS_SECRET: auth!.jwtHqAccessSecret,

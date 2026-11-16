@@ -7,6 +7,7 @@ import {
 } from '../../src/modules/opd-masters/opd-settings.defaults';
 import type { NumberSeriesFormat } from '../../src/modules/opd-masters/number-series-format';
 import { ensureSystemRolesForTenant } from './reference';
+import { seedDevPatients } from './dev-patients';
 
 /** Mock OPD counts — named constants, not magic numbers in loops. */
 const MOCK_DOCTOR_COUNT: Record<string, number> = {
@@ -244,6 +245,8 @@ export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
       await seedDemoNorthCustomPatientFields(prisma, hospital.id);
     }
   }
+
+  await seedDevPatients(prisma);
 
   console.log('Dev tenant seed complete.');
 }
@@ -749,6 +752,7 @@ async function seedDemoNorthCustomPatientFields(
     code: string;
     label: string;
     dataType: 'TEXT' | 'DROPDOWN';
+    section: 'RELATIVE' | 'OTHER';
     options?: readonly string[];
     sortOrder: number;
   }> = [
@@ -756,6 +760,7 @@ async function seedDemoNorthCustomPatientFields(
       code: 'title',
       label: 'Title',
       dataType: 'DROPDOWN',
+      section: 'RELATIVE',
       options: ['Mr', 'Mrs', 'Ms', 'Master', 'Baby', 'Dr'],
       sortOrder: 100,
     },
@@ -763,20 +768,46 @@ async function seedDemoNorthCustomPatientFields(
       code: 'relation_type',
       label: 'Relation',
       dataType: 'DROPDOWN',
+      section: 'RELATIVE',
       options: ['S/O', 'D/O', 'W/O', 'C/O'],
       sortOrder: 101,
     },
-    { code: 'relative_name', label: 'Relative name', dataType: 'TEXT', sortOrder: 102 },
-    { code: 'referred_by', label: 'Referred by', dataType: 'TEXT', sortOrder: 103 },
+    {
+      code: 'relative_name',
+      label: 'Relative name',
+      dataType: 'TEXT',
+      section: 'RELATIVE',
+      sortOrder: 102,
+    },
+    {
+      code: 'referred_by',
+      label: 'Referred by',
+      dataType: 'TEXT',
+      section: 'OTHER',
+      sortOrder: 103,
+    },
     {
       code: 'category',
       label: 'Category',
       dataType: 'DROPDOWN',
+      section: 'OTHER',
       options: ['General', 'Staff'],
       sortOrder: 104,
     },
-    { code: 'organisation', label: 'Organisation', dataType: 'TEXT', sortOrder: 105 },
-    { code: 'staff_number', label: 'Staff number', dataType: 'TEXT', sortOrder: 106 },
+    {
+      code: 'organisation',
+      label: 'Organisation',
+      dataType: 'TEXT',
+      section: 'OTHER',
+      sortOrder: 105,
+    },
+    {
+      code: 'staff_number',
+      label: 'Staff number',
+      dataType: 'TEXT',
+      section: 'OTHER',
+      sortOrder: 106,
+    },
   ];
 
   for (const def of defs) {
@@ -787,9 +818,15 @@ async function seedDemoNorthCustomPatientFields(
         code: def.code,
         label: def.label,
         dataType: def.dataType,
+        section: def.section,
         isActive: true,
       },
-      update: { label: def.label, dataType: def.dataType, isActive: true },
+      update: {
+        label: def.label,
+        dataType: def.dataType,
+        section: def.section,
+        isActive: true,
+      },
     });
 
     if (def.options) {

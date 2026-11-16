@@ -1,5 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { TenantDb } from '../../database/tenant-db';
+import {
+  customFieldErrorKey,
+  PatientFieldErrorCode,
+  type PatientFieldErrors,
+} from './patient-field-error.codes';
+import { PATIENT_PINCODE_LENGTH } from './patients.config';
+import { throwPatientFieldErrors } from './patient-validation.exception';
 
 export type PatientFieldPayload = {
   name: string;
@@ -29,6 +36,10 @@ export type FieldValidationResult = {
   rejectedDisabled: string[];
 };
 
+export type FieldValidationCollectResult = FieldValidationResult & {
+  fieldErrors: PatientFieldErrors;
+};
+
 const SYSTEM_KEY_TO_PAYLOAD: Record<string, keyof PatientFieldPayload> = {
   name: 'name',
   gender: 'gender',
@@ -48,15 +59,15 @@ export class PatientFieldsService {
   constructor(private readonly tenantDb: TenantDb) {}
 
   /**
-   * Apply hospital field settings to a registration payload.
-   * name is always required. Disabled fields are ignored by default (or rejected if rejectDisabled).
-   * Changing settings never invalidates old patients.
+   * Apply hospital field settings to a registration/update payload.
+   * name, phone, and date_of_birth (age-or-DOB resolved upstream) are always required.
+   * Returns all fieldErrors without throwing (caller merges / throws once).
    */
-  async validateForRegistration(
+  async collectForRegistration(
     tenantId: string,
     input: PatientFieldPayload,
     options?: { rejectDisabled?: boolean },
-  ): Promise<FieldValidationResult> {
+  ): Promise<FieldValidationCollectResult> {
     const rejectDisabled = options?.rejectDisabled === true;
 
     return this.tenantDb.withTenant(async (tx) => {
@@ -68,15 +79,16 @@ export class PatientFieldsService {
 
       const ignoredDisabled: string[] = [];
       const rejectedDisabled: string[] = [];
+      const fieldErrors: PatientFieldErrors = {};
       const cleaned: PatientFieldPayload = { name: input.name?.trim() ?? '' };
 
       if (!cleaned.name) {
-        throw new Error('Patient name is required');
+        fieldErrors.name = PatientFieldErrorCode.REQUIRED;
       }
 
       const nameSetting = settings.find((s) => s.catalogKey === 'name');
       if (nameSetting && !nameSetting.isEnabled) {
-        throw new Error('Patient name field cannot be disabled');
+        fieldErrors.name = PatientFieldErrorCode.REQUIRED;
       }
 
       for (const setting of settings) {
@@ -92,7 +104,12 @@ export class PatientFieldsService {
         const present =
           raw !== undefined && raw !== null && !(typeof raw === 'string' && raw.trim() === '');
 
-        if (!setting.isEnabled) {
+        const alwaysRequired = setting.catalog?.alwaysRequired === true;
+        const canDisable = setting.catalog?.canDisable !== false;
+        const isEnabled = alwaysRequired ? true : setting.isEnabled;
+        const isRequired = alwaysRequired || setting.isRequired;
+
+        if (!isEnabled) {
           if (present) {
             if (rejectDisabled) {
               rejectedDisabled.push(key);
@@ -103,11 +120,41 @@ export class PatientFieldsService {
           continue;
         }
 
-        if (setting.isRequired && !present) {
-          throw new Error(`Required patient field missing: ${setting.label ?? key}`);
+        if (isRequired && !present) {
+          // date_of_birth always-required is enforced upstream as age-or-DOB;
+          // if DOB still missing here, mark REQUIRED.
+          fieldErrors[key] = PatientFieldErrorCode.REQUIRED;
         }
+
         if (present) {
-          assignSystemField(cleaned, prop, raw);
+          if (key === 'address_pincode') {
+            const pin = String(raw).trim();
+            if (!isValidPincode(pin)) {
+              fieldErrors.address_pincode = PatientFieldErrorCode.INVALID;
+            } else {
+              cleaned.addressPincode = pin;
+            }
+          } else {
+            assignSystemField(cleaned, prop, raw);
+          }
+        } else if (!isRequired && key === 'address_pincode' && raw !== undefined && raw !== null) {
+          const pin = String(raw).trim();
+          if (pin !== '' && !isValidPincode(pin)) {
+            fieldErrors.address_pincode = PatientFieldErrorCode.INVALID;
+          }
+        }
+
+        void canDisable;
+      }
+
+      // Phone always required even if settings row missing.
+      if (!cleaned.phone || (typeof cleaned.phone === 'string' && cleaned.phone.trim() === '')) {
+        const phonePresent =
+          input.phone !== undefined &&
+          input.phone !== null &&
+          !(typeof input.phone === 'string' && input.phone.trim() === '');
+        if (!phonePresent) {
+          fieldErrors.phone = PatientFieldErrorCode.REQUIRED;
         }
       }
 
@@ -120,23 +167,23 @@ export class PatientFieldsService {
 
       for (const setting of settings.filter((s) => s.customFieldId)) {
         const fieldId = setting.customFieldId!;
+        const code = setting.customField?.code ?? fieldId;
+        const errorKey = customFieldErrorKey(code);
         const provided = inputCustoms.find((c) => c.fieldId === fieldId);
         const present = Boolean(provided);
 
         if (!setting.isEnabled) {
           if (present) {
             if (rejectDisabled) {
-              rejectedDisabled.push(setting.customField?.code ?? fieldId);
+              rejectedDisabled.push(code);
             } else {
-              ignoredDisabled.push(setting.customField?.code ?? fieldId);
+              ignoredDisabled.push(code);
             }
           }
           continue;
         }
         if (setting.isRequired && !present) {
-          throw new Error(
-            `Required custom field missing: ${setting.label ?? setting.customField?.code ?? fieldId}`,
-          );
+          fieldErrors[errorKey] = PatientFieldErrorCode.REQUIRED;
         }
         if (present && provided) {
           customValues.push(provided);
@@ -144,12 +191,34 @@ export class PatientFieldsService {
       }
 
       if (rejectedDisabled.length > 0) {
-        throw new Error(`Disabled patient fields rejected: ${rejectedDisabled.join(', ')}`);
+        for (const key of rejectedDisabled) {
+          const errKey = SYSTEM_KEY_TO_PAYLOAD[key] ? key : customFieldErrorKey(key);
+          fieldErrors[errKey] = PatientFieldErrorCode.INVALID;
+        }
       }
 
       cleaned.customValues = customValues;
-      return { cleaned, ignoredDisabled, rejectedDisabled };
+      return { cleaned, ignoredDisabled, rejectedDisabled, fieldErrors };
     });
+  }
+
+  /**
+   * Apply hospital field settings; throws one 400 when any fieldErrors are present.
+   */
+  async validateForRegistration(
+    tenantId: string,
+    input: PatientFieldPayload,
+    options?: { rejectDisabled?: boolean },
+  ): Promise<FieldValidationResult> {
+    const collected = await this.collectForRegistration(tenantId, input, options);
+    if (Object.keys(collected.fieldErrors).length > 0) {
+      throwPatientFieldErrors(collected.fieldErrors, Object.keys(collected.fieldErrors));
+    }
+    return {
+      cleaned: collected.cleaned,
+      ignoredDisabled: collected.ignoredDisabled,
+      rejectedDisabled: collected.rejectedDisabled,
+    };
   }
 
   async updateSystemFieldSetting(input: {
@@ -161,10 +230,6 @@ export class PatientFieldsService {
     sortOrder?: number;
     changedBy: string;
   }): Promise<void> {
-    if (input.catalogKey === 'name' && !input.isEnabled) {
-      throw new Error('Patient name field cannot be disabled');
-    }
-
     await this.tenantDb.withTenant(async (tx) => {
       const catalog = await tx.patientFieldCatalog.findUnique({ where: { key: input.catalogKey } });
       if (!catalog) {
@@ -173,8 +238,15 @@ export class PatientFieldsService {
       if (!catalog.canDisable && !input.isEnabled) {
         throw new Error(`Catalog field cannot be disabled: ${input.catalogKey}`);
       }
+      if (catalog.alwaysRequired && !input.isRequired) {
+        throw new Error(`Catalog field is always required: ${input.catalogKey}`);
+      }
+      if (catalog.alwaysRequired && !input.isEnabled) {
+        throw new Error(`Catalog field cannot be disabled: ${input.catalogKey}`);
+      }
 
-      const isRequired = input.catalogKey === 'name' ? true : input.isRequired;
+      const isRequired = catalog.alwaysRequired ? true : input.isRequired;
+      const isEnabled = catalog.alwaysRequired || !catalog.canDisable ? true : input.isEnabled;
 
       await tx.patientFieldSetting.upsert({
         where: {
@@ -183,7 +255,7 @@ export class PatientFieldsService {
         create: {
           tenantId: input.tenantId,
           catalogKey: input.catalogKey,
-          isEnabled: input.isEnabled,
+          isEnabled,
           isRequired,
           label: input.label ?? catalog.defaultLabel,
           sortOrder: input.sortOrder ?? 0,
@@ -191,7 +263,7 @@ export class PatientFieldsService {
           changedAt: new Date(),
         },
         update: {
-          isEnabled: input.isEnabled,
+          isEnabled,
           isRequired,
           label: input.label ?? undefined,
           sortOrder: input.sortOrder,
@@ -210,13 +282,17 @@ export class PatientFieldsService {
           reason: 'Field setting updated',
           metadata: {
             catalogKey: input.catalogKey,
-            isEnabled: input.isEnabled,
+            isEnabled,
             isRequired,
           },
         },
       });
     });
   }
+}
+
+export function isValidPincode(value: string): boolean {
+  return new RegExp(`^\\d{${PATIENT_PINCODE_LENGTH}}$`).test(value);
 }
 
 function assignSystemField(

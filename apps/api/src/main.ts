@@ -1,5 +1,4 @@
 import 'reflect-metadata';
-import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -9,6 +8,7 @@ import { applyCors } from './config/cors';
 import { assertNoTestTenantsInProduction } from './config/production-seed-guard';
 import { setupSwagger } from './setup-swagger';
 import type { ApiEnv } from './config/env';
+import { HospigoValidationPipe } from './modules/patients/patient-dto-validation';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -33,13 +33,7 @@ async function bootstrap(): Promise<void> {
   app.useBodyParser('json', { limit: auth.requestBodyLimitBytes });
   app.useBodyParser('urlencoded', { limit: auth.requestBodyLimitBytes, extended: true });
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+  app.useGlobalPipes(new HospigoValidationPipe());
 
   if (nodeEnv !== 'production') {
     setupSwagger(app);

@@ -6,13 +6,29 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { ApiEnv } from '../../config/env';
-import { normalizePhoneIN } from '../../common/phone.normalize';
+import { normalizePhoneIN, PHONE_INVALID_MESSAGE } from '../../common/phone.normalize';
 import { requireContext } from '../../common/request-context';
 import { TenantDb } from '../../database/tenant-db';
 import { OPD_SETTINGS_DEFAULTS } from '../opd-masters/opd-settings.defaults';
 import { zonedParts } from './uhid.util';
 import { PatientFieldsService, type PatientFieldPayload } from './patient-fields.service';
 import { UhidService } from './uhid.service';
+import { mergePatientFieldErrors } from './patient-dto-validation';
+import { PatientFieldErrorCode, type PatientFieldErrors } from './patient-field-error.codes';
+import { PatientFieldSection, patientFieldSectionRank } from './patient-field-sections';
+import { Prisma } from '../../generated/prisma';
+import {
+  isPatientListSort,
+  PATIENT_LIST_DEFAULT_PAGE_SIZE,
+  PATIENT_LIST_Q_MAX_LENGTH,
+  PATIENT_LIST_Q_MIN_NAME_LENGTH,
+  PATIENT_LIST_Q_MIN_PHONE_DIGITS,
+  PATIENT_LIST_Q_MIN_UHID_LENGTH,
+  PATIENT_LIST_SORT_DEFAULT,
+  PatientListSort,
+} from './patients.config';
+import { buildListQMatchPlan, listQWhereSql } from './patients-list-q';
+import { throwPatientFieldErrors } from './patient-validation.exception';
 
 export type RegisterPatientInput = PatientFieldPayload & {
   tenantId: string;
@@ -20,6 +36,15 @@ export type RegisterPatientInput = PatientFieldPayload & {
   createdBy: string;
   confirmDuplicate?: boolean;
   ageYears?: number;
+  /** Soft class-validator codes from HospigoValidationPipe (optional). */
+  dtoFieldErrors?: PatientFieldErrors;
+  dtoMessages?: string[];
+};
+
+export type UpdatePatientInput = PatientFieldPayload & {
+  ageYears?: number;
+  dtoFieldErrors?: PatientFieldErrors;
+  dtoMessages?: string[];
 };
 
 export type PatientListItem = {
@@ -35,6 +60,11 @@ export type PatientListItem = {
   isActive: boolean;
 };
 
+export type PatientBrowseItem = PatientListItem & {
+  createdAt: string;
+  registeredBranchName: string;
+};
+
 export type FormConfigField = {
   key?: string;
   code?: string;
@@ -42,6 +72,7 @@ export type FormConfigField = {
   dataType: string;
   required: boolean;
   sortOrder: number;
+  section: string;
   options?: Array<{ id: string; label: string; sortOrder: number }>;
 };
 
@@ -74,12 +105,14 @@ export class PatientsService {
           if (s.catalogKey === 'name') {
             hasName = true;
           }
+          const alwaysRequired = s.catalog?.alwaysRequired === true;
           fields.push({
             key: s.catalogKey,
             label: s.label ?? s.catalog?.defaultLabel ?? s.catalogKey,
             dataType: s.catalog?.dataType ?? 'TEXT',
-            required: s.catalogKey === 'name' ? true : s.isRequired,
+            required: alwaysRequired || s.catalogKey === 'name' || s.isRequired,
             sortOrder: s.sortOrder,
+            section: s.catalog?.defaultSection ?? PatientFieldSection.OTHER,
           });
         } else if (s.customField) {
           fields.push({
@@ -88,6 +121,7 @@ export class PatientsService {
             dataType: s.customField.dataType,
             required: s.isRequired,
             sortOrder: s.sortOrder,
+            section: s.customField.section ?? PatientFieldSection.OTHER,
             options: s.customField.options.map((o) => ({
               id: o.id,
               label: o.label,
@@ -103,8 +137,16 @@ export class PatientsService {
           dataType: 'TEXT',
           required: true,
           sortOrder: -1,
+          section: PatientFieldSection.PERSONAL,
         });
       }
+      fields.sort((a, b) => {
+        const sectionDiff = patientFieldSectionRank(a.section) - patientFieldSectionRank(b.section);
+        if (sectionDiff !== 0) {
+          return sectionDiff;
+        }
+        return a.sortOrder - b.sortOrder;
+      });
       return { fields };
     });
   }
@@ -114,33 +156,91 @@ export class PatientsService {
    * Any insert failure (including UNIQUE uhid collision) rolls back the counter increment (no gaps).
    */
   async register(input: RegisterPatientInput): Promise<{ id: string; uhid: string }> {
-    if (input.ageYears !== undefined && input.dateOfBirth) {
-      throw new BadRequestException('Send dateOfBirth or ageYears, not both');
+    const dtoFieldErrors = input.dtoFieldErrors ?? {};
+    const dtoMessages = input.dtoMessages ?? [];
+    const serviceErrors: PatientFieldErrors = {};
+    const hasAge = input.ageYears !== undefined;
+    const hasDob = input.dateOfBirth !== undefined && input.dateOfBirth !== null;
+    if (hasAge && hasDob) {
+      serviceErrors.date_of_birth = PatientFieldErrorCode.AGE_AND_DOB_BOTH;
+      serviceErrors.ageYears = PatientFieldErrorCode.AGE_AND_DOB_BOTH;
+    } else if (!hasAge && !hasDob) {
+      serviceErrors.date_of_birth = PatientFieldErrorCode.REQUIRED;
+    } else if (hasAge) {
+      if (!Number.isInteger(input.ageYears) || input.ageYears! < 0 || input.ageYears! > 150) {
+        serviceErrors.ageYears = PatientFieldErrorCode.INVALID;
+      }
     }
 
-    const payload: PatientFieldPayload = { ...input };
-    if (input.ageYears !== undefined) {
-      if (!Number.isInteger(input.ageYears) || input.ageYears < 0 || input.ageYears > 150) {
-        throw new BadRequestException('ageYears must be an integer 0..150');
+    const payload: PatientFieldPayload = {
+      name: input.name,
+      gender: input.gender,
+      dateOfBirth: input.dateOfBirth,
+      dobIsEstimated: input.dobIsEstimated,
+      phone: input.phone,
+      email: input.email,
+      addressStreet: input.addressStreet,
+      addressCross: input.addressCross,
+      addressArea: input.addressArea,
+      addressCity: input.addressCity,
+      addressState: input.addressState,
+      addressPincode: input.addressPincode,
+      customValues: input.customValues,
+    };
+    if (payload.phone) {
+      try {
+        payload.phone = normalizePhoneIN(payload.phone);
+      } catch (error) {
+        if (error instanceof BadRequestException) {
+          serviceErrors.phone = PatientFieldErrorCode.INVALID;
+        } else {
+          throw error;
+        }
       }
-      const dob = await this.estimatedDobFromAge(input.tenantId, input.ageYears);
+    } else {
+      serviceErrors.phone = PatientFieldErrorCode.REQUIRED;
+    }
+
+    // Skip estimated-DOB when age+DOB both (already an error) or age invalid.
+    const canApplyAge =
+      input.ageYears !== undefined &&
+      serviceErrors.date_of_birth !== PatientFieldErrorCode.AGE_AND_DOB_BOTH &&
+      serviceErrors.ageYears !== PatientFieldErrorCode.INVALID;
+    if (canApplyAge) {
+      const dob = await this.estimatedDobFromAge(input.tenantId, input.ageYears!);
       payload.dateOfBirth = dob;
       payload.dobIsEstimated = true;
     }
 
-    if (payload.phone) {
-      payload.phone = normalizePhoneIN(payload.phone);
-    }
-
     let cleaned: PatientFieldPayload;
     try {
-      ({ cleaned } = await this.fields.validateForRegistration(input.tenantId, payload));
+      const collected = await this.fields.collectForRegistration(input.tenantId, payload);
+      for (const [key, code] of Object.entries(collected.fieldErrors)) {
+        if (!(key in serviceErrors)) {
+          serviceErrors[key] = code;
+        }
+      }
+      cleaned = collected.cleaned;
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
       throw new BadRequestException(message);
+    }
+
+    const merged = mergePatientFieldErrors(dtoFieldErrors, serviceErrors);
+    if (Object.keys(merged).length > 0) {
+      const message =
+        dtoMessages.length > 0
+          ? dtoMessages
+          : serviceErrors.date_of_birth === PatientFieldErrorCode.AGE_AND_DOB_BOTH
+            ? 'Send dateOfBirth or ageYears, not both'
+            : serviceErrors.phone === PatientFieldErrorCode.INVALID &&
+                Object.keys(serviceErrors).length === 1
+              ? PHONE_INVALID_MESSAGE
+              : Object.keys(merged);
+      throwPatientFieldErrors(merged, message);
     }
 
     try {
@@ -230,6 +330,164 @@ export class PatientsService {
       }
       throw error;
     }
+  }
+
+  /**
+   * Browse/list patients. Optional at-most-one filter (uhid | phone | name),
+   * or free-text `q` (not combined with those). None = list all. Sort defaults to newest.
+   */
+  async list(input: {
+    tenantId: string;
+    sort?: string;
+    q?: string;
+    uhid?: string;
+    phone?: string;
+    namePrefix?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<{
+    items: PatientBrowseItem[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
+    const criteria = [input.uhid, input.phone, input.namePrefix].filter(
+      (v) => typeof v === 'string' && v.trim().length > 0,
+    );
+    if (criteria.length > 1) {
+      throw new BadRequestException('Provide at most one of uhid, phone, or name');
+    }
+
+    const qRaw = typeof input.q === 'string' ? input.q.trim() : '';
+    const hasQ = qRaw.length > 0;
+    if (hasQ && criteria.length > 0) {
+      throw new BadRequestException('q cannot be combined with uhid, phone, or name');
+    }
+
+    const sortRaw = input.sort?.trim() || PATIENT_LIST_SORT_DEFAULT;
+    if (!isPatientListSort(sortRaw)) {
+      throw new BadRequestException('Invalid sort');
+    }
+    const sort: PatientListSort = sortRaw;
+
+    const minName = this.config.get('PATIENT_SEARCH_MIN_NAME_LENGTH', { infer: true }) ?? 3;
+    if (input.namePrefix !== undefined && input.namePrefix.trim().length < minName) {
+      throw new BadRequestException(`name must be at least ${minName} characters`);
+    }
+
+    const qMax =
+      this.config.get('PATIENT_LIST_Q_MAX_LENGTH', { infer: true }) ?? PATIENT_LIST_Q_MAX_LENGTH;
+    const qMinName =
+      this.config.get('PATIENT_LIST_Q_MIN_NAME_LENGTH', { infer: true }) ??
+      PATIENT_LIST_Q_MIN_NAME_LENGTH;
+    const qMinUhid =
+      this.config.get('PATIENT_LIST_Q_MIN_UHID_LENGTH', { infer: true }) ??
+      PATIENT_LIST_Q_MIN_UHID_LENGTH;
+    const qMinPhoneDigits =
+      this.config.get('PATIENT_LIST_Q_MIN_PHONE_DIGITS', { infer: true }) ??
+      PATIENT_LIST_Q_MIN_PHONE_DIGITS;
+
+    let qPlan: ReturnType<typeof buildListQMatchPlan> | undefined;
+    if (hasQ) {
+      if (qRaw.length > qMax) {
+        throwPatientFieldErrors({ q: PatientFieldErrorCode.INVALID }, 'Invalid q');
+      }
+      qPlan = buildListQMatchPlan(qRaw, {
+        minNameLength: qMinName,
+        minUhidLength: qMinUhid,
+        minPhoneDigits: qMinPhoneDigits,
+      });
+      if (!qPlan) {
+        throwPatientFieldErrors({ q: PatientFieldErrorCode.INVALID }, 'Invalid q');
+      }
+    }
+
+    const maxPage = this.config.get('PATIENT_SEARCH_MAX_PAGE_SIZE', { infer: true }) ?? 50;
+    const pageSize = Math.min(
+      Math.max(input.pageSize ?? PATIENT_LIST_DEFAULT_PAGE_SIZE, 1),
+      maxPage,
+    );
+    const page = Math.max(input.page ?? 1, 1);
+    const skip = (page - 1) * pageSize;
+
+    let phone: string | undefined;
+    if (input.phone) {
+      try {
+        phone = normalizePhoneIN(input.phone);
+      } catch (error) {
+        if (error instanceof BadRequestException) {
+          throw error;
+        }
+        throw error;
+      }
+    }
+
+    const uhid = input.uhid?.trim();
+    const namePattern = input.namePrefix ? `${input.namePrefix.toLowerCase()}%` : undefined;
+    const qWhere = qPlan ? listQWhereSql(qPlan) : Prisma.sql`TRUE`;
+
+    return this.tenantDb.withTenant(async (tx) => {
+      const opd = await tx.opdSettings.findUnique({ where: { tenantId: input.tenantId } });
+      const timeZone = opd?.timezone ?? OPD_SETTINGS_DEFAULTS.timezone;
+
+      const whereSql = Prisma.sql`
+        p.tenant_id = ${input.tenantId}
+        AND p.is_active = true
+        AND (${uhid ?? null}::text IS NULL OR p.uhid = ${uhid ?? null})
+        AND (${phone ?? null}::text IS NULL OR p.phone = ${phone ?? null})
+        AND (${namePattern ?? null}::text IS NULL OR lower(p.name) LIKE ${namePattern ?? null})
+        AND (${qWhere})
+      `;
+
+      const totalRows = await tx.$queryRaw<Array<{ count: bigint }>>`
+        SELECT count(*)::bigint AS count
+        FROM patients p
+        WHERE ${whereSql}
+      `;
+
+      type BrowseRow = {
+        id: string;
+        uhid: string;
+        name: string;
+        gender: string | null;
+        date_of_birth: Date | null;
+        dob_is_estimated: boolean;
+        phone: string | null;
+        registered_branch_id: string;
+        registered_branch_name: string;
+        is_active: boolean;
+        created_at: Date;
+      };
+
+      // ORDER BY is a fixed Prisma.sql fragment (never user-supplied).
+      let orderSql: Prisma.Sql;
+      if (sort === PatientListSort.OLDEST) {
+        orderSql = Prisma.sql`p.created_at ASC, p.id ASC`;
+      } else if (sort === PatientListSort.NAME_ASC) {
+        orderSql = Prisma.sql`lower(p.name) ASC, p.id ASC`;
+      } else if (sort === PatientListSort.NAME_DESC) {
+        orderSql = Prisma.sql`lower(p.name) DESC, p.id DESC`;
+      } else {
+        orderSql = Prisma.sql`p.created_at DESC, p.id DESC`;
+      }
+
+      const ordered = await tx.$queryRaw<BrowseRow[]>`
+        SELECT p.id, p.uhid, p.name, p.gender, p.date_of_birth, p.dob_is_estimated, p.phone,
+               p.registered_branch_id, b.name AS registered_branch_name, p.is_active, p.created_at
+        FROM patients p
+        INNER JOIN branches b ON b.tenant_id = p.tenant_id AND b.id = p.registered_branch_id
+        WHERE ${whereSql}
+        ORDER BY ${orderSql}
+        OFFSET ${skip} LIMIT ${pageSize}
+      `;
+
+      return {
+        items: ordered.map((r) => this.toBrowseItem(r, timeZone)),
+        total: Number(totalRows[0]?.count ?? 0n),
+        page,
+        pageSize,
+      };
+    });
   }
 
   async search(input: {
@@ -426,6 +684,8 @@ export class PatientsService {
       uhid?: unknown;
       registeredBranchId?: unknown;
       tenantId?: unknown;
+      dtoFieldErrors?: PatientFieldErrors;
+      dtoMessages?: string[];
     },
   ): Promise<{ id: string }> {
     if (
@@ -435,8 +695,16 @@ export class PatientsService {
     ) {
       throw new BadRequestException('uhid, tenantId and registeredBranchId cannot be changed');
     }
-    if (patch.ageYears !== undefined && patch.dateOfBirth) {
-      throw new BadRequestException('Send dateOfBirth or ageYears, not both');
+
+    const dtoFieldErrors = patch.dtoFieldErrors ?? {};
+    const dtoMessages = patch.dtoMessages ?? [];
+    const serviceErrors: PatientFieldErrors = {};
+
+    const hasAge = patch.ageYears !== undefined;
+    const hasDob = patch.dateOfBirth !== undefined && patch.dateOfBirth !== null;
+    if (hasAge && hasDob) {
+      serviceErrors.date_of_birth = PatientFieldErrorCode.AGE_AND_DOB_BOTH;
+      serviceErrors.ageYears = PatientFieldErrorCode.AGE_AND_DOB_BOTH;
     }
 
     const existing = await this.tenantDb.withTenant(async (tx) =>
@@ -465,26 +733,70 @@ export class PatientsService {
       customValues: patch.customValues,
     };
 
-    if (patch.ageYears !== undefined) {
+    if (
+      patch.ageYears !== undefined &&
+      serviceErrors.date_of_birth !== PatientFieldErrorCode.AGE_AND_DOB_BOTH
+    ) {
       if (!Number.isInteger(patch.ageYears) || patch.ageYears < 0 || patch.ageYears > 150) {
-        throw new BadRequestException('ageYears must be an integer 0..150');
+        serviceErrors.ageYears = PatientFieldErrorCode.INVALID;
+      } else {
+        next.dateOfBirth = await this.estimatedDobFromAge(tenantId, patch.ageYears);
+        next.dobIsEstimated = true;
       }
-      next.dateOfBirth = await this.estimatedDobFromAge(tenantId, patch.ageYears);
-      next.dobIsEstimated = true;
     }
-    if (next.phone) {
-      next.phone = normalizePhoneIN(next.phone);
+
+    // May not blank name / phone / age-or-DOB.
+    if (!next.name || (typeof next.name === 'string' && next.name.trim() === '')) {
+      serviceErrors.name = PatientFieldErrorCode.REQUIRED;
+    }
+    if (next.phone === null || next.phone === undefined || String(next.phone).trim() === '') {
+      serviceErrors.phone = PatientFieldErrorCode.REQUIRED;
+    }
+    if (!next.dateOfBirth) {
+      serviceErrors.date_of_birth = PatientFieldErrorCode.REQUIRED;
+    }
+
+    if (next.phone && serviceErrors.phone !== PatientFieldErrorCode.REQUIRED) {
+      try {
+        next.phone = normalizePhoneIN(String(next.phone));
+      } catch (error) {
+        if (error instanceof BadRequestException) {
+          serviceErrors.phone = PatientFieldErrorCode.INVALID;
+        } else {
+          throw error;
+        }
+      }
     }
 
     let cleaned: PatientFieldPayload;
     try {
-      ({ cleaned } = await this.fields.validateForRegistration(tenantId, next));
+      const collected = await this.fields.collectForRegistration(tenantId, next);
+      for (const [key, code] of Object.entries(collected.fieldErrors)) {
+        if (!(key in serviceErrors)) {
+          serviceErrors[key] = code;
+        }
+      }
+      cleaned = collected.cleaned;
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
       throw new BadRequestException(message);
+    }
+
+    const merged = mergePatientFieldErrors(dtoFieldErrors, serviceErrors);
+    if (Object.keys(merged).length > 0) {
+      const message =
+        dtoMessages.length > 0
+          ? dtoMessages
+          : serviceErrors.date_of_birth === PatientFieldErrorCode.AGE_AND_DOB_BOTH
+            ? 'Send dateOfBirth or ageYears, not both'
+            : serviceErrors.phone === PatientFieldErrorCode.INVALID &&
+                Object.keys(serviceErrors).length === 1
+              ? PHONE_INVALID_MESSAGE
+              : Object.keys(merged);
+      throwPatientFieldErrors(merged, message);
     }
 
     return this.tenantDb.withTenant(async (tx) => {
@@ -623,6 +935,21 @@ export class PatientsService {
     }
   }
 
+  private assertAgeOrDobExclusive(
+    ageYears: number | undefined,
+    dateOfBirth: Date | string | null | undefined,
+  ): void {
+    const hasAge = ageYears !== undefined;
+    const hasDob = dateOfBirth !== undefined && dateOfBirth !== null && dateOfBirth !== '';
+    if (hasAge && hasDob) {
+      const fieldErrors: PatientFieldErrors = {
+        date_of_birth: PatientFieldErrorCode.AGE_AND_DOB_BOTH,
+        ageYears: PatientFieldErrorCode.AGE_AND_DOB_BOTH,
+      };
+      throwPatientFieldErrors(fieldErrors, 'Send dateOfBirth or ageYears, not both');
+    }
+  }
+
   private async estimatedDobFromAge(tenantId: string, ageYears: number): Promise<Date> {
     return this.tenantDb.withTenant(async (tx) => {
       const opd = await tx.opdSettings.findUnique({ where: { tenantId } });
@@ -658,6 +985,29 @@ export class PatientsService {
       phone: row.phone,
       registeredBranchId: row.registered_branch_id,
       isActive: row.is_active,
+    };
+  }
+
+  private toBrowseItem(
+    row: {
+      id: string;
+      uhid: string;
+      name: string;
+      gender: string | null;
+      date_of_birth: Date | null;
+      dob_is_estimated: boolean;
+      phone: string | null;
+      registered_branch_id: string;
+      registered_branch_name: string;
+      is_active: boolean;
+      created_at: Date;
+    },
+    timeZone: string,
+  ): PatientBrowseItem {
+    return {
+      ...this.toListItem(row, timeZone),
+      createdAt: row.created_at.toISOString(),
+      registeredBranchName: row.registered_branch_name,
     };
   }
 }

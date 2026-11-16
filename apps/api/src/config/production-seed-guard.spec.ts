@@ -1,7 +1,10 @@
 /**
  * @jest-environment node
  */
-import { assertNoTestTenantsInProduction } from './production-seed-guard';
+import {
+  assertDevTenantSeedAllowed,
+  assertNoTestTenantsInProduction,
+} from './production-seed-guard';
 
 describe('assertNoTestTenantsInProduction', () => {
   it('is a no-op outside production', async () => {
@@ -14,5 +17,16 @@ describe('assertNoTestTenantsInProduction', () => {
     await expect(
       assertNoTestTenantsInProduction('test', 'postgresql://invalid/does-not-connect'),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe('assertDevTenantSeedAllowed (patient seed guard)', () => {
+  it('refuses outside development', () => {
+    expect(() => assertDevTenantSeedAllowed('test')).toThrow(/development/i);
+    expect(() => assertDevTenantSeedAllowed('production')).toThrow(/development/i);
+  });
+
+  it('allows development', () => {
+    expect(() => assertDevTenantSeedAllowed('development')).not.toThrow();
   });
 });

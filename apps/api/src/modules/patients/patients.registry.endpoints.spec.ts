@@ -5,12 +5,14 @@ import 'reflect-metadata';
 import 'dotenv/config';
 import path from 'path';
 import { config as loadEnv } from 'dotenv';
-import { ValidationPipe, type INestApplication } from '@nestjs/common';
+import { type INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import * as argon2 from 'argon2';
 import request from 'supertest';
 import { createOwnerPrisma, createPgClient, withTenant } from '../../database/db-test.util';
+import { HospigoValidationPipe } from './patient-dto-validation';
+import { uniqueValidTestPhone } from './test-register.helpers';
 
 loadEnv({ path: path.resolve(process.cwd(), '../../.env') });
 loadEnv({ path: path.resolve(process.cwd(), '.env') });
@@ -54,6 +56,10 @@ Object.assign(process.env, {
   AUTH_IP_RATE_LIMIT_PER_MIN: '200',
   PATIENT_SEARCH_MAX_PAGE_SIZE: '50',
   PATIENT_SEARCH_MIN_NAME_LENGTH: '3',
+  PATIENT_LIST_Q_MAX_LENGTH: '64',
+  PATIENT_LIST_Q_MIN_NAME_LENGTH: '2',
+  PATIENT_LIST_Q_MIN_UHID_LENGTH: '2',
+  PATIENT_LIST_Q_MIN_PHONE_DIGITS: '3',
   JWT_HOSPITAL_ACCESS_SECRET:
     process.env.JWT_HOSPITAL_ACCESS_SECRET || 'test-hospital-access-secret-min-32-chars!!',
   JWT_HQ_ACCESS_SECRET:
@@ -67,6 +73,7 @@ const TEST_PREFIX = 'hospigo:pat:reg:';
 const ROUTES = [
   { method: 'get' as const, path: '/patients/form-config' },
   { method: 'get' as const, path: '/patients/search?name=Abc' },
+  { method: 'get' as const, path: '/patients' },
   { method: 'get' as const, path: '/patients/uhid/start-number' },
   { method: 'get' as const, path: '/patients/000000000000000000000000' },
   { method: 'post' as const, path: '/patients' },
@@ -151,20 +158,66 @@ describe('Patients registry endpoints (HTTP)', () => {
         dataType: 'TEXT',
         canDisable: false,
         alwaysRequired: true,
+        defaultSection: 'PERSONAL',
       },
-      update: {},
+      update: {
+        alwaysRequired: true,
+        canDisable: false,
+        defaultSection: 'PERSONAL',
+      },
     });
-    for (const key of ['gender', 'date_of_birth', 'phone', 'email']) {
+    for (const row of [
+      {
+        key: 'gender',
+        dataType: 'TEXT',
+        canDisable: true,
+        alwaysRequired: false,
+        defaultSection: 'PERSONAL' as const,
+      },
+      {
+        key: 'date_of_birth',
+        dataType: 'DATE',
+        canDisable: false,
+        alwaysRequired: true,
+        defaultSection: 'PERSONAL' as const,
+      },
+      {
+        key: 'phone',
+        dataType: 'TEXT',
+        canDisable: false,
+        alwaysRequired: true,
+        defaultSection: 'CONTACT' as const,
+      },
+      {
+        key: 'email',
+        dataType: 'TEXT',
+        canDisable: true,
+        alwaysRequired: false,
+        defaultSection: 'CONTACT' as const,
+      },
+      {
+        key: 'address_pincode',
+        dataType: 'TEXT',
+        canDisable: true,
+        alwaysRequired: false,
+        defaultSection: 'ADDRESS' as const,
+      },
+    ]) {
       await owner.patientFieldCatalog.upsert({
-        where: { key },
+        where: { key: row.key },
         create: {
-          key,
-          defaultLabel: key,
-          dataType: key === 'date_of_birth' ? 'DATE' : 'TEXT',
-          canDisable: true,
-          alwaysRequired: false,
+          key: row.key,
+          defaultLabel: row.key,
+          dataType: row.dataType,
+          canDisable: row.canDisable,
+          alwaysRequired: row.alwaysRequired,
+          defaultSection: row.defaultSection,
         },
-        update: {},
+        update: {
+          canDisable: row.canDisable,
+          alwaysRequired: row.alwaysRequired,
+          defaultSection: row.defaultSection,
+        },
       });
     }
 
@@ -227,7 +280,12 @@ describe('Patients registry endpoints (HTTP)', () => {
             tenantId,
             catalogKey: c.key,
             isEnabled: true,
-            isRequired: c.key === 'name' ? true : c.key === 'phone' ? args.phoneRequired : false,
+            isRequired:
+              c.alwaysRequired || c.key === 'name'
+                ? true
+                : c.key === 'phone'
+                  ? args.phoneRequired
+                  : false,
             label: c.defaultLabel,
             sortOrder: order++,
           },
@@ -241,6 +299,7 @@ describe('Patients registry endpoints (HTTP)', () => {
             code: 'title',
             label: 'Title',
             dataType: 'DROPDOWN',
+            section: 'RELATIVE',
             isActive: true,
             options: {
               create: [
@@ -445,9 +504,7 @@ describe('Patients registry endpoints (HTTP)', () => {
     const { AppModule } = await import('../../app.module');
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication<NestExpressApplication>({ logger: false });
-    app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
-    );
+    app.useGlobalPipes(new HospigoValidationPipe());
     await app.init();
     redis = app.get((await import('../auth/auth-redis.service')).AuthRedisService);
     tokens = app.get((await import('../auth/token.service')).TokenService);
@@ -619,17 +676,19 @@ describe('Patients registry endpoints (HTTP)', () => {
     expect(detail.body.dateOfBirth).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(detail.body.phone).toBe('+919988776655');
 
-    await request(app.getHttpServer())
+    const landline = await request(app.getHttpServer())
       .post('/patients')
       .set('Authorization', `Bearer ${recv}`)
-      .send({ name: 'Landline', phone: '02212345678' })
+      .send({ name: 'Landline', dateOfBirth: '1990-01-01', phone: '02212345678' })
       .expect(400);
+    expect(landline.body.fieldErrors?.phone).toBe('INVALID');
 
-    await request(app.getHttpServer())
+    const badPhone = await request(app.getHttpServer())
       .post('/patients')
       .set('Authorization', `Bearer ${recv}`)
-      .send({ name: 'Bad Phone', phone: '12345' })
+      .send({ name: 'Bad Phone', dateOfBirth: '1990-01-01', phone: '12345' })
       .expect(400);
+    expect(badPhone.body.fieldErrors?.phone).toBe('INVALID');
   });
 
   it('20 parallel registrations across two branches give distinct UHIDs', async () => {
@@ -998,5 +1057,510 @@ describe('Patients registry endpoints (HTTP)', () => {
       where: { tenantId: northTenantId, entityType: 'patient' },
     });
     expect(afterSearch).toBe(beforeSearch);
+  });
+
+  it('GET /patients list: sorts, pagination, filters, isolation, route order, branch name', async () => {
+    const recv = await hospitalLogin(northAccess, northRecvEmail);
+    const eastTok = await hospitalLogin(northEastAccess, northRecvEmail);
+    const southTok = await hospitalLogin(southAccess, southRecvEmail);
+    const tieTime = new Date('2026-01-15T12:00:00.000Z');
+
+    const seedRows: Array<{
+      name: string;
+      phone: string;
+      createdAt: Date;
+      token: string;
+    }> = [
+      {
+        name: 'List Zebra',
+        phone: uniqueValidTestPhone(),
+        createdAt: new Date('2026-01-10T10:00:00.000Z'),
+        token: recv,
+      },
+      {
+        name: 'List Alpha',
+        phone: uniqueValidTestPhone(),
+        createdAt: tieTime,
+        token: recv,
+      },
+      {
+        name: 'List Beta',
+        phone: uniqueValidTestPhone(),
+        createdAt: tieTime,
+        token: eastTok,
+      },
+      {
+        name: 'List Middle',
+        phone: uniqueValidTestPhone(),
+        createdAt: new Date('2026-01-20T10:00:00.000Z'),
+        token: recv,
+      },
+    ];
+
+    const createdIds: string[] = [];
+    for (const row of seedRows) {
+      const res = await request(app.getHttpServer())
+        .post('/patients')
+        .set('Authorization', `Bearer ${row.token}`)
+        .send({
+          name: row.name,
+          dateOfBirth: '1990-01-01',
+          phone: row.phone,
+        });
+      expect([200, 201]).toContain(res.status);
+      createdIds.push(res.body.id);
+      // Backdate created_at for sort coverage (identity columns stay immutable).
+      await owner.patient.update({
+        where: { id: res.body.id },
+        data: { createdAt: row.createdAt },
+      });
+    }
+
+    const newest = await request(app.getHttpServer())
+      .get('/patients')
+      .query({ sort: 'newest', name: 'List', pageSize: 50 })
+      .set('Authorization', `Bearer ${recv}`)
+      .expect(200);
+    expect(newest.body.items[0].name).toBe('List Middle');
+    expect(newest.body.items[0].registeredBranchName).toBeTruthy();
+    expect(newest.body.items[0].createdAt).toBeDefined();
+    expect(newest.body.items[0].registeredBranchId).toBeDefined();
+
+    const oldest = await request(app.getHttpServer())
+      .get('/patients')
+      .query({ sort: 'oldest', name: 'List', pageSize: 50 })
+      .set('Authorization', `Bearer ${recv}`)
+      .expect(200);
+    expect(oldest.body.items[0].name).toBe('List Zebra');
+
+    const nameAsc = await request(app.getHttpServer())
+      .get('/patients')
+      .query({ sort: 'name_asc', name: 'List', pageSize: 50 })
+      .set('Authorization', `Bearer ${recv}`)
+      .expect(200);
+    const ascNames = (nameAsc.body.items as Array<{ name: string }>).map((i) => i.name);
+    expect(ascNames).toEqual([...ascNames].sort((a, b) => a.localeCompare(b)));
+
+    const nameDesc = await request(app.getHttpServer())
+      .get('/patients')
+      .query({ sort: 'name_desc', name: 'List', pageSize: 50 })
+      .set('Authorization', `Bearer ${recv}`)
+      .expect(200);
+    const descNames = (nameDesc.body.items as Array<{ name: string }>).map((i) => i.name);
+    expect(descNames[0]).toBe('List Zebra');
+
+    // created_at tie: Alpha and Beta share timestamp; id DESC for newest among ties.
+    const tiedNewest = (newest.body.items as Array<{ name: string; id: string }>).filter((i) =>
+      ['List Alpha', 'List Beta'].includes(i.name),
+    );
+    expect(tiedNewest).toHaveLength(2);
+    expect(tiedNewest[0]!.id > tiedNewest[1]!.id).toBe(true);
+
+    const page1 = await request(app.getHttpServer())
+      .get('/patients')
+      .query({ sort: 'name_asc', name: 'List', page: 1, pageSize: 2 })
+      .set('Authorization', `Bearer ${recv}`)
+      .expect(200);
+    expect(page1.body.items).toHaveLength(2);
+    expect(page1.body.total).toBeGreaterThanOrEqual(4);
+    expect(page1.body.page).toBe(1);
+    expect(page1.body.pageSize).toBe(2);
+
+    const byPhone = await request(app.getHttpServer())
+      .get('/patients')
+      .query({ phone: seedRows[0]!.phone, sort: 'newest' })
+      .set('Authorization', `Bearer ${recv}`)
+      .expect(200);
+    expect(byPhone.body.total).toBe(1);
+    expect(byPhone.body.items[0].name).toBe('List Zebra');
+
+    const byUhid = await request(app.getHttpServer())
+      .get('/patients')
+      .query({ uhid: newest.body.items[0].uhid })
+      .set('Authorization', `Bearer ${recv}`)
+      .expect(200);
+    expect(byUhid.body.total).toBe(1);
+
+    await request(app.getHttpServer())
+      .get('/patients')
+      .query({ name: 'List', phone: seedRows[0]!.phone })
+      .set('Authorization', `Bearer ${recv}`)
+      .expect(400);
+
+    const southList = await request(app.getHttpServer())
+      .get('/patients')
+      .query({ name: 'List' })
+      .set('Authorization', `Bearer ${southTok}`)
+      .expect(200);
+    expect(
+      (southList.body.items as Array<{ id: string }>).every((i) => !createdIds.includes(i.id)),
+    ).toBe(true);
+
+    // Route order: /patients is list; /patients/uhid/start-number not captured as :id;
+    // /patients/:id still works.
+    const listBare = await request(app.getHttpServer())
+      .get('/patients')
+      .set('Authorization', `Bearer ${recv}`)
+      .expect(200);
+    expect(Array.isArray(listBare.body.items)).toBe(true);
+
+    const eastName = (
+      newest.body.items as Array<{ name: string; registeredBranchName: string }>
+    ).find((i) => i.name === 'List Beta');
+    expect(eastName?.registeredBranchName).toBe('East');
+  });
+
+  describe('GET /patients list q=', () => {
+    const qPhone = '7000012399';
+    const qPhoneE164 = `+91${qPhone}`;
+    let recv: string;
+    let southTok: string;
+    let sahilId: string;
+    let sahilUhid: string;
+    let phoneId: string;
+    let digitNameId: string;
+
+    async function registerQPatient(name: string, phone: string) {
+      const res = await request(app.getHttpServer())
+        .post('/patients')
+        .set('Authorization', `Bearer ${recv}`)
+        .send({ name, dateOfBirth: '1990-01-01', phone });
+      expect([200, 201]).toContain(res.status);
+      return res.body as { id: string; uhid: string };
+    }
+
+    beforeAll(async () => {
+      recv = await hospitalLogin(northAccess, northRecvEmail);
+      southTok = await hospitalLogin(southAccess, southRecvEmail);
+      const sahil = await registerQPatient('Seed Sahil Sharma', uniqueValidTestPhone());
+      sahilId = sahil.id;
+      sahilUhid = sahil.uhid;
+      const byPhone = await registerQPatient('Qtest Phone Only', qPhone);
+      phoneId = byPhone.id;
+      const digitName = await registerQPatient('700 Club Member', uniqueValidTestPhone());
+      digitNameId = digitName.id;
+    });
+
+    it('matches name prefix', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/patients')
+        .query({ q: 'Seed' })
+        .set('Authorization', `Bearer ${recv}`)
+        .expect(200);
+      expect((res.body.items as Array<{ id: string }>).some((i) => i.id === sahilId)).toBe(true);
+    });
+
+    it('matches second-word name prefix', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/patients')
+        .query({ q: 'sahil' })
+        .set('Authorization', `Bearer ${recv}`)
+        .expect(200);
+      expect((res.body.items as Array<{ id: string }>).some((i) => i.id === sahilId)).toBe(true);
+    });
+
+    it('matches UHID prefix with lower-case input', async () => {
+      const prefix = sahilUhid.slice(0, Math.min(4, sahilUhid.length)).toLowerCase();
+      const res = await request(app.getHttpServer())
+        .get('/patients')
+        .query({ q: prefix })
+        .set('Authorization', `Bearer ${recv}`)
+        .expect(200);
+      expect((res.body.items as Array<{ id: string }>).some((i) => i.id === sahilId)).toBe(true);
+    });
+
+    it('matches phone prefix with spaces', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/patients')
+        .query({ q: '700 00' })
+        .set('Authorization', `Bearer ${recv}`)
+        .expect(200);
+      expect(
+        (res.body.items as Array<{ id: string; phone: string }>).some((i) => i.id === phoneId),
+      ).toBe(true);
+      expect(
+        (res.body.items as Array<{ id: string; phone: string }>).find((i) => i.id === phoneId)
+          ?.phone,
+      ).toBe(qPhoneE164);
+    });
+
+    it('matches phone prefix with +91', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/patients')
+        .query({ q: '+91 700' })
+        .set('Authorization', `Bearer ${recv}`)
+        .expect(200);
+      expect((res.body.items as Array<{ id: string }>).some((i) => i.id === phoneId)).toBe(true);
+    });
+
+    it('matches digits-only q across name and phone fields', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/patients')
+        .query({ q: '700' })
+        .set('Authorization', `Bearer ${recv}`)
+        .expect(200);
+      const ids = (res.body.items as Array<{ id: string }>).map((i) => i.id);
+      expect(ids).toEqual(expect.arrayContaining([phoneId, digitNameId]));
+    });
+
+    it('treats LIKE wildcards in q as literals', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/patients')
+        .query({ q: '%%' })
+        .set('Authorization', `Bearer ${recv}`)
+        .expect(200);
+      expect(res.body.total).toBe(0);
+      const under = await request(app.getHttpServer())
+        .get('/patients')
+        .query({ q: '__' })
+        .set('Authorization', `Bearer ${recv}`)
+        .expect(200);
+      expect(under.body.total).toBe(0);
+    });
+
+    it('rejects q combined with another filter', async () => {
+      await request(app.getHttpServer())
+        .get('/patients')
+        .query({ q: 'Seed', name: 'Seed' })
+        .set('Authorization', `Bearer ${recv}`)
+        .expect(400);
+    });
+
+    it('rejects q shorter than every applicable minimum', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/patients')
+        .query({ q: 'a' })
+        .set('Authorization', `Bearer ${recv}`)
+        .expect(400);
+      expect(res.body.fieldErrors?.q).toBe('INVALID');
+    });
+
+    it('keeps tenant isolation for q', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/patients')
+        .query({ q: 'sahil' })
+        .set('Authorization', `Bearer ${southTok}`)
+        .expect(200);
+      expect((res.body.items as Array<{ id: string }>).every((i) => i.id !== sahilId)).toBe(true);
+    });
+
+    it('applies sort and pagination with q', async () => {
+      const page1 = await request(app.getHttpServer())
+        .get('/patients')
+        .query({ q: 'Qtest', sort: 'name_asc', page: 1, pageSize: 1 })
+        .set('Authorization', `Bearer ${recv}`)
+        .expect(200);
+      expect(page1.body.items).toHaveLength(1);
+      expect(page1.body.page).toBe(1);
+      expect(page1.body.pageSize).toBe(1);
+      expect(page1.body.total).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  it('form-config returns sections; fieldErrors on validation; pincode INVALID', async () => {
+    const recv = await hospitalLogin(northAccess, northRecvEmail);
+    const cfg = await request(app.getHttpServer())
+      .get('/patients/form-config')
+      .set('Authorization', `Bearer ${recv}`)
+      .expect(200);
+    const fields = cfg.body.fields as Array<{
+      key?: string;
+      code?: string;
+      section: string;
+      required: boolean;
+    }>;
+    expect(fields.every((f) => typeof f.section === 'string')).toBe(true);
+    expect(fields.find((f) => f.key === 'name')?.section).toBe('PERSONAL');
+    expect(fields.find((f) => f.key === 'phone')?.section).toBe('CONTACT');
+    expect(fields.find((f) => f.key === 'phone')?.required).toBe(true);
+    expect(fields.find((f) => f.key === 'date_of_birth')?.required).toBe(true);
+    expect(fields.find((f) => f.code === 'title')?.section).toBe('RELATIVE');
+
+    const both = await request(app.getHttpServer())
+      .post('/patients')
+      .set('Authorization', `Bearer ${recv}`)
+      .send({ name: 'Both Err', dateOfBirth: '1990-01-01', ageYears: 30, phone: '9111222334' })
+      .expect(400);
+    expect(both.body.fieldErrors.date_of_birth).toBe('AGE_AND_DOB_BOTH');
+    expect(both.body.fieldErrors.ageYears).toBe('AGE_AND_DOB_BOTH');
+    expect(both.body.message).toBe('Send dateOfBirth or ageYears, not both');
+
+    const missing = await request(app.getHttpServer())
+      .post('/patients')
+      .set('Authorization', `Bearer ${recv}`)
+      .send({ name: 'No Phone Age' })
+      .expect(400);
+    expect(missing.body.fieldErrors.phone).toBe('REQUIRED');
+    expect(missing.body.fieldErrors.date_of_birth).toBe('REQUIRED');
+
+    const badPin = await request(app.getHttpServer())
+      .post('/patients')
+      .set('Authorization', `Bearer ${recv}`)
+      .send({
+        name: 'Bad Pin',
+        dateOfBirth: '1990-01-01',
+        phone: uniqueValidTestPhone(),
+        addressPincode: '12ab',
+      })
+      .expect(400);
+    expect(badPin.body.fieldErrors.address_pincode).toBe('INVALID');
+
+    const okPin = await request(app.getHttpServer())
+      .post('/patients')
+      .set('Authorization', `Bearer ${recv}`)
+      .send({
+        name: 'Good Pin',
+        dateOfBirth: '1990-01-01',
+        phone: uniqueValidTestPhone(),
+        addressPincode: '560001',
+      });
+    expect([200, 201]).toContain(okPin.status);
+
+    // Custom field with RELATIVE section already asserted via title above.
+    const relative = fields.filter((f) => f.section === 'RELATIVE');
+    expect(relative.some((f) => f.code === 'title')).toBe(true);
+  });
+
+  it('POST returns name REQUIRED, phone INVALID and address_pincode INVALID together', async () => {
+    const recv = await hospitalLogin(northAccess, northRecvEmail);
+    const res = await request(app.getHttpServer())
+      .post('/patients')
+      .set('Authorization', `Bearer ${recv}`)
+      .send({ phone: '123', addressPincode: '560' })
+      .expect(400);
+    expect(res.body.fieldErrors).toMatchObject({
+      name: 'REQUIRED',
+      phone: 'INVALID',
+      address_pincode: 'INVALID',
+    });
+    expect(res.body.message).toBeDefined();
+  });
+
+  it('POST returns AGE_AND_DOB_BOTH and phone INVALID together', async () => {
+    const recv = await hospitalLogin(northAccess, northRecvEmail);
+    const res = await request(app.getHttpServer())
+      .post('/patients')
+      .set('Authorization', `Bearer ${recv}`)
+      .send({
+        name: 'Both And Phone',
+        dateOfBirth: '1990-01-01',
+        ageYears: 30,
+        phone: '12',
+      })
+      .expect(400);
+    expect(res.body.fieldErrors.date_of_birth).toBe('AGE_AND_DOB_BOTH');
+    expect(res.body.fieldErrors.ageYears).toBe('AGE_AND_DOB_BOTH');
+    expect(res.body.fieldErrors.phone).toBe('INVALID');
+  });
+
+  it('PATCH cannot blank name, phone, or age/date of birth; email-only PATCH still works', async () => {
+    const recv = await hospitalLogin(northAccess, northRecvEmail);
+    const created = await request(app.getHttpServer())
+      .post('/patients')
+      .set('Authorization', `Bearer ${recv}`)
+      .send({
+        name: 'Patch Guard',
+        dateOfBirth: '1990-01-01',
+        phone: uniqueValidTestPhone(),
+        email: 'patch-guard@example.test',
+      });
+    expect([200, 201]).toContain(created.status);
+    const id = created.body.id as string;
+
+    const blankName = await request(app.getHttpServer())
+      .patch(`/patients/${id}`)
+      .set('Authorization', `Bearer ${recv}`)
+      .send({ name: '' })
+      .expect(400);
+    expect(blankName.body.fieldErrors.name).toBe('REQUIRED');
+
+    const blankPhone = await request(app.getHttpServer())
+      .patch(`/patients/${id}`)
+      .set('Authorization', `Bearer ${recv}`)
+      .send({ phone: '' })
+      .expect(400);
+    expect(blankPhone.body.fieldErrors.phone).toBe('REQUIRED');
+
+    const blankDob = await request(app.getHttpServer())
+      .patch(`/patients/${id}`)
+      .set('Authorization', `Bearer ${recv}`)
+      .send({ dateOfBirth: null })
+      .expect(400);
+    expect(blankDob.body.fieldErrors.date_of_birth).toBe('REQUIRED');
+
+    const emailOnly = await request(app.getHttpServer())
+      .patch(`/patients/${id}`)
+      .set('Authorization', `Bearer ${recv}`)
+      .send({ email: 'patched-only@example.test' });
+    expect([200, 201]).toContain(emailOnly.status);
+    expect(emailOnly.body.id).toBe(id);
+
+    const detail = await request(app.getHttpServer())
+      .get(`/patients/${id}`)
+      .set('Authorization', `Bearer ${recv}`)
+      .expect(200);
+    expect(detail.body.email).toBe('patched-only@example.test');
+    expect(detail.body.name).toBe('Patch Guard');
+  });
+
+  it('form-config sections: custom without section is OTHER; RELATIVE stays RELATIVE; built-ins use catalog defaults', async () => {
+    const recv = await hospitalLogin(northAccess, northRecvEmail);
+    const actor = await owner.user.findFirstOrThrow({
+      where: { tenantId: northTenantId, email: northRecvEmail },
+    });
+    const otherField = await owner.patientCustomField.create({
+      data: {
+        tenantId: northTenantId,
+        code: `sec_other_${Date.now()}`,
+        label: 'Sectionless custom',
+        dataType: 'TEXT',
+      },
+    });
+    await owner.patientFieldSetting.create({
+      data: {
+        tenantId: northTenantId,
+        customFieldId: otherField.id,
+        isEnabled: true,
+        isRequired: false,
+        label: 'Sectionless custom',
+        sortOrder: 200,
+        changedBy: actor.id,
+      },
+    });
+    const relativeField = await owner.patientCustomField.create({
+      data: {
+        tenantId: northTenantId,
+        code: `sec_rel_${Date.now()}`,
+        label: 'Relative custom',
+        dataType: 'TEXT',
+        section: 'RELATIVE',
+      },
+    });
+    await owner.patientFieldSetting.create({
+      data: {
+        tenantId: northTenantId,
+        customFieldId: relativeField.id,
+        isEnabled: true,
+        isRequired: false,
+        label: 'Relative custom',
+        sortOrder: 201,
+        changedBy: actor.id,
+      },
+    });
+
+    const cfg = await request(app.getHttpServer())
+      .get('/patients/form-config')
+      .set('Authorization', `Bearer ${recv}`)
+      .expect(200);
+    const fields = cfg.body.fields as Array<{
+      key?: string;
+      code?: string;
+      section: string;
+    }>;
+    expect(fields.find((f) => f.code === otherField.code)?.section).toBe('OTHER');
+    expect(fields.find((f) => f.code === relativeField.code)?.section).toBe('RELATIVE');
+    expect(fields.find((f) => f.key === 'name')?.section).toBe('PERSONAL');
+    expect(fields.find((f) => f.key === 'phone')?.section).toBe('CONTACT');
+    expect(fields.find((f) => f.key === 'address_pincode')?.section).toBe('ADDRESS');
   });
 });

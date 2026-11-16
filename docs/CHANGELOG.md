@@ -29,6 +29,84 @@
 
 ## Unreleased
 
+## 2026-11-16 — Phase 2 Step 3c — GET /patients free-text q (API)
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** optional `q` on `GET /patients` (name/UHID/phone prefix OR arms; LIKE wildcards escaped); helpers in `patients-list-q.ts`
+- **Changed:** list SQL composed with `Prisma.sql` parameters; sort still fixed fragments
+- **Removed:** none
+- **Fixed:** none
+- **Database (migrations, roles, RLS):** none (no `pg_trgm` yet)
+- **New .env keys (names only):** `PATIENT_LIST_Q_MAX_LENGTH`, `PATIENT_LIST_Q_MIN_NAME_LENGTH`, `PATIENT_LIST_Q_MIN_UHID_LENGTH`, `PATIENT_LIST_Q_MIN_PHONE_DIGITS`
+- **Tests:** API suite green after q cases (see report count)
+- **Decisions:** `q` cannot combine with `uhid`/`phone`/`name`; too-short `q` → `fieldErrors.q = INVALID`; contains-search and `pg_trgm` deferred
+- **Follow-ups and open items:** consider `pg_trgm` when tables grow; contains phone search not supported
+
+## 2026-11-16 — Phase 2 Step 3c — reception patients UI density and search (web)
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** density tokens (`--size-control`, `--size-table-row`, `--space-field-gap`, `--space-form-section-gap`); patient form 12-col grid spans from `config/patients.ts`; DataTable optional sortable headers; PageHeader `backHref`; unified patients search toolbar + classifyQuery modes
+- **Changed:** app shell viewport lock (fixed sidebar/top bar, only main scrolls); patients list URL `q`/`sort`/`col`; register/edit form denser layout with Age/DOB single cell (default Age) and header Register/Cancel via `form` attribute; UI kit controls ~32px / 13px body
+- **Removed:** top-bar patient search (box, `/` shortcut, top-bar `q` handling) and its copy keys
+- **Fixed:** none
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** none
+- **Tests:** web suite green after U1–U5 (see final report count)
+- **Decisions:** leaving a half-filled register/edit form via Back discards silently (no confirm); phone display grouping from config; API search modes unchanged (name prefix, phone exact normalized, UHID exact)
+- **Follow-ups and open items:** none for this UI pass
+
+## 2026-11-16 — Phase 2 Step 3c — merge all patient fieldErrors in one 400 (API)
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** `HospigoValidationPipe` soft-validates register/update bodies so DTO codes reach the service
+- **Changed:** POST/PATCH `/patients` merge DTO + service fieldErrors into one 400 (no double-report per field); `message` shape unchanged
+- **Removed:** none
+- **Fixed:** missing name no longer hides phone/pincode/age-or-DOB errors
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** none
+- **Tests:** 260 passing in `@hospigo/api` (was 254; merged fieldErrors + settings/seed specs)
+- **Decisions:** DTO code wins when both stages flag the same field; refresh cookie path unchanged (web-only concern)
+- **Follow-ups and open items:** none for this slice
+
+## 2026-11-16 — Phase 2 Step 3c — patients list, compact form, silent refresh (web)
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** real `/app/patients` list from `GET /api/staff/patients` (sort/page/filter in URL); form sections from form-config with RELATIVE disclosure; required asterisks + fieldErrors mapping; `POST /api/auth/refresh-session` + `patientsApi` one-shot silent retry
+- **Changed:** register/edit form compact grid and client-side all-fields validation with summary count; search row uses reserved hint space so Search does not jump; EmptyState optional action for write permission
+- **Removed:** top-level “Enter a valid value” form banner as the primary validation UX
+- **Fixed:** none
+- **Database (migrations, roles, RLS):** none (web only)
+- **New .env keys (names only):** `WEB_PATIENT_LIST_SORT_DEFAULT`, `WEB_PATIENT_PHONE_COUNTRY_PREFIX`, `WEB_PATIENT_PHONE_NATIONAL_LENGTH`, `WEB_PATIENT_PINCODE_LENGTH`, `WEB_PATIENT_AGE_MIN`, `WEB_PATIENT_AGE_MAX`, `WEB_PATIENT_AGE_MAX_DIGITS`, `WEB_PATIENT_DATE_LOCALE`
+- **Tests:** 243 passing in `@hospigo/web` (was 237; list/form/session/handler specs)
+- **Decisions:** refresh cookie path stays `/api/auth` (new refresh-session under that path); access token never in browser; form fields/sections/required only from form-config; list phone shown as stored
+- **Follow-ups and open items:** edit still cannot clear a previously filled field (PATCH omits empties); visits/bills tabs remain placeholders
+
+## 2026-11-16 — Phase 2 Step 3c — patient list, required fields, fieldErrors, sections, seed (API)
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** `GET /patients` list/browse (sort newest/oldest/name_asc/name_desc; optional single filter; `createdAt` + `registeredBranchName`); `fieldErrors` codes on POST/PATCH validation 400s; form-config `section`; ~60 fake patients per DEMO hospital via `UhidService.allocateNextUhid`
+- **Changed:** name, phone, and age-or-DOB always required (catalog `alwaysRequired` / combined rule); pincode must be 6 digits when provided; ValidationPipe exception factory attaches `fieldErrors`
+- **Removed:** none
+- **Fixed:** none
+- **Database (migrations, roles, RLS):** `20261116180000_patient_list_sections_required` — patients `(tenant_id, created_at, id)` index; `patient_field_section` enum; catalog `default_section`; custom field `section`; phone + date_of_birth always required
+- **New .env keys (names only):** none
+- **Tests:** API registry list/sections/fieldErrors/pincode; seed guard + idempotent patient counts; register fixtures use shared phone helper
+- **Decisions:** list is a new endpoint (search unchanged); custom fieldErrors keys use `custom.<code>`; ageYears appears in fieldErrors only for AGE_AND_DOB_BOTH; patient seed skips when tenant already has ≥ 60 patients
+- **Follow-ups and open items:** web list UI and required-phone form wiring
+
+## 2026-11-16 — Phase 2 Step 3c — reception patient screens (web)
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** `/app/patients` search (UHID / phone / name, `?q=` prefill + single auto-run, paging, side-panel quick view); `/app/patients/new` and `/app/patients/[id]/edit` shared `PatientForm` (age-or-DOB select sends one value, six address fields, TEXT/NUMBER/DATE/DROPDOWN custom fields, inline duplicate panel with register-anyway); `/app/patients/[id]` record tabs; `/app/patients/[id]/slip` print view with `@page` size injected from `patientsWebConfig.slipPaperSize`; Settings UHID start-number card (GET/PUT through `/api/staff/patients/uhid/start-number`); `lib/patients/{client,format,payload}.ts` fetch/format/body helpers; print CSS (`.patient-slip`, `.patient-slip-print-root`, `.no-print`) and `--size-side-panel` / `--size-slip-max` tokens in `globals.css`
+- **Changed:** settings page now renders the UHID card (`canWrite` from `hospital.settings.write`); `components/patients` added to `staff-ui-copy-scan` roots; four `auth-handlers.spec` upstream-error mocks now supply `text()` to match the size-capped body read in `api-client`; Prettier applied to staff route handlers and two plumbing specs
+- **Removed:** placeholder empty states on the patients and settings pages
+- **Fixed:** settings page referenced copy keys that no longer exist
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** `WEB_STAFF_UPSTREAM_ERROR_BODY_MAX_BYTES`, `WEB_PATIENT_SEARCH_MIN_NAME_LENGTH`, `WEB_PATIENT_SEARCH_PAGE_SIZE`, `WEB_PATIENT_SEARCH_MAX_PAGE_SIZE`, `WEB_PATIENT_SLIP_PAPER_SIZE`
+- **Tests:** 237 passing in `@hospigo/web` (was 155; plumbing + reception screens)
+- **Decisions:** search limits and slip paper size are read on the server and passed to client components as props (non-`NEXT_PUBLIC` env is not in the browser bundle); upstream error text is never shown, only `staffCopy.errors.*`; edit sends only changed non-empty fields and skips PATCH when nothing changed; after PATCH `{ id }` the record page refetches via GET; print hides shell chrome (`.shell-root` siblings of the main column, top bar, `.no-print`)
+- **Follow-ups and open items:** clearing a previously filled field on edit is not possible through the current PATCH contract; visits and bills tabs are placeholders
+
 ## 2026-11-16 — Phase 2 Step 3c Chunk 0a — UHID start-number GET + current-period PUT
 
 - **Commit hash(es):** (uncommitted)

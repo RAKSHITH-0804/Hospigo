@@ -1,4 +1,8 @@
 import type { PrismaClient } from '../../src/generated/prisma';
+import {
+  BUILTIN_FIELD_DEFAULT_SECTION,
+  PatientFieldSection,
+} from '../../src/modules/patients/patient-field-sections';
 
 const MODULES = [
   { code: 'OPD', name: 'Outpatient' },
@@ -55,6 +59,7 @@ export async function seedReferenceData(prisma: PrismaClient): Promise<void> {
         dataType: item.dataType,
         canDisable: item.canDisable,
         alwaysRequired: item.alwaysRequired,
+        defaultSection: item.defaultSection,
       },
     });
   }
@@ -70,6 +75,7 @@ const PATIENT_FIELD_CATALOG = [
     dataType: 'TEXT',
     canDisable: false,
     alwaysRequired: true,
+    defaultSection: BUILTIN_FIELD_DEFAULT_SECTION.name ?? PatientFieldSection.PERSONAL,
   },
   {
     key: 'gender',
@@ -77,20 +83,23 @@ const PATIENT_FIELD_CATALOG = [
     dataType: 'TEXT',
     canDisable: true,
     alwaysRequired: false,
+    defaultSection: BUILTIN_FIELD_DEFAULT_SECTION.gender ?? PatientFieldSection.PERSONAL,
   },
   {
     key: 'date_of_birth',
     defaultLabel: 'Date of birth',
     dataType: 'DATE',
-    canDisable: true,
-    alwaysRequired: false,
+    canDisable: false,
+    alwaysRequired: true,
+    defaultSection: BUILTIN_FIELD_DEFAULT_SECTION.date_of_birth ?? PatientFieldSection.PERSONAL,
   },
   {
     key: 'phone',
     defaultLabel: 'Phone',
     dataType: 'TEXT',
-    canDisable: true,
-    alwaysRequired: false,
+    canDisable: false,
+    alwaysRequired: true,
+    defaultSection: BUILTIN_FIELD_DEFAULT_SECTION.phone ?? PatientFieldSection.CONTACT,
   },
   {
     key: 'email',
@@ -98,6 +107,7 @@ const PATIENT_FIELD_CATALOG = [
     dataType: 'TEXT',
     canDisable: true,
     alwaysRequired: false,
+    defaultSection: BUILTIN_FIELD_DEFAULT_SECTION.email ?? PatientFieldSection.CONTACT,
   },
   {
     key: 'address_street',
@@ -105,6 +115,7 @@ const PATIENT_FIELD_CATALOG = [
     dataType: 'TEXT',
     canDisable: true,
     alwaysRequired: false,
+    defaultSection: BUILTIN_FIELD_DEFAULT_SECTION.address_street ?? PatientFieldSection.ADDRESS,
   },
   {
     key: 'address_cross',
@@ -112,6 +123,7 @@ const PATIENT_FIELD_CATALOG = [
     dataType: 'TEXT',
     canDisable: true,
     alwaysRequired: false,
+    defaultSection: BUILTIN_FIELD_DEFAULT_SECTION.address_cross ?? PatientFieldSection.ADDRESS,
   },
   {
     key: 'address_area',
@@ -119,6 +131,7 @@ const PATIENT_FIELD_CATALOG = [
     dataType: 'TEXT',
     canDisable: true,
     alwaysRequired: false,
+    defaultSection: BUILTIN_FIELD_DEFAULT_SECTION.address_area ?? PatientFieldSection.ADDRESS,
   },
   {
     key: 'address_city',
@@ -126,6 +139,7 @@ const PATIENT_FIELD_CATALOG = [
     dataType: 'TEXT',
     canDisable: true,
     alwaysRequired: false,
+    defaultSection: BUILTIN_FIELD_DEFAULT_SECTION.address_city ?? PatientFieldSection.ADDRESS,
   },
   {
     key: 'address_state',
@@ -133,6 +147,7 @@ const PATIENT_FIELD_CATALOG = [
     dataType: 'TEXT',
     canDisable: true,
     alwaysRequired: false,
+    defaultSection: BUILTIN_FIELD_DEFAULT_SECTION.address_state ?? PatientFieldSection.ADDRESS,
   },
   {
     key: 'address_pincode',
@@ -140,6 +155,7 @@ const PATIENT_FIELD_CATALOG = [
     dataType: 'TEXT',
     canDisable: true,
     alwaysRequired: false,
+    defaultSection: BUILTIN_FIELD_DEFAULT_SECTION.address_pincode ?? PatientFieldSection.ADDRESS,
   },
 ] as const;
 

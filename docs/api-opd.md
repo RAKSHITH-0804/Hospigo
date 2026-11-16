@@ -6,7 +6,7 @@ Fake data only. Grows with each OPD step.
 
 | Code                      | Used by                            |
 | ------------------------- | ---------------------------------- |
-| `patients.registry.read`  | form-config, search, detail        |
+| `patients.registry.read`  | form-config, list, search, detail  |
 | `patients.registry.write` | register, update                   |
 | `hospital.settings.read`  | UHID start-number GET (preview)    |
 | `hospital.settings.write` | UHID start-number PUT (raise-only) |
@@ -29,7 +29,8 @@ All patient routes require a **HOSPITAL** access token and (except start-number)
       "label": "Full name",
       "dataType": "TEXT",
       "required": true,
-      "sortOrder": 0
+      "sortOrder": 0,
+      "section": "PERSONAL"
     },
     {
       "code": "title",
@@ -37,13 +38,60 @@ All patient routes require a **HOSPITAL** access token and (except start-number)
       "dataType": "DROPDOWN",
       "required": false,
       "sortOrder": 100,
+      "section": "RELATIVE",
       "options": [{ "id": "clx…", "label": "Mr", "sortOrder": 0 }]
     }
   ]
 }
 ```
 
-`name` is always present and required.
+Fields are ordered by section (`PERSONAL`, `CONTACT`, `ADDRESS`, `RELATIVE`, `OTHER`) then `sortOrder`. Built-in `section` comes from the catalog; custom fields store their own `section` (default `OTHER`).
+
+**Always required (cannot be disabled by hospital settings):** `name`, `phone`, and age-or-DOB (`date_of_birth` / `ageYears` — exactly one).
+
+---
+
+## GET /patients
+
+**Permission:** `patients.registry.read` (+ OPD module)
+
+Declared before `GET /patients/:id`.
+
+**Query:** optional `sort` = `newest` | `oldest` | `name_asc` | `name_desc` (default `newest`); optional `page`, `pageSize` (same cap as search: `PATIENT_SEARCH_MAX_PAGE_SIZE`); optional at most one of `uhid`, `phone`, `name` (same normalisation / min-name rules as search); **or** optional free-text `q` (trimmed, max `PATIENT_LIST_Q_MAX_LENGTH`). `q` cannot be combined with `uhid` / `phone` / `name`. No filter = list all active patients.
+
+**`q` matching (case-insensitive, any arm):** name prefix or word-prefix when `q` length ≥ `PATIENT_LIST_Q_MIN_NAME_LENGTH` (default 2); UHID prefix when length ≥ `PATIENT_LIST_Q_MIN_UHID_LENGTH` (default 2); phone national-number prefix when `q` has ≥ `PATIENT_LIST_Q_MIN_PHONE_DIGITS` digits (default 3) — spaces/dashes stripped, and a leading `+` / `91` removed only when `q` starts with `+`. LIKE wildcards in `q` are escaped (literal). Too short for every arm → `400` with `fieldErrors.q = INVALID`.
+
+**Known limits:** contains-search (e.g. last digits of a phone) is not supported; very large tables would need a `pg_trgm` index (not added yet).
+
+**Sort:** `newest` = `created_at DESC, id DESC`; `oldest` = `created_at ASC, id ASC`; `name_asc` / `name_desc` = `lower(name)` then `id`.
+
+**Response 200**
+
+```json
+{
+  "items": [
+    {
+      "id": "clxpatient01",
+      "uhid": "NREG0001",
+      "name": "Mock Alpha",
+      "gender": "F",
+      "dateOfBirth": "1990-01-15",
+      "ageYears": 36,
+      "dobIsEstimated": false,
+      "phone": "+919876543210",
+      "registeredBranchId": "clxbranch01",
+      "registeredBranchName": "Main",
+      "isActive": true,
+      "createdAt": "2026-01-15T12:00:00.000Z"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "pageSize": 20
+}
+```
+
+**Errors:** `400` when more than one filter, `q` with another filter, invalid sort, name too short, or `q` too short / too long (`fieldErrors.q`).
 
 ---
 
@@ -115,9 +163,11 @@ Registering branch = **active branch from the token** (never from the body).
 }
 ```
 
-Alternative to `dateOfBirth`: `ageYears` (integer) → estimated DOB in hospital timezone, `dobIsEstimated: true`. Sending both → `400`.
+Alternative to `dateOfBirth`: `ageYears` (integer) → estimated DOB in hospital timezone, `dobIsEstimated: true`. Exactly one of `dateOfBirth` or `ageYears` is required; both → `400` with `AGE_AND_DOB_BOTH`.
 
-Phone (when present) must be a valid Indian mobile; stored as `+91XXXXXXXXXX`. Required only when the hospital field setting says so.
+Phone is always required: valid Indian mobile, stored as `+91XXXXXXXXXX`.
+
+`addressPincode` when provided must be exactly 6 digits (`PATIENT_PINCODE_LENGTH`); otherwise `fieldErrors.address_pincode = INVALID`. Optional unless the hospital marks it required.
 
 **Response 200/201**
 
@@ -131,8 +181,26 @@ Audit `PATIENT_REGISTER` with metadata `{ uhid, branchId }` only.
 
 | Status | Code / meaning                                                                                                               |
 | ------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| 400    | Validation / required field / both age and DOB / invalid phone                                                               |
+| 400    | Validation body (below)                                                                                                      |
 | 409    | `{ "statusCode": 409, "code": "POSSIBLE_DUPLICATE", "matches": [{ "id", "uhid", "name" }] }` unless `confirmDuplicate: true` |
+
+**400 `fieldErrors` (codes only; `message` kept for compatibility)**
+
+```json
+{
+  "statusCode": 400,
+  "message": "Send dateOfBirth or ageYears, not both",
+  "error": "Bad Request",
+  "fieldErrors": {
+    "date_of_birth": "AGE_AND_DOB_BOTH",
+    "ageYears": "AGE_AND_DOB_BOTH"
+  }
+}
+```
+
+- **Codes:** `REQUIRED`, `INVALID`, `AGE_AND_DOB_BOTH`
+- **Keys:** form-config catalog keys for built-ins (`name`, `phone`, `date_of_birth`, `address_pincode`, …); `custom.<code>` for custom fields; `ageYears` for the DTO age field when both age and DOB are sent
+- One 400 returns every `fieldErrors` entry together: class-validator DTO codes are merged with service checks (phone, pincode, age-or-DOB, required customs); each field keeps a single code
 
 ---
 
@@ -140,7 +208,7 @@ Audit `PATIENT_REGISTER` with metadata `{ uhid, branchId }` only.
 
 **Permission:** `patients.registry.write` (+ OPD module)
 
-Partial update of the same fields as register. Sending `uhid`, `tenantId`, or `registeredBranchId` → `400`. Database trigger also refuses mutating `uhid` / `registered_branch_id`.
+Partial update of the same fields as register. Sending `uhid`, `tenantId`, or `registeredBranchId` → `400`. Database trigger also refuses mutating `uhid` / `registered_branch_id`. A patch may not blank always-required name, phone, or age-or-DOB. Same `fieldErrors` shape as POST on validation failure.
 
 Audit `PATIENT_UPDATE` with metadata `{ changedFields: [...] }` only (no old/new values).
 

@@ -16,6 +16,7 @@ import {
 } from '../../database/db-test.util';
 import { PrismaClient } from '../../generated/prisma';
 import { PatientFieldsService } from './patient-fields.service';
+import { testRegisterIdentity } from './test-register.helpers';
 import { PatientsService } from './patients.service';
 import { UhidService } from './uhid.service';
 
@@ -529,10 +530,10 @@ describe('UHID database-level rules + true concurrency (hospigo_test only)', () 
           const patients = makePatients(prisma, clock);
           await barrier();
           return patients.register({
+            ...testRegisterIdentity({ name: `Parallel ${i}` }),
             tenantId: hospital.id,
             registeredBranchId: i % 2 === 0 ? main : east,
             createdBy: actor.id,
-            name: `Parallel ${i}`,
           });
         });
 
@@ -627,10 +628,10 @@ describe('UHID database-level rules + true concurrency (hospigo_test only)', () 
           await barrier();
           const svc = i % 2 === 0 ? patientsA : patientsB;
           return svc.register({
+            ...testRegisterIdentity({ name: `Dual ${i}` }),
             tenantId: hospital.id,
             registeredBranchId: i % 2 === 0 ? main : east,
             createdBy: actor.id,
-            name: `Dual ${i}`,
           });
         });
         const results = await Promise.all(jobs);
@@ -708,19 +709,19 @@ describe('UHID database-level rules + true concurrency (hospigo_test only)', () 
       try {
         const patients = makePatients(prisma, clock);
         const before = await patients.register({
+          ...testRegisterIdentity({ name: 'Before boundary' }),
           tenantId: hospital.id,
           registeredBranchId: hospital.branches[0]!.id,
           createdBy: actor.id,
-          name: 'Before boundary',
         });
         expect(before.uhid).toBe('NV0001');
 
         clock.set(new Date('2026-03-31T18:30:00.000Z')); // 1 Apr 00:00 IST
         const after = await patients.register({
+          ...testRegisterIdentity({ name: 'After boundary' }),
           tenantId: hospital.id,
           registeredBranchId: hospital.branches[0]!.id,
           createdBy: actor.id,
-          name: 'After boundary',
         });
         expect(after.uhid).toBe('NV0002');
 
@@ -791,20 +792,20 @@ describe('UHID database-level rules + true concurrency (hospigo_test only)', () 
       try {
         const patients = makePatients(prisma, clock);
         const before = await patients.register({
+          ...testRegisterIdentity({ name: 'FY before' }),
           tenantId: hospital.id,
           registeredBranchId: hospital.branches[0]!.id,
           createdBy: actor.id,
-          name: 'FY before',
         });
         expect(before.uhid.startsWith('2526/')).toBe(true);
         expect(before.uhid.endsWith('00001')).toBe(true);
 
         clock.set(new Date('2026-03-31T18:30:00.000Z'));
         const after = await patients.register({
+          ...testRegisterIdentity({ name: 'FY after' }),
           tenantId: hospital.id,
           registeredBranchId: hospital.branches[0]!.id,
           createdBy: actor.id,
-          name: 'FY after',
         });
         expect(after.uhid).toBe('2627/00001');
       } finally {
