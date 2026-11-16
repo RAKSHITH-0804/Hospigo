@@ -122,10 +122,11 @@ Returns: `id`, `displayName`, `email`, `kind` (`HOSPITAL` \| `HQ`), `hospitalNam
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | `branches`       | Assigned active branches: `{ id, name, isMain }[]`                                                                                              | `[]` |
 | `enabledModules` | Modules enabled for the **active branch** (hospital subscription **and** branch_modules flags, same rules as AccessService): `{ code, name }[]` | `[]` |
+| `permissions`    | Permission codes allowed on the **active branch** (same snapshot as `AccessService.can` without a module gate); sorted, unique                  | `[]` |
 
 Tenant ids and module lists come from the access token context — never from client-supplied ids. Never password hashes, tokens, or other tenants’ data.
 
-**Web shell (Step 7):** hospital `/app` layout reads this profile for hospital title, active branch label, and sidebar items via `apps/web/src/config/modules.ts` (`MODULE_NAV_BY_CODE`). Dashboard is always shown. Module routes use `requireModule` and redirect to `/app?notice=module-unavailable` when not enabled.
+**Web shell (Step 7 / 3b):** hospital `/app` layout reads this profile for hospital title, active branch, sidebar items via `apps/web/src/config/modules.ts`, and `permissions` (Patients nav + `requirePermission`). Module routes use `requireModule` → `/app?notice=module-unavailable`; permission routes → `/app?notice=no-permission`.
 
 ## Errors
 

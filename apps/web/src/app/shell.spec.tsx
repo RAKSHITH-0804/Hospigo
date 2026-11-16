@@ -36,7 +36,7 @@ jest.mock('@/lib/auth/guards', () => ({
     hospitalName: kind === 'HOSPITAL' ? 'Demo Hospital One' : null,
     activeBranchId: kind === 'HOSPITAL' ? 'b1' : null,
     activeBranchName: kind === 'HOSPITAL' ? 'North Main' : null,
-    roleCodes: [],
+    roleCodes: kind === 'HOSPITAL' ? ['RECEPTIONIST'] : ['HQ_ADMIN'],
     mustChangePassword: false,
     branches: kind === 'HOSPITAL' ? [{ id: 'b1', name: 'North Main', isMain: true }] : [],
     enabledModules:
@@ -47,6 +47,7 @@ jest.mock('@/lib/auth/guards', () => ({
             { code: 'PHARMACY', name: 'Pharmacy' },
           ]
         : [],
+    permissions: kind === 'HOSPITAL' ? ['patients.registry.read', 'patients.registry.write'] : [],
   })),
 }));
 
@@ -79,15 +80,17 @@ describe('web shell smoke', () => {
     expect(screen.getByRole('heading', { name: 'Sign in' })).toBeTruthy();
   });
 
-  it('renders the HQ page and layout with page context in the top bar', async () => {
+  it('renders the HQ page and layout with sidebar navigation', async () => {
     const layout = await AdminLayout({
       children: <HospitalsScreen loadOptions={{ delayMs: 0 }} />,
     });
     render(layout);
-    expect(screen.getAllByText('Hospigo HQ').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Hospigo').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Hospitals').length).toBeGreaterThan(0);
     expect((await screen.findAllByText('Demo Hospital One')).length).toBeGreaterThan(0);
-    expect(screen.getByText('Test User')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Account menu' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Skip to main content' })).toBeTruthy();
+    expect(screen.getByText('Powered by Indigo')).toBeTruthy();
     const current = screen
       .getAllByRole('link', { name: 'Hospitals' })
       .filter((link) => link.getAttribute('aria-current') === 'page');
@@ -100,10 +103,15 @@ describe('web shell smoke', () => {
     render(layout);
     expect(screen.getAllByText('Demo Hospital One').length).toBeGreaterThan(0);
     expect(screen.getByLabelText('Active branch').textContent).toContain('North Main');
+    expect(screen.getByRole('link', { name: 'Patients' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Dashboard' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'OPD queue' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Settings' })).toBeNull();
     expect(screen.getByText('Coming later.')).toBeTruthy();
-    expect(screen.getByText('Test User')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Account menu' })).toBeTruthy();
+    expect(screen.getByRole('search')).toBeTruthy();
+    expect(screen.getByText('Powered by Indigo')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull();
   });
 
   it('shows module unavailable notice on the dashboard', async () => {
@@ -113,6 +121,15 @@ describe('web shell smoke', () => {
     const layout = await StaffLayout({ children: page });
     render(layout);
     expect(screen.getByRole('status').textContent).toMatch(/not available/i);
+  });
+
+  it('shows no-permission notice on the dashboard', async () => {
+    const page = await StaffDashboardPage({
+      searchParams: Promise.resolve({ notice: 'no-permission' }),
+    });
+    const layout = await StaffLayout({ children: page });
+    render(layout);
+    expect(screen.getByRole('status').textContent).toMatch(/permission/i);
   });
 
   it('renders the public booking page and layout', async () => {

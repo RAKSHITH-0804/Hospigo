@@ -22,14 +22,14 @@ export const MODULE_NAV_BY_CODE: Record<string, ModuleNavConfig> = {
 
 export type EnabledModuleRef = { code: string; name: string };
 
-export type ShellNavItem = { href: string; label: string };
+export type ShellNavItem = { href: string; label: string; icon?: string };
 
 /**
  * Build sidebar items: Dashboard first, then enabled modules present in the mapping.
  * Unknown codes are skipped (no hardcoding of a full hospital menu).
  */
 export function shellNavFromEnabledModules(modules: EnabledModuleRef[]): ShellNavItem[] {
-  const items: ShellNavItem[] = [{ href: '/app', label: 'Dashboard' }];
+  const items: ShellNavItem[] = [{ href: '/app', label: 'Dashboard', icon: 'dashboard' }];
   const seenHrefs = new Set<string>(['/app']);
   for (const mod of modules) {
     const cfg = MODULE_NAV_BY_CODE[mod.code];
@@ -40,7 +40,7 @@ export function shellNavFromEnabledModules(modules: EnabledModuleRef[]): ShellNa
       continue;
     }
     seenHrefs.add(cfg.href);
-    items.push({ href: cfg.href, label: cfg.label });
+    items.push({ href: cfg.href, label: cfg.label, icon: cfg.icon });
   }
   return items;
 }

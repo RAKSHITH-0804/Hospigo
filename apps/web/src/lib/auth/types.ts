@@ -49,6 +49,8 @@ export type AuthMeProfile = {
   mustChangePassword: boolean;
   branches: AuthMeBranch[];
   enabledModules: AuthMeModule[];
+  /** Permission codes allowed on the active branch (hospital); empty for HQ. */
+  permissions: string[];
 };
 
 export type BrowserAuthErrorCode =

@@ -1,5 +1,7 @@
 # Hospigo UI concepts (Phase 1 Step 5b)
 
+> **History only.** This document holds the ORIGINAL Step 5b concept screens. The **current product look** (one global palette, IBM Plex Sans, application frame) is documented in [`docs/ui-design.md`](./ui-design.md).
+
 Short description of the four concept screens. Taken from `docs/Hospigo_UI_concepts.pdf`, with the corrections below. **Sign-in is real (Step 6d)**; HQ/hospital/booking content pages still use mock data with a Sample data badge until later steps.
 
 ## Theming and fluid layout
@@ -52,22 +54,22 @@ Media queries cannot reliably read CSS variables, so the rem literals match the 
 - **`/reset-password` and `/activate`:** new password + confirm; loading / error / retry; form stays visible for validation failures. Token arrives only in `#t=…`, is read in a client effect, removed with `history.replaceState`, and sent in the POST body — never query, cookies, or storage. Missing/bad link → invalid-link copy + link to forgot-password.
 - Pages use theme tokens only; copy lives in `sessionConfig` / env overrides.
 
-## 2. Indigo HQ (`/admin`)
+## 2. Indigo HQ (`/admin`) — **real staff look (Step 3b)**
 
-Sidebar title **Hospigo HQ**. Items: Hospitals, Modules and plans, Master data imports, Staff and support, Platform health. Current route is highlighted (`aria-current="page"`). Desktop top bar shows the **page** label (e.g. Hospitals), not a second “Hospigo HQ”. Phones keep the menu button plus sidebar name. Sidebar width uses `--size-sidebar`. Main content scrolls with the document.
+Uses scoped `.theme-staff` (dark sidebar, IBM Plex Sans, approved tokens — see `docs/ui-design.md`). Sidebar brand **Hospigo** with HQ subtitle. Items under Setup: Hospitals, Modules and plans, Master data imports, Staff and support, Platform health. Current route is highlighted (`aria-current="page"`). Desktop top bar shows the **page** label (e.g. Hospitals). Phones keep the menu button plus drawer pattern. Sidebar width uses `--size-sidebar`. Main content scrolls with the document.
 
 - **Hospitals** (built): “Onboard hospital” (disabled), fluid auto-fit stat cards, list of four fake hospitals (including access codes for HQ). Below table breakpoint: stacked cards. From table breakpoint up: table. Module chips use theme foreground for contrast. System health card text lists Database, Redis, Storage, WebSocket.
 - Other sidebar items open **Coming later**.
 - Sample data badge visible.
 
-## 3. Hospital staff app (`/app`)
+## 3. Hospital staff app (`/app`) — **real staff look (Step 3b)**
 
-Sidebar shows the mock hospital name plus “Powered by Hospigo”. Nav is generated from a mock **enabled modules** list. Current route highlighted; desktop top bar shows page context (e.g. OPD queue). Branch switcher label: **Main Branch (sample)** (static). Main content scrolls with the document.
+Uses scoped `.theme-staff`. Sidebar brand **Hospigo** with the session hospital name; nav groups **Front desk** / **Setup**. Front desk keeps module-driven items from `enabledModules` and adds **Patients** (`/app/patients`) when `permissions` includes `patients.registry.read`. Active branch and role sit at the bottom of the sidebar. Current route highlighted; desktop top bar shows page context. Main content scrolls with the document.
 
+- **Patients** (placeholder): PageHeader + empty state; search/register arrives in Step 3c.
 - **OPD queue** (built): title, fake doctor and speciality, disabled “Call next patient”, fluid auto-fit stats, token table. Status chips use theme colours: In consultation (blue), Checked in paid (green), Booked unpaid at desk (amber).
 - Other modules show **Coming later**.
-- Brand colour from mock hospital config (CSS variables).
-- Sample data badge visible.
+- Sample data badge still used on concept content pages.
 
 ## 4. Public booking (`/book/[code]`)
 

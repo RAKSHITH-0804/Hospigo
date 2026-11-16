@@ -2,45 +2,111 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { PanelLeft } from 'lucide-react';
 import { useEffect, useId, useState, type ReactNode } from 'react';
-import { SignOutButton } from '@/components/shell/sign-out-button';
+import { BranchChip } from '@/components/shell/branch-chip';
+import { NavIcon } from '@/components/shell/nav-icon';
+import { PatientSearch } from '@/components/shell/patient-search';
+import { PoweredBy } from '@/components/shell/powered-by';
+import { UserMenu } from '@/components/shell/user-menu';
+import { Kbd } from '@/components/ui/kbd';
+import { Tooltip } from '@/components/ui/tooltip';
+import { staffCopy } from '@/config/staff-copy';
 import { AuthGuard } from '@/lib/auth-guard';
 import { cn } from '@/lib/utils';
 import type { ShellNavItem } from '@/config/modules';
 
-type NavItem = ShellNavItem;
+export type ShellNavGroup = {
+  label: string;
+  items: ShellNavItem[];
+};
 
-function matchNavItem(items: NavItem[], pathname: string): NavItem | undefined {
+function matchNavItem(items: ShellNavItem[], pathname: string): ShellNavItem | undefined {
   return items
     .filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
     .sort((a, b) => b.href.length - a.href.length)[0];
 }
 
+function flattenGroups(groups: ShellNavGroup[]): ShellNavItem[] {
+  return groups.flatMap((g) => g.items);
+}
+
+function readCollapsedPreference(): boolean {
+  try {
+    const raw = window.localStorage.getItem(staffCopy.shell.collapsedStorageKey);
+    return raw === '1' || raw === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function writeCollapsedPreference(collapsed: boolean): void {
+  try {
+    window.localStorage.setItem(staffCopy.shell.collapsedStorageKey, collapsed ? '1' : '0');
+  } catch {
+    // Ignore quota / private mode.
+  }
+}
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+  const tag = target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+    return true;
+  }
+  return target.isContentEditable;
+}
+
 function NavLinks({
-  items,
+  groups,
   pathname,
+  collapsed,
   onNavigate,
 }: {
-  items: NavItem[];
+  groups: ShellNavGroup[];
   pathname: string;
+  collapsed: boolean;
   onNavigate?: () => void;
 }) {
-  const current = matchNavItem(items, pathname);
+  const flat = flattenGroups(groups);
+  const current = matchNavItem(flat, pathname);
 
   return (
-    <nav className="shell-nav">
-      {items.map((item) => {
-        const isCurrent = current?.href === item.href;
+    <nav className="shell-nav" aria-label={staffCopy.brand}>
+      {groups.map((group, groupIndex) => {
+        if (group.items.length === 0) {
+          return null;
+        }
+        const showLabel = Boolean(group.label);
         return (
-          <Link
-            key={item.label}
-            href={item.href}
-            onClick={onNavigate}
-            aria-current={isCurrent ? 'page' : undefined}
-            className={cn('shell-nav-link')}
-          >
-            {item.label}
-          </Link>
+          <div key={showLabel ? group.label : `group-${groupIndex}`} className="shell-nav-group">
+            {showLabel ? <p className="shell-nav-group-label">{group.label}</p> : null}
+            {group.items.map((item) => {
+              const isCurrent = current?.href === item.href;
+              const link = (
+                <Link
+                  href={item.href}
+                  onClick={onNavigate}
+                  aria-current={isCurrent ? 'page' : undefined}
+                  aria-label={item.label}
+                  className={cn('shell-nav-link', collapsed && 'shell-nav-link-icon')}
+                >
+                  <NavIcon name={item.icon} />
+                  <span className="shell-nav-label">{item.label}</span>
+                </Link>
+              );
+              if (!collapsed) {
+                return <span key={`${groupIndex}-${item.href}`}>{link}</span>;
+              }
+              return (
+                <Tooltip key={`${groupIndex}-${item.href}`} content={item.label} side="right">
+                  {link}
+                </Tooltip>
+              );
+            })}
+          </div>
         );
       })}
     </nav>
@@ -49,125 +115,270 @@ function NavLinks({
 
 export function AppShell({
   title,
+  brandLabel,
+  groups,
   items,
-  branchSwitcher,
-  sidebarFooter,
+  branchName,
+  showPatientSearch,
   userDisplayName,
+  userEmail,
+  roleCodes,
+  hospitalName,
   children,
 }: {
   title: ReactNode;
-  items: NavItem[];
-  branchSwitcher?: ReactNode;
-  sidebarFooter?: ReactNode;
+  brandLabel?: string;
+  groups?: ShellNavGroup[];
+  items?: ShellNavItem[];
+  branchName?: string | null;
+  showPatientSearch?: boolean;
   userDisplayName?: string;
+  userEmail?: string;
+  roleCodes?: string[];
+  hospitalName?: string | null;
   children: ReactNode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [collapseReady, setCollapseReady] = useState(false);
+  const [modKey, setModKey] = useState<string>(staffCopy.shell.sidebarShortcutCtrl);
   const panelId = useId();
+  const navId = useId();
   const pathname = usePathname() ?? '';
-  const pageLabel = matchNavItem(items, pathname)?.label;
+  const resolvedGroups: ShellNavGroup[] = groups?.length
+    ? groups
+    : [{ label: '', items: items ?? [] }];
+  const brand = brandLabel ?? staffCopy.brand;
+  const hospitalText = typeof title === 'string' ? title : '';
+
+  useEffect(() => {
+    setCollapsed(readCollapsedPreference());
+    setCollapseReady(true);
+    try {
+      const platform = window.navigator.platform ?? '';
+      setModKey(
+        /Mac|iPhone|iPad|iPod/i.test(platform)
+          ? staffCopy.shell.sidebarShortcutCmd
+          : staffCopy.shell.sidebarShortcutCtrl,
+      );
+    } catch {
+      setModKey(staffCopy.shell.sidebarShortcutCtrl);
+    }
+  }, []);
 
   useEffect(() => {
     if (!menuOpen) {
       return;
     }
-
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         setMenuOpen(false);
       }
     }
-
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [menuOpen]);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const key = event.key.toLowerCase();
+      if (key !== 'b' || !(event.ctrlKey || event.metaKey) || event.altKey) {
+        return;
+      }
+      if (isTypingTarget(event.target)) {
+        return;
+      }
+      event.preventDefault();
+      setCollapsed((prev) => {
+        const next = !prev;
+        writeCollapsedPreference(next);
+        return next;
+      });
+      setCollapseReady(true);
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   function closeMenu() {
     setMenuOpen(false);
   }
 
+  function toggleCollapsed() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      writeCollapsedPreference(next);
+      return next;
+    });
+  }
+
+  function renderSidebar(onNavigate?: () => void, options?: { allowCollapse?: boolean }) {
+    const allowCollapse = options?.allowCollapse !== false;
+    const collapsedHere = allowCollapse && collapseReady && collapsed;
+    const actionLabel = collapsedHere
+      ? staffCopy.shell.expandSidebar
+      : staffCopy.shell.collapseSidebar;
+    const collapseControl = allowCollapse ? (
+      <Tooltip
+        side="bottom"
+        content={
+          <span className="ui-tooltip-with-kbd">
+            <span>{actionLabel}</span>
+            <Kbd>
+              {modKey} {staffCopy.shell.sidebarShortcutKey}
+            </Kbd>
+          </span>
+        }
+      >
+        <button
+          type="button"
+          className="shell-collapse-button"
+          aria-label={actionLabel}
+          aria-expanded={!collapsedHere}
+          aria-controls={navId}
+          onClick={toggleCollapsed}
+        >
+          <PanelLeft aria-hidden="true" className="shell-menu-icon" />
+        </button>
+      </Tooltip>
+    ) : null;
+
+    return (
+      <>
+        <div
+          className={cn('shell-sidebar-title', collapsedHere && 'is-collapsed')}
+          aria-label={[brand, hospitalText].filter(Boolean).join(', ')}
+        >
+          <div className="shell-sidebar-title-row">
+            <div className="shell-sidebar-title-brand">
+              <span className="shell-brand-mark" aria-hidden="true">
+                {staffCopy.brandMark}
+              </span>
+              <span
+                className={cn(
+                  'shell-brand-wordmark',
+                  'whitespace-nowrap',
+                  'shrink-0',
+                  collapsedHere && 'sr-only',
+                )}
+              >
+                {brand}
+              </span>
+            </div>
+            {collapseControl}
+          </div>
+          {title ? (
+            collapsedHere ? (
+              <span className="sr-only">{title}</span>
+            ) : (
+              <Tooltip
+                className="shell-brand-hospital-tip"
+                content={hospitalText || String(title)}
+                side="bottom"
+              >
+                <span className="shell-brand-hospital truncate" tabIndex={0}>
+                  {title}
+                </span>
+              </Tooltip>
+            )
+          ) : null}
+        </div>
+        <div className="shell-sidebar-body" id={navId}>
+          <NavLinks
+            groups={resolvedGroups}
+            pathname={pathname}
+            collapsed={collapsedHere}
+            onNavigate={onNavigate}
+          />
+        </div>
+        <div className="shell-sidebar-footer">
+          <PoweredBy collapsed={collapsedHere} />
+        </div>
+      </>
+    );
+  }
+
   return (
     <AuthGuard>
       <div className="shell-root">
-        <aside className="shell-sidebar">
-          <div className="shell-sidebar-title">{title}</div>
-          <div className="flex min-h-0 flex-1 flex-col">
-            <NavLinks items={items} pathname={pathname} />
-            {sidebarFooter ? <div className="shell-sidebar-footer">{sidebarFooter}</div> : null}
-          </div>
+        <a href={`#${staffCopy.mainLandmarkId}`} className="shell-skip-link">
+          {staffCopy.skipToMain}
+        </a>
+        <aside
+          className={cn('shell-sidebar', collapseReady && collapsed && 'is-collapsed')}
+          data-testid="shell-sidebar"
+        >
+          {renderSidebar(undefined, { allowCollapse: true })}
         </aside>
 
         {menuOpen ? (
           <div className="shell-drawer-root">
             <button
               type="button"
-              aria-label="Close menu"
+              aria-label={staffCopy.nav.closeMenu}
               className="shell-drawer-backdrop"
               onClick={closeMenu}
             />
             <aside id={panelId} className="shell-drawer-panel">
-              <div className="shell-sidebar-title">{title}</div>
-              <div className="flex min-h-0 flex-1 flex-col">
-                <NavLinks items={items} pathname={pathname} onNavigate={closeMenu} />
-                {sidebarFooter ? <div className="shell-sidebar-footer">{sidebarFooter}</div> : null}
-              </div>
+              {renderSidebar(closeMenu, { allowCollapse: false })}
             </aside>
           </div>
         ) : null}
 
         <div className="shell-main-column">
           <header className="shell-topbar">
-            <button
-              type="button"
-              aria-label="Open menu"
-              aria-expanded={menuOpen}
-              aria-controls={panelId}
-              className="shell-menu-button"
-              onClick={() => setMenuOpen(true)}
-            >
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                className="shell-menu-icon"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
+            <div className="shell-topbar-left">
+              <button
+                type="button"
+                aria-label={staffCopy.nav.openMenu}
+                aria-expanded={menuOpen}
+                aria-controls={panelId}
+                className="shell-menu-button"
+                onClick={() => setMenuOpen(true)}
               >
-                <path d="M4 7h16M4 12h16M4 17h16" />
-              </svg>
-            </button>
-            <div className="shell-topbar-title">
-              <span className="shell-topbar-mobile">{title}</span>
-              <span className="shell-topbar-desktop">{pageLabel ?? title}</span>
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  className="shell-menu-icon"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M4 7h16M4 12h16M4 17h16" />
+                </svg>
+              </button>
+              {branchName ? <BranchChip name={branchName} /> : null}
             </div>
-            {branchSwitcher ? <div className="shrink-0">{branchSwitcher}</div> : null}
-            {userDisplayName ? (
-              <div className="ml-auto flex shrink-0 items-center gap-[var(--space-2)]">
-                <span className="type-label text-muted-foreground">{userDisplayName}</span>
-                <SignOutButton />
-              </div>
-            ) : null}
+            <div className="shell-topbar-center">
+              {showPatientSearch ? <PatientSearch /> : null}
+            </div>
+            <div className="shell-topbar-right">
+              {userDisplayName && userEmail ? (
+                <UserMenu
+                  displayName={userDisplayName}
+                  email={userEmail}
+                  roleCodes={roleCodes ?? []}
+                  branchName={branchName}
+                  hospitalName={hospitalName}
+                />
+              ) : null}
+            </div>
           </header>
-          <main className="shell-main">{children}</main>
+          <main id={staffCopy.mainLandmarkId} className="shell-main">
+            {children}
+          </main>
         </div>
       </div>
     </AuthGuard>
   );
 }
 
-/** Read-only active branch (no switcher yet). */
+/** @deprecated Prefer BranchChip in the top bar. */
 export function ActiveBranchLabel({ name }: { name: string }) {
-  return (
-    <div className="shell-branch-label">
-      <span className="shell-branch-caption">Branch</span>
-      <span className="shell-branch-select" aria-label="Active branch">
-        {name}
-      </span>
-    </div>
-  );
+  return <BranchChip name={name} />;
 }
 
-/** @deprecated Prefer ActiveBranchLabel with the session branch name. */
+/** @deprecated Prefer BranchChip. */
 export function BranchSwitcherPlaceholder() {
-  return <ActiveBranchLabel name="—" />;
+  return <BranchChip name="—" />;
 }

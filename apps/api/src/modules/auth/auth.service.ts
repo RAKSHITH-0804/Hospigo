@@ -5,6 +5,7 @@ import type { ApiEnv } from '../../config/env';
 import { getContext, requireContext, runWithContext } from '../../common/request-context';
 import { HqPrismaService } from '../../database/hq-prisma.service';
 import { TenantDb } from '../../database/tenant-db';
+import { AccessService } from '../access/access.service';
 import type { AuthConfig } from './auth.config';
 import { AuthRedisService } from './auth-redis.service';
 import { authFailed } from './auth.errors';
@@ -50,6 +51,11 @@ export type AuthMeResponse = {
    * Empty for HQ.
    */
   enabledModules: AuthMeModule[];
+  /**
+   * Hospital only: permission codes allowed on the active branch
+   * (AccessService snapshot / can() without a module gate). Empty for HQ.
+   */
+  permissions: string[];
 };
 
 @Injectable()
@@ -64,6 +70,7 @@ export class AuthService {
     private readonly tenantDb: TenantDb,
     private readonly hqPrisma: HqPrismaService,
     private readonly redis: AuthRedisService,
+    private readonly access: AccessService,
     config: ConfigService<ApiEnv, true>,
   ) {
     this.auth = config.getOrThrow('auth', { infer: true });
@@ -519,6 +526,7 @@ export class AuthService {
                 .sort(),
             ),
           ];
+          const permissions = await this.access.permissionCodesForActiveBranch();
           return {
             id: data.user.id,
             displayName: data.user.displayName,
@@ -531,6 +539,7 @@ export class AuthService {
             mustChangePassword: data.user.mustChangePassword,
             branches: data.branches,
             enabledModules: data.enabledModules,
+            permissions,
           };
         },
       );
@@ -556,6 +565,7 @@ export class AuthService {
       mustChangePassword: user.mustChangePassword,
       branches: [],
       enabledModules: [],
+      permissions: [],
     };
   }
 

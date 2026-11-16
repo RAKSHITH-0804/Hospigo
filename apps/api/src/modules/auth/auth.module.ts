@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { HqPrismaService } from '../../database/hq-prisma.service';
+import { AccessModule } from '../access/access.module';
 import { MailModule } from '../mail/mail.module';
 import { MailProcessor } from '../mail/mail.processor';
 import { ActionTokenService } from './action-token.service';
@@ -19,7 +20,7 @@ import { TokenService } from './token.service';
  * HqPrismaService is provided here only; do not import it from other modules.
  */
 @Module({
-  imports: [MailModule],
+  imports: [MailModule, AccessModule],
   controllers: [AuthController],
   providers: [
     PasswordService,

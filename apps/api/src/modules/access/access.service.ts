@@ -43,6 +43,26 @@ export class AccessService {
     return allowed.sort();
   }
 
+  /**
+   * Permission codes the caller may use on the active branch.
+   * Same rules as can(code, activeBranchId) with no module gate; sorted, unique.
+   */
+  async permissionCodesForActiveBranch(): Promise<string[]> {
+    const ctx = requireContext();
+    if (ctx.kind !== 'HOSPITAL' || !ctx.activeBranchId) {
+      return [];
+    }
+    const branchId = ctx.activeBranchId;
+    const snap = await this.loadSnapshot();
+    const codes: string[] = [];
+    for (const code of snap.permissionBranches.keys()) {
+      if (this.evaluate(snap, code, branchId)) {
+        codes.push(code);
+      }
+    }
+    return [...new Set(codes)].sort((a, b) => a.localeCompare(b));
+  }
+
   private evaluate(
     snap: AccessSnapshot,
     permissionCode: string,

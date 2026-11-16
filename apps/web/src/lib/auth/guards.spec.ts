@@ -23,7 +23,7 @@ jest.mock('./patient-session', () => ({
 
 import { getPatientSession, currentPatientPathname } from './patient-session';
 import { getSession, currentPathname } from './session';
-import { requireKind, requirePatient } from './guards';
+import { requireKind, requirePatient, requirePermission } from './guards';
 
 describe('requireKind guards', () => {
   beforeEach(() => {
@@ -43,6 +43,9 @@ describe('requireKind guards', () => {
       activeBranchName: null,
       roleCodes: [],
       mustChangePassword: false,
+      permissions: [],
+      branches: [],
+      enabledModules: [],
     });
     await expect(requireKind('HQ')).rejects.toThrow('REDIRECT:/login');
     expect(redirectMock).toHaveBeenCalledWith('/login');
@@ -72,6 +75,9 @@ describe('requireKind guards', () => {
       activeBranchName: null,
       roleCodes: [],
       mustChangePassword: false,
+      permissions: [],
+      branches: [],
+      enabledModules: [],
     });
     await expect(requireKind('HQ')).rejects.toThrow('REDIRECT:/login');
     expect(redirectMock).toHaveBeenCalledWith('/login');
@@ -121,5 +127,77 @@ describe('requirePatient guard', () => {
   it('staff/HQ session does not satisfy requirePatient (getPatientSession independent)', async () => {
     (getPatientSession as jest.Mock).mockResolvedValue(null);
     await expect(requirePatient()).rejects.toThrow(/\/api\/patient-auth\/refresh/);
+  });
+});
+
+describe('requirePermission guard', () => {
+  beforeEach(() => {
+    redirectMock.mockClear();
+    (getSession as jest.Mock).mockReset();
+    (currentPathname as jest.Mock).mockResolvedValue('/app/patients');
+  });
+
+  it('no session redirects to refresh', async () => {
+    (getSession as jest.Mock).mockResolvedValue(null);
+    await expect(requirePermission('patients.registry.read')).rejects.toThrow(
+      'REDIRECT:/api/auth/refresh?next=%2Fapp%2Fpatients',
+    );
+  });
+
+  it('wrong kind redirects to login', async () => {
+    (getSession as jest.Mock).mockResolvedValue({
+      id: '1',
+      displayName: 'HQ',
+      email: 'hq@example.test',
+      kind: 'HQ',
+      hospitalName: null,
+      activeBranchId: null,
+      activeBranchName: null,
+      roleCodes: [],
+      mustChangePassword: false,
+      permissions: [],
+      branches: [],
+      enabledModules: [],
+    });
+    await expect(requirePermission('patients.registry.read')).rejects.toThrow('REDIRECT:/login');
+  });
+
+  it('missing permission redirects home with notice', async () => {
+    (getSession as jest.Mock).mockResolvedValue({
+      id: '1',
+      displayName: 'H',
+      email: 'h@example.test',
+      kind: 'HOSPITAL',
+      hospitalName: 'X',
+      activeBranchId: 'b1',
+      activeBranchName: 'Main',
+      roleCodes: [],
+      mustChangePassword: false,
+      permissions: ['opd.masters.read'],
+      branches: [],
+      enabledModules: [],
+    });
+    await expect(requirePermission('patients.registry.read')).rejects.toThrow(
+      'REDIRECT:/app?notice=no-permission',
+    );
+  });
+
+  it('present permission returns the session', async () => {
+    const session = {
+      id: '1',
+      displayName: 'H',
+      email: 'h@example.test',
+      kind: 'HOSPITAL' as const,
+      hospitalName: 'X',
+      activeBranchId: 'b1',
+      activeBranchName: 'Main',
+      roleCodes: ['RECEPTIONIST'],
+      mustChangePassword: false,
+      permissions: ['patients.registry.read'],
+      branches: [],
+      enabledModules: [],
+    };
+    (getSession as jest.Mock).mockResolvedValue(session);
+    await expect(requirePermission('patients.registry.read')).resolves.toEqual(session);
   });
 });

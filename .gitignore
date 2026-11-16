@@ -22,3 +22,8 @@ out/
 apps/api/src/generated/
 # Jest globalSetup sentinel (hospigo_test rebuild proof)
 apps/api/.hospigo-test-rebuilt
+
+# Postman local workspace artefacts (do not commit)
+.postman/
+postman/
+

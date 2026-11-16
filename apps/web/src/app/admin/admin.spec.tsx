@@ -19,6 +19,9 @@ jest.mock('@/lib/auth/guards', () => ({
     activeBranchName: null,
     roleCodes: [],
     mustChangePassword: false,
+    branches: [],
+    enabledModules: [],
+    permissions: [],
   })),
 }));
 
