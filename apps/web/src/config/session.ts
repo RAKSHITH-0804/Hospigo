@@ -42,6 +42,10 @@ export type SessionConfig = {
   errorPasswordValidation: string;
   passwordUpdatedNoticeText: string;
   errorModuleUnavailable: string;
+  /** Staff home notice when requirePermission fails. */
+  errorNoPermission: string;
+  /** Staff upstream timeout for callStaffApi (ms). */
+  staffUpstreamTimeoutMs: number;
   /** Patient session cookies (separate from staff/HQ). */
   patientCookieAccessName: string;
   patientCookieRefreshName: string;
@@ -112,6 +116,8 @@ const DEFAULTS = {
   errorPasswordValidation: 'That password does not meet the requirements.',
   passwordUpdatedNoticeText: 'Your password was updated. You can sign in now.',
   errorModuleUnavailable: 'That module is not available for your active branch.',
+  errorNoPermission: 'You do not have permission to open that page.',
+  staffUpstreamTimeoutMs: 8000,
   patientCookieAccessName: 'hospigo_patient_access',
   patientCookieRefreshName: 'hospigo_patient_refresh',
   patientRefreshCookiePath: '/api/patient-auth',
@@ -312,6 +318,14 @@ export function loadSessionConfig(
       env,
       'WEB_ERROR_MODULE_UNAVAILABLE',
       DEFAULTS.errorModuleUnavailable,
+    ),
+    errorNoPermission: strEnv(env, 'WEB_ERROR_NO_PERMISSION', DEFAULTS.errorNoPermission),
+    staffUpstreamTimeoutMs: intEnv(
+      env,
+      'WEB_STAFF_UPSTREAM_TIMEOUT_MS',
+      DEFAULTS.staffUpstreamTimeoutMs,
+      1000,
+      60_000,
     ),
     patientCookieAccessName: strEnv(
       env,

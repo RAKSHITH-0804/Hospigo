@@ -10,7 +10,7 @@ describe('module nav mapping', () => {
       { code: 'UNKNOWN_X', name: 'Skip me' },
       { code: 'LAB', name: 'Laboratory' },
     ]);
-    expect(items[0]).toEqual({ href: '/app', label: 'Dashboard' });
+    expect(items[0]).toEqual({ href: '/app', label: 'Dashboard', icon: 'dashboard' });
     expect(items.map((i) => i.href)).toEqual(['/app', '/app/opd', '/app/lab']);
     expect(items.find((i) => i.label === 'Skip me')).toBeUndefined();
   });

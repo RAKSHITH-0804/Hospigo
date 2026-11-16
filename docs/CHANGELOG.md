@@ -29,6 +29,71 @@
 
 ## Unreleased
 
+## 2026-11-16 — Phase 2 Step 3b — application frame polish (layout round 4)
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** `--sidebar-mark-size` (`2.5rem`)
+- **Changed:** sidebar floor `--sidebar-width` `13rem` → `13.5rem`; brand mark uses mark token (not touch size); wordmark never ellipsizes
+- **Removed:** wordmark `text-overflow: ellipsis` / shrink
+- **Fixed:** expanded “Hospigo” truncated to “Hosp…” beside mark + collapse
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** none
+- **Tests:** wordmark full text + nowrap; hospital keeps truncate/ellipsis class
+- **Decisions:** none
+- **Follow-ups and open items:** Step 3c patient search/register; Step 3d branch switcher
+
+## 2026-11-16 — Phase 2 Step 3b — application frame polish (layout round 3)
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** expanded sidebar hospital name on its own full-width ellipsis row with Tooltip; user-menu email Tooltip
+- **Changed:** role badges share one flex-wrap row; frame sketch in `docs/ui-design.md`
+- **Removed:** none
+- **Fixed:** hospital name no longer truncated beside brand/wordmark/collapse on one row
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** none
+- **Tests:** shell-frame hospital row + collapsed hide; user-menu email tooltip + wrapping roles
+- **Decisions:** email uses Tooltip + `tabIndex={0}` (not native `title`)
+- **Follow-ups and open items:** Step 3c patient search/register; Step 3d branch switcher
+
+## 2026-11-16 — Phase 2 Step 3b — application frame polish (layout round 2)
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** collapsible sidebar mark/wordmark layout, Tooltip, Ctrl/Cmd+B, PoweredBy + branding hook, skip link, `--input-border`, page title template + per-route titles, user-menu redesign
+- **Changed:** Settings is last main-nav item (permission-gated); collapse uses PanelLeft only; branch chip is a flat read-only label; inputs use white surface + stronger border
+- **Removed:** separate Settings footer block; PanelLeftClose; bordered branch chip; native-title-only collapsed tooltips
+- **Fixed:** clipped brand text / overlapping collapse control when sidebar collapsed
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** none
+- **Tests:** shell-frame polish (collapse mark, tooltip, shortcut, Settings last, PoweredBy, user menu, branch chip, skip, titles, input contrast)
+- **Decisions:** branch switcher deferred to Step 3d (SuperAdmin only)
+- **Follow-ups and open items:** Step 3c patient search/register; Step 3d branch switcher
+
+## 2026-11-16 — Phase 2 Step 3b — application frame (layout round)
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** global product theme on `:root`; collapsible sidebar; top-bar branch chip, patient search, user menu; Settings placeholder (`hospital.settings.read`); role label map
+- **Changed:** IBM Plex Sans as sole app font; login/password/patient brand panels use sidebar navy + accent buttons; Sample data badge is a content-width pill; Patients empty title no longer repeats the page title
+- **Removed:** `.theme-staff` scope; Geist font; sidebar branch/role block; Front desk / empty Setup labels; page title and standalone Sign out in the top bar
+- **Fixed:** none
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** none
+- **Tests:** shell-frame specs (collapse, search, user menu, Settings visibility, role labels); existing suites updated for frame assertions
+- **Decisions:** one visual identity for the whole product; branch switcher for SuperAdmin deferred to Step 3d
+- **Follow-ups and open items:** Step 3c patient search/register UI; Step 3d SuperAdmin branch switcher
+
+## 2026-11-16 — Phase 2 Step 3b — reception web foundation
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** `/auth/me` `permissions[]`; web `callStaffApi` + `requirePermission`; scoped `.theme-staff` + IBM Plex Sans; UI kit; Patients placeholder page; `staff-copy.ts` + copy scan; `docs/ui-design.md`
+- **Changed:** staff/HQ shell restyle (dark sidebar, nav groups); dashboard shows `no-permission` notice; postman folders untracked + gitignored
+- **Removed:** tracked `.postman/` and `postman/` (left on disk)
+- **Fixed:** none
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** `WEB_STAFF_UPSTREAM_TIMEOUT_MS`, `WEB_ERROR_NO_PERMISSION`
+- **Tests:** auth/me permissions HTTP; staff-api/guards/UI kit/copy-scan; existing web+API suites retained
+- **Decisions:** theme scoped to `/app` and `/admin` only; login/patient pages unchanged; permissions list uses AccessService without module gate
+- **Follow-ups and open items:** Step 3c reception patients search/register UI
+
 ## 2026-11-16 — Phase 2 Step 3a — counters, patient registry API, permission guard
 
 - **Commit hash(es):** (uncommitted)

@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
   agentRules: false,
   // The rest of the repo uses 127.0.0.1. Next blocks that host unless it is listed.
   allowedDevOrigins: ['127.0.0.1'],
+  devIndicators: {
+    position: 'bottom-right',
+  },
   async headers() {
     return [
       { source: '/forgot-password', headers: AUTH_LINK_HEADERS },

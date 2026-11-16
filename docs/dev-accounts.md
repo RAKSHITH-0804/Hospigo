@@ -28,6 +28,32 @@ Passwords are never written in this repo. Seed passwords come from `.env` (see b
 
 A user can log in only with the code of a branch they are assigned to. Any other code gives the same generic error as a wrong password.
 
+## OPD mock staff (Phase 2; same `SEED_STAFF_PASSWORD`)
+
+Invented emails only. Login uses the Access Code of the branch the user is assigned to; any other code gives the same generic error.
+
+| Hospital   | Role         | Email                                           | Access code       | Checked 16 Nov 2026                                     |
+| ---------- | ------------ | ----------------------------------------------- | ----------------- | ------------------------------------------------------- |
+| DEMO_NORTH | Receptionist | `receptionist1@demo-north.example.test`         | `demo-north-main` | Yes; refused on `demo-north-east` and `demo-south-main` |
+| DEMO_NORTH | Receptionist | `receptionist2@demo-north.example.test`         | `demo-north-main` | Yes                                                     |
+| DEMO_NORTH | Nurse        | `nurse1@demo-north.example.test`                | `demo-north-main` | Yes                                                     |
+| DEMO_NORTH | Nurse        | `nurse2@demo-north.example.test`                | `demo-north-main` | Yes                                                     |
+| DEMO_NORTH | Doctor       | `doctor1@demo-north.example.test`               | `demo-north-main` | Yes                                                     |
+| DEMO_NORTH | Doctor       | `doctor2@` to `doctor5@demo-north.example.test` | `demo-north-main` | Not individually checked                                |
+| DEMO_SOUTH | Receptionist | `receptionist1@demo-south.example.test`         | `demo-south-main` | Yes                                                     |
+| DEMO_SOUTH | Receptionist | `receptionist2@demo-south.example.test`         | `demo-south-main` | Not individually checked                                |
+| DEMO_SOUTH | Nurse        | `nurse1@demo-south.example.test`                | `demo-south-main` | Yes                                                     |
+| DEMO_SOUTH | Nurse        | `nurse2@demo-south.example.test`                | `demo-south-main` | Not individually checked                                |
+| DEMO_SOUTH | Doctor       | `doctor1@` to `doctor3@demo-south.example.test` | `demo-south-main` | Not individually checked                                |
+
+What each role gets (from `GET /auth/me`, checked for Receptionist and Nurse):
+
+- Receptionist: `patients.registry.read`, `patients.registry.write`, `opd.masters.read` (no Settings item).
+- Nurse: `patients.registry.read`, `opd.masters.read`.
+- Doctor: same as Nurse in the seed (not yet checked with `/auth/me`).
+
+Doctor 1 at DEMO_NORTH has the availability switch off; one DEMO_SOUTH doctor has leave for tomorrow (IST).
+
 ## Indigo HQ (Indigo HQ tab: email and password, no access code)
 
 No HQ user is seeded. Create a demo one on your local dev database:
@@ -51,10 +77,11 @@ Doctor 1 at DEMO_NORTH has availability switch off; one DEMO_SOUTH doctor has le
 
 ## Useful to know
 
-- **Open the web app at exactly the host in `APP_URL`** (`http://127.0.0.1:3001` in dev). Cookies are per host, and the Origin check compares against `APP_URL`.
+- **Open the web app at exactly the host in** `APP_URL` (`http://127.0.0.1:3001` in dev). Cookies are per host, and the Origin check compares against `APP_URL`.
 - **Lockout:** 5 failed logins for the same code and email within 15 minutes lock that pair for 15 minutes, with the same generic error. All limits are in `apps/api/src/modules/auth/auth.config.ts`.
-- **Reset:** re-running the dev seed resets every seeded user's password to its `SEED_*` value and turns the forced change back on for the `mustchange@` users. It does not touch HQ users.
+- **Reset:** re-running the dev seed resets every seeded user's password to its `SEED_`* value and turns the forced change back on for the `mustchange@` users. It does not touch HQ users.
 - **Postman:** a "Hospigo Local" environment holds `baseUrl` and the passwords as current values. Never use Initial values for passwords.
+- **Dual roles:** staff@demo-north.example.test and staff@demo-south.example.test ("Seed Staff Dual") hold two roles on purpose, so the user menu shows two badges.
 
 ## Check the real data
 

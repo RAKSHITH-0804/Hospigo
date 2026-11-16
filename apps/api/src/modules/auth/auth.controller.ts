@@ -31,6 +31,7 @@ import { HospitalLoginDto } from './dto/hospital-login.dto';
 import { HqLoginDto } from './dto/hq-login.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshDto } from './dto/refresh.dto';
+import { AuthMeResponseDto } from './dto/auth-me.dto';
 import { ActivateDto, ResetPasswordDto } from './dto/reset-activate.dto';
 import { TokenResponseDto } from './dto/token-response.dto';
 import { AuthenticatedOnly } from '../access/permission.decorators';
@@ -130,8 +131,12 @@ export class AuthController {
   @AuthenticatedOnly()
   @TokenKinds('HOSPITAL', 'HQ')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Current user profile (no secrets)' })
-  async me(@Req() req: HttpReq) {
+  @ApiOperation({
+    summary: 'Current user profile (no secrets)',
+    description: 'Hospital: includes permissions[] for the active branch. HQ: permissions is [].',
+  })
+  @ApiOkResponse({ type: AuthMeResponseDto })
+  async me(@Req() req: HttpReq): Promise<AuthMeResponseDto> {
     if (!req.auth) {
       throw new UnauthorizedException('Missing auth context');
     }

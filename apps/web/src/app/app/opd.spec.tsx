@@ -25,6 +25,7 @@ jest.mock('@/lib/auth/guards', () => ({
       { code: 'IPD', name: 'IPD' },
       { code: 'PHARMACY', name: 'Pharmacy' },
     ],
+    permissions: ['patients.registry.read'],
   })),
 }));
 
@@ -52,7 +53,7 @@ describe('OPD queue concept screen', () => {
     render(layout);
 
     expect(screen.getAllByText('Sample data').length).toBeGreaterThan(0);
-    expect(screen.getByText('Powered by Hospigo')).toBeTruthy();
+    expect(screen.getAllByText('Hospigo').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Demo Hospital One').length).toBeGreaterThan(0);
     expect(await screen.findByText(/Demo Doctor A/)).toBeTruthy();
     expect(screen.getByText('Sample Patient 01')).toBeTruthy();

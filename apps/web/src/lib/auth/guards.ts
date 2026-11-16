@@ -40,6 +40,18 @@ export async function requireKind(kind: AuthKind): Promise<SessionResult> {
 }
 
 /**
+ * Hospital page guard: requireKind('HOSPITAL') then an active-branch permission code.
+ * Missing permission → staff home with notice=no-permission.
+ */
+export async function requirePermission(code: string): Promise<SessionResult> {
+  const session = await requireKind('HOSPITAL');
+  if (!session.permissions?.includes(code)) {
+    redirect(`${sessionConfig.homeHospital}?notice=no-permission`);
+  }
+  return session;
+}
+
+/**
  * Patient home guard. Uses patient cookies only — staff/HQ sessions never satisfy it.
  * Missing access → `/api/patient-auth/refresh?next=…` (patient refresh path).
  */

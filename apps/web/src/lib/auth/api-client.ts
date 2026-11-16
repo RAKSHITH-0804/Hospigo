@@ -59,7 +59,8 @@ function extractUpstreamMessage(body: unknown): string | undefined {
   return typeof message === 'string' ? message : undefined;
 }
 
-async function callApi<T>(
+/** Shared upstream caller — staff-api and auth helpers reuse this (never copy browser Cookie). */
+export async function callApi<T>(
   request: Request,
   path: string,
   init: RequestInit & { json?: unknown; timeoutMs?: number } = {},

@@ -2,27 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { sessionConfig } from '@/config/session';
+import { staffCopy } from '@/config/staff-copy';
 import { Button } from '@/components/ui/button';
+import { performSignOut } from './sign-out-action';
 
 export function SignOutButton() {
   const router = useRouter();
   const [pending, setPending] = useState(false);
-
-  async function onSignOut() {
-    setPending(true);
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: '{}',
-      });
-    } catch {
-      // Cookies may still clear server-side; continue to login.
-    }
-    router.replace(sessionConfig.loginPath);
-    router.refresh();
-  }
 
   return (
     <Button
@@ -31,10 +17,11 @@ export function SignOutButton() {
       className="touch-target"
       disabled={pending}
       onClick={() => {
-        void onSignOut();
+        setPending(true);
+        void performSignOut(router);
       }}
     >
-      {pending ? 'Signing out…' : 'Sign out'}
+      {pending ? staffCopy.signingOut : staffCopy.signOut}
     </Button>
   );
 }

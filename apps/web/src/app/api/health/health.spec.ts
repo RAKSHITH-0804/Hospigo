@@ -40,6 +40,9 @@ describe('GET /api/health', () => {
       activeBranchName: null,
       roleCodes: [],
       mustChangePassword: false,
+      branches: [],
+      enabledModules: [],
+      permissions: [],
     });
     const { GET } = await import('./route');
     const response = await GET();
@@ -59,6 +62,9 @@ describe('GET /api/health', () => {
       activeBranchName: null,
       roleCodes: ['HQ_ADMIN'],
       mustChangePassword: false,
+      branches: [],
+      enabledModules: [],
+      permissions: [],
     });
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
