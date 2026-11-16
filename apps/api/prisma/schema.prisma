@@ -249,6 +249,8 @@ model Hospital {
   paymentModes PaymentMode[]
   opdSettings OpdSettings[]
   numberSeriesSettings NumberSeriesSettings[]
+  numberSeries NumberSeries[]
+  tokenCounters TokenCounter[]
 
   @@map("hospitals")
 }
@@ -291,6 +293,7 @@ model Branch {
   registeredPatients Patient[]
   importBatches ImportBatch[]
   doctorTimings DoctorTiming[]
+  tokenCounters TokenCounter[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -1172,4 +1175,31 @@ model NumberSeriesSettings {
   @@unique([tenantId, id])
   @@unique([tenantId, series])
   @@map("number_series_settings")
+}
+
+/// Hospital-wide bill/receipt/refund running counters (period_year 0 when reset NEVER).
+model NumberSeries {
+  tenantId   String           @map("tenant_id")
+  series     NumberSeriesKind
+  periodYear Int              @map("period_year")
+  lastNumber BigInt           @default(0) @map("last_number")
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, series, periodYear])
+  @@map("number_series")
+}
+
+/// Per-branch OPD queue token counters (one series per IST calendar day).
+model TokenCounter {
+  tenantId  String   @map("tenant_id")
+  branchId  String   @map("branch_id")
+  tokenDate DateTime @map("token_date") @db.Date
+  lastToken Int      @default(0) @map("last_token")
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch   Branch   @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict)
+
+  @@id([tenantId, branchId, tokenDate])
+  @@map("token_counters")
 }

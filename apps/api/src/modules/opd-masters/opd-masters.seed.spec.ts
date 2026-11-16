@@ -111,5 +111,10 @@ describe('OPD masters mock seed (idempotent)', () => {
     expect(southLeave).toBeGreaterThanOrEqual(1);
     const northTimings = await owner.doctorTiming.count({ where: { tenantId: north.id } });
     expect(northTimings).toBe(EXPECTED.DEMO_NORTH.doctors * 5);
+
+    const northCustom = await owner.patientCustomField.count({ where: { tenantId: north.id } });
+    const southCustom = await owner.patientCustomField.count({ where: { tenantId: south.id } });
+    expect(northCustom).toBe(7);
+    expect(southCustom).toBe(0);
   });
 });

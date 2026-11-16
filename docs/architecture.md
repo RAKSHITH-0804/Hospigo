@@ -20,6 +20,14 @@
 - `PrismaService` stays inside the database module (not exported). Seeds may use a raw owner client.
 - Safety-net Jest scan of `apps/api/src` (excluding `database/`, specs) fails on raw Prisma / `$transaction` / raw SQL / `set_config` unless allowlisted by exact path with a reason comment.
 
+## PermissionGuard (Phase 2 Step 3a)
+
+- Second global `APP_GUARD` (after AuthGuard). HTTP routes need exactly one of `@Public`, `@AuthenticatedOnly`, or `@RequirePermission`; otherwise 403. `@RequirePermission` requires HOSPITAL context and `AccessService.can`.
+
+## Number counters (Phase 2 Step 3a)
+
+- `number_series` (hospital-wide bill/receipt/refund) and `token_counters` (per branch per hospital-local day) allocate on the **caller's** TenantDb transaction so a rollback leaves no gap.
+
 ## AccessService (Step 4)
 
 - `can(permissionCode, branchId, moduleCode?)` and `branchesFor(permissionCode, moduleCode?)`. Default **DENY**.

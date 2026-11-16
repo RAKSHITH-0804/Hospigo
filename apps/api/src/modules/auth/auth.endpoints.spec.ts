@@ -16,6 +16,7 @@ import request from 'supertest';
 import { createOwnerPrisma } from '../../database/db-test.util';
 import { AUTH_FAILED_MESSAGE } from './auth.errors';
 import { AUTH_REDIS_KEY_PREFIX } from './auth.config';
+import { AuthenticatedOnly } from '../access/permission.decorators';
 import { TokenKinds } from './token-kinds.decorator';
 
 loadEnv({ path: path.resolve(process.cwd(), '../../.env') });
@@ -100,12 +101,14 @@ const TEST_PREFIX = 'hospigo:auth:test:';
 @Controller('auth-kind-probe')
 class AuthKindProbeController {
   @Get('hospital-only')
+  @AuthenticatedOnly()
   @TokenKinds('HOSPITAL')
   hospitalOnly(): { ok: true } {
     return { ok: true };
   }
 
   @Get('hq-only')
+  @AuthenticatedOnly()
   @TokenKinds('HQ')
   hqOnly(): { ok: true } {
     return { ok: true };

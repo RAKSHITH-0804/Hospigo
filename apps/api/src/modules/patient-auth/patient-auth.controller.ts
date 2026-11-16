@@ -19,6 +19,7 @@ import {
 import { AuthRateLimitedError } from '../auth/auth-redis.service';
 import { LogoutDto } from '../auth/dto/logout.dto';
 import { RefreshDto } from '../auth/dto/refresh.dto';
+import { AuthenticatedOnly } from '../access/permission.decorators';
 import { Public } from '../auth/public.decorator';
 import { TokenKinds } from '../auth/token-kinds.decorator';
 import type { AccessClaims, PatientAccessClaims } from '../auth/token.types';
@@ -104,6 +105,7 @@ export class PatientAuthController {
   }
 
   @Get('me')
+  @AuthenticatedOnly()
   @TokenKinds('PATIENT')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Current patient account (masked phone; no hospital links yet)' })

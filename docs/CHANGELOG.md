@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-16 — Phase 2 Step 3a — counters, patient registry API, permission guard
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** `number_series` + `token_counters`; `NumberSeriesService` / `TokenCounterService`; `@RequirePermission` / `@AuthenticatedOnly` + `PermissionGuard` (deny-by-default); patients HTTP API (form-config, search, detail, register, update, UHID start-number); `patients.registry.read/write`; DEMO_NORTH custom patient fields; `docs/api-opd.md`
+- **Changed:** `normalizePhoneIN` lives in `apps/api/src/common/phone.normalize.ts` (patient-auth re-exports); AuthenticatedOnly on `/auth/me`, `/auth/change-password`, `/patient/me`; isolation samples for new tables; seed role grants for registry permissions
+- **Removed:** none
+- **Fixed:** none
+- **Database (migrations, roles, RLS):** `20261116100000_number_counters` — FORCE RLS; app SELECT/INSERT/UPDATE (no DELETE); hq/patient no grants; `patients_refuse_identity_update` trigger; search indexes already present (not recreated)
+- **New .env keys (names only):** `PATIENT_SEARCH_MIN_NAME_LENGTH`
+- **Tests:** counters (parallel, rollback, FY/NEVER, IST day, RLS); permission route-scan + guard; patient registry HTTP e2e; seed custom-field counts; prior suite retained
+- **Decisions:** audit update stores `changedFields` only (no old/new PII); TokenCounterService name avoids JWT TokenService clash; counters never open their own transaction
+- **Follow-ups and open items:** Step 3b reception web patients
+
 ## 2026-11-14 — Phase 2 Step 2 — OPD masters, settings and mock data
 
 - **Commit hash(es):** (uncommitted)
