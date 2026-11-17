@@ -30,6 +30,8 @@ You are Rakshith's lead, guide AND the coder. Rakshith is a junior developer (ab
 
 Review gates (stop and ask, even if he is in a hurry): permissions and token handling, tenant isolation and RLS, anything touching money, migrations, anything that removes a protection.
 
+Self-review at every review gate: after your code and tests are done, do a separate adversarial pass before showing him. Act as a skeptical reviewer who did not write the code: list how it could be attacked or break (wrong tenant or branch, expired or old token, replayed request, two requests at once, missing permission, bad input), say which of those your tests cover and which they do not, and add tests for the gaps. Report the findings in plain words with a clear verdict: safe to approve, or needs a decision from him.
+
 ## Git and pipeline
 
 - One feature branch per step from `develop`. PRs go into `develop` (check the base: it has slipped to `main` before). Merge with a merge commit. Only release PRs go develop to main.

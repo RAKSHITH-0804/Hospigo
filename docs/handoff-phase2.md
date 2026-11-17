@@ -1,5 +1,7 @@
 # Hospigo: handoff for the next chat (written 16 Nov 2026, evening)
 
+> **Status update 17 Nov 2026:** Step 3c is merged (PR #41). `develop` is at **c32185f**. Tests: API **281**, web **314**. Phase 2 steps 1, 2, 3a, 3b, 3c are done; Step 3d is in progress. The step table below is superseded by this order: **3d, 4a-1, 4a-2, 4b, 5a, 5b, 6a, 6b, 7, 7b (Settings screens: custom required fields, required-field settings, UHID format creation), 8a, 8b, 9**. Target for the first OPD flow: **Fri 27 Nov** (quality first; never shorten tests or review gates). Details and decisions: `docs/plan-opd-first-flow.md`, `docs/decisions-3c.md`. The rest of this file is the 16 Nov snapshot.
+
 Paste the **starter message** at the bottom into a new chat **inside the same Claude Project**, so the saved project memory is available too. This file holds everything else.
 
 ---
@@ -17,15 +19,15 @@ Paste the **starter message** at the bottom into a new chat **inside the same Cl
 
 ## 2. Where the code stands
 
-| Item      | State                                                         |
-| --------- | ------------------------------------------------------------- |
-| Repo      | GitHub `RAKSHITH-0804/Hospigo` (private)                      |
-| `main`    | `312e804`, tag `v0.1.0` (Phase 1). Not updated since          |
-| `develop` | `6a05dca` (PR #40, Step 3b). Next release PR to main later    |
-| Tests     | API **245**, web **155**; 16 migrations                       |
-| Open PRs  | Dependabot #29 and #30 (left for a dedicated upgrade session) |
-| Phase 1   | Done (Steps 1 to 7, staff, HQ and patient login)              |
-| Phase 2   | Steps **1, 2, 3a, 3b done**                                   |
+| Item      | State                                                                  |
+| --------- | ---------------------------------------------------------------------- |
+| Repo      | GitHub `RAKSHITH-0804/Hospigo` (private)                               |
+| `main`    | `312e804`, tag `v0.1.0` (Phase 1). Not updated since                   |
+| `develop` | `c32185f` (PR #41 Step 3c, then docs PR #42). Release PR to main later |
+| Tests     | API **281**, web **314**                                               |
+| Open PRs  | Dependabot #29 and #30 (left for a dedicated upgrade session)          |
+| Phase 1   | Done (Steps 1 to 7, staff, HQ and patient login)                       |
+| Phase 2   | Steps **1, 2, 3a, 3b, 3c done**; 3d in progress                        |
 
 **Phase 2 steps done:** 1 design docs; 2 OPD masters, settings, mock data (11 tables, price history append-only); 3a number counters (bill, receipt, refund, per-branch token) and patient registry API with permission guard (deny by default, route-scan test); 3b web foundation (permissions in `/auth/me`, one navy/blue palette and IBM Plex Sans for the whole product, collapsible sidebar, top bar, user menu, UI kit, staff copy file).
 
