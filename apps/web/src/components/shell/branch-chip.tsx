@@ -1,7 +1,7 @@
 import { MapPin } from 'lucide-react';
 import { staffCopy } from '@/config/staff-copy';
 
-/** Read-only active branch label — never a control (no switcher in this step). */
+/** Read-only active branch label for everyone except hospital-wide users (see BranchSwitcher). */
 export function BranchChip({ name }: { name: string }) {
   return (
     <span className="shell-branch-chip" aria-label={staffCopy.shell.branchChipAria} title={name}>

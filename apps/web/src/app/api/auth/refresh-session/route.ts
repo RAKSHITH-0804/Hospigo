@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { sessionConfig } from '@/config/session';
 import { refreshTokens } from '@/lib/auth/api-client';
 import { applyClearCookies, applySessionCookies } from '@/lib/auth/cookies';
-import { runRefreshSingleFlight } from '@/lib/auth/refresh-flight';
+import { flightTokens, runRefreshSingleFlight } from '@/lib/auth/refresh-flight';
 
 const NO_STORE = { 'Cache-Control': 'no-store' } as const;
 
@@ -34,7 +34,10 @@ export async function POST(request: Request): Promise<NextResponse> {
     return { ok: true as const, data: upstream.data };
   });
 
-  if (!result.ok || !result.data.refreshToken) {
+  // After a switch queued behind (or joined by) this refresh, these are the newest tokens;
+  // a refused switch still carries the rotated session. No tokens = the session is gone.
+  const rotated = flightTokens(result);
+  if (!rotated) {
     const response = NextResponse.json(
       { ok: false, code: 'UNAUTHORIZED' },
       {
@@ -47,10 +50,6 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const response = NextResponse.json({ ok: true }, { status: 200, headers: NO_STORE });
-  applySessionCookies(response, {
-    accessToken: result.data.accessToken,
-    refreshToken: result.data.refreshToken,
-    expiresIn: result.data.expiresIn,
-  });
+  applySessionCookies(response, rotated);
   return response;
 }

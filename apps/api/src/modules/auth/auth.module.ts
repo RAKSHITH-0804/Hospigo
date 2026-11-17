@@ -10,6 +10,7 @@ import { AuthEmailService } from './auth-email.service';
 import { AuthGuard } from './auth.guard';
 import { AuthRedisService } from './auth-redis.service';
 import { AuthService } from './auth.service';
+import { BranchSwitchService } from './branch-switch.service';
 import { HospitalLoginHelper } from './hospital-login.helper';
 import { MembershipHelper } from './membership.helper';
 import { PasswordService } from './password.service';
@@ -31,6 +32,7 @@ import { TokenService } from './token.service';
     HqPrismaService,
     AuthRedisService,
     AuthService,
+    BranchSwitchService,
     ActionTokenService,
     AuthEmailService,
     MailProcessor,

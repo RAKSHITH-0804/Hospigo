@@ -57,7 +57,7 @@ Sidebar and top bar stay fixed in the viewport; only `#main-content` scrolls. Th
 - **Skip link:** first focusable control → `#main-content`.
 - **Branch chip:** read-only for every hospital user (map-pin + ellipsis). Not a control.
 
-**Branch switcher (Step 3d):** visible only to users whose role has hospital-wide scope (SuperAdmin). Branch Admin and other staff work in the branch of the access code they logged in with; for them the branch chip stays a read-only label. Switching will issue a new access token for the chosen branch (server-side permission check, audit entry, tests).
+**Branch switcher (Step 3d):** visible only to users whose role has hospital-wide scope (SuperAdmin). Branch Admin and other staff work in the branch of the access code they logged in with; for them the branch chip stays a read-only label. Built in Step 3d: the chip becomes a dropdown (list loaded when opened, skeleton, error states); switching rotates the session and issues a new access token for the chosen branch (server-side check, audit entry, tests), then the page reloads. A tab that regains focus re-checks the branch and reloads if another tab switched.
 
 ## User menu (~280px)
 

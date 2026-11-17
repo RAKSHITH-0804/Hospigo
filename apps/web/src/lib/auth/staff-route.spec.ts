@@ -5,11 +5,12 @@
 const callStaffApiMock = jest.fn();
 const authMeMock = jest.fn();
 let hasAccessCookie = true;
+let accessCookieValue = 'secret-access-token';
 
 jest.mock('next/headers', () => ({
   cookies: async () => ({
     get: (name: string) =>
-      hasAccessCookie && name === 'hospigo_access' ? { value: 'secret-access-token' } : undefined,
+      hasAccessCookie && name === 'hospigo_access' ? { value: accessCookieValue } : undefined,
   }),
 }));
 
@@ -23,11 +24,27 @@ jest.mock('./session', () => ({
 
 import { staffRoute } from './staff-route';
 
+const GUARD_HEADER = 'x-hospigo-branch';
+
+/** A JWT-shaped cookie value whose payload names a branch (the web never verifies it). */
+function tokenForBranch(branchId: string): string {
+  const payload = Buffer.from(JSON.stringify({ branchId })).toString('base64url');
+  return `header.${payload}.signature`;
+}
+
+function writeRequest(branchId?: string): Request {
+  return new Request('http://127.0.0.1:3001/api/staff/x', {
+    method: 'POST',
+    headers: branchId ? { [GUARD_HEADER]: branchId } : {},
+  });
+}
+
 describe('staffRoute', () => {
   beforeEach(() => {
     callStaffApiMock.mockReset();
     authMeMock.mockReset();
     hasAccessCookie = true;
+    accessCookieValue = tokenForBranch('branch-1');
   });
 
   it('returns JSON 401 without redirect when the access cookie is missing', async () => {
@@ -83,13 +100,14 @@ describe('staffRoute', () => {
       method: 'POST',
       path: '/patients',
       body: { name: 'A' },
+      request: writeRequest('branch-1'),
     });
     expect(res.status).toBe(409);
     const json = await res.json();
     expect(json.code).toBe('POSSIBLE_DUPLICATE');
     expect(json.matches).toEqual([{ id: '1', uhid: 'X', name: 'A' }]);
     expect(json).not.toHaveProperty('secret');
-    expect(JSON.stringify(json)).not.toMatch(/Bearer|hospigo_access|secret-access-token/i);
+    expect(JSON.stringify(json)).not.toMatch(/Bearer|hospigo_access|signature/i);
   });
 
   it('maps timeout/network 503 to UNAVAILABLE', async () => {
@@ -104,5 +122,64 @@ describe('staffRoute', () => {
     const res = await staffRoute({ path: '/patients' });
     expect(res.status).toBe(401);
     expect((await res.json()).code).toBe('SESSION_EXPIRED');
+  });
+
+  describe('stale-tab branch guard on writes', () => {
+    const okUpstream = { ok: true, status: 200, data: { id: 'p1' } };
+
+    it('lets a write through when the page branch equals the session branch', async () => {
+      callStaffApiMock.mockResolvedValue(okUpstream);
+      const res = await staffRoute({
+        method: 'POST',
+        path: '/patients',
+        body: { name: 'A' },
+        request: writeRequest('branch-1'),
+      });
+      expect(res.status).toBe(200);
+      expect(callStaffApiMock).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ['another branch than the session', 'branch-2'],
+      ['no header at all', undefined],
+    ])(
+      'refuses a write with %s: 409 BRANCH_CHANGED and the API is never called',
+      async (_n, hdr) => {
+        const res = await staffRoute({
+          method: 'POST',
+          path: '/patients',
+          body: { name: 'A' },
+          request: writeRequest(hdr),
+        });
+        expect(res.status).toBe(409);
+        expect(await res.json()).toEqual({ code: 'BRANCH_CHANGED' });
+        expect(res.headers.get('Cache-Control')).toBe('no-store');
+        expect(callStaffApiMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it('refuses a write that did not pass its request at all (fail closed)', async () => {
+      const res = await staffRoute({ method: 'PATCH', path: '/patients/1', body: { name: 'A' } });
+      expect(res.status).toBe(409);
+      expect(callStaffApiMock).not.toHaveBeenCalled();
+    });
+
+    it('refuses a write when the cookie holds no readable branch', async () => {
+      accessCookieValue = 'not-a-jwt';
+      const res = await staffRoute({
+        method: 'PUT',
+        path: '/x',
+        body: {},
+        request: writeRequest('branch-1'),
+      });
+      expect(res.status).toBe(409);
+      expect(callStaffApiMock).not.toHaveBeenCalled();
+    });
+
+    it('does not apply to reads', async () => {
+      callStaffApiMock.mockResolvedValue(okUpstream);
+      const res = await staffRoute({ method: 'GET', path: '/patients' });
+      expect(res.status).toBe(200);
+    });
   });
 });

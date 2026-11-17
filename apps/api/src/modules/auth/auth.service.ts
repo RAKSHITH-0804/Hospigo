@@ -10,6 +10,7 @@ import type { AuthConfig } from './auth.config';
 import { AuthRedisService } from './auth-redis.service';
 import { authFailed } from './auth.errors';
 import { HospitalLoginHelper } from './hospital-login.helper';
+import { userHasHospitalScope } from './hospital-scope';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 import type { AccessClaims, HospitalAccessClaims, HqAccessClaims } from './token.types';
@@ -56,6 +57,8 @@ export type AuthMeResponse = {
    * (AccessService snapshot / can() without a module gate). Empty for HQ.
    */
   permissions: string[];
+  /** True when the user holds an active hospital-wide role (branch switcher). HQ: false. */
+  canSwitchBranch: boolean;
 };
 
 @Injectable()
@@ -482,9 +485,12 @@ export class AuthService {
               }))
               .sort((a, b) => a.name.localeCompare(b.name));
 
-            const activeBranch =
-              branches.find((b) => b.id === hospitalClaims.branchId) ??
-              user.userBranches.find((ub) => ub.branchId === hospitalClaims.branchId)?.branch;
+            // Read the active branch directly: a hospital-wide user (branch switcher) may be
+            // on a branch where they have no membership row. RLS limits this to the hospital.
+            const activeBranch = await tx.branch.findFirst({
+              where: { id: hospitalClaims.branchId },
+              select: { id: true, name: true },
+            });
 
             const subscribed = await tx.hospitalModuleSubscription.findMany({
               where: { isActive: true },
@@ -513,6 +519,9 @@ export class AuthService {
               activeBranchId: activeBranch?.id ?? hospitalClaims.branchId,
               activeBranchName: activeBranch?.name ?? null,
               enabledModules,
+              canSwitchBranch:
+                user.isActive &&
+                user.roleAssignments.some((a) => a.scopeType === 'HOSPITAL' && a.role.isActive),
             };
           });
           if (!data) {
@@ -540,6 +549,7 @@ export class AuthService {
             branches: data.branches,
             enabledModules: data.enabledModules,
             permissions,
+            canSwitchBranch: data.canSwitchBranch,
           };
         },
       );
@@ -566,6 +576,7 @@ export class AuthService {
       branches: [],
       enabledModules: [],
       permissions: [],
+      canSwitchBranch: false,
     };
   }
 
@@ -628,15 +639,37 @@ export class AuthService {
             return { type: 'fail' as const };
           }
 
+          // A session needs an active membership of its branch OR an active hospital-wide
+          // role (branch switcher; same rule as AccessService). Re-checked on every refresh:
+          // losing both revokes the whole family.
           const member = await tx.userBranch.findFirst({
             where: { userId: user.id, branchId: branch.id, isActive: true },
           });
-          if (!member) {
+          if (!member && !(await userHasHospitalScope(tx, user.id))) {
             await tx.authSession.updateMany({
               where: { familyId: session.familyId, revokedAt: null },
               data: { revokedAt: new Date() },
             });
             return { type: 'fail' as const };
+          }
+
+          // Take the session atomically BEFORE issuing the next one: a concurrent rotation
+          // (refresh or branch switch) that got there first leaves count 0, which is treated
+          // as reuse. Never two live sessions from one refresh token.
+          const claimed = await tx.authSession.updateMany({
+            where: { id: session.id, revokedAt: null, replacedById: null },
+            data: { revokedAt: new Date(), lastUsedAt: new Date() },
+          });
+          if (claimed.count !== 1) {
+            await tx.authSession.updateMany({
+              where: { familyId: session.familyId, revokedAt: null },
+              data: { revokedAt: new Date() },
+            });
+            return {
+              type: 'reuse' as const,
+              userId: session.userId,
+              branchId: session.branchId,
+            };
           }
 
           const newSession = await tx.authSession.create({
@@ -662,11 +695,7 @@ export class AuthService {
           });
           await tx.authSession.update({
             where: { id: session.id },
-            data: {
-              revokedAt: new Date(),
-              replacedById: newSession.id,
-              lastUsedAt: new Date(),
-            },
+            data: { replacedById: newSession.id },
           });
 
           return {

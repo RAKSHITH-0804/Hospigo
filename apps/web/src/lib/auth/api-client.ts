@@ -175,6 +175,19 @@ export function refreshTokens(
   });
 }
 
+export function switchBranchUpstream(
+  request: Request,
+  accessToken: string,
+  body: { branchId: string; refreshToken: string },
+): Promise<UpstreamResult<TokenPairResponse>> {
+  return callApi(request, '/auth/switch-branch', {
+    method: 'POST',
+    json: body,
+    timeoutMs: sessionConfig.staffUpstreamTimeoutMs,
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
 export function logoutUpstream(
   request: Request,
   refreshToken: string,

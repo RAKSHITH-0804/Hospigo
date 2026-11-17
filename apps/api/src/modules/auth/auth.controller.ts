@@ -20,6 +20,7 @@ import {
 } from '@nestjs/swagger';
 import { AuthEmailService } from './auth-email.service';
 import { AuthService } from './auth.service';
+import { BranchSwitchService } from './branch-switch.service';
 import { AuthRateLimitedError } from './auth-redis.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import {
@@ -33,11 +34,12 @@ import { LogoutDto } from './dto/logout.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { AuthMeResponseDto } from './dto/auth-me.dto';
 import { ActivateDto, ResetPasswordDto } from './dto/reset-activate.dto';
+import { SwitchableBranchDto, SwitchBranchDto } from './dto/switch-branch.dto';
 import { TokenResponseDto } from './dto/token-response.dto';
 import { AuthenticatedOnly } from '../access/permission.decorators';
 import { Public } from './public.decorator';
 import { TokenKinds } from './token-kinds.decorator';
-import type { AccessClaims } from './token.types';
+import type { AccessClaims, HospitalAccessClaims } from './token.types';
 
 type HttpReq = {
   ip?: string;
@@ -55,6 +57,7 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly authEmail: AuthEmailService,
+    private readonly branchSwitch: BranchSwitchService,
   ) {}
 
   @Public()
@@ -141,6 +144,44 @@ export class AuthController {
       throw new UnauthorizedException('Missing auth context');
     }
     return this.auth.me(req.auth);
+  }
+
+  @Get('switchable-branches')
+  @AuthenticatedOnly()
+  @TokenKinds('HOSPITAL')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Branches the caller may switch to (hospital-wide users only; others get 403)',
+  })
+  @ApiOkResponse({ type: [SwitchableBranchDto] })
+  async switchableBranches(@Req() req: HttpReq): Promise<SwitchableBranchDto[]> {
+    if (!req.auth) {
+      throw new UnauthorizedException('Missing auth context');
+    }
+    return this.branchSwitch.listSwitchable(req.auth as HospitalAccessClaims);
+  }
+
+  @Post('switch-branch')
+  @HttpCode(200)
+  @AuthenticatedOnly()
+  @TokenKinds('HOSPITAL')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Switch the active branch (hospital-wide users only). Rotates the refresh token and returns a new access token for the target branch.',
+  })
+  @ApiOkResponse({ type: TokenResponseDto })
+  async switchBranchRoute(
+    @Body() body: SwitchBranchDto,
+    @Req() req: HttpReq,
+    @Res({ passthrough: true }) res: HttpRes,
+  ): Promise<TokenResponseDto> {
+    if (!req.auth) {
+      throw new UnauthorizedException('Missing auth context');
+    }
+    return this.wrapRateLimit(res, () =>
+      this.branchSwitch.switchBranch(req.auth as HospitalAccessClaims, body, clientMeta(req)),
+    );
   }
 
   @Public()
