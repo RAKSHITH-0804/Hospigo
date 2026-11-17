@@ -73,4 +73,24 @@ describe('callStaffApi', () => {
     const result = await callStaffApi('/patients');
     expect(result).toEqual({ ok: false, status: 503 });
   });
+
+  it('passes through upstream error body from callApi (409)', async () => {
+    callApiMock.mockResolvedValue({
+      ok: false,
+      status: 409,
+      body: { code: 'POSSIBLE_DUPLICATE', matches: [{ id: '1', uhid: 'A', name: 'N' }] },
+    });
+    const result = await callStaffApi('/patients', { method: 'POST', body: { name: 'N' } });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.body?.code).toBe('POSSIBLE_DUPLICATE');
+      expect(result.body?.matches).toEqual([{ id: '1', uhid: 'A', name: 'N' }]);
+    }
+  });
+
+  it('success path unchanged when body is present on failure only', async () => {
+    callApiMock.mockResolvedValue({ ok: true, data: { id: 'p1' } });
+    const result = await callStaffApi('/patients/p1');
+    expect(result).toEqual({ ok: true, data: { id: 'p1' } });
+  });
 });

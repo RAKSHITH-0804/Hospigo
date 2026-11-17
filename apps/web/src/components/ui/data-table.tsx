@@ -1,10 +1,18 @@
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+
+export type DataTableSortDirection = 'asc' | 'desc';
 
 export type DataTableColumn<T> = {
   id: string;
   header: string;
   cell: (row: T) => ReactNode;
+  /** When set, header becomes a sort button. */
+  sortable?: boolean;
+  sortDirection?: DataTableSortDirection | null;
+  sortAriaLabel?: string;
+  onSort?: () => void;
 };
 
 export function DataTable<T extends { id: string }>({
@@ -28,15 +36,44 @@ export function DataTable<T extends { id: string }>({
         {caption ? <caption className="sr-only">{caption}</caption> : null}
         <thead className="bg-[var(--table-header)]">
           <tr>
-            {columns.map((col) => (
-              <th
-                key={col.id}
-                scope="col"
-                className="border-b border-[var(--row-divider)] px-[var(--space-table-x)] py-[var(--space-table-y)] type-label font-semibold text-foreground"
-              >
-                {col.header}
-              </th>
-            ))}
+            {columns.map((col) => {
+              const ariaSort =
+                col.sortable && col.sortDirection
+                  ? col.sortDirection === 'asc'
+                    ? 'ascending'
+                    : 'descending'
+                  : col.sortable
+                    ? 'none'
+                    : undefined;
+              return (
+                <th
+                  key={col.id}
+                  scope="col"
+                  aria-sort={ariaSort}
+                  className="border-b border-[var(--row-divider)] px-[var(--space-table-x)] py-[var(--space-table-y)] type-label font-semibold text-foreground"
+                >
+                  {col.sortable ? (
+                    <button
+                      type="button"
+                      className="data-table-sort inline-flex items-center gap-[var(--space-1)]"
+                      aria-label={col.sortAriaLabel ?? col.header}
+                      onClick={col.onSort}
+                    >
+                      <span>{col.header}</span>
+                      {col.sortDirection === 'asc' ? (
+                        <ArrowUp aria-hidden="true" className="size-[var(--size-icon-menu)]" />
+                      ) : col.sortDirection === 'desc' ? (
+                        <ArrowDown aria-hidden="true" className="size-[var(--size-icon-menu)]" />
+                      ) : (
+                        <ArrowUpDown aria-hidden="true" className="size-[var(--size-icon-menu)]" />
+                      )}
+                    </button>
+                  ) : (
+                    col.header
+                  )}
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>

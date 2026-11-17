@@ -5,9 +5,9 @@ Put this file in the repo as `docs/decisions-3c.md`. It records what was decided
 ## 1. State
 
 - Branch: `feature/phase2-step-3c-reception-patients` (from `develop`).
-- API part is built, reviewed and verified with three Postman collections (all green): UHID 3c (57 checks), Patients list 3c (101), Patients q search 3c (34). API tests: 274.
-- Web screens are built but still being polished. Pending web prompt: W1 render speed, W2 live search toolbar, W3 visual fixes (details in section 5).
-- Not yet done: full browser test of the web screens, web commit, push and PR into `develop`.
+- API part is built, reviewed and verified with three Postman collections (all green): UHID 3c (57 checks), Patients list 3c (101), Patients q search 3c (34). API tests: 281.
+- Web screens are built and polished. W1 render speed, W2 live search toolbar, W3 visual fixes are built (section 8); browser-tested 17 Nov (all checks passed).
+- Not yet done: push and PR into `develop`.
 - Later steps unchanged: 3d, 4a, 4b, 5a, 5b, 6a, 6b, 7, 8a, 8b, 9. The Saturday 21 Nov target for the first OPD flow is at risk; if it slips, cut screen polish, never tests or money rules.
 
 ## 2. API decisions
@@ -41,13 +41,13 @@ Put this file in the repo as `docs/decisions-3c.md`. It records what was decided
 - A way to create a hospital's UHID format.
 - Print templates (paper, offsets) per hospital.
 
-## 5. Pending web prompt (W1, W2, W3)
+## 5. Web prompt W1, W2, W3 (done)
 
 W1 render speed: measure first; one session lookup per request (React cache); `staffRoute` checks only that the access cookie exists and maps upstream 401/403 (the API stays the authority); parallel server fetches; first-paint data fetched on the server; loading.tsx skeletons; no router calls per keystroke; smaller client bundles.
 W2 live search toolbar as in section 3.
 W3 visual fixes: small back arrow; 16px input font on touch only; age/DOB group radius; record page card padding and quiet headings; estimated DOB shown as "Age 33 years (approx.)" with no date; one spaced phone format everywhere.
 
-## 6. Browser test still to do (reception, north, `http://127.0.0.1:3001`)
+## 6. Browser test (done 17 Nov, all passed) (reception, north, `http://127.0.0.1:3001`)
 
 Fixed shell; toolbar and live search; header sorting and URL; quick view; register form on one screen; all-fields highlight; digits-only phone, pincode, age; age/DOB switch; relative block; register, duplicate panel, edit, slip print preview; SuperAdmin Next UHID card (raise, then register and compare); south hospital list; session test (delete the access cookie: silent; delete both: message and kept values); phone width.
 
@@ -59,3 +59,29 @@ Fixed shell; toolbar and live search; header sorting and URL; quick view; regist
 - Partial (contains) search for phone and UHID needs an API change.
 - Seed data cosmetics: generated names do not match genders.
 - Existing items from the handoff (refresh-token reuse with several web servers, pg deprecation warning, expired OTP cleanup, counters-only-forward trigger in 4a, older tests that depend on file order, vendor the font files before go-live) remain open.
+
+## 8. W1–W3 outcome (written 17 Nov 2026, proposed, uncommitted)
+
+- `getSession` is wrapped in React `cache()`: layout, page and guards share ONE `/auth/me` per navigation. `AuthGuard` is an empty client component (no auth); both wrappers stay for now.
+- `staffRoute` checks only that the access cookie exists (JSON 401 `UNAUTHORIZED`) and maps upstream 401 → `SESSION_EXPIRED`, 403 → `FORBIDDEN`. The `permission` option is removed. This is safe because the API denies by default (`@TokenKinds('HOSPITAL')`, `@RequirePermission` on every patients route, `PermissionGuard`, route-scan test).
+- Pages fetch first-paint data on the server with `callStaffApi` (`lib/patients/server.ts`) and pass props; client components fetch only on user actions. A server fetch that gets 401 redirects to `/api/auth/refresh?next=…` (path sanitized, same-origin only). Independent fetches run in `Promise.all`.
+- Search: web minimum length 2 (`WEB_PATIENT_SEARCH_MIN_LENGTH`), pause 250 ms (`WEB_PATIENT_SEARCH_DEBOUNCE_MS`), max 64 (`WEB_PATIENT_SEARCH_MAX_LENGTH`). A 400 with `fieldErrors.q` shows the hint. `classifyQuery` and the web `/search` route are removed.
+- Record page: estimated date of birth shows “Age N years (approx.)” and no date; a real date is shown like table dates; phone is spaced everywhere except the slip (stored format).
+- Input font: 13px on desktop, 16px on touch only.
+- Not done: lazy-loading the quick-view panel (it is small and inside the list client component, no real saving).
+
+## 9. F1–F4 outcome (proposed, uncommitted)
+
+- `GET /patients` sorts: `uhid_desc` / `uhid_asc` = `length(uhid)` then `uhid COLLATE "C"` then `id`. Plain character order matches the Postman check. Known limit: after a UHID format change, formats are ordered by length then text. An unknown sort value is still `400 Invalid sort`; the web falls back to the default for an unknown `?sort=` and derives `col` from `sort`.
+- Web UHID header: first click `uhid_desc`, then `uhid_asc`.
+- Tooltips are portals on `document.body`, rendered only after mount. Collapsed sidebar text uses `.visually-hidden`.
+- Settings is a framed, multi-section page driven by one config list; `/app/settings` redirects to the first allowed section. Later steps add one entry.
+- Slip: `@page` margin from config (default 0) and its own padding token.
+
+## 10. More follow-ups found in the 3c browser test (17 Nov 2026)
+
+- Record page: the section headings (Demographics, Contact, Address) are larger than the headings on the form and in Settings.
+- Duplicate panel shows only UHID and name; it should also show phone, age and branch (the 409 matches need to carry them).
+- The tooltip spec prints React act() warnings (noise, not failures).
+- The empty AuthGuard client wrappers (mounted twice) can be removed.
+- The route-safety Postman collection needs a valid patientPhone for its five patient-token checks (they are skipped without it).

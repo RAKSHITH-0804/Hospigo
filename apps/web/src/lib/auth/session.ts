@@ -1,4 +1,5 @@
 import { cookies, headers } from 'next/headers';
+import { cache } from 'react';
 import { sessionConfig } from '@/config/session';
 import { fetchMe } from './api-client';
 import type { AuthKind, AuthMeProfile } from './types';
@@ -8,8 +9,12 @@ export type SessionResult = AuthMeProfile;
 /**
  * Reads the access cookie and calls API GET /auth/me.
  * Does not decode or verify JWTs in the web app.
+ *
+ * Wrapped in React cache(): the result is shared only inside ONE server render
+ * (layout + page + guards = one /auth/me per navigation). React clears it per
+ * request, so nothing is shared between users or requests.
  */
-export async function getSession(): Promise<SessionResult | null> {
+export const getSession = cache(async (): Promise<SessionResult | null> => {
   const jar = await cookies();
   const access = jar.get(sessionConfig.cookieAccessName)?.value;
   if (!access) {
@@ -29,7 +34,7 @@ export async function getSession(): Promise<SessionResult | null> {
     return null;
   }
   return result.data;
-}
+});
 
 export async function getRefreshCookie(): Promise<string | undefined> {
   const jar = await cookies();

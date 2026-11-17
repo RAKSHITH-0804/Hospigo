@@ -23,7 +23,7 @@ jest.mock('./patient-session', () => ({
 
 import { getPatientSession, currentPatientPathname } from './patient-session';
 import { getSession, currentPathname } from './session';
-import { requireKind, requirePatient, requirePermission } from './guards';
+import { redirectToRefresh, requireKind, requirePatient, requirePermission } from './guards';
 
 describe('requireKind guards', () => {
   beforeEach(() => {
@@ -199,5 +199,32 @@ describe('requirePermission guard', () => {
     };
     (getSession as jest.Mock).mockResolvedValue(session);
     await expect(requirePermission('patients.registry.read')).resolves.toEqual(session);
+  });
+});
+
+describe('redirectToRefresh target', () => {
+  beforeEach(() => {
+    redirectMock.mockClear();
+  });
+
+  it('keeps a normal same-origin path in next', async () => {
+    (currentPathname as jest.Mock).mockResolvedValue('/app/patients/p1');
+    await expect(redirectToRefresh()).rejects.toThrow(
+      `REDIRECT:/api/auth/refresh?next=${encodeURIComponent('/app/patients/p1')}`,
+    );
+  });
+
+  const backslash = String.fromCharCode(92);
+  it.each([
+    '//evil.example/x',
+    'https://evil.example',
+    `/${backslash}evil.example`,
+    'javascript:alert(1)',
+  ])('never lets %s become an external target (falls back to the staff home)', async (pathname) => {
+    (currentPathname as jest.Mock).mockResolvedValue(pathname);
+    await expect(redirectToRefresh()).rejects.toThrow(
+      `REDIRECT:/api/auth/refresh?next=${encodeURIComponent('/app')}`,
+    );
+    expect(String(redirectMock.mock.calls[0]?.[0])).toMatch(/^\/api\/auth\/refresh\?next=/);
   });
 });

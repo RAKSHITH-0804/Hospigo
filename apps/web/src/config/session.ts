@@ -46,6 +46,8 @@ export type SessionConfig = {
   errorNoPermission: string;
   /** Staff upstream timeout for callStaffApi (ms). */
   staffUpstreamTimeoutMs: number;
+  /** Max bytes of upstream error JSON kept on UpstreamResult.body. */
+  staffUpstreamErrorBodyMaxBytes: number;
   /** Patient session cookies (separate from staff/HQ). */
   patientCookieAccessName: string;
   patientCookieRefreshName: string;
@@ -118,6 +120,7 @@ const DEFAULTS = {
   errorModuleUnavailable: 'That module is not available for your active branch.',
   errorNoPermission: 'You do not have permission to open that page.',
   staffUpstreamTimeoutMs: 8000,
+  staffUpstreamErrorBodyMaxBytes: 8192,
   patientCookieAccessName: 'hospigo_patient_access',
   patientCookieRefreshName: 'hospigo_patient_refresh',
   patientRefreshCookiePath: '/api/patient-auth',
@@ -326,6 +329,13 @@ export function loadSessionConfig(
       DEFAULTS.staffUpstreamTimeoutMs,
       1000,
       60_000,
+    ),
+    staffUpstreamErrorBodyMaxBytes: intEnv(
+      env,
+      'WEB_STAFF_UPSTREAM_ERROR_BODY_MAX_BYTES',
+      DEFAULTS.staffUpstreamErrorBodyMaxBytes,
+      1024,
+      64 * 1024,
     ),
     patientCookieAccessName: strEnv(
       env,

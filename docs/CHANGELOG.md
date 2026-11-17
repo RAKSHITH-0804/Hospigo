@@ -29,6 +29,32 @@
 
 ## Unreleased
 
+## 2026-11-17 — Phase 2 Step 3c — UHID sort, sidebar tooltips, settings structure, polish (F1–F4)
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** API sort values `uhid_desc` / `uhid_asc` for `GET /patients` (`ORDER BY length(uhid), uhid COLLATE "C", id`); settings frame (`config/settings-sections.ts`, `/app/settings/[section]`, section nav, compact setting blocks); portal tooltip; `.visually-hidden`; slip page margin config
+- **Changed:** UHID column header sorts `uhid_desc` first, then `uhid_asc` (Registered on keeps newest/oldest; URL `col` is derived from `sort` when they disagree); all tooltips render in a portal on `document.body` (fixed position from the trigger rect, only after mount); collapsed sidebar text uses the visually-hidden class; `/app/settings` redirects to the first allowed section; settings description is "Hospital settings"; record page approximate age reads "N years (approx.)"; quick-view name link matches table links; slip `@page` margin 0 with its own padding token; selected Age / Date of birth mode is filled with the primary token
+- **Removed:** descendant-selector hiding of collapsed nav labels (replaced by the class); the single-page settings screen
+- **Fixed:** sidebar tooltips clipped by the sidebar's scroll container
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** `WEB_PATIENT_SLIP_PAGE_MARGIN`
+- **Tests:** API 274 → 281, web 290 → 314
+- **Decisions:** UHID order uses plain character order (`COLLATE "C"`); known limit: after a UHID format change, formats are ordered by length then text; unknown sort value stays `400`
+- **Follow-ups and open items:** sidebar collapsed-state sliver cause (see report)
+
+## 2026-11-17 — Phase 2 Step 3c — web speed, live search, visual fixes (W1, W2, W3)
+
+- **Commit hash(es):** (uncommitted)
+- **Added:** `loading.tsx` skeletons for `/app/patients`, `/new`, `/[id]`, `/[id]/edit`, `/app/settings`; server first-paint fetch helper `lib/patients/server.ts`; list URL helpers `lib/patients/list-params.ts`; `redirectToRefresh()` (same-origin target only); `RecordTabs` and `PrintButton` as the only client parts of the record and slip
+- **Changed:** `getSession` wrapped in React `cache()` (one `/auth/me` per navigation); `staffRoute` checks only the access cookie and maps upstream 401/403 (the API stays the authority; `permission` option removed); pages fetch their first-paint data on the server and pass props; live search (`GET /patients?q=`, debounce, abort, out-of-order guard, URL via `history.replaceState`); Register patient moved to the title row; record page: compact values, 3 columns on wide screens, estimated date of birth shows "Age N years (approx.)", real date shown like table dates, spaced phone everywhere; `CardHeader` padding now uses the card padding token; back arrow is a small ghost icon button; input font is the 13px control size on desktop and 16px only on touch (`pointer: coarse`); age/date-of-birth input has the control radius
+- **Removed:** `classifyQuery`, `SearchMode`, `buildSearchPath`, the Clear button, the results chip, the web route `/api/staff/patients/search` (the API search endpoint stays), copy keys `clear`, `nameMinHint`, `resultsFor`, `searchedBy*`, `resultsTotal`, env key `WEB_PATIENT_SEARCH_MIN_NAME_LENGTH`
+- **Fixed:** card headings touching the card edge (undefined spacing variable)
+- **Database (migrations, roles, RLS):** none
+- **New .env keys (names only):** `WEB_PATIENT_SEARCH_MIN_LENGTH`, `WEB_PATIENT_SEARCH_MAX_LENGTH`, `WEB_PATIENT_SEARCH_DEBOUNCE_MS`
+- **Tests:** web 249 → 290 (see report)
+- **Decisions:** web minimum search length 2 (API default); API 400 with `fieldErrors.q` shows the hint; server fetch 401 redirects to the refresh route
+- **Follow-ups and open items:** empty `AuthGuard` wrappers (root layout and `AppShell`) left as they are; Next 16 does not print route sizes in `next build`
+
 ## 2026-11-16 — Phase 2 Step 3c — GET /patients free-text q (API)
 
 - **Commit hash(es):** (uncommitted)

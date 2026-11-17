@@ -1,5 +1,6 @@
 import { branding } from '@/config/branding';
 import { staffCopy } from '@/config/staff-copy';
+import { cn } from '@/lib/utils';
 
 export function PoweredBy({ collapsed = false }: { collapsed?: boolean }) {
   const logo = branding.indigoLogo;
@@ -16,8 +17,10 @@ export function PoweredBy({ collapsed = false }: { collapsed?: boolean }) {
       </div>
     );
   }
-  if (collapsed) {
-    return null;
-  }
-  return <p className="shell-powered-by-text">{staffCopy.poweredByIndigo}</p>;
+  // Collapsed: the text stays for screen readers but is fully hidden visually.
+  return (
+    <p className={cn('shell-powered-by-text', collapsed && 'visually-hidden')}>
+      {staffCopy.poweredByIndigo}
+    </p>
+  );
 }

@@ -5,7 +5,8 @@ import {
   getPatientSession,
   type PatientSessionResult,
 } from './patient-session';
-import { currentPathname, getSession, type SessionResult } from './session';
+import { sanitizeNextPath } from './http';
+import { currentPathname, getSession, homeForKind, type SessionResult } from './session';
 import type { AuthKind } from './types';
 
 /**
@@ -22,6 +23,14 @@ import type { AuthKind } from './types';
  * Staff/HQ cookies are separate from patient cookies — a patient session never
  * satisfies this guard (getSession only reads staff access cookie names).
  */
+export async function redirectToRefresh(): Promise<never> {
+  const path = await currentPathname();
+  // The pathname comes from middleware (never from the client), and the refresh
+  // route sanitizes `next` again. This check keeps the target a same-origin path.
+  const safe = sanitizeNextPath(encodeURIComponent(path), homeForKind('HOSPITAL'));
+  redirect(`/api/auth/refresh?next=${encodeURIComponent(safe)}`);
+}
+
 export async function requireKind(kind: AuthKind): Promise<SessionResult> {
   const session = await getSession();
   if (session) {
@@ -34,9 +43,7 @@ export async function requireKind(kind: AuthKind): Promise<SessionResult> {
     return session;
   }
 
-  const path = await currentPathname();
-  const next = encodeURIComponent(path);
-  redirect(`/api/auth/refresh?next=${next}`);
+  return redirectToRefresh();
 }
 
 /**

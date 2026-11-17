@@ -11,6 +11,7 @@ const WEB_SRC = join(__dirname, '..');
 const SCAN_ROOTS = [
   join(WEB_SRC, 'components', 'ui'),
   join(WEB_SRC, 'components', 'shell'),
+  join(WEB_SRC, 'components', 'patients'),
   join(WEB_SRC, 'app', 'app', 'patients'),
   join(WEB_SRC, 'app', 'app', 'settings'),
 ];
