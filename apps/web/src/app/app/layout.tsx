@@ -7,14 +7,21 @@ import { requireKind } from '@/lib/auth/guards';
 export default async function StaffLayout({ children }: { children: ReactNode }) {
   const session = await requireKind('HOSPITAL');
   const moduleItems = shellNavFromEnabledModules(session.enabledModules ?? []);
-  const navItems: ShellNavItem[] = [...moduleItems];
+  // Dashboard first, then Patients, then clinical modules, then Settings last.
+  const dashboard = moduleItems.find((item) => item.href === '/app');
+  const modules = moduleItems.filter((item) => item.href !== '/app');
+  const navItems: ShellNavItem[] = [];
+  if (dashboard) {
+    navItems.push(dashboard);
+  }
   if (session.permissions?.includes('patients.registry.read')) {
-    navItems.unshift({
+    navItems.push({
       href: '/app/patients',
       label: staffCopy.nav.patients,
       icon: 'patients',
     });
   }
+  navItems.push(...modules);
   if (session.permissions?.includes('hospital.settings.read')) {
     navItems.push({
       href: '/app/settings',
@@ -33,7 +40,6 @@ export default async function StaffLayout({ children }: { children: ReactNode })
         title={hospitalTitle}
         groups={[{ label: '', items: navItems }]}
         branchName={branchName}
-        showPatientSearch={session.permissions?.includes('patients.registry.read')}
         userDisplayName={session.displayName}
         userEmail={session.email}
         roleCodes={session.roleCodes ?? []}

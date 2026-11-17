@@ -10,7 +10,14 @@ import type {
 
 export type UpstreamResult<T> =
   | { ok: true; data: T; retryAfter?: string }
-  | { ok: false; status: number; retryAfter?: string; message?: string };
+  | {
+      ok: false;
+      status: number;
+      retryAfter?: string;
+      message?: string;
+      /** Parsed JSON object body when present and under the size cap; never arrays/HTML. */
+      body?: Record<string, unknown>;
+    };
 
 type RequestWithSocket = Request & {
   socket?: { remoteAddress?: string | null };
@@ -111,13 +118,21 @@ export async function callApi<T>(
   const retryAfter = response.headers.get('retry-after') ?? undefined;
   if (!response.ok) {
     let message: string | undefined;
+    let body: Record<string, unknown> | undefined;
     try {
-      const errBody: unknown = await response.json();
-      message = extractUpstreamMessage(errBody);
+      const text = await response.text();
+      const maxBytes = sessionConfig.staffUpstreamErrorBodyMaxBytes;
+      if (text.length > 0 && text.length <= maxBytes) {
+        const errBody: unknown = JSON.parse(text);
+        if (typeof errBody === 'object' && errBody !== null && !Array.isArray(errBody)) {
+          body = errBody as Record<string, unknown>;
+          message = extractUpstreamMessage(errBody);
+        }
+      }
     } catch {
       // ignore non-JSON error bodies
     }
-    return { ok: false, status: response.status, retryAfter, message };
+    return { ok: false, status: response.status, retryAfter, message, body };
   }
   if (response.status === 204) {
     return { ok: true, data: undefined as T, retryAfter };

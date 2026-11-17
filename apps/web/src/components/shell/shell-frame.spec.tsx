@@ -2,14 +2,13 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import type { ReactNode } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
 import { BranchChip } from '@/components/shell/branch-chip';
-import { PatientSearch } from '@/components/shell/patient-search';
 import { PoweredBy } from '@/components/shell/powered-by';
 import { UserMenu } from '@/components/shell/user-menu';
 import { SampleDataBadge } from '@/components/sample-data-badge';
 import { formatRoleLabel, formatRoleLabels, staffCopy } from '@/config/staff-copy';
 import * as brandingModule from '@/config/branding';
 import StaffLayout from '@/app/app/layout';
-import SettingsPage from '@/app/app/settings/page';
+import SettingsSectionPage from '@/app/app/settings/[section]/page';
 import { metadata as dashboardMetadata } from '@/app/app/page';
 
 jest.mock('next/navigation', () => ({
@@ -39,6 +38,13 @@ jest.mock('next/link', () => {
 });
 
 const requireKindMock = jest.fn();
+const sectionParams = { params: Promise.resolve({ section: 'patient-registration' }) };
+const serverFetchMock = jest.fn();
+
+jest.mock('@/lib/patients/server', () => ({
+  ...jest.requireActual('@/lib/patients/server'),
+  fetchStaffOnServer: (...args: unknown[]) => serverFetchMock(...args),
+}));
 const requirePermissionMock = jest.fn();
 
 jest.mock('@/lib/auth/guards', () => ({
@@ -133,7 +139,7 @@ describe('shell frame', () => {
     expect(wordmark.textContent).toBe(staffCopy.brand);
     expect(wordmark.classList.contains('whitespace-nowrap')).toBe(true);
     expect(wordmark.classList.contains('truncate')).toBe(false);
-    expect(wordmark.classList.contains('sr-only')).toBe(false);
+    expect(wordmark.classList.contains('visually-hidden')).toBe(false);
   });
 
   it('collapsed header shows only the mark with accessible brand name', async () => {
@@ -158,7 +164,8 @@ describe('shell frame', () => {
     expect(within(sidebar).getByText(staffCopy.brandMark)).toBeTruthy();
     const wordmark = within(sidebar).getByText(staffCopy.brand);
     expect(
-      wordmark.closest('.sr-only') || wordmark.parentElement?.classList.contains('sr-only'),
+      wordmark.closest('.visually-hidden') ||
+        wordmark.parentElement?.classList.contains('visually-hidden'),
     ).toBeTruthy();
     expect(sidebar.querySelector('.shell-brand-hospital')).toBeNull();
     expect(within(sidebar).getByLabelText(`${staffCopy.brand}, Demo Hospital One`)).toBeTruthy();
@@ -189,6 +196,61 @@ describe('shell frame', () => {
     expect(await screen.findByRole('tooltip')).toBeTruthy();
   });
 
+  it('collapsed: every text label is visually hidden and tooltips render outside the sidebar', async () => {
+    window.localStorage.setItem(staffCopy.shell.collapsedStorageKey, '1');
+    render(
+      <AppShell
+        title="Demo Hospital One"
+        groups={[
+          {
+            label: 'Clinical',
+            items: [{ href: '/app/patients', label: 'Patients', icon: 'patients' }],
+          },
+        ]}
+        userDisplayName="Ada"
+        userEmail="ada@example.test"
+        roleCodes={['RECEPTIONIST']}
+      >
+        <div />
+      </AppShell>,
+    );
+    const sidebar = await screen.findByTestId('shell-sidebar');
+    await waitFor(() => expect(sidebar.className).toContain('is-collapsed'));
+
+    for (const text of [
+      'Patients',
+      'Clinical',
+      staffCopy.brand,
+      'Demo Hospital One',
+      staffCopy.poweredByIndigo,
+    ]) {
+      // The innermost element that holds exactly this text (wrappers share the same text).
+      const el = Array.from(sidebar.querySelectorAll('span, p'))
+        .filter((node) => node.textContent === text)
+        .pop();
+      expect(el?.classList.contains('visually-hidden')).toBe(true);
+    }
+
+    // The collapse button tooltip: full text and the shortcut, in a portal on document.body.
+    const expand = screen.getByRole('button', { name: staffCopy.shell.expandSidebar });
+    fireEvent.mouseEnter(expand.parentElement!);
+    const tip = await screen.findByRole('tooltip');
+    expect(sidebar.contains(tip)).toBe(false);
+    expect(tip.parentElement).toBe(document.body);
+    expect(tip.textContent).toContain(staffCopy.shell.expandSidebar);
+    expect(tip.querySelector('kbd')?.textContent).toContain(staffCopy.shell.sidebarShortcutKey);
+    expect(tip.style.position === '' || tip.className.includes('ui-tooltip-panel')).toBe(true);
+    fireEvent.mouseLeave(expand.parentElement!);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+
+    // A collapsed nav item shows its full label the same way.
+    const link = screen.getByRole('link', { name: 'Patients' });
+    fireEvent.mouseEnter(link.parentElement!);
+    const navTip = await screen.findByRole('tooltip');
+    expect(sidebar.contains(navTip)).toBe(false);
+    expect(navTip.textContent).toBe('Patients');
+  });
+
   it('toggles with Ctrl+B and ignores the shortcut inside an input', async () => {
     render(
       <AppShell
@@ -197,9 +259,8 @@ describe('shell frame', () => {
         userDisplayName="Ada"
         userEmail="ada@example.test"
         roleCodes={['RECEPTIONIST']}
-        showPatientSearch
       >
-        <div />
+        <input aria-label="probe" />
       </AppShell>,
     );
     await waitFor(() => {
@@ -207,9 +268,47 @@ describe('shell frame', () => {
     });
     fireEvent.keyDown(window, { key: 'b', ctrlKey: true });
     expect(window.localStorage.getItem(staffCopy.shell.collapsedStorageKey)).toBe('1');
-    const input = screen.getByRole('searchbox');
+    const input = screen.getByRole('textbox', { name: 'probe' });
     fireEvent.keyDown(input, { key: 'b', ctrlKey: true });
     expect(window.localStorage.getItem(staffCopy.shell.collapsedStorageKey)).toBe('1');
+  });
+
+  it('keeps sidebar and top bar fixed with main as the scroll container', () => {
+    const { container } = render(
+      <AppShell
+        title="Demo"
+        items={[{ href: '/app', label: 'Dashboard', icon: 'dashboard' }]}
+        userDisplayName="Ada"
+        userEmail="ada@example.test"
+        roleCodes={['RECEPTIONIST']}
+      >
+        <div />
+      </AppShell>,
+    );
+    expect(container.querySelector('.shell-root')?.className).toContain('shell-root');
+    expect(container.querySelector('.shell-sidebar')).toBeTruthy();
+    expect(container.querySelector('.shell-topbar')).toBeTruthy();
+    const main = container.querySelector('main.shell-main');
+    expect(main).toBeTruthy();
+    expect(main?.classList.contains('shell-main')).toBe(true);
+  });
+
+  it('orders nav Dashboard then Patients then modules', async () => {
+    requireKindMock.mockResolvedValue(
+      hospitalSession({
+        permissions: ['patients.registry.read'],
+        enabledModules: [{ code: 'OPD', name: 'OPD' }],
+      }),
+    );
+    const tree = await StaffLayout({ children: <div /> });
+    render(tree);
+    const links = screen
+      .getAllByRole('link')
+      .map((el) => el.textContent ?? '')
+      .filter((t) => ['Dashboard', 'Patients', 'OPD queue'].includes(t));
+    expect(links.slice(0, 3)).toEqual(['Dashboard', 'Patients', 'OPD queue']);
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    expect(screen.queryByRole('search')).toBeNull();
   });
 
   it('does not render empty group labels', () => {
@@ -255,7 +354,9 @@ describe('shell frame', () => {
 
   it('guards the settings page on hospital.settings.read', async () => {
     requireKindMock.mockResolvedValue(hospitalSession({ permissions: ['patients.registry.read'] }));
-    await expect(SettingsPage()).rejects.toThrow('REDIRECT:/app?notice=no-permission');
+    await expect(SettingsSectionPage(sectionParams)).rejects.toThrow(
+      'REDIRECT:/app?notice=no-permission',
+    );
 
     requireKindMock.mockResolvedValue(
       hospitalSession({
@@ -263,9 +364,21 @@ describe('shell frame', () => {
         roleCodes: ['BRANCH_ADMIN'],
       }),
     );
-    const page = await SettingsPage();
+    serverFetchMock.mockResolvedValue({
+      status: 'ok',
+      data: {
+        nextNumber: 1,
+        nextUhidPreview: 'TESTA0001',
+        resetRule: 'NEVER',
+        periodYear: 0,
+        periodLabel: null,
+      },
+    });
+    const page = await SettingsSectionPage(sectionParams);
     render(page);
     expect(screen.getByRole('heading', { name: staffCopy.settings.title })).toBeTruthy();
+    expect(screen.getByText('TESTA0001')).toBeTruthy();
+    expect(screen.queryByLabelText(staffCopy.settings.uhid.newNumberLabel)).toBeNull();
   });
 
   it('PoweredBy shows text when indigoLogo is null and image when set', () => {
@@ -283,24 +396,6 @@ describe('shell frame', () => {
     render(<PoweredBy />);
     expect(screen.getByAltText('Indigo')).toBeTruthy();
     brandingModule.branding.indigoLogo = original;
-  });
-
-  it('renders the patient search form markup', () => {
-    render(<PatientSearch />);
-    const form = screen.getByRole('search');
-    expect(form.getAttribute('method')?.toLowerCase()).toBe('get');
-    expect(form.getAttribute('action')).toBe('/app/patients');
-    const input = screen.getByRole('searchbox') as HTMLInputElement;
-    expect(input.name).toBe('q');
-  });
-
-  it('focuses the search input on / and blurs on Escape', () => {
-    render(<PatientSearch />);
-    const input = screen.getByRole('searchbox');
-    fireEvent.keyDown(window, { key: '/' });
-    expect(document.activeElement).toBe(input);
-    fireEvent.keyDown(window, { key: 'Escape' });
-    expect(document.activeElement).not.toBe(input);
   });
 
   it('user menu shows name, email, role badge, branch, hospital, and sign out', () => {

@@ -154,6 +154,8 @@ Auth, rate limiting, and Mailpit wiring: Not available yet (planned in later ste
 
 `apps/web` is a Next.js app. Copy `apps/web/.env.example` to `apps/web/.env.local` and set server-only `API_INTERNAL_URL` (API origin, default port 3000) and `APP_URL` (web origin used for auth Origin checks). The browser never receives the API URL — route handlers call the API server-to-server. The dev server listens on port 3001.
 
+Optional reception overrides (see `apps/web/.env.example` and `docs/env-reference.md`): `WEB_STAFF_UPSTREAM_TIMEOUT_MS`, `WEB_STAFF_UPSTREAM_ERROR_BODY_MAX_BYTES`, `WEB_PATIENT_SEARCH_MIN_NAME_LENGTH`, `WEB_PATIENT_SEARCH_PAGE_SIZE`, `WEB_PATIENT_SEARCH_MAX_PAGE_SIZE`, `WEB_PATIENT_SLIP_PAPER_SIZE`, `WEB_PATIENT_LIST_SORT_DEFAULT`, `WEB_PATIENT_PHONE_COUNTRY_PREFIX`, `WEB_PATIENT_PHONE_NATIONAL_LENGTH`, `WEB_PATIENT_PINCODE_LENGTH`, `WEB_PATIENT_AGE_MIN`, `WEB_PATIENT_AGE_MAX`, `WEB_PATIENT_AGE_MAX_DIGITS`, `WEB_PATIENT_DATE_LOCALE`.
+
 ## Health checks
 
 With the API running (default port from `API_PORT`):

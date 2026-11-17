@@ -26,10 +26,10 @@ Expanded (header is two rows: brand row, then full-width hospital name):
 
 ```
 +--------------------------+------------------------------------------+
-| [H] Hospigo        [|=]  | [pin Branch…]   [Search patients /] [User]|
+| [H] Hospigo        [|=]  | [pin Branch…]                     [User] |
 | Hospital name (ellipsis + tooltip)                                  |
-| Nav icons + labels…      |              #main-content               |
-| …Settings (if allowed)   |                                          |
+| Dashboard → Patients → modules…                                     |
+| …Settings (if allowed)   |         #main-content (scrolls)          |
 | Powered by Indigo        |                                          |
 +--------------------------+------------------------------------------+
 ```
@@ -38,13 +38,15 @@ Collapsed (40px mark, then collapse control; hospital name not shown visually):
 
 ```
 +------+------------------------------------------+
-| [H]  | [pin Branch…]   [Search…]          [User]|
+| [H]  | [pin Branch…]                      [User]|
 | [|=] |                                          |
-| [ic] |              #main-content               |
+| [ic] |         #main-content (scrolls)          |
 | [ic] |                                          |
 | logo |                                          |
 +------+------------------------------------------+
 ```
+
+Sidebar and top bar stay fixed in the viewport; only `#main-content` scrolls. There is no top-bar patient search.
 
 - **Brand row:** `--sidebar-mark-size` mark + full “Hospigo” wordmark (`whitespace-nowrap`, no ellipsis, `flex-shrink: 0`) + collapse, vertically centered. Only the hospital-name row ellipsizes.
 - **Collapse:** `PanelLeft` ghost button, 44px, tooltip + Kbd (`Ctrl`/`Cmd`+`B`). Shortcut ignored in inputs. `aria-expanded` + `aria-controls`.
@@ -92,3 +94,24 @@ indigoLogo: { src: '/brand/indigo-lockup.svg', alt: 'Indigo', width: 96, height:
 ## UI kit
 
 Badge, Field (Input/Select with `--input-border`), Tabs, DataTable, Pagination, Kbd, PageHeader, Tooltip.
+
+Density tokens live in `globals.css` (control ~32px, body/label ~13/12px, card radius 6px, card padding 16px, table row ~40px). Components consume tokens only — no size literals.
+
+**DataTable:** optional `sortable` column headers (button + arrow, `aria-sort`). Patients list maps UHID/Name/Registered columns to API `sort` plus URL `col=` marker.
+
+**PageHeader:** optional `backHref`: a small ghost icon button (no bordered box, 16px icon, hit area from `--size-icon-button`, at least 28px) on the title line, `.no-print`. Section headings (form, record cards, quick view) use one small quiet uppercase style (`.section-heading`). Inputs and selects use the control font token (13px); the 16px size applies only under `@media (pointer: coarse)`. The age/date-of-birth switch and its input share the control radius. Record page: values compact, 1/2/3 columns by width; an estimated date of birth shows only “Age N years (approx.)”; phone is shown spaced (`+91 xxxxx xxxxx`) in table, quick view and record.
+
+## Patients list and form
+
+- **List toolbar:** title row = page title at the left and Register patient at the top right (write permission only); under it ONE row — search box (magnifier icon, plain text input, one small blue X inside the box when it has text) + Search button, both at the 32px control size. No Clear button, no native clear icon, no “Search by” select, no separate sort block. Live search: after the configured pause (default 250 ms) and the configured minimum length (default 2) the web calls `GET /patients?q=`; Enter or Search runs at once; the previous request is cancelled and late answers are ignored; old rows stay (dimmed, `aria-busy`) while loading. Shorter text shows a hint and keeps the list. A plain count line (“N patients found for “x””) and an empty state replace the old chip. `?q=` lives in the URL via `history.replaceState` (no navigation per keystroke).
+- **Table sort:** column headers only; default Registered on / newest.
+- **Register/edit:** 12-col grid (6 medium, 1 phone) with spans from `PATIENT_FORM_FIELD_SPANS` / data-type defaults. Age-or-DOB is one cell with an Age/Date mode switch (default Age). Register and Cancel sit in the page header (`form="patient-form"`). Relative details use a chevron disclosure. Empty selects show “Select …”.
+
+## Tooltips, sidebar and settings (F1–F4)
+
+- **Tooltips:** one `Tooltip` component renders its panel in a portal on `document.body` after mount (no hydration mismatch), fixed to the trigger's bounding rect (right or below), z-index from `--z-tooltip`, `pointer-events: none`. It closes on Escape, blur, mouse leave, scroll and resize. The sidebar's scroll container can no longer clip it.
+- **Collapsed sidebar:** item labels, group labels, the brand wordmark, the hospital name and the "Powered by" text carry `.visually-hidden` (screen readers still read them); nothing else is visible.
+- **UHID header:** first click = highest UHID first (`uhid_desc`), second click = `uhid_asc`; plain character order, shorter UHIDs first when ascending.
+- **Settings:** left section list (`nav`, `aria-current`), built from `config/settings-sections.ts`; on narrow screens it becomes a horizontal list. Content area max width `--size-settings-content-max`. Each setting is a compact block: quiet heading, one-line description, current value, inline form (number input `--size-field-narrow`, reason input `--size-field-medium`, Save next to them). `/app/settings` redirects to the first allowed section; an unknown section shows a not-found state; no `hospital.settings.read` = the usual no-permission redirect.
+- **Slip:** `@page` margin comes from `WEB_PATIENT_SLIP_PAGE_MARGIN` (default 0, which removes the browser's date/URL header and footer); the slip has its own `--space-slip-padding`.
+- **Register form:** the selected Age / Date of birth mode is filled with the primary token.

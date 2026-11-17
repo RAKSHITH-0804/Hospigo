@@ -107,9 +107,14 @@ describe('web shell smoke', () => {
     expect(screen.getByRole('link', { name: 'Dashboard' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'OPD queue' })).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Settings' })).toBeNull();
+    const navOrder = screen
+      .getAllByRole('link')
+      .map((el) => el.textContent ?? '')
+      .filter((t) => ['Dashboard', 'Patients', 'OPD queue'].includes(t));
+    expect(navOrder.slice(0, 3)).toEqual(['Dashboard', 'Patients', 'OPD queue']);
     expect(screen.getByText('Coming later.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Account menu' })).toBeTruthy();
-    expect(screen.getByRole('search')).toBeTruthy();
+    expect(screen.queryByRole('search')).toBeNull();
     expect(screen.getByText('Powered by Indigo')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull();
   });

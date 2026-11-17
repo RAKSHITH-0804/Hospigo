@@ -4,6 +4,7 @@ import {
   Children,
   cloneElement,
   isValidElement,
+  useCallback,
   useEffect,
   useId,
   useRef,
@@ -12,8 +13,18 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 
+type Position = { top: number; left: number };
+
+/**
+ * Tooltip rendered in a portal on document.body with fixed positioning taken from the
+ * trigger's bounding rect, so no scroll container or overflow:hidden parent (the sidebar)
+ * can clip it. The portal exists only after mount: the server render and the first client
+ * render contain no tooltip markup, so there is nothing to mismatch on hydration.
+ * Closes on Escape, blur, mouse leave, scroll and resize (it never moves the layout).
+ */
 export function Tooltip({
   content,
   children,
@@ -26,9 +37,29 @@ export function Tooltip({
   side?: 'right' | 'bottom';
 }) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [position, setPosition] = useState<Position | null>(null);
   const tipId = useId();
   const rootRef = useRef<HTMLSpanElement>(null);
   const child = Children.only(children);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const show = useCallback(() => {
+    const rect = rootRef.current?.getBoundingClientRect();
+    if (rect) {
+      setPosition(
+        side === 'bottom'
+          ? { top: rect.bottom, left: rect.left + rect.width / 2 }
+          : { top: rect.top + rect.height / 2, left: rect.right },
+      );
+    }
+    setOpen(true);
+  }, [side]);
+
+  const hide = useCallback(() => setOpen(false), []);
 
   useEffect(() => {
     if (!open) {
@@ -40,8 +71,14 @@ export function Tooltip({
       }
     }
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open]);
+    window.addEventListener('resize', hide);
+    window.addEventListener('scroll', hide, true);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('resize', hide);
+      window.removeEventListener('scroll', hide, true);
+    };
+  }, [open, hide]);
 
   function onBlur() {
     requestAnimationFrame(() => {
@@ -57,8 +94,9 @@ export function Tooltip({
     }
   }
 
+  const visible = mounted && open && position !== null;
   const trigger =
-    isValidElement(child) && open
+    isValidElement(child) && visible
       ? cloneElement(child as ReactElement<{ 'aria-describedby'?: string }>, {
           'aria-describedby': tipId,
         })
@@ -68,22 +106,27 @@ export function Tooltip({
     <span
       ref={rootRef}
       className={cn('ui-tooltip-root', className)}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      onFocus={() => setOpen(true)}
+      onMouseEnter={show}
+      onMouseLeave={hide}
+      onFocus={show}
       onBlur={onBlur}
       onKeyDown={onKeyDownLocal}
     >
       {trigger}
-      {open ? (
-        <span
-          id={tipId}
-          role="tooltip"
-          className={cn('ui-tooltip-panel', side === 'bottom' && 'ui-tooltip-panel-bottom')}
-        >
-          {content}
-        </span>
-      ) : null}
+      {visible
+        ? createPortal(
+            <span
+              id={tipId}
+              role="tooltip"
+              data-side={side}
+              className="ui-tooltip-panel"
+              style={{ top: position.top, left: position.left }}
+            >
+              {content}
+            </span>,
+            document.body,
+          )
+        : null}
     </span>
   );
 }

@@ -180,13 +180,24 @@ model PatientAuthSession {
   @@map("patient_auth_sessions")
 }
 
+enum PatientFieldSection {
+  PERSONAL
+  CONTACT
+  ADDRESS
+  RELATIVE
+  OTHER
+
+  @@map("patient_field_section")
+}
+
 /// Global system field catalog (no tenant). Defaults only — hospitals override via patient_field_settings.
 model PatientFieldCatalog {
-  key            String  @id
-  defaultLabel   String  @map("default_label")
-  dataType       String  @map("data_type")
-  canDisable     Boolean @map("can_disable")
-  alwaysRequired Boolean @map("always_required")
+  key            String               @id
+  defaultLabel   String               @map("default_label")
+  dataType       String               @map("data_type")
+  canDisable     Boolean              @map("can_disable")
+  alwaysRequired Boolean              @map("always_required")
+  defaultSection PatientFieldSection  @default(OTHER) @map("default_section")
 
   settings PatientFieldSetting[]
 
@@ -588,6 +599,7 @@ model Patient {
   @@unique([tenantId, uhid])
   @@index([tenantId, phone])
   @@index([tenantId])
+  @@index([tenantId, createdAt, id], map: "patients_tenant_id_created_at_id_idx")
   @@map("patients")
 }
 
@@ -627,6 +639,7 @@ model PatientCustomField {
   code      String
   label     String
   dataType  PatientCustomFieldDataType @map("data_type")
+  section   PatientFieldSection        @default(OTHER)
   isActive  Boolean                    @default(true) @map("is_active")
   createdAt DateTime                   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(3)

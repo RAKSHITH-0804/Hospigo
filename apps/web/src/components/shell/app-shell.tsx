@@ -6,7 +6,6 @@ import { PanelLeft } from 'lucide-react';
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { BranchChip } from '@/components/shell/branch-chip';
 import { NavIcon } from '@/components/shell/nav-icon';
-import { PatientSearch } from '@/components/shell/patient-search';
 import { PoweredBy } from '@/components/shell/powered-by';
 import { UserMenu } from '@/components/shell/user-menu';
 import { Kbd } from '@/components/ui/kbd';
@@ -82,7 +81,11 @@ function NavLinks({
         const showLabel = Boolean(group.label);
         return (
           <div key={showLabel ? group.label : `group-${groupIndex}`} className="shell-nav-group">
-            {showLabel ? <p className="shell-nav-group-label">{group.label}</p> : null}
+            {showLabel ? (
+              <p className={cn('shell-nav-group-label', collapsed && 'visually-hidden')}>
+                {group.label}
+              </p>
+            ) : null}
             {group.items.map((item) => {
               const isCurrent = current?.href === item.href;
               const link = (
@@ -94,7 +97,9 @@ function NavLinks({
                   className={cn('shell-nav-link', collapsed && 'shell-nav-link-icon')}
                 >
                   <NavIcon name={item.icon} />
-                  <span className="shell-nav-label">{item.label}</span>
+                  <span className={cn('shell-nav-label', collapsed && 'visually-hidden')}>
+                    {item.label}
+                  </span>
                 </Link>
               );
               if (!collapsed) {
@@ -119,7 +124,6 @@ export function AppShell({
   groups,
   items,
   branchName,
-  showPatientSearch,
   userDisplayName,
   userEmail,
   roleCodes,
@@ -131,7 +135,6 @@ export function AppShell({
   groups?: ShellNavGroup[];
   items?: ShellNavItem[];
   branchName?: string | null;
-  showPatientSearch?: boolean;
   userDisplayName?: string;
   userEmail?: string;
   roleCodes?: string[];
@@ -220,7 +223,7 @@ export function AppShell({
       : staffCopy.shell.collapseSidebar;
     const collapseControl = allowCollapse ? (
       <Tooltip
-        side="bottom"
+        side="right"
         content={
           <span className="ui-tooltip-with-kbd">
             <span>{actionLabel}</span>
@@ -259,7 +262,7 @@ export function AppShell({
                   'shell-brand-wordmark',
                   'whitespace-nowrap',
                   'shrink-0',
-                  collapsedHere && 'sr-only',
+                  collapsedHere && 'visually-hidden',
                 )}
               >
                 {brand}
@@ -269,7 +272,7 @@ export function AppShell({
           </div>
           {title ? (
             collapsedHere ? (
-              <span className="sr-only">{title}</span>
+              <span className="visually-hidden">{title}</span>
             ) : (
               <Tooltip
                 className="shell-brand-hospital-tip"
@@ -348,9 +351,6 @@ export function AppShell({
                 </svg>
               </button>
               {branchName ? <BranchChip name={branchName} /> : null}
-            </div>
-            <div className="shell-topbar-center">
-              {showPatientSearch ? <PatientSearch /> : null}
             </div>
             <div className="shell-topbar-right">
               {userDisplayName && userEmail ? (

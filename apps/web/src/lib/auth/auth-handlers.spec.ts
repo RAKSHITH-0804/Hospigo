@@ -120,11 +120,12 @@ describe('auth route handlers', () => {
       ok: false,
       status: 400,
       headers: new Headers(),
-      json: async () => ({
-        statusCode: 400,
-        message: 'Password rejected: TOO_SHORT',
-        error: 'Bad Request',
-      }),
+      text: async () =>
+        JSON.stringify({
+          statusCode: 400,
+          message: 'Password rejected: TOO_SHORT',
+          error: 'Bad Request',
+        }),
     });
     const { POST } = await import('@/app/api/auth/change-password/route');
     const response = await POST(
@@ -616,11 +617,12 @@ describe('auth route handlers', () => {
       ok: false,
       status: 400,
       headers: new Headers(),
-      json: async () => ({
-        statusCode: 400,
-        message: 'Invalid or expired link',
-        error: 'Bad Request',
-      }),
+      text: async () =>
+        JSON.stringify({
+          statusCode: 400,
+          message: 'Invalid or expired link',
+          error: 'Bad Request',
+        }),
     });
     const { POST } = await import('@/app/api/auth/reset-password/route');
     const response = await POST(
@@ -643,7 +645,7 @@ describe('auth route handlers', () => {
       ok: false,
       status: 400,
       headers: new Headers(),
-      json: async () => ({ message: 'Password rejected: TOO_SHORT' }),
+      text: async () => JSON.stringify({ message: 'Password rejected: TOO_SHORT' }),
     });
     const { POST } = await import('@/app/api/auth/reset-password/route');
     const weak = await POST(
@@ -682,7 +684,7 @@ describe('auth route handlers', () => {
       ok: false,
       status: 400,
       headers: new Headers(),
-      json: async () => ({ message: 'Invalid or expired link' }),
+      text: async () => JSON.stringify({ message: 'Invalid or expired link' }),
     });
     const { POST } = await import('@/app/api/auth/activate/route');
     const response = await POST(

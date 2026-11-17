@@ -3,6 +3,8 @@ import path from 'path';
 import { config as loadEnv } from 'dotenv';
 import { createOwnerPrisma } from '../../database/db-test.util';
 import { rebuildHospigoTest } from '../../../scripts/rebuild-hospigo-test';
+import { DEV_SEED_PATIENT_TARGET } from '../../../prisma/seeds/dev-patient-names';
+import { seedDevPatients } from '../../../prisma/seeds/dev-patients';
 import { seedDevTenants } from '../../../prisma/seeds/dev-tenants';
 import { seedReferenceData } from '../../../prisma/seeds/reference';
 
@@ -116,5 +118,39 @@ describe('OPD masters mock seed (idempotent)', () => {
     const southCustom = await owner.patientCustomField.count({ where: { tenantId: south.id } });
     expect(northCustom).toBe(7);
     expect(southCustom).toBe(0);
+
+    const northPatients = await owner.patient.count({ where: { tenantId: north.id } });
+    const southPatients = await owner.patient.count({ where: { tenantId: south.id } });
+    expect(northPatients).toBe(DEV_SEED_PATIENT_TARGET);
+    expect(southPatients).toBe(DEV_SEED_PATIENT_TARGET);
+  });
+
+  it('seedDevPatients twice adds no patients; phones normalised; UHIDs match hospital format', async () => {
+    const north = await owner.hospital.findUniqueOrThrow({ where: { code: 'DEMO_NORTH' } });
+    const south = await owner.hospital.findUniqueOrThrow({ where: { code: 'DEMO_SOUTH' } });
+    const beforeNorth = await owner.patient.count({ where: { tenantId: north.id } });
+    const beforeSouth = await owner.patient.count({ where: { tenantId: south.id } });
+
+    await seedDevPatients(owner);
+    await seedDevPatients(owner);
+
+    expect(await owner.patient.count({ where: { tenantId: north.id } })).toBe(beforeNorth);
+    expect(await owner.patient.count({ where: { tenantId: south.id } })).toBe(beforeSouth);
+    expect(beforeNorth).toBe(DEV_SEED_PATIENT_TARGET);
+    expect(beforeSouth).toBe(DEV_SEED_PATIENT_TARGET);
+
+    const northRows = await owner.patient.findMany({
+      where: { tenantId: north.id },
+      select: { phone: true, uhid: true },
+    });
+    const southRows = await owner.patient.findMany({
+      where: { tenantId: south.id },
+      select: { phone: true, uhid: true },
+    });
+    expect(northRows.every((p) => p.phone?.startsWith('+91') && p.phone.length === 13)).toBe(true);
+    expect(southRows.every((p) => p.phone?.startsWith('+91') && p.phone.length === 13)).toBe(true);
+    // DEMO_NORTH: FIXED_TEXT "TESTA" + running number; DEMO_SOUTH: FY SHORT + "/" + running.
+    expect(northRows.every((p) => /^TESTA\d{4,}$/.test(p.uhid))).toBe(true);
+    expect(southRows.every((p) => /^\d{4}\/\d{5,}$/.test(p.uhid))).toBe(true);
   });
 });

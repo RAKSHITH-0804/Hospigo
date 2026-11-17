@@ -29,6 +29,7 @@ import {
   UpdatePatientDto,
   UhidStartNumberDto,
 } from './dto/register-patient.dto';
+import { takePatientDtoErrors } from './patient-dto-validation';
 import { PatientsService } from './patients.service';
 import type { PatientFieldPayload } from './patient-fields.service';
 
@@ -75,10 +76,20 @@ export class PatientsController {
     });
   }
 
+  @Get('uhid/start-number')
+  @RequirePermission('hospital.settings.read')
+  @ApiOperation({
+    summary: 'Current next UHID running number and formatted preview (read-only)',
+  })
+  async getUhidStart(@Req() req: HttpReq) {
+    const { tenantId, branchId } = hospitalAuth(req);
+    return this.patients.getUhidStartNumber({ tenantId, branchId });
+  }
+
   @Put('uhid/start-number')
   @RequirePermission('hospital.settings.write')
   @ApiOperation({
-    summary: 'Raise-only UHID start number (maps to UhidService.setStartNumber periodYear=0)',
+    summary: 'Raise-only UHID start number for the current period (from effective format config)',
   })
   async setUhidStart(@Req() req: HttpReq, @Body() body: UhidStartNumberDto) {
     const { tenantId, userId } = hospitalAuth(req);
@@ -89,6 +100,34 @@ export class PatientsController {
       actorUserId: userId,
     });
     return { ok: true as const };
+  }
+
+  @Get()
+  @RequirePermission('patients.registry.read', { module: 'OPD' })
+  @ApiOperation({
+    summary: 'List patients (optional q or single filter; sort newest|oldest|name_asc|name_desc)',
+  })
+  async list(
+    @Req() req: HttpReq,
+    @Query('sort') sort?: string,
+    @Query('q') q?: string,
+    @Query('uhid') uhid?: string,
+    @Query('phone') phone?: string,
+    @Query('name') name?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    const { tenantId } = hospitalAuth(req);
+    return this.patients.list({
+      tenantId,
+      sort,
+      q,
+      uhid,
+      phone,
+      namePrefix: name,
+      page: page ? Number(page) : undefined,
+      pageSize: pageSize ? Number(pageSize) : undefined,
+    });
   }
 
   @Get(':id')
@@ -106,6 +145,7 @@ export class PatientsController {
   @ApiOkResponse({ schema: { example: { id: 'clx…', uhid: 'TESTA0001' } } })
   async register(@Req() req: HttpReq, @Body() body: RegisterPatientDto) {
     const { tenantId, userId, branchId } = hospitalAuth(req);
+    const dto = takePatientDtoErrors(body);
     const customValues = await this.resolveCustomValues(tenantId, body.customFieldValues);
     return this.patients.register({
       tenantId,
@@ -125,6 +165,8 @@ export class PatientsController {
       addressPincode: body.addressPincode,
       customValues,
       confirmDuplicate: body.confirmDuplicate === true,
+      dtoFieldErrors: dto.fieldErrors,
+      dtoMessages: dto.messages,
     });
   }
 
@@ -133,6 +175,7 @@ export class PatientsController {
   @ApiOperation({ summary: 'Partial update (never uhid / registered branch)' })
   async update(@Req() req: HttpReq, @Param('id') id: string, @Body() body: UpdatePatientDto) {
     const { tenantId, userId } = hospitalAuth(req);
+    const dto = takePatientDtoErrors(body);
     if (
       body.uhid !== undefined ||
       body.registeredBranchId !== undefined ||
@@ -144,7 +187,9 @@ export class PatientsController {
     return this.patients.update(tenantId, id, userId, {
       ...(body.name !== undefined ? { name: body.name } : {}),
       ...(body.gender !== undefined ? { gender: body.gender } : {}),
-      ...(body.dateOfBirth !== undefined ? { dateOfBirth: new Date(body.dateOfBirth) } : {}),
+      ...(body.dateOfBirth !== undefined
+        ? { dateOfBirth: body.dateOfBirth ? new Date(body.dateOfBirth) : null }
+        : {}),
       ...(body.ageYears !== undefined ? { ageYears: body.ageYears } : {}),
       ...(body.phone !== undefined ? { phone: body.phone } : {}),
       ...(body.email !== undefined ? { email: body.email } : {}),
@@ -155,6 +200,8 @@ export class PatientsController {
       ...(body.addressState !== undefined ? { addressState: body.addressState } : {}),
       ...(body.addressPincode !== undefined ? { addressPincode: body.addressPincode } : {}),
       ...(customValues ? { customValues } : {}),
+      dtoFieldErrors: dto.fieldErrors,
+      dtoMessages: dto.messages,
     });
   }
 

@@ -12,6 +12,7 @@ import {
 } from '../../database/db-test.util';
 import { ImportBatchService } from '../imports/import-batch.service';
 import { PatientFieldsService } from '../patients/patient-fields.service';
+import { testRegisterIdentity } from '../patients/test-register.helpers';
 import { PatientsService } from '../patients/patients.service';
 import { UhidService } from '../patients/uhid.service';
 
@@ -150,20 +151,20 @@ describe('Hospital isolation through services (leak tests)', () => {
     importsA = autoHospitalContext(new ImportBatchService(db, clock));
 
     const reg = await patientsA.register({
+      ...testRegisterIdentity({ name: 'Alice Leak' }),
       tenantId: tenantA,
       registeredBranchId: branchAMain,
       createdBy: actorA,
-      name: 'Alice Leak',
       phone: '9000000001',
     });
     patientAId = reg.id;
     patientAUhid = reg.uhid;
 
     await patientsA.register({
+      ...testRegisterIdentity({ name: 'Bob Leak' }),
       tenantId: tenantB,
       registeredBranchId: branchBMain,
       createdBy: actorB,
-      name: 'Bob Leak',
       phone: '9000000002',
     });
 
@@ -201,10 +202,10 @@ describe('Hospital isolation through services (leak tests)', () => {
 
     await expect(
       patientsA.register({
+        ...testRegisterIdentity({ name: 'Cross Branch' }),
         tenantId: tenantA,
         registeredBranchId: branchBMain,
         createdBy: actorA,
-        name: 'Cross Branch',
       }),
     ).rejects.toThrow(/branch not found|Registered branch|Foreign key|foreign key/i);
 
@@ -228,16 +229,16 @@ describe('Hospital isolation through services (leak tests)', () => {
 
   it('UHID counters of A and B are independent', async () => {
     const a1 = await patientsA.register({
+      ...testRegisterIdentity({ name: 'A2' }),
       tenantId: tenantA,
       registeredBranchId: branchAEast,
       createdBy: actorA,
-      name: 'A2',
     });
     const b1 = await patientsB.register({
+      ...testRegisterIdentity({ name: 'B2' }),
       tenantId: tenantB,
       registeredBranchId: branchBMain,
       createdBy: actorB,
-      name: 'B2',
     });
     expect(a1.uhid.startsWith('LEA')).toBe(true);
     expect(b1.uhid.startsWith('LEB')).toBe(true);
@@ -281,10 +282,10 @@ describe('Hospital isolation through services (leak tests)', () => {
     // (tenant_id, created_by) → users(tenant_id, id) refuses at the database.
     await expect(
       patientsA.register({
+        ...testRegisterIdentity({ name: 'Cross Actor' }),
         tenantId: tenantA,
         registeredBranchId: branchAMain,
         createdBy: actorB,
-        name: 'Cross Actor',
       }),
     ).rejects.toThrow(/foreign key|Foreign key|patients_tenant_id_created_by/i);
   });
