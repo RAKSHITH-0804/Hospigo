@@ -18,16 +18,16 @@ A receptionist registers a patient (already works), creates a visit and picks a 
 
 ## 2. What is cut, and what is kept
 
-| Cut for now (comes later, schema leaves room)                                 | Kept without compromise                                                                |
-| ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Part payments, pending dues list (UC-16)                                      | Money in integer paise, bills, bill lines, payments and ledger never edited or deleted |
-| Refunds and visit cancel (`bill_reversals`), refund numbers                   | Database triggers keep `paid_paise` and status; app role cannot update them            |
-| Investigations and pending-tests list                                         | Row level security on every new table; cross-hospital leak tests                       |
-| Emergency flag (columns stay in the table, unused)                            | Tenant and branch from the token, never from the request body                          |
-| Print templates (a plain browser print view of the receipt is the only print) | Audit on every write (field names, not personal values)                                |
-| Nurse vitals, prescription items and medicines, follow-up date UI             | Permission on every route, deny by default, route-scan test                            |
-| Non-cash payment modes in the UI (the `payment_modes` master stays)           | Idempotency keys (a double click never bills or charges twice)                         |
-| Daily collection report                                                       | Gap-free bill, receipt and token numbers; follow-up free window (if answered yes, Q3)  |
+| Cut for now (comes later, schema leaves room)                                                                                                                         | Kept without compromise                                                                |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Part payments, pending dues list (UC-16)                                                                                                                              | Money in integer paise, bills, bill lines, payments and ledger never edited or deleted |
+| Refunds and visit cancel (`bill_reversals`), refund numbers                                                                                                           | Database triggers keep `paid_paise` and status; app role cannot update them            |
+| Investigations and pending-tests list                                                                                                                                 | Row level security on every new table; cross-hospital leak tests                       |
+| Emergency flag (columns stay in the table, unused)                                                                                                                    | Tenant and branch from the token, never from the request body                          |
+| Print templates (a plain browser print view of the receipt is the only print)                                                                                         | Audit on every write (field names, not personal values)                                |
+| Nothing permanent: vitals and prescription are NOT dropped, they are built in 5a/5b after the first bill-to-doctor path (see 5a/5b). Only the follow-up date UI waits | Permission on every route, deny by default, route-scan test                            |
+| Non-cash payment modes in the UI (the `payment_modes` master stays)                                                                                                   | Idempotency keys (a double click never bills or charges twice)                         |
+| Daily collection report                                                                                                                                               | Gap-free bill, receipt and token numbers; follow-up free window (if answered yes, Q3)  |
 
 ## 3. Steps
 
@@ -100,6 +100,8 @@ Estimates are working days for **me coding plus Rakshith testing and reviewing**
 
 ### Step 5a: doctor queue and consultation note API (about 1.5 days)
 
+> **Vitals and prescription are NOT dropped (Q8, 17 Nov).** Nurse vitals (`visit_vitals`, configurable fields, versioned corrections) and the prescription (`prescription_items`: medicines from the Excel list plus free text flagged "unlisted") stay in Steps 5a and 5b. They come after the first bill-to-doctor path and before 6a. The bullets below describe the first slice (queue, start, note, complete, addendum); vitals and prescription are added to 5a in the same step, and the estimate (2.5 days) is re-done in the 5a plan, because it does not yet include them.
+
 **Contents.**
 
 - `GET /opd/queue` for the logged-in doctor (doctor profile found from the user): own WAITING and IN_CONSULTATION visits for the token's branch and today, ordered by `queued_at`, with patient name, age, token.
@@ -113,6 +115,8 @@ Estimates are working days for **me coding plus Rakshith testing and reviewing**
 **How Rakshith proves it.** Postman collection "5a doctor queue": receptionist creates two visits for doctor 2, doctor 2 logs in, sees both in order, starts the first, saves a note, completes it, queue shows one left; doctor 3 sees an empty queue.
 
 ### Step 5b: doctor web (about 2 days)
+
+> **Vitals and prescription are NOT dropped (Q8).** The Nurse screen (waiting patients, enter vitals) and the doctor's medicine rows (list or free text, dose, frequency, duration) are part of 5b. They come after the first bill-to-doctor path and before 6a. The 5b estimate (2 days) is re-done in the 5b plan.
 
 **Contents.** Doctor queue page (replaces the sample-data OPD queue page for the doctor role, no fake numbers), "Start consultation", note form (autosave off, explicit Save and Complete), patient header with age and phone, small read-only list of the patient's previous completed visits in this hospital. Session renewal helper reused. Copy, tokens and scan tests as before.
 
@@ -158,17 +162,18 @@ One feature branch and one PR into `develop` per step (4a-1 and 4a-2 may share o
 
 ## 7. Decisions (answers of 17 Nov 2026; the original questions follow below for the record)
 
-| #         | Decision                                                                                                                                                                                                                                                                               |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Q1        | Switcher is **SuperAdmin only** (hospital-wide scope) and issues a **new access token per branch**. Mechanism (new session family, old one revoked) as recommended; details in the 3d plan.                                                                                            |
-| Q2        | **Bill and payment stay separate records.** The reception button does visit + bill + payment in **ONE database transaction with an idempotency key**. The API still keeps separate create and pay calls underneath so part payment can come later.                                     |
-| Q3        | Free follow-up is a **hospital setting** (`follow_up_free_days`, 7 in the demo seed). A follow-up inside the window makes a **zero-amount bill that counts as settled** for the queue gate.                                                                                            |
-| Q4        | **Registration fee once per patient** is included, as a **bill line item** (`patient_registration_fees` table with the partial unique index).                                                                                                                                          |
-| Q5        | Permission names follow the existing pattern (`patients.registry.read`, `opd.masters.read`). Receptionist, Nurse and Doctor each get only what they need. **The final list is shown in the 4a-1 plan.**                                                                                |
-| Q6        | Consultation notes are readable only by users with the **notes permission** (Doctor, Nurse), **in the branch where the visit happened**; not Receptionist; **every read is audited**.                                                                                                  |
-| Q7        | A completed note **cannot be edited**; a correction is an **addendum** (who, when, why).                                                                                                                                                                                               |
-| Q12       | 3d first, new Phase 2 order and target date as in section 0.                                                                                                                                                                                                                           |
-| Q8 to Q11 | Not answered separately; the recommendations in the list below stand (no vitals in this flow, plain browser-print receipt, `CASH` mode from the master, no reassign). Q8 now matters more: the Nurse role reads notes but vitals entry is still cut. I confirm these in the 4a-2 plan. |
+| #         | Decision                                                                                                                                                                                                                                           |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Q1        | Switcher is **SuperAdmin only** (hospital-wide scope) and issues a **new access token per branch**. Mechanism (new session family, old one revoked) as recommended; details in the 3d plan.                                                        |
+| Q2        | **Bill and payment stay separate records.** The reception button does visit + bill + payment in **ONE database transaction with an idempotency key**. The API still keeps separate create and pay calls underneath so part payment can come later. |
+| Q3        | Free follow-up is a **hospital setting** (`follow_up_free_days`, 7 in the demo seed). A follow-up inside the window makes a **zero-amount bill that counts as settled** for the queue gate.                                                        |
+| Q4        | **Registration fee once per patient** is included, as a **bill line item** (`patient_registration_fees` table with the partial unique index).                                                                                                      |
+| Q5        | Permission names follow the existing pattern (`patients.registry.read`, `opd.masters.read`). Receptionist, Nurse and Doctor each get only what they need. **The final list is shown in the 4a-1 plan.**                                            |
+| Q6        | Consultation notes are readable only by users with the **notes permission** (Doctor, Nurse), **in the branch where the visit happened**; not Receptionist; **every read is audited**.                                                              |
+| Q7        | A completed note **cannot be edited**; a correction is an **addendum** (who, when, why).                                                                                                                                                           |
+| Q12       | 3d first, new Phase 2 order and target date as in section 0.                                                                                                                                                                                       |
+| Q8        | **Vitals and prescription are NOT dropped.** They stay in Steps 5a/5b, after the first bill-to-doctor path and before 6a.                                                                                                                          |
+| Q9 to Q11 | My recommendations stand: plain browser-print receipt (Q9), `CASH` mode taken from the `payment_modes` master (Q10), no doctor reassign in this flow (Q11).                                                                                        |
 
 **Effort added by Q3, Q4, Q6, Q7 (my estimate, working days):** Q3 free follow-up about 0.5 (rule, window by IST date, zero-total bill gate, tests around day 7 and day 8); Q4 registration fee about 0.5 to 1 (one table, one unique index, a bill line, a cross-branch test, void rule left for the refunds step); Q6 about 0.5 (notes permission, branch rule, audited reads, Nurse role grant); Q7 about 0.5 (an addendum table and endpoint, "completed is read-only" check). Total about 2 to 2.5 days on top of the base build; section 4 now includes them.
 
@@ -181,7 +186,7 @@ One feature branch and one PR into `develop` per step (4a-1 and 4a-2 may share o
 5. **New permission codes.** My proposal: `opd.visits.create`, `opd.visits.read`, `opd.billing.collect`, `opd.queue.read` (doctor), `opd.consultation.write` (doctor). Receptionist gets create, read, collect. Doctor gets queue.read, consultation.write and visits.read for own patients. Branch Admin and SuperAdmin get read. Nurse nothing yet. Do you want different names or grouping?
 6. **Who may read consultation notes?** Recommended: only the doctor who wrote it, other doctors of the same hospital for the same patient (read only), and nobody at reception. Alternative: the same doctor only.
 7. **Can a completed note be corrected?** Recommended no in this flow (a later step adds addenda with who and when). Alternative: the doctor may edit until end of day.
-8. **Nurse and vitals:** cut from this flow as written. Confirm the doctor can start the consultation without vitals.
+8. **Nurse and vitals:** (answered: not dropped, built in 5a/5b, see decisions table).
 9. **Receipt:** I treat a plain browser print view with bill number, receipt number, token, patient, doctor, line, total, mode as the one print in this flow. Is that acceptable, or should even that wait?
 10. **Payment mode:** cash only means the web shows no mode picker and sends the `CASH` mode from the `payment_modes` master. Do both demo hospitals have a `CASH` row in the seed? (I will check; I need to know if the code `CASH` is fixed or a setting.)
 11. **Doctor "assign":** is picking the doctor at visit creation enough ("assign" in your message), or do you want a separate reassign action before payment? Recommended: no reassign now.
