@@ -21,10 +21,10 @@ Expected answer: `PONG`. If it does not answer, start the Memurai service from t
 
 ## 3. Mailpit (only for staff emails)
 
-Run it from the folder that contains `mailpit.exe`:
+Run it from PowerShell (not Git Bash) in `D:\Indigo\Tools\mailpit`, or double-click `mailpit.exe`:
 
 ```
-./mailpit.exe --listen 127.0.0.1:8025 --smtp 127.0.0.1:1025
+.\mailpit.exe --listen 127.0.0.1:8025 --smtp 127.0.0.1:1025
 ```
 
 - Inbox in the browser: http://127.0.0.1:8025
