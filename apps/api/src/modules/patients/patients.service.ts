@@ -467,6 +467,12 @@ export class PatientsService {
         orderSql = Prisma.sql`lower(p.name) ASC, p.id ASC`;
       } else if (sort === PatientListSort.NAME_DESC) {
         orderSql = Prisma.sql`lower(p.name) DESC, p.id DESC`;
+      } else if (sort === PatientListSort.UHID_DESC) {
+        // Natural order: shorter UHIDs first when ascending (TESTA0999 before TESTA10000).
+        // COLLATE "C" = plain character order, independent of the database locale.
+        orderSql = Prisma.sql`length(p.uhid) DESC, p.uhid COLLATE "C" DESC, p.id DESC`;
+      } else if (sort === PatientListSort.UHID_ASC) {
+        orderSql = Prisma.sql`length(p.uhid) ASC, p.uhid COLLATE "C" ASC, p.id ASC`;
       } else {
         orderSql = Prisma.sql`p.created_at DESC, p.id DESC`;
       }

@@ -1357,6 +1357,131 @@ describe('Patients registry endpoints (HTTP)', () => {
     });
   });
 
+  describe('GET /patients list uhid sort', () => {
+    let recv: string;
+    let southTok: string;
+    let actorId: string;
+    let southActorId: string;
+
+    async function addPatient(
+      tenantId: string,
+      branchId: string,
+      createdBy: string,
+      name: string,
+      uhid: string,
+    ) {
+      return owner.patient.create({
+        data: { tenantId, uhid, registeredBranchId: branchId, name, createdBy },
+      });
+    }
+
+    async function listUhids(
+      token: string,
+      query: Record<string, string | number>,
+    ): Promise<string[]> {
+      const res = await request(app.getHttpServer())
+        .get('/patients')
+        .query(query)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+      return (res.body.items as Array<{ uhid: string }>).map((i) => i.uhid);
+    }
+
+    beforeAll(async () => {
+      recv = await hospitalLogin(northAccess, northRecvEmail);
+      southTok = await hospitalLogin(southAccess, southRecvEmail);
+      actorId = (await owner.user.findFirstOrThrow({ where: { tenantId: northTenantId } })).id;
+      const southUser = await owner.user.findFirstOrThrow({ where: { tenantId: southTenantId } });
+      southActorId = southUser.id;
+      const southBranch = await owner.branch.findFirstOrThrow({
+        where: { tenantId: southTenantId },
+      });
+      // Different lengths: natural order must put TESTA0999 before TESTA10000.
+      await addPatient(northTenantId, northMainId, actorId, 'Qsa Short', 'USRTA0999');
+      await addPatient(northTenantId, northMainId, actorId, 'Qsa Long', 'USRTA10000');
+      await addPatient(northTenantId, northMainId, actorId, 'Qsa Lowest', 'USRTA0100');
+      // Financial-year style (same length, plain character order).
+      await addPatient(northTenantId, northMainId, actorId, 'Qsf One', '2526/00099');
+      await addPatient(northTenantId, northMainId, actorId, 'Qsf Two', '2627/00006');
+      await addPatient(northTenantId, northMainId, actorId, 'Qsf Three', '2627/00010');
+      // Five rows for paging continuity.
+      for (const n of [1, 2, 3, 4, 5]) {
+        await addPatient(northTenantId, northMainId, actorId, `Qsp ${n}`, `USRTP${10 ** n}`);
+      }
+      // A second name group, so q can be shown to filter inside the UHID order.
+      await addPatient(northTenantId, northMainId, actorId, 'Qsb Extra', 'USRTB5');
+      // Another hospital with a UHID that would sort first.
+      await addPatient(southTenantId, southBranch.id, southActorId, 'Qsa Other', 'USRTA99999');
+    });
+
+    it('uhid_desc puts longer UHIDs first (TESTA10000 before TESTA0999)', async () => {
+      expect(await listUhids(recv, { q: 'Qsa', sort: 'uhid_desc', pageSize: 50 })).toEqual([
+        'USRTA10000',
+        'USRTA0999',
+        'USRTA0100',
+      ]);
+    });
+
+    it('uhid_asc is the exact reverse (TESTA0100, TESTA0999, TESTA10000)', async () => {
+      expect(await listUhids(recv, { q: 'Qsa', sort: 'uhid_asc', pageSize: 50 })).toEqual([
+        'USRTA0100',
+        'USRTA0999',
+        'USRTA10000',
+      ]);
+    });
+
+    it('orders financial-year style UHIDs by plain character order', async () => {
+      expect(await listUhids(recv, { q: 'Qsf', sort: 'uhid_asc', pageSize: 50 })).toEqual([
+        '2526/00099',
+        '2627/00006',
+        '2627/00010',
+      ]);
+      expect(await listUhids(recv, { q: 'Qsf', sort: 'uhid_desc', pageSize: 50 })).toEqual([
+        '2627/00010',
+        '2627/00006',
+        '2526/00099',
+      ]);
+    });
+
+    it('works together with q (q filters, UHID order still applies)', async () => {
+      expect(await listUhids(recv, { q: 'Qsb', sort: 'uhid_desc', pageSize: 50 })).toEqual([
+        'USRTB5',
+      ]);
+      expect(await listUhids(recv, { q: 'qsa', sort: 'uhid_desc', pageSize: 50 })).toEqual([
+        'USRTA10000',
+        'USRTA0999',
+        'USRTA0100',
+      ]);
+    });
+
+    it('keeps the order across pages without gaps or repeats', async () => {
+      const all = await listUhids(recv, { q: 'Qsp', sort: 'uhid_asc', pageSize: 50 });
+      expect(all).toHaveLength(5);
+      const paged: string[] = [];
+      for (const page of [1, 2, 3]) {
+        paged.push(...(await listUhids(recv, { q: 'Qsp', sort: 'uhid_asc', page, pageSize: 2 })));
+      }
+      expect(paged).toEqual(all);
+      expect(new Set(paged).size).toBe(5);
+    });
+
+    it('does not leak another hospital into the UHID order', async () => {
+      const north = await listUhids(recv, { q: 'Qsa', sort: 'uhid_desc', pageSize: 50 });
+      expect(north).not.toContain('USRTA99999');
+      expect(await listUhids(southTok, { q: 'Qsa', sort: 'uhid_desc', pageSize: 50 })).toEqual([
+        'USRTA99999',
+      ]);
+    });
+
+    it('still rejects an unknown sort value with 400', async () => {
+      await request(app.getHttpServer())
+        .get('/patients')
+        .query({ sort: 'uhid_sideways' })
+        .set('Authorization', `Bearer ${recv}`)
+        .expect(400);
+    });
+  });
+
   it('form-config returns sections; fieldErrors on validation; pincode INVALID', async () => {
     const recv = await hospitalLogin(northAccess, northRecvEmail);
     const cfg = await request(app.getHttpServer())

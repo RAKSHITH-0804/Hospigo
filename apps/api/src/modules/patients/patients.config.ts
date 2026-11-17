@@ -8,6 +8,8 @@ export const PatientListSort = {
   OLDEST: 'oldest',
   NAME_ASC: 'name_asc',
   NAME_DESC: 'name_desc',
+  UHID_DESC: 'uhid_desc',
+  UHID_ASC: 'uhid_asc',
 } as const;
 
 export type PatientListSort = (typeof PatientListSort)[keyof typeof PatientListSort];
@@ -19,6 +21,8 @@ export const PATIENT_LIST_SORT_VALUES: readonly PatientListSort[] = [
   PatientListSort.OLDEST,
   PatientListSort.NAME_ASC,
   PatientListSort.NAME_DESC,
+  PatientListSort.UHID_DESC,
+  PatientListSort.UHID_ASC,
 ] as const;
 
 export function isPatientListSort(value: string): value is PatientListSort {

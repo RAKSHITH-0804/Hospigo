@@ -57,7 +57,9 @@ Fields are ordered by section (`PERSONAL`, `CONTACT`, `ADDRESS`, `RELATIVE`, `OT
 
 Declared before `GET /patients/:id`.
 
-**Query:** optional `sort` = `newest` | `oldest` | `name_asc` | `name_desc` (default `newest`); optional `page`, `pageSize` (same cap as search: `PATIENT_SEARCH_MAX_PAGE_SIZE`); optional at most one of `uhid`, `phone`, `name` (same normalisation / min-name rules as search); **or** optional free-text `q` (trimmed, max `PATIENT_LIST_Q_MAX_LENGTH`). `q` cannot be combined with `uhid` / `phone` / `name`. No filter = list all active patients.
+**Query:** optional `sort` = `newest` | `oldest` | `name_asc` | `name_desc` | `uhid_desc` | `uhid_asc` (default `newest`; an unknown value is `400`); optional `page`, `pageSize` (same cap as search: `PATIENT_SEARCH_MAX_PAGE_SIZE`); optional at most one of `uhid`, `phone`, `name` (same normalisation / min-name rules as search); **or** optional free-text `q` (trimmed, max `PATIENT_LIST_Q_MAX_LENGTH`). `q` cannot be combined with `uhid` / `phone` / `name`. No filter = list all active patients.
+
+**UHID sort:** `uhid_desc` is `ORDER BY length(uhid) DESC, uhid COLLATE "C" DESC, id DESC`; `uhid_asc` is the exact reverse. Shorter UHIDs come first when ascending (`TESTA0999` before `TESTA10000`), and text is compared in plain character order (independent of the database locale). Known limit: after a UHID format change, the old and new formats are ordered by length, then text, so they do not interleave by registration date.
 
 **`q` matching (case-insensitive, any arm):** name prefix or word-prefix when `q` length ≥ `PATIENT_LIST_Q_MIN_NAME_LENGTH` (default 2); UHID prefix when length ≥ `PATIENT_LIST_Q_MIN_UHID_LENGTH` (default 2); phone national-number prefix when `q` has ≥ `PATIENT_LIST_Q_MIN_PHONE_DIGITS` digits (default 3) — spaces/dashes stripped, and a leading `+` / `91` removed only when `q` starts with `+`. LIKE wildcards in `q` are escaped (literal). Too short for every arm → `400` with `fieldErrors.q = INVALID`.
 
