@@ -7,8 +7,8 @@ Put this file in the repo as `docs/decisions-3c.md`. It records what was decided
 - Branch: `feature/phase2-step-3c-reception-patients` (from `develop`).
 - API part is built, reviewed and verified with three Postman collections (all green): UHID 3c (57 checks), Patients list 3c (101), Patients q search 3c (34). API tests: 281.
 - Web screens are built and polished. W1 render speed, W2 live search toolbar, W3 visual fixes are built (section 8); browser-tested 17 Nov (all checks passed).
-- Not yet done: push and PR into `develop`.
-- Later steps unchanged: 3d, 4a, 4b, 5a, 5b, 6a, 6b, 7, 8a, 8b, 9. The Saturday 21 Nov target for the first OPD flow is at risk; if it slips, cut screen polish, never tests or money rules.
+- **Merged:** PR #41 into `develop` (develop at c32185f after the docs PR #42). Tests at merge: API 281, web 314.
+- Later steps, new order (17 Nov): 3d, 4a-1, 4a-2, 4b, 5a, 5b, 6a, 6b, 7, 7b (Settings screens), 8a, 8b, 9. The Sat 21 Nov target was dropped; the new target is Fri 27 Nov, quality first (see `docs/plan-opd-first-flow.md`).
 
 ## 2. API decisions
 
