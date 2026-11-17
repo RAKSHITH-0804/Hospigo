@@ -40,6 +40,8 @@ export default async function StaffLayout({ children }: { children: ReactNode })
         title={hospitalTitle}
         groups={[{ label: '', items: navItems }]}
         branchName={branchName}
+        activeBranchId={session.activeBranchId}
+        canSwitchBranch={session.canSwitchBranch === true}
         userDisplayName={session.displayName}
         userEmail={session.email}
         roleCodes={session.roleCodes ?? []}

@@ -51,6 +51,8 @@ export type AuthMeProfile = {
   enabledModules: AuthMeModule[];
   /** Permission codes allowed on the active branch (hospital); empty for HQ. */
   permissions: string[];
+  /** True for hospital-wide users (branch switcher). Display only: the API decides. */
+  canSwitchBranch: boolean;
 };
 
 export type BrowserAuthErrorCode =

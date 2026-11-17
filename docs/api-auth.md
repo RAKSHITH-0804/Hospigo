@@ -31,18 +31,20 @@ Put `API_INTERNAL_URL` and `APP_URL` in `apps/web/.env.local` (gitignored).
 
 ## Endpoints
 
-| Method | Path                       | Auth                                              | Body                                                                                                                                                                                   |
-| ------ | -------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| POST   | `/auth/hospital/login`     | public                                            | `accessCode`, `email`, `password`                                                                                                                                                      |
-| POST   | `/auth/hq/login`           | public                                            | `email`, `password`                                                                                                                                                                    |
-| POST   | `/auth/refresh`            | public                                            | `refreshToken`                                                                                                                                                                         |
-| POST   | `/auth/logout`             | public                                            | `refreshToken` (idempotent)                                                                                                                                                            |
-| POST   | `/auth/change-password`    | Bearer (`HOSPITAL`, `HQ`, or `CHANGE_PASSWORD_*`) | `currentPassword`, `newPassword` (wrong current password → generic 401; per-user lockout under `hospigo:auth:cpw:` with the same failure/lock windows as login; IP rate limit applies) |
-| GET    | `/auth/me`                 | Bearer (`HOSPITAL` or `HQ`)                       | —                                                                                                                                                                                      |
-| POST   | `/auth/forgot-password`    | public                                            | `accessCode`, `email` → always **202** `{ accepted: true }` (padded timing; enqueue only for active user+membership)                                                                   |
-| POST   | `/auth/hq/forgot-password` | public                                            | `email` → always **202** `{ accepted: true }`                                                                                                                                          |
-| POST   | `/auth/reset-password`     | public                                            | `token`, `newPassword` → **204**; hospital `h.` or HQ `q.` tokens                                                                                                                      |
-| POST   | `/auth/activate`           | public                                            | `token`, `newPassword` → **204**; hospital activation only                                                                                                                             |
+| Method | Path                        | Auth                                              | Body                                                                                                                                                                                   |
+| ------ | --------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/auth/hospital/login`      | public                                            | `accessCode`, `email`, `password`                                                                                                                                                      |
+| POST   | `/auth/hq/login`            | public                                            | `email`, `password`                                                                                                                                                                    |
+| POST   | `/auth/refresh`             | public                                            | `refreshToken`                                                                                                                                                                         |
+| POST   | `/auth/logout`              | public                                            | `refreshToken` (idempotent)                                                                                                                                                            |
+| POST   | `/auth/change-password`     | Bearer (`HOSPITAL`, `HQ`, or `CHANGE_PASSWORD_*`) | `currentPassword`, `newPassword` (wrong current password → generic 401; per-user lockout under `hospigo:auth:cpw:` with the same failure/lock windows as login; IP rate limit applies) |
+| GET    | `/auth/me`                  | Bearer (`HOSPITAL` or `HQ`)                       | —                                                                                                                                                                                      |
+| GET    | `/auth/switchable-branches` | Bearer (`HOSPITAL`, hospital-wide role only)      | — (others get 403)                                                                                                                                                                     |
+| POST   | `/auth/switch-branch`       | Bearer (`HOSPITAL`, hospital-wide role only)      | `branchId`, `refreshToken` → new `accessToken` + rotated `refreshToken` for the target branch                                                                                          |
+| POST   | `/auth/forgot-password`     | public                                            | `accessCode`, `email` → always **202** `{ accepted: true }` (padded timing; enqueue only for active user+membership)                                                                   |
+| POST   | `/auth/hq/forgot-password`  | public                                            | `email` → always **202** `{ accepted: true }`                                                                                                                                          |
+| POST   | `/auth/reset-password`      | public                                            | `token`, `newPassword` → **204**; hospital `h.` or HQ `q.` tokens                                                                                                                      |
+| POST   | `/auth/activate`            | public                                            | `token`, `newPassword` → **204**; hospital activation only                                                                                                                             |
 
 ### Email action tokens (Step 6b)
 
@@ -83,6 +85,20 @@ BFF routes under `/api/auth/`:
 | `POST /api/auth/reset-password`     | `/auth/reset-password`     | 204                   | 400 `INVALID_LINK` (generic link message); 400 `VALIDATION` (password rules) |
 | `POST /api/auth/activate`           | `/auth/activate`           | 204                   | same as reset                                                                |
 
+### Web BFF: branch switcher (Step 3d)
+
+| BFF                            | Upstream                                   | Notes                                                                                                                                                                |
+| ------------------------------ | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/auth/switch-branch` | `/auth/refresh` then `/auth/switch-branch` | Body `{ branchId }` only. Origin + JSON checks. Reads the refresh cookie (path `/api/auth`), sets both new cookies, returns `{ ok: true }`. No token in the body.    |
+| `GET /api/auth/active-branch`  | none (reads the access cookie)             | `{ activeBranchId }` or `null`. Used by a tab that regains focus; the page reloads only if the id differs from the one it was rendered for. Never reloads on `null`. |
+| `GET /api/staff/branches`      | `/auth/switchable-branches`                | Branch list for the dropdown (403 for users who may not switch).                                                                                                     |
+
+Errors (JSON `{ ok: false, code }`): `FORBIDDEN` 403, `BRANCH_NOT_AVAILABLE` 404, `SAME_BRANCH` 400, `VALIDATION` 400, `SWITCH_IN_PROGRESS` 409, `SESSION_EXPIRED` 401 (cookies cleared), `RATE_LIMITED` 429, `UNAVAILABLE` 502/503, `UNKNOWN` 500. A refused switch still returns the rotated cookies (the renewal step already spent the old refresh token).
+
+**Single-flight:** the switch route uses the same in-process single-flight as `/api/auth/refresh-session` (`lib/auth/refresh-flight.ts`), keyed by the refresh token. A refresh and a switch on one cookie can never both present the same token to the API: a refresh joins a running switch and ends with its tokens; a switch that arrives during a refresh waits and continues from the rotated tokens; two switches to different branches at once: the second gets 409. Limit: the table is per web process (see the existing follow-up about several web servers).
+
+**Stale-tab guard:** every browser write (POST/PUT/PATCH/DELETE through `staffRoute`) must carry `x-hospigo-branch` with the branch the page was rendered for. If it differs from the branch in the session cookie, or is missing, the route answers `409 { code: "BRANCH_CHANGED" }` and nothing reaches the API. A route that forgets to pass `request` to `staffRoute` is refused too (fail closed). The API remains the only authority; this only stops a write landing in a different branch than the one on screen.
+
 Security headers on `/forgot-password`, `/reset-password`, `/activate`: `Referrer-Policy: no-referrer`, `Cache-Control: no-store`.
 
 ### Token response
@@ -114,15 +130,28 @@ Phone normalized to E.164 (`+91…`). OTP stored as HMAC only. Refresh format `p
 
 **Web patient BFF (Step 6e):** browser uses `/api/patient-auth/request-otp`, `verify-otp` (sets cookies; JSON `{ ok: true }` only), `GET refresh` (sanitized `next` under `/patient`), `POST logout`. Pages: `/patient/login`, `/patient`.
 
+### Branch switcher (Step 3d)
+
+Only a user with an **active hospital-wide (scope `HOSPITAL`) assignment on an active role** may switch; this is re-read from the database on every call, never from the token. Everyone else gets 403 and works in the branch of their access code.
+
+- `POST /auth/switch-branch` is a **refresh-token rotation that also changes the branch**: the presented session is revoked and a new session in the **same family** for the target branch replaces it, so reuse detection is unchanged (replaying the old token revokes the family). The presented refresh token must belong to the caller (same user and hospital).
+- The rotation takes the session with one atomic update; of several simultaneous rotations (switch or refresh) exactly one wins, the others are treated as reuse (401, family revoked). `/auth/refresh` uses the same atomic step.
+- Target checks: same hospital (row level security) and active. Another hospital's branch, an unknown id and an inactive branch all return the same `404 {"message":"Branch not available"}`. The branch already active returns 400.
+- Refresh rule change: a session is accepted when the user has an active branch membership **or** an active hospital-wide assignment (same rule as `AccessService`), checked on every refresh. Losing both revokes the family.
+- The previous access token cannot be revoked (stateless, no session id). It stays valid until it expires, only for the previous branch.
+- Audit: `AUTH_BRANCH_SWITCH` (metadata `fromBranchId`, `toBranchId`, `sessionId`, `requestId`), `AUTH_BRANCH_SWITCH_DENIED` (metadata `reason` code only), `AUTH_REFRESH_REUSE` on replay. No personal values, no supplied ids from refused attempts.
+- Same IP rate limit and fail-closed Redis behaviour as `/auth/refresh` (429 / 503).
+
 ### GET `/auth/me`
 
 Returns: `id`, `displayName`, `email`, `kind` (`HOSPITAL` \| `HQ`), `hospitalName`, `activeBranchId`, `activeBranchName`, `roleCodes`, `mustChangePassword`, plus:
 
-| Field            | HOSPITAL                                                                                                                                        | HQ   |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| `branches`       | Assigned active branches: `{ id, name, isMain }[]`                                                                                              | `[]` |
-| `enabledModules` | Modules enabled for the **active branch** (hospital subscription **and** branch_modules flags, same rules as AccessService): `{ code, name }[]` | `[]` |
-| `permissions`    | Permission codes allowed on the **active branch** (same snapshot as `AccessService.can` without a module gate); sorted, unique                  | `[]` |
+| Field             | HOSPITAL                                                                                                                                        | HQ      |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `branches`        | Assigned active branches: `{ id, name, isMain }[]`                                                                                              | `[]`    |
+| `enabledModules`  | Modules enabled for the **active branch** (hospital subscription **and** branch_modules flags, same rules as AccessService): `{ code, name }[]` | `[]`    |
+| `permissions`     | Permission codes allowed on the **active branch** (same snapshot as `AccessService.can` without a module gate); sorted, unique                  | `[]`    |
+| `canSwitchBranch` | `true` when the user holds an active hospital-wide role (branch switcher); the active branch name is read directly, not only from memberships   | `false` |
 
 Tenant ids and module lists come from the access token context — never from client-supplied ids. Never password hashes, tokens, or other tenants’ data.
 

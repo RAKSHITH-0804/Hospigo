@@ -5,6 +5,8 @@ import { usePathname } from 'next/navigation';
 import { PanelLeft } from 'lucide-react';
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { BranchChip } from '@/components/shell/branch-chip';
+import { BranchSwitcher } from '@/components/shell/branch-switcher';
+import { BranchSync } from '@/components/shell/branch-sync';
 import { NavIcon } from '@/components/shell/nav-icon';
 import { PoweredBy } from '@/components/shell/powered-by';
 import { UserMenu } from '@/components/shell/user-menu';
@@ -124,6 +126,8 @@ export function AppShell({
   groups,
   items,
   branchName,
+  activeBranchId,
+  canSwitchBranch,
   userDisplayName,
   userEmail,
   roleCodes,
@@ -135,6 +139,10 @@ export function AppShell({
   groups?: ShellNavGroup[];
   items?: ShellNavItem[];
   branchName?: string | null;
+  /** Branch this page was rendered for (stale-tab guard + focus re-check). */
+  activeBranchId?: string | null;
+  /** True only for hospital-wide users: shows the switcher instead of the read-only chip. */
+  canSwitchBranch?: boolean;
   userDisplayName?: string;
   userEmail?: string;
   roleCodes?: string[];
@@ -304,6 +312,7 @@ export function AppShell({
   return (
     <AuthGuard>
       <div className="shell-root">
+        {activeBranchId ? <BranchSync activeBranchId={activeBranchId} /> : null}
         <a href={`#${staffCopy.mainLandmarkId}`} className="shell-skip-link">
           {staffCopy.skipToMain}
         </a>
@@ -350,7 +359,13 @@ export function AppShell({
                   <path d="M4 7h16M4 12h16M4 17h16" />
                 </svg>
               </button>
-              {branchName ? <BranchChip name={branchName} /> : null}
+              {branchName ? (
+                canSwitchBranch && activeBranchId ? (
+                  <BranchSwitcher activeBranchName={branchName} />
+                ) : (
+                  <BranchChip name={branchName} />
+                )
+              ) : null}
             </div>
             <div className="shell-topbar-right">
               {userDisplayName && userEmail ? (

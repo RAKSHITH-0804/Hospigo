@@ -40,6 +40,7 @@ export async function POST(request: Request) {
   }
   return staffRoute({
     method: 'POST',
+    request,
     path: '/patients',
     body: bodyResult.value,
   });

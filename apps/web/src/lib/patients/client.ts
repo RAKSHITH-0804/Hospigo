@@ -1,6 +1,16 @@
+import { BRANCH_CHANGED_CODE, branchSwitchConfig } from '@/config/branch-switch';
 import { PatientListSort, type PatientListSort as ListSort } from '@/config/patients';
 import { staffCopy } from '@/config/staff-copy';
+import {
+  AUTH_REFRESH_SESSION_API,
+  clearClientRefreshLatchForTests,
+  getClientActiveBranch,
+  refreshSessionOnce,
+} from '@/lib/auth/client-session';
 import type { DuplicateMatch, PatientFieldErrorCode } from './types';
+
+// One refresh latch per tab, shared with the branch switch (see lib/auth/client-session.ts).
+export { AUTH_REFRESH_SESSION_API, clearClientRefreshLatchForTests, refreshSessionOnce };
 
 /** Next route handlers that proxy the patients API. Browsers never see tokens. */
 export const PATIENTS_API = '/api/staff/patients';
@@ -8,7 +18,6 @@ export const PATIENTS_FORM_CONFIG_API = `${PATIENTS_API}/form-config`;
 export const UHID_START_NUMBER_API = `${PATIENTS_API}/uhid/start-number`;
 /** Returned (never shown) when the caller cancelled the request. */
 export const ABORTED_CODE = 'ABORTED';
-export const AUTH_REFRESH_SESSION_API = '/api/auth/refresh-session';
 
 export type PatientsApiOk<T> = { ok: true; data: T };
 export type PatientsApiError = {
@@ -58,52 +67,29 @@ function readFieldErrors(value: unknown): Record<string, string> | undefined {
   return Object.keys(out).length ? out : undefined;
 }
 
-/** Shared in-flight promise so concurrent 401s trigger one refresh. */
-let refreshInFlight: Promise<boolean> | null = null;
-
-/**
- * POST /api/auth/refresh-session (JSON, no redirect). Cookies only.
- * Concurrent callers share one request.
- */
-export function refreshSessionOnce(): Promise<boolean> {
-  if (!refreshInFlight) {
-    refreshInFlight = (async () => {
-      try {
-        const response = await fetch(AUTH_REFRESH_SESSION_API, {
-          method: 'POST',
-          credentials: 'include',
-          cache: 'no-store',
-          headers: { Accept: 'application/json' },
-        });
-        return response.ok;
-      } catch {
-        return false;
-      } finally {
-        refreshInFlight = null;
-      }
-    })();
-  }
-  return refreshInFlight;
-}
-
-/** Test-only: clear the client refresh latch. */
-export function clearClientRefreshLatchForTests(): void {
-  refreshInFlight = null;
-}
-
 async function fetchPatientsOnce<T>(
   path: string,
   init: PatientsApiInit,
 ): Promise<PatientsApiResult<T>> {
   const hasBody = init.body !== undefined;
+  const method = init.method ?? (hasBody ? 'POST' : 'GET');
+  const headers: Record<string, string> = hasBody
+    ? { Accept: 'application/json', 'Content-Type': 'application/json' }
+    : { Accept: 'application/json' };
+  if (method !== 'GET') {
+    // Stale-tab guard: the branch this page was rendered for. The server refuses the write
+    // (409 BRANCH_CHANGED) if another tab has switched branch since.
+    const branchId = getClientActiveBranch();
+    if (branchId) {
+      headers[branchSwitchConfig.headerName] = branchId;
+    }
+  }
   try {
     const response = await fetch(path, {
-      method: init.method ?? (hasBody ? 'POST' : 'GET'),
+      method,
       credentials: 'include',
       cache: 'no-store',
-      headers: hasBody
-        ? { Accept: 'application/json', 'Content-Type': 'application/json' }
-        : { Accept: 'application/json' },
+      headers,
       body: hasBody ? JSON.stringify(init.body) : undefined,
       signal: init.signal,
     });
@@ -159,6 +145,8 @@ export async function patientsApi<T>(
 /** Map a route error code to staffCopy.errors wording. */
 export function errorMessageFor(code: string): string {
   switch (code) {
+    case BRANCH_CHANGED_CODE:
+      return staffCopy.errors.branchChanged;
     case 'FORBIDDEN':
       return staffCopy.errors.forbidden;
     case 'UNAUTHORIZED':

@@ -34,6 +34,7 @@ export async function PATCH(request: Request, context: Params) {
   const { id } = await context.params;
   return staffRoute({
     method: 'PATCH',
+    request,
     path: `/patients/${encodeURIComponent(id)}`,
     body: bodyResult.value,
   });

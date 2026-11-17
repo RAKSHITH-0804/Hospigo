@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { sessionConfig } from '@/config/session';
+import { checkBranchGuard } from './branch-guard';
 import { callStaffApi, type CallStaffApiOptions } from './staff-api';
 
 const NO_STORE = { 'Cache-Control': 'no-store' } as const;
@@ -13,6 +14,11 @@ export type StaffRouteOptions = {
   path: string;
   query?: CallStaffApiOptions['query'];
   body?: unknown;
+  /**
+   * The incoming browser request. REQUIRED for every write (POST/PUT/PATCH/DELETE): it carries
+   * the stale-tab branch header checked by the branch guard. A write without it is refused.
+   */
+  request?: Request;
 };
 
 function jsonResponse(data: unknown, status: number): NextResponse {
@@ -62,11 +68,18 @@ function safeUpstreamErrorPayload(body: Record<string, unknown> | undefined): {
  */
 export async function staffRoute(options: StaffRouteOptions): Promise<NextResponse> {
   const jar = await cookies();
-  if (!jar.get(sessionConfig.cookieAccessName)?.value) {
+  const access = jar.get(sessionConfig.cookieAccessName)?.value;
+  if (!access) {
     return jsonResponse({ code: 'UNAUTHORIZED' satisfies StaffRouteErrorCode }, 401);
   }
 
   const method = options.method ?? (options.body !== undefined ? 'POST' : 'GET');
+  if (method !== 'GET') {
+    const blocked = checkBranchGuard(options.request, access);
+    if (blocked) {
+      return blocked;
+    }
+  }
   const result = await callStaffApi(options.path, {
     method,
     query: options.query,

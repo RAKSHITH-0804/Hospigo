@@ -2,6 +2,7 @@
  * @jest-environment node
  */
 
+const ACCESS_COOKIE = `h.${Buffer.from(JSON.stringify({ branchId: 'branch-1' })).toString('base64url')}.s`;
 const callStaffApiMock = jest.fn();
 const authMeMock = jest.fn();
 let hasAccessCookie = true;
@@ -13,7 +14,7 @@ jest.mock('@/lib/auth/staff-api', () => ({
 jest.mock('next/headers', () => ({
   cookies: async () => ({
     get: (name: string) =>
-      hasAccessCookie && name === 'hospigo_access' ? { value: 'cookie-value' } : undefined,
+      hasAccessCookie && name === 'hospigo_access' ? { value: ACCESS_COOKIE } : undefined,
   }),
 }));
 
@@ -37,7 +38,12 @@ function jsonRequest(
 ) {
   return new Request(url, {
     method,
-    headers: { Origin: ORIGIN, 'Content-Type': 'application/json', ...headers },
+    headers: {
+      Origin: ORIGIN,
+      'Content-Type': 'application/json',
+      'x-hospigo-branch': 'branch-1',
+      ...headers,
+    },
     body: JSON.stringify(body),
   });
 }

@@ -393,13 +393,23 @@ describe('Auth endpoints (HTTP)', () => {
     expect(login.status).toBe(200);
     const refreshToken = login.body.refreshToken as string;
 
-    await owner.userBranch.updateMany({
-      where: { userId, branchId: eastBranchId },
-      data: { isActive: false },
-    });
+    // Step 3d: a user with an active hospital-wide role keeps a session on a branch without
+    // membership (branch switcher). This test is about a user WITHOUT hospital scope, so the
+    // fixture user's hospital-wide assignment is switched off for the duration of the test.
+    await owner.roleAssignment.updateMany({ where: { userId }, data: { isActive: false } });
+    try {
+      await owner.userBranch.updateMany({
+        where: { userId, branchId: eastBranchId },
+        data: { isActive: false },
+      });
 
-    const refresh = await request(app.getHttpServer()).post('/auth/refresh').send({ refreshToken });
-    expectGeneric401(refresh);
+      const refresh = await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .send({ refreshToken });
+      expectGeneric401(refresh);
+    } finally {
+      await owner.roleAssignment.updateMany({ where: { userId }, data: { isActive: true } });
+    }
   });
 
   it('CHANGE_PASSWORD token is refused on /auth/me and accepted on change-password', async () => {

@@ -30,6 +30,7 @@ export async function PUT(request: Request) {
   }
   return staffRoute({
     method: 'PUT',
+    request,
     path: '/patients/uhid/start-number',
     body: bodyResult.value,
   });
