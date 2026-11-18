@@ -121,14 +121,14 @@ describe('PatientRecord', () => {
     expect(screen.queryByRole('link', { name: copy.record.editAction })).toBeNull();
   });
 
-  it('switches tabs to the visits and bills empty states', () => {
+  it('switches tabs; without visit data (no permission) the Visits and Bills tabs say so', () => {
     render(<PatientRecord patient={detail} labels={labels} canWrite={false} />);
     fireEvent.click(screen.getByRole('tab', { name: copy.record.tabVisits }));
-    expect(screen.getByText(copy.record.visitsEmptyTitle)).toBeTruthy();
+    expect(screen.getByText(staffCopy.opd.tabs.noAccessTitle)).toBeTruthy();
     expect(screen.queryByText(copy.record.sectionDemographics)).toBeNull();
 
     fireEvent.click(screen.getByRole('tab', { name: copy.record.tabBills }));
-    expect(screen.getByText(copy.record.billsEmptyTitle)).toBeTruthy();
+    expect(screen.getByText(staffCopy.opd.tabs.noAccessTitle)).toBeTruthy();
 
     fireEvent.click(screen.getByRole('tab', { name: copy.record.tabOverview }));
     expect(screen.getByText(copy.record.sectionDemographics)).toBeTruthy();

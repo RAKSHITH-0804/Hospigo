@@ -2,30 +2,29 @@
 
 Status as of 17 Nov 2026: Phase 2 Step 3c merged (PR #41; `develop` at c32185f). Step 3d built (PR pending). API 314 tests, web 406 tests. Evidence is repo-local unless noted.
 
-Planned order: 3d, 4a-1, 4a-2, 4b, 5a, 5b, 6a, 6b, 7, 7b, 8a, 8b, 9 (see `docs/plan-opd-first-flow.md`). Target for the first working OPD flow: Fri 27 Nov 2026 (quality first; tests and review gates are never shortened).
+Planned order: 3d, 4a (migration part, then API part), 4b, 5a, 5b, 6a, 6b, 7, 7b, 8a, 8b, 9 (see `docs/plan-opd-first-flow.md`). Target for the first working OPD flow: Fri 27 Nov 2026 (quality first; tests and review gates are never shortened).
 
 ## Phase 2 (OPD)
 
-| Step | Item                                              | Status  | Notes                                                                  |
-| ---- | ------------------------------------------------- | ------- | ---------------------------------------------------------------------- |
-| 1    | Design documents                                  | Done    | `docs/schema-opd.md`, `docs/use-cases-opd.md`                          |
-| 2    | Masters, settings and mock data                   | Done    | Migration + services + mock seed + tests                               |
-| 3a   | Counters, patient search, register and update API | Done    | Counters + PermissionGuard + `/patients` API + tests                   |
-| 3b   | Reception web foundation + application frame      | Done    | PR #40: theme, UI kit, shell frame, `/auth/me` permissions             |
-| 3c   | Reception patient screens, list API, UHID setting | Done    | PR #41 merged (develop c32185f). API 281, web 314 tests                |
-| 3d   | SuperAdmin branch switcher                        | Done    | PR pending. API 314, web 406 tests. `docs/decisions-3d.md`             |
-| 4a-1 | Visit and money tables (migration, triggers, RLS) | Planned | Review gate: migration, money, RLS                                     |
-| 4a-2 | Visit, bill and cash payment API                  | Planned | One transaction with idempotency key; free follow-up; registration fee |
-| 4b   | Reception web: visit and billing                  | Planned |                                                                        |
-| 5a   | Vitals, queue and consultation API                | Planned |                                                                        |
-| 5b   | Nurse and doctor web                              | Planned |                                                                        |
-| 6a   | Investigations and refunds API                    | Planned |                                                                        |
-| 6b   | Investigations and refunds web                    | Planned |                                                                        |
-| 7    | Print templates and reports                       | Planned |                                                                        |
-| 7b   | Settings screens                                  | Planned | Custom required fields, required-field settings, UHID format creation  |
-| 8a   | NestJS 12 upgrade                                 | Planned |                                                                        |
-| 8b   | Excel upload of masters                           | Planned |                                                                        |
-| 9    | OPD hardening and exit                            | Planned |                                                                        |
+| Step | Item                                              | Status      | Notes                                                                                                                                                                 |
+| ---- | ------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Design documents                                  | Done        | `docs/schema-opd.md`, `docs/use-cases-opd.md`                                                                                                                         |
+| 2    | Masters, settings and mock data                   | Done        | Migration + services + mock seed + tests                                                                                                                              |
+| 3a   | Counters, patient search, register and update API | Done        | Counters + PermissionGuard + `/patients` API + tests                                                                                                                  |
+| 3b   | Reception web foundation + application frame      | Done        | PR #40: theme, UI kit, shell frame, `/auth/me` permissions                                                                                                            |
+| 3c   | Reception patient screens, list API, UHID setting | Done        | PR #41 merged (develop c32185f). API 281, web 314 tests                                                                                                               |
+| 3d   | SuperAdmin branch switcher                        | Done        | PR pending. API 314, web 406 tests. `docs/decisions-3d.md`                                                                                                            |
+| 4a   | Visits, billing and cash payment (tables, API)    | In progress | Merged from 4a-1 + 4a-2 on 18 Nov. Part 1 (migration) fc119a0, part 2 (API) d377ed8, part 3 (preview API + web screens) built, at review gate. `docs/decisions-4a.md` |
+| 4b   | Reception web: visit and billing                  | Planned     |                                                                                                                                                                       |
+| 5a   | Vitals, queue and consultation API                | Planned     |                                                                                                                                                                       |
+| 5b   | Nurse and doctor web                              | Planned     |                                                                                                                                                                       |
+| 6a   | Investigations and refunds API                    | Planned     |                                                                                                                                                                       |
+| 6b   | Investigations and refunds web                    | Planned     |                                                                                                                                                                       |
+| 7    | Print templates and reports                       | Planned     |                                                                                                                                                                       |
+| 7b   | Settings screens                                  | Planned     | Custom required fields, required-field settings, UHID format creation                                                                                                 |
+| 8a   | NestJS 12 upgrade                                 | Planned     |                                                                                                                                                                       |
+| 8b   | Excel upload of masters                           | Planned     |                                                                                                                                                                       |
+| 9    | OPD hardening and exit                            | Planned     |                                                                                                                                                                       |
 
 ## Phase 1
 
@@ -61,13 +60,18 @@ Planned order: 3d, 4a-1, 4a-2, 4b, 5a, 5b, 6a, 6b, 7, 7b, 8a, 8b, 9 (see `docs/p
 
 ## Open items
 
-| Item                 | Status | Notes                                                       |
-| -------------------- | ------ | ----------------------------------------------------------- |
-| Migration discipline | Open   | Owner-only migrate; document release order                  |
-| Release process      | Open   | Staging checklist exists; no formal promote runbook yet     |
-| Logging / monitoring | Open   | Nest logger + audits; no central APM                        |
-| API docs (published) | Open   | Swagger off in production; OpenAPI publish later            |
-| Load tests           | Open   | Not built                                                   |
-| Backups / FTP        | Open   | Not built                                                   |
-| WebSocket auth       | Open   | Socket.IO present; AuthGuard skips non-HTTP                 |
-| Next 16 proxy rename | Open   | Follow Next guidance when renaming deprecated proxy helpers |
+| Item                          | Status      | Notes                                                                                                                                                                 |
+| ----------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Migration discipline          | Open        | Owner-only migrate; document release order                                                                                                                            |
+| Release process               | Open        | Staging checklist exists; no formal promote runbook yet                                                                                                               |
+| Logging / monitoring          | Open        | Nest logger + audits; no central APM                                                                                                                                  |
+| API docs (published)          | Open        | Swagger off in production; OpenAPI publish later                                                                                                                      |
+| Load tests                    | Open        | Not built                                                                                                                                                             |
+| Backups / FTP                 | Open        | Not built                                                                                                                                                             |
+| WebSocket auth                | Open        | Socket.IO present; AuthGuard skips non-HTTP                                                                                                                           |
+| Next 16 proxy rename          | Open        | Follow Next guidance when renaming deprecated proxy helpers                                                                                                           |
+| Split / part payment          | Open        | UPI + cash on one bill, ONE receipt for all (decided 18 Nov); part payment as permissioned exception. See `docs/decisions-4a.md`                                      |
+| Same-day re-visit rule        | Open        | Charge once per patient, doctor and day? Pending talks with hospitals (Rakshith)                                                                                      |
+| Follow-up days setting screen | Open        | Setting exists (`follow_up_free_days`); screen and API route in Step 7b                                                                                               |
+| Receipt layout settings       | Open        | Hospital header/footer, receptionist name, doctor on the bill, paper size as hospital settings (Step 7 and 7b)                                                        |
+| Free repeat-visit window      | Done (rule) | Rule and setting `repeat_visit_free_hours` built in Step 4a (0 = off, demo seed 24). The Admin screen to change it is Step 7b; hospitals still to confirm the default |

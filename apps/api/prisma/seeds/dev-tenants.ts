@@ -23,6 +23,8 @@ const MOCK_REGISTRATION_FEE_PAISE = 10_000;
 const MOCK_INVESTIGATION_FEE_PAISE = 25_000;
 const MOCK_NEW_CONSULT_FEE_PAISE = 50_000;
 const MOCK_FOLLOW_UP_FEE_PAISE = 30_000;
+// Demo hospitals show the repeat-visit rule: same doctor again within 24 hours is free.
+const DEMO_REPEAT_VISIT_FREE_HOURS = 24;
 const MOCK_PRICE_EFFECTIVE_FROM = new Date('2020-01-01T00:00:00.000Z');
 const MOCK_TIMING_START = timeOfDay(9, 0);
 const MOCK_TIMING_END = timeOfDay(17, 0);
@@ -271,9 +273,13 @@ async function seedOpdMasters(
       'opd.masters.read',
       'patients.registry.read',
       'patients.registry.write',
+      'opd.visits.create',
+      'opd.visits.read',
+      'opd.billing.collect',
+      'opd.billing.read',
     ],
-    [OPD_ROLE_CODES.NURSE]: ['opd.masters.read', 'patients.registry.read'],
-    [OPD_ROLE_CODES.DOCTOR]: ['opd.masters.read', 'patients.registry.read'],
+    [OPD_ROLE_CODES.NURSE]: ['opd.masters.read', 'patients.registry.read', 'opd.visits.read'],
+    [OPD_ROLE_CODES.DOCTOR]: ['opd.masters.read', 'patients.registry.read', 'opd.visits.read'],
   };
 
   const roleDefs = [
@@ -594,6 +600,7 @@ async function seedOpdMasters(
     create: {
       tenantId: args.tenantId,
       followUpFreeDays: OPD_SETTINGS_DEFAULTS.followUpFreeDays,
+      repeatVisitFreeHours: DEMO_REPEAT_VISIT_FREE_HOURS,
       tokenPrefix: OPD_SETTINGS_DEFAULTS.tokenPrefix,
       timezone: OPD_SETTINGS_DEFAULTS.timezone,
       taxEnabled: OPD_SETTINGS_DEFAULTS.taxEnabled,
@@ -603,6 +610,7 @@ async function seedOpdMasters(
     },
     update: {
       followUpFreeDays: OPD_SETTINGS_DEFAULTS.followUpFreeDays,
+      repeatVisitFreeHours: DEMO_REPEAT_VISIT_FREE_HOURS,
       tokenPrefix: OPD_SETTINGS_DEFAULTS.tokenPrefix,
       timezone: OPD_SETTINGS_DEFAULTS.timezone,
       taxEnabled: OPD_SETTINGS_DEFAULTS.taxEnabled,

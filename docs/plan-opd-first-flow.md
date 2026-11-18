@@ -12,6 +12,8 @@ Rakshith approved this plan with the answers in section 7 (now decisions) and th
 - **Self-review at every review gate (new standing rule, also in `CLAUDE.md`):** after code and tests are done, a separate adversarial pass before showing Rakshith (how could it be attacked or break; which attacks the tests cover; tests added for the gaps; plain-words verdict: safe to approve, or needs a decision).
 - **Review gates stay:** permissions and tokens, tenant isolation and RLS, anything touching money, migrations, anything that removes a protection. Step 3d stops after the API part for review before the web part is built.
 
+> **Update 18 Nov 2026:** 4a-1 and 4a-2 are merged into one step **4a** (one branch, one PR, two commits). The migration commit comes first and is a mandatory review gate; the API part starts only after Rakshith approves it. Estimates 2.5 + 3.5 days stay as the total for 4a, less about half a day of PR overhead. Doctor also gets `opd.vitals.write` (5a seed). Admin roles get only read permissions for visits and billing (decided in `docs/decisions-4a.md`).
+
 ## 1. Goal in one paragraph
 
 A receptionist registers a patient (already works), creates a visit and picks a doctor, bills the consultation and takes cash. The visit gets a token and appears in that doctor's queue. The doctor opens the patient, writes a short note and completes the visit. Before that, the SuperAdmin can switch branch (Step 3d), so one demo login can see both branches.

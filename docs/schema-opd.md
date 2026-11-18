@@ -108,14 +108,15 @@ A doctor works across branches. "Not Available Now" = switch off, or on leave to
 
 ### opd_settings (one row per hospital)
 
-| Column                        | Default      | Used for                           |
-| ----------------------------- | ------------ | ---------------------------------- |
-| follow_up_free_days           | 7            | free follow-up window              |
-| token_prefix                  | `T`          | token label                        |
-| timezone                      | Asia/Kolkata | rule dates and token day           |
-| tax_enabled                   | false        | tax on bills                       |
-| tax_name, tax_registration_no | null         | printed on receipts                |
-| tax_inclusive                 | false        | price includes tax or tax is added |
+| Column                        | Default      | Used for                                                                                                                        |
+| ----------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| follow_up_free_days           | 7            | free follow-up window                                                                                                           |
+| repeat_visit_free_hours       | 0 (off)      | same doctor again inside N hours of the last paid consultation: no consultation fee (0 to 8760, added in the Step 4a migration) |
+| token_prefix                  | `T`          | token label                                                                                                                     |
+| timezone                      | Asia/Kolkata | rule dates and token day                                                                                                        |
+| tax_enabled                   | false        | tax on bills                                                                                                                    |
+| tax_name, tax_registration_no | null         | printed on receipts                                                                                                             |
+| tax_inclusive                 | false        | price includes tax or tax is added                                                                                              |
 
 ### number_series_settings
 
@@ -361,3 +362,28 @@ Migration `20261116100000_number_counters` + patient registry HTTP API. Differen
 | PATIENT_UPDATE audit        | Could store old/new                   | Metadata `{ changedFields }` only — no personal values (DPDP)                                     |
 | Permissions                 | Not fully named in schema             | `patients.registry.read/write`; start-number uses existing `hospital.settings.write`              |
 | Access markers              | Not in schema doc                     | Global PermissionGuard: `@Public` / `@AuthenticatedOnly` / `@RequirePermission` (deny by default) |
+
+## As built (Step 4a, migration `20261118100000_visits_and_billing`)
+
+Tables: `opd_visits`, `bills`, `bill_lines`, `payments`, `ledger_entries`, `patient_registration_fees`. Enums: `visit_status`, `bill_type`, `payment_status`, `ledger_entry_type` (written in full; `charge_item_kind` and `visit_type` reused). Differences from sections 5 to 7 above:
+
+| Topic                       | Document                                         | As built                                                                                                                                                                       |
+| --------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Emergency columns           | `is_emergency`, `emergency_reason` on visits     | Not built (Emergency flag is cut; plain ADD COLUMN later)                                                                                                                      |
+| Part-payment reason         | `payments.partial_reason`                        | Not built (part payment is cut; the database still allows several payments up to the total)                                                                                    |
+| Refund / reversal tables    | `bill_reversals`, `ledger_entries.reversal_id`   | Not built (Step 6a). Enum values REFUND and CHARGE_REVERSAL exist; `refunded_paise` is already maintained from the ledger                                                      |
+| Clinical tables             | visit_vitals, consultations, prescription_items  | Not in this migration (Step 5a migration, with addenda)                                                                                                                        |
+| Ledger rows                 | inserted by the app                              | Inserted ONLY by SECURITY DEFINER triggers (bill insert writes CHARGE, payment insert writes PAYMENT). The app role has no INSERT on `ledger_entries`                          |
+| Bill paid columns           | trigger-maintained                               | Recalculated from the ledger by trigger; the app role has no UPDATE on `bills`; even the owner cannot change them outside the trigger (flag `hospigo.ledger_update`)           |
+| Zero-total bill             | not specified                                    | A bill with total 0 (free follow-up) is born `PAID` and writes no ledger row (ledger amounts are > 0)                                                                          |
+| Bill equals lines           | not specified                                    | Deferred constraint triggers (from the bill and the line side): at COMMIT the lines must sum to the bill (total, tax, subtotal, at least one line). A later line is refused    |
+| Registration fee            | partial unique index                             | Plus a deferred check that every REGISTRATION line has its `patient_registration_fees` record, and a trigger that the record points at a REGISTRATION line of the same patient |
+| Queue gate                  | service rule                                     | Also a database rule: a visit can go AWAITING_PAYMENT -> WAITING only when its consultation bill is PAID (a zero total counts)                                                 |
+| Visit states                | enum + checks                                    | Guard trigger: start AWAITING_PAYMENT, forward-only transitions, completed/cancelled frozen, token / queue time / consultation start write-once, identity columns fixed        |
+| Token check                 | `status = AWAITING_PAYMENT OR token_no NOT NULL` | `status IN (AWAITING_PAYMENT, CANCELLED) OR token_no NOT NULL` (a cancelled unpaid visit has no token)                                                                         |
+| Foreign keys to `hospitals` | CASCADE                                          | RESTRICT on all six tables (a hospital with money rows can never be deleted)                                                                                                   |
+| Branch consistency          | not specified                                    | Composite foreign keys: a bill uses its visit's branch; payments and ledger rows use their bill's branch                                                                       |
+| Deletes                     | app has no DELETE                                | BEFORE DELETE / TRUNCATE refused on all six tables for every login, owner included                                                                                             |
+| Counters                    | follow-up                                        | Triggers: `number_series.last_number` and `token_counters.last_token` can never decrease                                                                                       |
+
+RLS isolates **hospitals**. Branch isolation (a user of one branch cannot read another branch's bills) is a service rule tested in the API part of 4a, not an RLS rule.
