@@ -31,7 +31,7 @@
 
 ## 2026-11-19 — Phase 2 Step 5 — split payment, doctor queue, consultation, vitals, prescription and the nurse and doctor screens
 
-- **Commit hash(es):** 5a-1: d428b5b (migration), f75a5b4 (API and web), merged as f16e677 (PR #46). 5a-2 and 5a-3: 796c9eb, merged as 66ed5cd (PR #47). 5b: one commit on `feature/phase2-step-5b-nurse-doctor-web` (hash unverified until merged).
+- **Commit hash(es):** 5a-1: d428b5b (migration), f75a5b4 (API and web), merged as f16e677 (PR #46). 5a-2 and 5a-3: 796c9eb, merged as 66ed5cd (PR #47). 5b: a9bff8e, merged as 378e4cf (PR #51).
 - **Added:** one receipt for a split payment (several payment modes on one bill) and `GET /opd/payment-modes`; the clinical API (queue, start, draft note, prescription, complete, addenda, note read with audit, vitals, medicine search); the screens `/app/opd` (queue with Waiting / Completed today / All), `/app/opd/visits/[id]/vitals` and `/app/opd/visits/[id]/consult` (auto-save, one-line prescription, calendar for the follow-up date); `TextareaField` and `DatePicker` in the UI kit; Postman collections "5a-1 split payment" and "5a doctor queue".
 - **Changed:** a visit can become COMPLETED only after its note is COMPLETED (database rule); the OPD queue API lists every open visit (not only today's) plus the visits completed today; the sample-data OPD queue page and its tests were removed; the dev Receptionist role may read the queue (read only); the Doctor and Nurse dev roles got the queue, vitals and notes permissions.
 - **Removed:** `payments.receipt_number` (moved to `receipts`); the sample `OpdQueueScreen`.

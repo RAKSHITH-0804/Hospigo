@@ -92,9 +92,28 @@ OPD release-1 scope; WhatsApp/SMS provider, DLT registration and who pays; tax/G
 ```
 We are continuing Hospigo (Indigo multi-tenant hospital SaaS) in Phase 2 (OPD). I am Rakshith, a junior developer; you are my lead and guide: teach me how things work, plan first and wait for my approval, then give Cursor prompts, review the reports, and give me clear test steps and commit/PR commands. The project memory has the history; the handoff file below has the current state.
 
-State (19 Nov 2026): Phase 2 Steps 1 to 5a are merged on develop (4a PR #45, 5a-1 PR #46, 5a-2 and 5a-3 PR #47; API 488 tests). Step 5b (nurse and doctor screens: queue, vitals, consultation with auto-save) is built and tested (web 758 tests, Postman 60/60) and waits for its pull request to be merged. Next: 6a and 6b (investigations and refunds), 7 and 7b (print templates, reports, settings screens), 8a, 8b, 9. Open items and decisions: `docs/engineering-tracker.md`, `docs/decisions-5a.md`, `docs/decisions-5b.md`.
+State (19 Nov 2026, end of day): Phase 2 Steps 1 to 5 are DONE and merged on develop (4a PR #45, 5a-1 PR #46, 5a-2 and 5a-3 PR #47, 5b PR #51; develop at 378e4cf; API 488 tests, web 758). The first bill-to-doctor OPD flow works end to end (register, bill, split payment, queue, vitals, consultation, prescription, complete, addendum). NEXT STEP: **6a** (investigations bill and refunds, API; a review gate because it touches money), then 6b (web), 7 and 7b (print templates, reports, settings screens), 8a, 8b, 9. See "Where to start Step 6" at the end of this file. Open items and decisions: `docs/engineering-tracker.md`, `docs/decisions-5a.md`, `docs/decisions-5b.md`.
 
 Please start Step 3c: first give me the short read-only Cursor inspection prompt for the web code (Ask mode), then the 3c plan for my approval.
 
 [paste the handoff file here]
 ```
+
+## Where to start Step 6 (written at the end of 19 Nov 2026)
+
+Start a new session, read the files named in `CLAUDE.md`, then plan 6a and WAIT for "approved" (Rakshith approves every plan; he reviews all of a step at once when he says so, and commits and pushes himself).
+
+**What 6a/6b are (from `docs/use-cases-opd.md`, UC-12, and the step table above):** an investigations bill (tests ordered for a visit, billed like the consultation, payable in several modes with one receipt) and refunds: the Receptionist requests with a reason, an **Admin approves**; the system writes a reversal entry (the original bill is never changed; who, when, why recorded); refunds follow the original payment mode; **no refund once the consultation has started** (`opd_visits.consultation_started_at`, set by 5a-2). Cancelling a visit that was not started also voids its token. Cancel / no-show of a paid visit is a known open item (a paid patient who is never seen stays in the queue for ever).
+
+**What already exists and can be reused:**
+
+- Money tables with database rules (append-only, ledger written only by triggers, bills equal their lines, receipts equal their payments): `docs/schema-opd.md`, migrations `20261118100000_visits_and_billing`, `20261119090000_split_payment_receipts`. `bill_type` already has `INVESTIGATION`; `ledger_entry_type` already has `REFUND` and `CHARGE_REVERSAL`; `charge_items` of kind `INVESTIGATION` and their price list exist (mock tests `INV001...`).
+- Visit, bill, payment and receipt services and the split payment plan: `apps/api/src/modules/opd-visits/`. Patterns for a clinical module: `apps/api/src/modules/opd-clinical/`.
+- Permissions are deny-by-default; admin roles are deliberately kept away from clinical and cash permissions (`ADMIN_EXCLUDED_PERMISSION_CODES` in `apps/api/prisma/seeds/reference.ts`); a refund approval needs its own permission (a review gate).
+- Web patterns: `apps/web/src/components/opd/` (new-visit form with idempotency keys, payment lines, receipt, queue, consultation), `lib/opd/`, copy only in `config/staff-copy.ts`.
+
+**Review gates in 6a (stop and ask, with the adversarial self-review):** the migration, permissions, anything that touches money, tenant isolation and RLS.
+
+**Dev setup facts:** servers `npm run dev -w @hospigo/api` (3000) and `npm run dev -w @hospigo/web` (3001, open `http://127.0.0.1:3001`); after pulling run `npm run prisma:migrate -w @hospigo/api` and re-run the dev seed (`NODE_ENV=development npm run prisma:seed -w @hospigo/api`) so roles get new permissions; demo logins in `docs/dev-accounts.md` (access code `demo-north-main`; Rakshith logs in himself; passwords live in `.env`); Postman collections are in the git-ignored `postman/collections/` folder (4a, 5a-1 and 5a doctor queue exist; each step ships its own).
+
+**Rakshith's working preferences (also in `CLAUDE.md`):** plain-words teaching, short summaries, no large pastes; no AI attribution lines in commits, PRs or files; screens must fit on one page where possible and avoid long scrolling; he tests by clicking and by running Postman.
