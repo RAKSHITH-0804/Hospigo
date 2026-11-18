@@ -95,3 +95,9 @@ ORDER BY h.name, b.is_main DESC;
 ```
 
 If this differs from the tables above, the seed was changed, so update this file.
+
+## Step 5b click path accounts
+
+For the nurse and doctor screens use `nurse1@demo-north.example.test` and `doctor2@demo-north.example.test` (access code `demo-north-main`), plus `receptionist1@demo-north.example.test` to create the visits. Re-run the dev seed once after pulling Step 5a so these roles hold the queue, vitals and notes permissions. Doctor 1 has the availability switch off, so use doctor 2 to 5.
+
+After Step 5b the dev Receptionist role also holds `opd.queue.read`: reception sees the whole branch queue (read only). Re-run the dev seed to get it.

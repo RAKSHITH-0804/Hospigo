@@ -57,6 +57,7 @@ const RECEPTION_PERMS = [
   'opd.visits.read',
   'opd.billing.collect',
   'opd.billing.read',
+  'opd.queue.read',
   'patients.registry.read',
 ] as const;
 const NURSE_PERMS = [
@@ -435,18 +436,22 @@ describe('OPD clinical endpoints: queue, note, prescription, vitals (HTTP)', () 
       }
     });
 
-    it('403 for staff without the permission (reception, admin, nobody)', async () => {
+    it('403 for staff without the permission (reception, admin, nobody); reception may only read the queue', async () => {
       const needs: Record<string, string[]> = {
-        recv: routes.map((r) => r[1]),
+        recv: routes.map((r) => r[1]).filter((u) => u !== '/opd/queue'),
         nobody: routes.map((r) => r[1]),
         admin: routes.map((r) => r[1]),
       };
       for (const who of Object.keys(needs)) {
         for (const [method, url] of routes) {
+          if (!needs[who]!.includes(url)) {
+            continue;
+          }
           const res = await call(method, url, as(A, who));
           expect({ who, url, status: res.status }).toEqual({ who, url, status: 403 });
         }
       }
+      expect((await get(A, 'recv', '/opd/queue')).status).toBe(200);
     });
 
     it('a nurse reads and records vitals but cannot start, write notes or complete', async () => {
@@ -585,19 +590,86 @@ describe('OPD clinical endpoints: queue, note, prescription, vitals (HTTP)', () 
       expect(otherHospital.body.items.map((i: Loose) => i.id)).not.toContain(a);
     });
 
-    it('started visits stay, completed visits leave, and only TODAY is listed', async () => {
+    it('started visits stay; a visit completed today stays in the list marked COMPLETED, after the open ones', async () => {
       const id = await started(A, 'doc3', A.doc3);
       let q = await get(A, 'doc3', '/opd/queue');
       expect(q.body.items.find((i: Loose) => i.id === id)?.status).toBe('IN_CONSULTATION');
       expect((await saveNote(A, 'doc3', id, { diagnosis: 'cold' })).status).toBe(200);
       expect((await complete(A, 'doc3', id)).status).toBe(200);
+      const open = await waiting(A, A.doc3);
       q = await get(A, 'doc3', '/opd/queue');
-      expect(q.body.items.map((i: Loose) => i.id)).not.toContain(id);
+      const ids = q.body.items.map((i: Loose) => i.id);
+      expect(ids).toEqual(expect.arrayContaining([id, open]));
+      expect(ids.indexOf(open)).toBeLessThan(ids.indexOf(id));
+      const done = q.body.items.find((i: Loose) => i.id === id);
+      expect(done).toMatchObject({ status: 'COMPLETED' });
+      expect(done.completedAt).toEqual(expect.any(String));
+    });
 
-      const today = await waiting(A, A.doc3);
-      clock.set(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000));
-      const later = await get(A, 'doc3', '/opd/queue');
-      expect(later.body.items.map((i: Loose) => i.id)).not.toContain(today);
+    it('completed visits are listed latest first, and only those completed TODAY', async () => {
+      // seen two days ago (clock), seen now
+      clock.set(new Date(Date.now() - 2 * 24 * 60 * 60 * 1000));
+      const longAgo = await started(A, 'doc3', A.doc3);
+      await saveNote(A, 'doc3', longAgo, { diagnosis: 'old' });
+      await complete(A, 'doc3', longAgo);
+      clock.set(new Date());
+      const first = await started(A, 'doc3', A.doc3);
+      await saveNote(A, 'doc3', first, { diagnosis: 'a' });
+      await complete(A, 'doc3', first);
+      clock.set(new Date(Date.now() + 60_000)); // a minute later
+      const second = await started(A, 'doc3', A.doc3);
+      await saveNote(A, 'doc3', second, { diagnosis: 'b' });
+      await complete(A, 'doc3', second);
+      const ids = (await get(A, 'doc3', '/opd/queue')).body.items.map((i: Loose) => i.id);
+      expect(ids).not.toContain(longAgo);
+      expect(ids.indexOf(second)).toBeLessThan(ids.indexOf(first));
+    });
+
+    it('a patient paid yesterday but seen today counts as seen today', async () => {
+      clock.set(new Date(Date.now() - 24 * 60 * 60 * 1000));
+      const id = await waiting(A, A.doc3);
+      clock.set(new Date());
+      await start(A, 'doc3', id);
+      await saveNote(A, 'doc3', id, { diagnosis: 'seen today' });
+      await complete(A, 'doc3', id);
+      const item = (await get(A, 'doc3', '/opd/queue')).body.items.find((i: Loose) => i.id === id);
+      expect(item.status).toBe('COMPLETED');
+    });
+
+    it('reception sees the whole branch (waiting, in consultation, completed) but no clinical text and no money', async () => {
+      const doneId = await started(A, 'doc3', A.doc3);
+      await saveNote(A, 'doc3', doneId, { complaints: 'SECRET-COMPLAINT', diagnosis: 'SECRET-DX' });
+      await complete(A, 'doc3', doneId);
+      const waitingId = await waiting(A, A.doc1);
+      const res = await get(A, 'recv', '/opd/queue');
+      expect(res.status).toBe(200);
+      expect(res.body.scope).toBe('BRANCH');
+      const ids = res.body.items.map((i: Loose) => i.id);
+      expect(ids).toEqual(expect.arrayContaining([doneId, waitingId]));
+      const text = JSON.stringify(res.body);
+      expect(text).not.toMatch(/SECRET-COMPLAINT|SECRET-DX|complaints|diagnosis|Paise|bill/i);
+      // and reception still cannot open any note or vitals
+      expect((await get(A, 'recv', `/opd/visits/${doneId}/consultation`)).status).toBe(403);
+      expect((await get(A, 'recv', `/opd/visits/${doneId}/vitals`)).status).toBe(403);
+    });
+
+    it('a patient still waiting after midnight stays in the queue, oldest first, with the day of the visit', async () => {
+      // Paid two days ago ...
+      clock.set(new Date(Date.now() - 2 * 24 * 60 * 60 * 1000));
+      const old = await waiting(A, A.doc3);
+      // ... and another one paid now.
+      clock.set(new Date());
+      const fresh = await waiting(A, A.doc3);
+      const res = await get(A, 'doc3', '/opd/queue');
+      const ids = res.body.items.map((i: Loose) => i.id);
+      expect(ids).toEqual(expect.arrayContaining([old, fresh]));
+      expect(ids.indexOf(old)).toBeLessThan(ids.indexOf(fresh));
+      const oldItem = res.body.items.find((i: Loose) => i.id === old);
+      expect(oldItem.visitDate < res.body.date).toBe(true);
+      expect(res.body.items.find((i: Loose) => i.id === fresh).visitDate).toBe(res.body.date);
+      // and the nurse sees it too
+      const nurse = await get(A, 'nurse', '/opd/queue');
+      expect(nurse.body.items.map((i: Loose) => i.id)).toContain(old);
     });
 
     it('vitalsRecorded turns true once a reading exists', async () => {

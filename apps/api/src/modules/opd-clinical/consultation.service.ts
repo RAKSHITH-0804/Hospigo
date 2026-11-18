@@ -3,6 +3,7 @@ import type { Prisma } from '../../generated/prisma';
 import { CLOCK, type Clock } from '../../common/clock';
 import { TenantDb, type TenantTx } from '../../database/tenant-db';
 import { OPD_SETTINGS_DEFAULTS } from '../opd-masters/opd-settings.defaults';
+import { zonedParts } from '../patients/uhid.util';
 import { localDate, type Actor } from '../opd-visits/opd-visits.service';
 import {
   CLINICAL_VISIT_SELECT,
@@ -120,26 +121,43 @@ export class ConsultationService {
   // ------------------------------------------------------------------------------- queue
 
   /**
-   * Today's WAITING and IN_CONSULTATION visits of the active branch in payment order. A doctor
-   * sees only their own; staff without a doctor profile (a nurse) see the whole branch queue.
+   * The branch's visits that matter on the floor, in two groups:
+   *  - every WAITING and IN_CONSULTATION visit, oldest payment first. There is deliberately NO
+   *    "today only" filter here: a patient still waiting after midnight must not vanish (each item
+   *    carries its own visitDate so the screen can flag older ones);
+   *  - the visits COMPLETED today (hospital time zone), latest first, so doctors, nurses and
+   *    reception can see who has been attended.
+   * A doctor sees only their own; everyone else with the permission (a nurse, reception) sees the
+   * whole branch. Names, tokens and status only: no clinical text, no money.
    */
   async queue(actor: Actor) {
     return this.tenantDb.withTenant(async (tx) => {
-      const { prefix, today } = await this.dayInfo(tx, actor);
+      const { prefix, today, startOfToday } = await this.dayInfo(tx, actor);
       const own = await ownDoctorId(tx, actor);
       const rows = await tx.opdVisit.findMany({
         where: {
           tenantId: actor.tenantId,
           branchId: actor.branchId,
-          visitDate: today,
-          status: { in: ['WAITING', 'IN_CONSULTATION'] },
+          OR: [
+            { status: { in: ['WAITING', 'IN_CONSULTATION'] } },
+            { status: 'COMPLETED', completedAt: { gte: startOfToday } },
+          ],
           ...(own ? { doctorProfileId: own } : {}),
         },
         select: CLINICAL_VISIT_SELECT,
         orderBy: [{ queuedAt: 'asc' }, { id: 'asc' }],
       });
+      const open = rows.filter((r) => r.status !== 'COMPLETED');
+      const done = rows
+        .filter((r) => r.status === 'COMPLETED')
+        .sort(
+          (a, b) =>
+            (b.completedAt?.getTime() ?? 0) - (a.completedAt?.getTime() ?? 0) ||
+            b.id.localeCompare(a.id),
+        );
+      const ordered = [...open, ...done];
       const withVitals = await tx.visitVitals.findMany({
-        where: { tenantId: actor.tenantId, visitId: { in: rows.map((r) => r.id) } },
+        where: { tenantId: actor.tenantId, visitId: { in: ordered.map((r) => r.id) } },
         select: { visitId: true },
         distinct: ['visitId'],
       });
@@ -147,8 +165,8 @@ export class ConsultationService {
       return {
         date: isoDate(today),
         scope: own ? 'OWN' : 'BRANCH',
-        total: rows.length,
-        items: rows.map((r) => ({
+        total: ordered.length,
+        items: ordered.map((r) => ({
           ...toVisitSummary(r, prefix, today),
           vitalsRecorded: hasVitals.has(r.id),
         })),
@@ -403,11 +421,21 @@ export class ConsultationService {
     });
   }
 
-  private async dayInfo(tx: TenantTx, actor: Actor): Promise<{ prefix: string; today: Date }> {
+  private async dayInfo(
+    tx: TenantTx,
+    actor: Actor,
+  ): Promise<{ prefix: string; today: Date; startOfToday: Date }> {
     const settings = await tx.opdSettings.findUnique({ where: { tenantId: actor.tenantId } });
+    const timeZone = settings?.timezone ?? OPD_SETTINGS_DEFAULTS.timezone;
+    const now = this.clock.now();
+    const { hour, minute } = zonedParts(now, timeZone);
+    // Zones differ from UTC by whole minutes, so seconds and milliseconds are the same everywhere.
+    const sinceMidnightMs =
+      (hour * 60 + minute) * 60_000 + now.getUTCSeconds() * 1000 + now.getUTCMilliseconds();
     return {
       prefix: settings?.tokenPrefix ?? OPD_SETTINGS_DEFAULTS.tokenPrefix,
-      today: localDate(this.clock.now(), settings?.timezone ?? OPD_SETTINGS_DEFAULTS.timezone),
+      today: localDate(now, timeZone),
+      startOfToday: new Date(now.getTime() - sinceMidnightMs),
     };
   }
 

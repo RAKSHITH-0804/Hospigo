@@ -1,11 +1,21 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import StaffLayout from './layout';
-import { OpdQueueScreen } from '@/components/app/opd-queue-screen';
+import OpdPage from './opd/page';
+import { staffCopy } from '@/config/staff-copy';
+import { makeQueueItem } from '@/lib/opd/clinical-test-fixtures';
+
+const fetchMock = jest.fn();
+let permissions: string[] = [];
 
 jest.mock('next/navigation', () => ({
   usePathname: () => '/app/opd',
   useRouter: () => ({ replace: jest.fn(), refresh: jest.fn() }),
+}));
+
+jest.mock('@/lib/patients/server', () => ({
+  ...jest.requireActual('@/lib/patients/server'),
+  fetchStaffOnServer: (...args: unknown[]) => fetchMock(...args),
 }));
 
 jest.mock('@/lib/auth/guards', () => ({
@@ -25,20 +35,12 @@ jest.mock('@/lib/auth/guards', () => ({
       { code: 'IPD', name: 'IPD' },
       { code: 'PHARMACY', name: 'Pharmacy' },
     ],
-    permissions: ['patients.registry.read'],
+    permissions,
   })),
 }));
 
 jest.mock('next/link', () => {
-  return function Link({
-    href,
-    children,
-    ...props
-  }: {
-    href: string;
-    children: ReactNode;
-    [key: string]: unknown;
-  }) {
+  return function Link({ href, children, ...props }: { href: string; children: ReactNode }) {
     return (
       <a href={href} {...props}>
         {children}
@@ -47,69 +49,36 @@ jest.mock('next/link', () => {
   };
 });
 
-describe('OPD queue concept screen', () => {
-  it('renders mock queue data, sample badge, and three status chip variants', async () => {
-    const layout = await StaffLayout({ children: <OpdQueueScreen /> });
-    render(layout);
+const copy = staffCopy.opd.clinical.queue;
 
-    expect(screen.getAllByText('Sample data').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Hospigo').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Demo Hospital One').length).toBeGreaterThan(0);
-    expect(await screen.findByText(/Demo Doctor A/)).toBeTruthy();
-    expect(screen.getByText('Sample Patient 01')).toBeTruthy();
-    expect(screen.getAllByText('In consultation').length).toBeGreaterThan(0);
-    expect(
-      (screen.getByRole('button', { name: 'Call next patient' }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+beforeEach(() => {
+  fetchMock.mockReset();
+  permissions = ['opd.queue.read', 'opd.notes.write', 'opd.vitals.write'];
+});
 
-    const consultation = document.querySelector('[data-status="In consultation"]');
-    const paid = document.querySelector('[data-status="Checked in paid"]');
-    const unpaid = document.querySelector('[data-status="Booked unpaid at desk"]');
-    expect(consultation).toBeTruthy();
-    expect(paid).toBeTruthy();
-    expect(unpaid).toBeTruthy();
-    expect(consultation?.classList.contains('status-chip')).toBe(true);
-    expect(paid?.classList.contains('status-chip')).toBe(true);
-    expect(unpaid?.classList.contains('status-chip')).toBe(true);
-
-    expect(document.body.textContent?.toLowerCase().includes(['mi', 'nio'].join(''))).toBe(false);
-  });
-
-  it('marks OPD queue as the current sidebar page', async () => {
-    const layout = await StaffLayout({
-      children: <OpdQueueScreen loadOptions={{ delayMs: 0 }} />,
+describe('OPD queue page inside the staff shell', () => {
+  it('shows the REAL queue (no sample badge) and marks OPD queue as the current page', async () => {
+    fetchMock.mockResolvedValue({
+      status: 'ok',
+      data: { date: 'd', scope: 'OWN', total: 1, items: [makeQueueItem()] },
     });
-    render(layout);
-    await screen.findByText('Sample Patient 01');
+    render(await StaffLayout({ children: await OpdPage() }));
+    expect(screen.getByText('Ravi Kumar')).toBeTruthy();
+    expect(screen.queryByText('Sample data')).toBeNull();
+    expect(screen.getAllByText('Demo Hospital One').length).toBeGreaterThan(0);
     const current = screen
       .getAllByRole('link', { name: 'OPD queue' })
       .filter((link) => link.getAttribute('aria-current') === 'page');
     expect(current.length).toBeGreaterThan(0);
-  });
-
-  it('shows the active branch name from the session', async () => {
-    const layout = await StaffLayout({
-      children: <OpdQueueScreen loadOptions={{ delayMs: 0 }} />,
-    });
-    render(layout);
     expect(screen.getByLabelText('Active branch').textContent).toContain('Main');
+    expect(document.body.textContent?.toLowerCase().includes(['mi', 'nio'].join(''))).toBe(false);
   });
 
-  it('shows loading, empty, and error with retry', async () => {
-    const { rerender } = render(<OpdQueueScreen loadOptions={{ mode: 'ok', delayMs: 0 }} />);
-    await screen.findByText('Sample Patient 01');
-
-    rerender(<OpdQueueScreen loadOptions={{ mode: 'empty', delayMs: 0 }} />);
-    expect(await screen.findByText('No tokens yet')).toBeTruthy();
-
-    rerender(<OpdQueueScreen loadOptions={{ mode: 'error', delayMs: 0 }} />);
-    expect(await screen.findByText('OPD queue could not be loaded.')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
-
-    rerender(<OpdQueueScreen loadOptions={{ mode: 'ok', delayMs: 20 }} />);
-    expect(screen.getByRole('status').textContent).toContain('Loading OPD queue');
-    await waitFor(() => {
-      expect(screen.getByText('Sample Patient 01')).toBeTruthy();
-    });
+  it('reception (no queue permission) sees a pointer to Patients, not fake numbers', async () => {
+    permissions = ['opd.visits.create'];
+    render(await StaffLayout({ children: await OpdPage() }));
+    expect(screen.getByText(copy.noAccessTitle)).toBeTruthy();
+    expect(screen.queryByText('Sample data')).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
