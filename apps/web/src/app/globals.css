@@ -175,6 +175,12 @@
 
   /* Control sizes (≈32px controls; touch target kept usable) */
   --size-input-height: 2rem;
+  --size-textarea-min: 2.75rem;
+  --size-textarea-max: 18rem;
+  --size-calendar-width: 19rem;
+  --size-calendar-day: 2.125rem;
+  --size-vitals-card: 15rem;
+  --size-rx-medicine: 13rem;
   --size-button-height: 2rem;
   --size-touch: 2.75rem;
   --size-control: 2rem;
@@ -1848,6 +1854,145 @@
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--muted-foreground);
+  }
+
+  /* Note boxes start small and grow as the doctor types (up to a limit, then they scroll). */
+  .textarea-grow {
+    min-height: var(--size-textarea-min);
+    max-height: var(--size-textarea-max);
+    overflow-y: auto;
+    resize: none;
+  }
+
+  /* Consultation note: complaints and diagnosis side by side, advice and date below (one screen). */
+  .note-grid {
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (width < 48rem) {
+    .note-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  /* Vitals: every field on one screen (as many columns as fit). */
+  .vitals-grid {
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fill, minmax(var(--size-vitals-card), 1fr));
+  }
+
+  /* Prescription: one line per medicine; stacks on narrow screens. */
+  .rx-head,
+  .rx-row {
+    display: grid;
+    gap: var(--space-2);
+    align-items: start;
+    grid-template-columns:
+      minmax(var(--size-rx-medicine), 2fr) repeat(3, minmax(0, 1fr)) minmax(0, 2fr)
+      var(--size-icon-button);
+  }
+
+  .rx-head {
+    padding-bottom: var(--space-1);
+  }
+
+  @media (width < 64rem) {
+    .rx-head {
+      display: none;
+    }
+
+    .rx-row {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .rx-row > .rx-medicine {
+      grid-column: 1 / -1;
+    }
+  }
+
+  .rx-hits {
+    position: absolute;
+    z-index: 20;
+    inset-inline: 0;
+    margin-top: var(--space-1);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-2);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    box-shadow: 0 0.5rem 1.5rem oklch(0.2 0.04 265 / 0.18);
+  }
+
+  /* Calendar popover (date picker). */
+  .calendar-popover {
+    position: absolute;
+    z-index: 30;
+    margin-top: var(--space-1);
+    width: var(--size-calendar-width);
+    max-width: calc(100vw - 2 * var(--space-3));
+    padding: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    box-shadow: 0 0.5rem 1.5rem oklch(0.2 0.04 265 / 0.18);
+  }
+
+  .calendar-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .calendar-weekday {
+    padding-block: var(--space-1);
+    font-size: var(--font-size-label);
+    font-weight: 600;
+    color: var(--muted-foreground);
+    text-align: center;
+  }
+
+  .calendar-day {
+    width: 100%;
+    height: var(--size-calendar-day);
+    border-radius: var(--radius-control);
+    font-size: var(--font-size-label);
+    color: var(--foreground);
+  }
+
+  .calendar-day:hover:not(:disabled) {
+    background: var(--muted);
+  }
+
+  .calendar-day:focus-visible {
+    outline: 2px solid var(--ring);
+  }
+
+  .calendar-day-outside {
+    color: var(--muted-foreground);
+    opacity: 0.55;
+  }
+
+  .calendar-day-today {
+    outline: 1px solid var(--primary);
+  }
+
+  .calendar-day[aria-pressed='true'] {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    opacity: 1;
+  }
+
+  .calendar-day:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
   }
 
   /* Record page: 1 column phone, 2 medium, 3 wide. */

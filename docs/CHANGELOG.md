@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-19 — Phase 2 Step 5 — split payment, doctor queue, consultation, vitals, prescription and the nurse and doctor screens
+
+- **Commit hash(es):** 5a-1: d428b5b (migration), f75a5b4 (API and web), merged as f16e677 (PR #46). 5a-2 and 5a-3: 796c9eb, merged as 66ed5cd (PR #47). 5b: one commit on `feature/phase2-step-5b-nurse-doctor-web` (hash unverified until merged).
+- **Added:** one receipt for a split payment (several payment modes on one bill) and `GET /opd/payment-modes`; the clinical API (queue, start, draft note, prescription, complete, addenda, note read with audit, vitals, medicine search); the screens `/app/opd` (queue with Waiting / Completed today / All), `/app/opd/visits/[id]/vitals` and `/app/opd/visits/[id]/consult` (auto-save, one-line prescription, calendar for the follow-up date); `TextareaField` and `DatePicker` in the UI kit; Postman collections "5a-1 split payment" and "5a doctor queue".
+- **Changed:** a visit can become COMPLETED only after its note is COMPLETED (database rule); the OPD queue API lists every open visit (not only today's) plus the visits completed today; the sample-data OPD queue page and its tests were removed; the dev Receptionist role may read the queue (read only); the Doctor and Nurse dev roles got the queue, vitals and notes permissions.
+- **Removed:** `payments.receipt_number` (moved to `receipts`); the sample `OpdQueueScreen`.
+- **Fixed:** parallel identical requests could answer 400 or 409 instead of the first visit (replay); two-click guards on Start, Complete, vitals and addendum now use a ref (state was too weak); a queue that went empty after midnight; a medicine that is not in the list could not be saved (now "use as typed" and a clear message).
+- **Database (migrations, roles, RLS):** `20261119090000_split_payment_receipts` (receipts, receipt equals the sum of its payments, one mode once per receipt) and `20261120090000_clinical_notes_vitals_prescription` (consultations, addenda, visit_vitals, prescription_items; forced RLS, append-only and freeze triggers, extended visit guard). No grants for hospigo_hq or hospigo_patient.
+- **New .env keys (names only):** `WEB_OPD_QUEUE_REFRESH_SECONDS`, `WEB_OPD_AUTOSAVE_SECONDS`, `WEB_OPD_PREVIOUS_VISITS_LIMIT`, `WEB_CALENDAR_WEEK_START` (all optional, defaults in `docs/env-reference.md`).
+- **Tests:** API 399 -> 488, web 501 -> 758 (lint, format and TypeScript clean). Postman 5a-1 36/36 and 5a doctor queue 60/60. Every new rule was removed one at a time and a test failed each time (a few equivalent cases are listed in `docs/decisions-5a.md` and `docs/decisions-5b.md`).
+- **Decisions:** `docs/decisions-5a.md` and `docs/decisions-5b.md` (doctor sees own visits only; one row lock per visit; notes read audited; reception reads the queue; no patient phone on the doctor screen).
+- **Follow-ups and open items:** cancel or no-show a visit; true part payment (pay later); reception queue sign-off by the manager; printable prescription (Step 7); vitals reads not audited; same note in two tabs (last save wins). See the Open items table in `docs/engineering-tracker.md`.
+
 ## 2026-11-17 — Phase 2 Step 3c — UHID sort, sidebar tooltips, settings structure, polish (F1–F4)
 
 - **Commit hash(es):** (uncommitted)

@@ -1,0 +1,328 @@
+'use client';
+
+import Link from 'next/link';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { ConsultAddenda } from '@/components/opd/consult-addenda';
+import { ConsultNoteFields } from '@/components/opd/consult-note-fields';
+import {
+  PrescriptionEditor,
+  type MedicineSearchSettings,
+} from '@/components/opd/prescription-editor';
+import { VisitHeader } from '@/components/opd/visit-header';
+import { VitalsSummary } from '@/components/opd/vitals-summary';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/page-header';
+import { staffCopy } from '@/config/staff-copy';
+import {
+  completeConsultation,
+  saveNote,
+  savePrescription,
+  startConsultation,
+  vitalsPath,
+} from '@/lib/opd/clinical-client';
+import { fill, formatClock } from '@/lib/opd/clinical-format';
+import type {
+  AddendumView,
+  ClinicalVisit,
+  ConsultationResponse,
+  VitalsReadingView,
+} from '@/lib/opd/clinical-types';
+import { opdErrorMessageFor } from '@/lib/opd/client';
+import { canCompleteNote, noteFromView, noteToBody, type NoteDraft } from '@/lib/opd/note-draft';
+import { emptyRxRow, rxFromView, toRxPayload, type RxDraft } from '@/lib/opd/prescription-draft';
+import { useAutosave, type SaveResult } from '@/lib/opd/use-autosave';
+import { cn } from '@/lib/utils';
+
+const copy = staffCopy.opd.clinical.consult;
+
+export type ConsultSettings = MedicineSearchSettings & {
+  autosaveSeconds: number;
+  calendarWeekStart: number;
+  followUpQuickDays: readonly number[];
+};
+
+/**
+ * The doctor's consultation screen. While the consultation runs (IN_CONSULTATION) the note and
+ * the prescription are editable and are SAVED AUTOMATICALLY a few seconds after the last keystroke
+ * (the doctor can still click "Save draft"). "Complete" waits for any save in progress, saves the
+ * latest text, then completes; unfinished medicine rows block it (nothing is dropped silently).
+ * A completed consultation is read-only; corrections are addenda. The API enforces all of it.
+ */
+export function ConsultScreen({
+  initial,
+  vitals,
+  canWrite,
+  canRecordVitals,
+  settings,
+  backHref,
+  children,
+}: {
+  initial: ConsultationResponse;
+  vitals: VitalsReadingView[];
+  canWrite: boolean;
+  canRecordVitals: boolean;
+  settings: ConsultSettings;
+  backHref: string;
+  /** The server-rendered "previous visits" section. */
+  children?: ReactNode;
+}) {
+  const [visit, setVisit] = useState<ClinicalVisit>(initial.visit);
+  const [note, setNote] = useState<NoteDraft>(() => noteFromView(initial.consultation));
+  // The prescription always starts with one empty line, ready for typing (empty lines are ignored).
+  const [rows, setRows] = useState<RxDraft[]>(() => {
+    const saved = rxFromView(initial.prescription);
+    return saved.length > 0 ? saved : [emptyRxRow(1)];
+  });
+  const [addenda, setAddenda] = useState<AddendumView[]>(initial.addenda);
+  const [revision, setRevision] = useState(0);
+  const [starting, setStarting] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const startInFlight = useRef(false);
+  const completeInFlight = useRef(false);
+  const nextRowId = useRef(Math.max(initial.prescription.length + 1, 2));
+  const savedNote = useRef(JSON.stringify(noteToBody(noteFromView(initial.consultation))));
+  const savedRx = useRef(JSON.stringify(toRxPayload(rxFromView(initial.prescription)).items));
+
+  const editable = canWrite && visit.status === 'IN_CONSULTATION';
+  const completed = visit.status === 'COMPLETED';
+  const { incomplete } = toRxPayload(rows);
+
+  /** Sends only what differs from what the server already holds. */
+  const saveAll = useCallback(async (): Promise<SaveResult> => {
+    const noteBody = noteToBody(note);
+    const noteJson = JSON.stringify(noteBody);
+    if (noteJson !== savedNote.current) {
+      const result = await saveNote(visit.id, noteBody);
+      if (!result.ok) {
+        return { ok: false, code: result.code };
+      }
+      savedNote.current = noteJson;
+    }
+    const { items } = toRxPayload(rows);
+    const rxJson = JSON.stringify(items);
+    if (rxJson !== savedRx.current) {
+      const result = await savePrescription(visit.id, items);
+      if (!result.ok) {
+        return { ok: false, code: result.code };
+      }
+      savedRx.current = rxJson;
+    }
+    return { ok: true };
+  }, [note, rows, visit.id]);
+
+  const autosave = useAutosave({
+    enabled: editable,
+    delayMs: settings.autosaveSeconds * 1000,
+    revision,
+    save: saveAll,
+  });
+
+  // A doctor who closes the tab with unsaved typing is warned.
+  const mustWarn = editable && (autosave.unsaved || autosave.state.phase === 'saving');
+  useEffect(() => {
+    if (!mustWarn) {
+      return;
+    }
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [mustWarn]);
+
+  function changeNote(patch: Partial<NoteDraft>) {
+    setNote((n) => ({ ...n, ...patch }));
+    setRevision((r) => r + 1);
+    setActionError(null);
+  }
+
+  function changeRows(next: RxDraft[]) {
+    setRows(next);
+    setRevision((r) => r + 1);
+    setActionError(null);
+  }
+
+  async function onStart() {
+    if (startInFlight.current) {
+      return;
+    }
+    startInFlight.current = true;
+    setStarting(true);
+    setActionError(null);
+    const result = await startConsultation(visit.id);
+    startInFlight.current = false;
+    setStarting(false);
+    if (!result.ok) {
+      setActionError(opdErrorMessageFor(result.code));
+      return;
+    }
+    setVisit(result.data.visit);
+  }
+
+  async function onComplete() {
+    if (completeInFlight.current || !editable) {
+      return;
+    }
+    setActionError(null);
+    if (!canCompleteNote(note)) {
+      setActionError(copy.needsText);
+      return;
+    }
+    if (incomplete > 0) {
+      setActionError(copy.incompleteRows);
+      return;
+    }
+    completeInFlight.current = true;
+    setCompleting(true);
+    const saved = await autosave.flush();
+    if (!saved) {
+      completeInFlight.current = false;
+      setCompleting(false);
+      setActionError(copy.saveStatusError);
+      return;
+    }
+    const result = await completeConsultation(visit.id);
+    completeInFlight.current = false;
+    setCompleting(false);
+    if (!result.ok) {
+      setActionError(opdErrorMessageFor(result.code));
+      return;
+    }
+    setVisit(result.data.visit);
+    setAddenda(result.data.addenda);
+    setNote(noteFromView(result.data.consultation));
+    setRows(rxFromView(result.data.prescription));
+  }
+
+  const status = autosave.state;
+  const saveLine = !editable
+    ? null
+    : status.phase === 'saving'
+      ? copy.saveStatusSaving
+      : status.phase === 'error'
+        ? copy.saveStatusError
+        : autosave.unsaved
+          ? copy.saveStatusUnsaved
+          : status.phase === 'saved' && status.savedAt
+            ? fill(copy.saveStatusSaved, { time: formatClock(status.savedAt) })
+            : copy.saveStatusIdle;
+
+  return (
+    <div className="section-stack content-container-inner">
+      <PageHeader title={copy.title} backHref={backHref} />
+      <VisitHeader visit={visit} />
+      <VitalsSummary
+        readings={vitals}
+        editHref={canRecordVitals ? vitalsPath(visit.id) : undefined}
+      />
+
+      {visit.status === 'WAITING' ? (
+        <div className="flex flex-col gap-[var(--space-2)]">
+          <p className="type-label text-muted-foreground">
+            {canWrite ? copy.waitingNote : copy.notStartedReadOnly}
+          </p>
+          {canWrite ? (
+            <div>
+              <Button
+                type="button"
+                className="touch-target"
+                disabled={starting}
+                onClick={() => void onStart()}
+              >
+                {starting ? copy.starting : copy.start}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {visit.status === 'IN_CONSULTATION' || completed ? (
+        <section className="flex flex-col gap-[var(--space-4)]" aria-label={copy.notesHeading}>
+          <h2 className="section-heading">{copy.notesHeading}</h2>
+          {completed ? (
+            <p role="status" className="type-label text-muted-foreground">
+              {copy.completedBanner}
+            </p>
+          ) : null}
+          {!canWrite && !completed ? (
+            <p className="type-label text-muted-foreground">{copy.readOnlyNote}</p>
+          ) : null}
+          <ConsultNoteFields
+            note={note}
+            onChange={changeNote}
+            readOnly={!editable}
+            calendar={{
+              weekStart: settings.calendarWeekStart,
+              quickDays: settings.followUpQuickDays,
+              minDate: visit.visitDate,
+            }}
+          />
+          <PrescriptionEditor
+            rows={rows}
+            onChange={changeRows}
+            nextId={() => nextRowId.current++}
+            readOnly={!editable}
+            search={settings}
+          />
+          {editable && incomplete > 0 ? (
+            <p role="status" className="type-small text-destructive">
+              {fill(copy.incompleteRowsHint, { count: incomplete })}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+
+      {actionError ? (
+        <p role="alert" className="type-label text-destructive">
+          {actionError}
+        </p>
+      ) : null}
+
+      {editable ? (
+        <div className="flex flex-wrap items-center gap-[var(--space-3)]">
+          <Button
+            type="button"
+            variant="outline"
+            className="touch-target"
+            disabled={completing || status.phase === 'saving'}
+            onClick={() => void autosave.saveNow()}
+          >
+            {copy.saveDraft}
+          </Button>
+          <Button
+            type="button"
+            className="touch-target"
+            disabled={completing}
+            onClick={() => void onComplete()}
+          >
+            {completing ? copy.completing : copy.complete}
+          </Button>
+          <p role="status" className="type-small text-muted-foreground">
+            {saveLine}
+          </p>
+        </div>
+      ) : null}
+
+      {completed ? (
+        <ConsultAddenda
+          visitId={visit.id}
+          addenda={addenda}
+          canAdd={canWrite}
+          onChange={setAddenda}
+        />
+      ) : null}
+
+      {children}
+
+      <div>
+        <Link
+          href={backHref}
+          className={cn(buttonVariants({ variant: 'outline' }), 'touch-target')}
+        >
+          {copy.backToQueue}
+        </Link>
+      </div>
+    </div>
+  );
+}

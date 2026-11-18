@@ -1,9 +1,12 @@
 import {
   forwardRef,
   useId,
+  useLayoutEffect,
+  useRef,
   type InputHTMLAttributes,
   type ReactNode,
   type SelectHTMLAttributes,
+  type TextareaHTMLAttributes,
 } from 'react';
 import { staffCopy } from '@/config/staff-copy';
 import { cn } from '@/lib/utils';
@@ -68,7 +71,7 @@ function FieldShell({
   );
 }
 
-const controlClass =
+export const fieldControlClass =
   'field-control min-h-[var(--size-input-height)] h-[var(--size-input-height)] w-full rounded-[var(--radius-control)] border bg-card px-[var(--space-2)] text-[length:var(--font-size-input)] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 export type InputFieldProps = InputHTMLAttributes<HTMLInputElement> & {
@@ -148,7 +151,7 @@ export const InputField = forwardRef<HTMLInputElement, InputFieldProps>(function
           aria-invalid={error ? true : undefined}
           aria-required={required ? true : undefined}
           aria-describedby={describedBy}
-          className={cn(controlClass, borderClass, widthClass, className)}
+          className={cn(fieldControlClass, borderClass, widthClass, className)}
           {...props}
         />
       )}
@@ -204,7 +207,7 @@ export const SelectField = forwardRef<HTMLSelectElement, SelectFieldProps>(funct
         aria-required={required ? true : undefined}
         aria-describedby={describedBy}
         className={cn(
-          controlClass,
+          fieldControlClass,
           error ? 'border-destructive' : 'border-[var(--input-border)]',
           narrow ? 'max-w-[var(--size-branch-select)]' : undefined,
           className,
@@ -216,3 +219,68 @@ export const SelectField = forwardRef<HTMLSelectElement, SelectFieldProps>(funct
     </FieldShell>
   );
 });
+
+export type TextareaFieldProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  label: string;
+  hint?: string;
+  error?: string;
+  required?: boolean;
+  hideLabel?: boolean;
+};
+
+/** Multi-line text (consultation notes). Same label, hint and error rules as InputField. */
+export const TextareaField = forwardRef<HTMLTextAreaElement, TextareaFieldProps>(
+  function TextareaField(
+    { label, hint, error, required, hideLabel, id, className, ...props },
+    ref,
+  ) {
+    const autoId = useId();
+    const innerRef = useRef<HTMLTextAreaElement | null>(null);
+    const setRefs = (node: HTMLTextAreaElement | null) => {
+      innerRef.current = node;
+      if (typeof ref === 'function') {
+        ref(node);
+      } else if (ref) {
+        ref.current = node;
+      }
+    };
+    // Starts small and grows with the text (the CSS max height then makes it scroll).
+    useLayoutEffect(() => {
+      const el = innerRef.current;
+      if (!el) {
+        return;
+      }
+      el.style.height = 'auto';
+      el.style.height = `${el.scrollHeight + (el.offsetHeight - el.clientHeight)}px`;
+    }, [props.value]);
+    const fieldId = id ?? autoId;
+    const describedBy = error ? `${fieldId}-error` : hint ? `${fieldId}-hint` : undefined;
+    const borderClass = error ? 'border-destructive' : 'border-[var(--input-border)]';
+    return (
+      <FieldShell
+        label={label}
+        hint={hint}
+        error={error}
+        htmlFor={fieldId}
+        required={required}
+        hideLabel={hideLabel}
+      >
+        <textarea
+          ref={setRefs}
+          rows={1}
+          id={fieldId}
+          aria-label={hideLabel ? label : undefined}
+          aria-invalid={error ? true : undefined}
+          aria-required={required ? true : undefined}
+          aria-describedby={describedBy}
+          className={cn(
+            'field-control textarea-grow w-full rounded-[var(--radius-control)] border bg-card p-[var(--space-2)] text-[length:var(--font-size-input)] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            borderClass,
+            className,
+          )}
+          {...props}
+        />
+      </FieldShell>
+    );
+  },
+);

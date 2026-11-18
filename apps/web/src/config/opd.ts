@@ -11,6 +11,20 @@ export type OpdWebConfig = {
   visitsPageSize: number;
   /** Query parameter for the visits / bills page on the patient record. */
   visitsPageParam: string;
+  /** Doctor / nurse queue: seconds between automatic refreshes (0 turns them off). */
+  queueRefreshSeconds: number;
+  /** Consultation note: seconds after the last keystroke before the draft is saved. */
+  autosaveSeconds: number;
+  /** Prescription medicine search: characters before searching, wait after typing, hits shown. */
+  medicineSearchMinChars: number;
+  medicineSearchDebounceMs: number;
+  medicineSearchLimit: number;
+  /** Earlier completed visits listed on the consultation screen. */
+  previousVisitsLimit: number;
+  /** Calendar: first day of the week (0 = Sunday ... 6 = Saturday). */
+  calendarWeekStart: number;
+  /** Follow-up date quick picks, in days from today. */
+  followUpQuickDays: readonly number[];
 };
 
 const DEFAULTS = {
@@ -18,6 +32,14 @@ const DEFAULTS = {
   receiptPageMargin: '0',
   visitsPageSize: 10,
   visitsPageParam: 'vp',
+  queueRefreshSeconds: 20,
+  autosaveSeconds: 5,
+  medicineSearchMinChars: 2,
+  medicineSearchDebounceMs: 300,
+  medicineSearchLimit: 10,
+  previousVisitsLimit: 5,
+  calendarWeekStart: 1,
+  followUpQuickDays: [1, 3, 7, 14, 30],
 } as const;
 
 const VISITS_PAGE_SIZE_MIN = 1;
@@ -60,6 +82,26 @@ export function loadOpdWebConfig(
       VISITS_PAGE_SIZE_MAX,
     ),
     visitsPageParam: DEFAULTS.visitsPageParam,
+    queueRefreshSeconds: intEnv(
+      env,
+      'WEB_OPD_QUEUE_REFRESH_SECONDS',
+      DEFAULTS.queueRefreshSeconds,
+      0,
+      600,
+    ),
+    autosaveSeconds: intEnv(env, 'WEB_OPD_AUTOSAVE_SECONDS', DEFAULTS.autosaveSeconds, 1, 60),
+    medicineSearchMinChars: DEFAULTS.medicineSearchMinChars,
+    medicineSearchDebounceMs: DEFAULTS.medicineSearchDebounceMs,
+    medicineSearchLimit: DEFAULTS.medicineSearchLimit,
+    previousVisitsLimit: intEnv(
+      env,
+      'WEB_OPD_PREVIOUS_VISITS_LIMIT',
+      DEFAULTS.previousVisitsLimit,
+      1,
+      20,
+    ),
+    calendarWeekStart: intEnv(env, 'WEB_CALENDAR_WEEK_START', DEFAULTS.calendarWeekStart, 0, 6),
+    followUpQuickDays: DEFAULTS.followUpQuickDays,
   };
 }
 

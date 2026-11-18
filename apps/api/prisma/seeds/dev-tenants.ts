@@ -277,6 +277,7 @@ async function seedOpdMasters(
       'opd.visits.read',
       'opd.billing.collect',
       'opd.billing.read',
+      'opd.queue.read',
     ],
     [OPD_ROLE_CODES.NURSE]: [
       'opd.masters.read',

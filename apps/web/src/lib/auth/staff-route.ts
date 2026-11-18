@@ -34,6 +34,8 @@ function safeUpstreamErrorPayload(body: Record<string, unknown> | undefined): {
   reason?: string;
   what?: string;
   totalPaise?: number;
+  fieldCode?: string;
+  index?: number;
 } {
   const out: {
     code?: string;
@@ -43,6 +45,8 @@ function safeUpstreamErrorPayload(body: Record<string, unknown> | undefined): {
     reason?: string;
     what?: string;
     totalPaise?: number;
+    fieldCode?: string;
+    index?: number;
   } = {};
   if (!body) {
     return out;
@@ -68,6 +72,13 @@ function safeUpstreamErrorPayload(body: Record<string, unknown> | undefined): {
   }
   if (typeof body.totalPaise === 'number' && Number.isSafeInteger(body.totalPaise)) {
     out.totalPaise = body.totalPaise;
+  }
+  // Which vitals field / prescription row a refusal is about (a code and a number, no values).
+  if (typeof body.fieldCode === 'string') {
+    out.fieldCode = body.fieldCode;
+  }
+  if (typeof body.index === 'number' && Number.isSafeInteger(body.index)) {
+    out.index = body.index;
   }
   return out;
 }

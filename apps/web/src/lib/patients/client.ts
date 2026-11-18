@@ -30,6 +30,10 @@ export type PatientsApiError = {
   reason?: string;
   what?: string;
   totalPaise?: number;
+  /** Which vitals field a refusal is about. */
+  fieldCode?: string;
+  /** Which prescription row a refusal is about (0 based). */
+  index?: number;
 };
 export type PatientsApiResult<T> = PatientsApiOk<T> | PatientsApiError;
 
@@ -116,6 +120,8 @@ async function fetchPatientsOnce<T>(
       reason: typeof record.reason === 'string' ? record.reason : undefined,
       what: typeof record.what === 'string' ? record.what : undefined,
       totalPaise: typeof record.totalPaise === 'number' ? record.totalPaise : undefined,
+      fieldCode: typeof record.fieldCode === 'string' ? record.fieldCode : undefined,
+      index: typeof record.index === 'number' ? record.index : undefined,
     };
   } catch (error) {
     if (init.signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {

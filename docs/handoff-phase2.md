@@ -92,7 +92,7 @@ OPD release-1 scope; WhatsApp/SMS provider, DLT registration and who pays; tax/G
 ```
 We are continuing Hospigo (Indigo multi-tenant hospital SaaS) in Phase 2 (OPD). I am Rakshith, a junior developer; you are my lead and guide: teach me how things work, plan first and wait for my approval, then give Cursor prompts, review the reports, and give me clear test steps and commit/PR commands. The project memory has the history; the handoff file below has the current state.
 
-State: Phase 2 Steps 1, 2, 3a, 3b are merged on develop (PR #40, 6a05dca; API 245 tests, web 155). Next is Step 3c (reception patient screens), then 3d, 4a, 4b, 5a, 5b, 6a, 6b, 7, 8a, 8b, 9. Target: first working OPD flow by Saturday 21 Nov.
+State (19 Nov 2026): Phase 2 Steps 1 to 5a are merged on develop (4a PR #45, 5a-1 PR #46, 5a-2 and 5a-3 PR #47; API 488 tests). Step 5b (nurse and doctor screens: queue, vitals, consultation with auto-save) is built and tested (web 758 tests, Postman 60/60) and waits for its pull request to be merged. Next: 6a and 6b (investigations and refunds), 7 and 7b (print templates, reports, settings screens), 8a, 8b, 9. Open items and decisions: `docs/engineering-tracker.md`, `docs/decisions-5a.md`, `docs/decisions-5b.md`.
 
 Please start Step 3c: first give me the short read-only Cursor inspection prompt for the web code (Ask mode), then the 3c plan for my approval.
 
