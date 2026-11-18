@@ -262,6 +262,12 @@ model Hospital {
   numberSeriesSettings NumberSeriesSettings[]
   numberSeries NumberSeries[]
   tokenCounters TokenCounter[]
+  opdVisits OpdVisit[]
+  bills Bill[]
+  billLines BillLine[]
+  payments Payment[]
+  ledgerEntries LedgerEntry[]
+  patientRegistrationFees PatientRegistrationFee[]
 
   @@map("hospitals")
 }
@@ -305,6 +311,7 @@ model Branch {
   importBatches ImportBatch[]
   doctorTimings DoctorTiming[]
   tokenCounters TokenCounter[]
+  opdVisits OpdVisit[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -382,6 +389,9 @@ model User {
   doctorProfiles DoctorProfile[]
   chargeItemPricesCreated ChargeItemPrice[] @relation("ChargeItemPriceCreatedBy")
   doctorFeesCreated DoctorFee[] @relation("DoctorFeeCreatedBy")
+  opdVisitsCreated OpdVisit[] @relation("OpdVisitCreatedBy")
+  billsCreated Bill[] @relation("BillCreatedBy")
+  paymentsReceived Payment[] @relation("PaymentReceivedBy")
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -594,6 +604,8 @@ model Patient {
   creator            User     @relation("PatientCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
   identifiers        PatientIdentifier[]
   customFieldValues  PatientCustomFieldValue[]
+  opdVisits          OpdVisit[]
+  registrationFees   PatientRegistrationFee[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, uhid])
@@ -989,6 +1001,7 @@ model DoctorProfile {
   timings  DoctorTiming[]
   leaves   DoctorLeave[]
   fees     DoctorFee[]
+  opdVisits OpdVisit[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, userId])
@@ -1049,6 +1062,7 @@ model ChargeItem {
 
   hospital Hospital          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   prices   ChargeItemPrice[]
+  billLines BillLine[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -1088,6 +1102,8 @@ model DoctorFee {
   hospital Hospital      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   doctor   DoctorProfile @relation(fields: [tenantId, doctorProfileId], references: [tenantId, id], onDelete: Restrict)
   creator  User          @relation("DoctorFeeCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
+
+  billLines BillLine[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, doctorProfileId, visitType, effectiveFrom])
@@ -1147,6 +1163,8 @@ model PaymentMode {
   updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  payments Payment[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -1215,4 +1233,209 @@ model TokenCounter {
 
   @@id([tenantId, branchId, tokenDate])
   @@map("token_counters")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Step 4a: OPD visits and money. The SQL migration is the source of truth for triggers, checks,
+// partial unique indexes and grants (Prisma does not model them). Bills, lines, payments and the
+// ledger are append-only; the ledger is written only by database triggers.
+// ---------------------------------------------------------------------------------------------
+
+enum VisitStatus {
+  AWAITING_PAYMENT
+  WAITING
+  IN_CONSULTATION
+  COMPLETED
+  CANCELLED
+
+  @@map("visit_status")
+}
+
+enum BillType {
+  CONSULTATION
+  INVESTIGATION
+
+  @@map("bill_type")
+}
+
+enum PaymentStatus {
+  UNPAID
+  PART_PAID
+  PAID
+
+  @@map("payment_status")
+}
+
+enum LedgerEntryType {
+  CHARGE
+  PAYMENT
+  REFUND
+  CHARGE_REVERSAL
+
+  @@map("ledger_entry_type")
+}
+
+model OpdVisit {
+  id                    String      @id @default(cuid())
+  tenantId              String      @map("tenant_id")
+  branchId              String      @map("branch_id")
+  patientId             String      @map("patient_id")
+  doctorProfileId       String      @map("doctor_profile_id")
+  visitType             VisitType   @map("visit_type")
+  visitDate             DateTime    @map("visit_date") @db.Date
+  status                VisitStatus @default(AWAITING_PAYMENT)
+  previousVisitId       String?     @map("previous_visit_id")
+  tokenDate             DateTime?   @map("token_date") @db.Date
+  tokenNo               Int?        @map("token_no")
+  queuedAt              DateTime?   @map("queued_at") @db.Timestamptz(3)
+  consultationStartedAt DateTime?   @map("consultation_started_at") @db.Timestamptz(3)
+  completedAt           DateTime?   @map("completed_at") @db.Timestamptz(3)
+  cancelledAt           DateTime?   @map("cancelled_at") @db.Timestamptz(3)
+  cancelledReason       String?     @map("cancelled_reason")
+  createdBy             String      @map("created_by")
+  createdAt             DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital      Hospital      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  branch        Branch        @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict)
+  patient       Patient       @relation(fields: [tenantId, patientId], references: [tenantId, id], onDelete: Restrict)
+  doctor        DoctorProfile @relation(fields: [tenantId, doctorProfileId], references: [tenantId, id], onDelete: Restrict)
+  previousVisit OpdVisit?     @relation("OpdVisitPrevious", fields: [tenantId, previousVisitId], references: [tenantId, id], onDelete: Restrict)
+  followUps     OpdVisit[]    @relation("OpdVisitPrevious")
+  creator       User          @relation("OpdVisitCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
+  bills         Bill[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, id, branchId])
+  @@index([tenantId, branchId, doctorProfileId, status, queuedAt], map: "opd_visits_doctor_queue_idx")
+  @@index([tenantId, patientId, doctorProfileId, visitDate(sort: Desc)], map: "opd_visits_followup_idx")
+  @@index([tenantId, patientId, createdAt(sort: Desc)], map: "opd_visits_patient_history_idx")
+  @@map("opd_visits")
+}
+
+model Bill {
+  id             String        @id @default(cuid())
+  tenantId       String        @map("tenant_id")
+  branchId       String        @map("branch_id")
+  visitId        String        @map("visit_id")
+  billType       BillType      @map("bill_type")
+  billNumber     String        @map("bill_number")
+  billDate       DateTime      @default(now()) @map("bill_date") @db.Timestamptz(3)
+  subtotalPaise  Int           @map("subtotal_paise")
+  taxPaise       Int           @default(0) @map("tax_paise")
+  totalPaise     Int           @map("total_paise")
+  /// Maintained ONLY by the ledger trigger (the app role cannot update bills).
+  paidPaise      Int           @default(0) @map("paid_paise")
+  refundedPaise  Int           @default(0) @map("refunded_paise")
+  paymentStatus  PaymentStatus @default(UNPAID) @map("payment_status")
+  idempotencyKey String        @map("idempotency_key")
+  createdBy      String        @map("created_by")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  hospital      Hospital      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  visit         OpdVisit      @relation(fields: [tenantId, visitId, branchId], references: [tenantId, id, branchId], onDelete: Restrict)
+  creator       User          @relation("BillCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
+  lines         BillLine[]
+  payments      Payment[]
+  ledgerEntries LedgerEntry[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, id, branchId])
+  @@unique([tenantId, billNumber])
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, branchId, billDate], map: "bills_branch_date_idx")
+  @@map("bills")
+}
+
+model BillLine {
+  id                  String         @id @default(cuid())
+  tenantId            String         @map("tenant_id")
+  billId              String         @map("bill_id")
+  lineNo              Int            @map("line_no")
+  kind                ChargeItemKind
+  chargeItemId        String?        @map("charge_item_id")
+  doctorFeeId         String?        @map("doctor_fee_id")
+  codeSnapshot        String         @map("code_snapshot")
+  descriptionSnapshot String         @map("description_snapshot")
+  quantity            Int            @default(1)
+  unitPricePaise      Int            @map("unit_price_paise")
+  taxRateBp           Int            @default(0) @map("tax_rate_bp")
+  taxPaise            Int            @default(0) @map("tax_paise")
+  lineTotalPaise      Int            @map("line_total_paise")
+  pricingNote         String?        @map("pricing_note")
+  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  hospital        Hospital                @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  bill            Bill                    @relation(fields: [tenantId, billId], references: [tenantId, id], onDelete: Restrict)
+  chargeItem      ChargeItem?             @relation(fields: [tenantId, chargeItemId], references: [tenantId, id], onDelete: Restrict)
+  doctorFee       DoctorFee?              @relation(fields: [tenantId, doctorFeeId], references: [tenantId, id], onDelete: Restrict)
+  registrationFee PatientRegistrationFee?
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, billId, lineNo], map: "bill_lines_tenant_bill_line_no_key")
+  @@map("bill_lines")
+}
+
+model Payment {
+  id             String   @id @default(cuid())
+  tenantId       String   @map("tenant_id")
+  billId         String   @map("bill_id")
+  branchId       String   @map("branch_id")
+  receiptNumber  String   @map("receipt_number")
+  paymentModeId  String   @map("payment_mode_id")
+  amountPaise    Int      @map("amount_paise")
+  referenceNo    String?  @map("reference_no")
+  paidAt         DateTime @default(now()) @map("paid_at") @db.Timestamptz(3)
+  receivedBy     String   @map("received_by")
+  idempotencyKey String   @map("idempotency_key")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  hospital      Hospital      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  bill          Bill          @relation(fields: [tenantId, billId, branchId], references: [tenantId, id, branchId], onDelete: Restrict)
+  paymentMode   PaymentMode   @relation(fields: [tenantId, paymentModeId], references: [tenantId, id], onDelete: Restrict)
+  receiver      User          @relation("PaymentReceivedBy", fields: [tenantId, receivedBy], references: [tenantId, id], onDelete: Restrict)
+  ledgerEntries LedgerEntry[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, receiptNumber])
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, billId], map: "payments_bill_idx")
+  @@map("payments")
+}
+
+/// Written ONLY by database triggers (the app role has no INSERT). Append-only.
+model LedgerEntry {
+  id          String          @id @default(cuid())
+  tenantId    String          @map("tenant_id")
+  billId      String          @map("bill_id")
+  branchId    String          @map("branch_id")
+  entryType   LedgerEntryType @map("entry_type")
+  amountPaise Int             @map("amount_paise")
+  paymentId   String?         @map("payment_id")
+  postedAt    DateTime        @default(now()) @map("posted_at") @db.Timestamptz(3)
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  bill     Bill     @relation(fields: [tenantId, billId, branchId], references: [tenantId, id, branchId], onDelete: Restrict)
+  payment  Payment? @relation(fields: [tenantId, paymentId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, billId], map: "ledger_entries_bill_idx")
+  @@map("ledger_entries")
+}
+
+model PatientRegistrationFee {
+  id         String    @id @default(cuid())
+  tenantId   String    @map("tenant_id")
+  patientId  String    @map("patient_id")
+  billLineId String    @map("bill_line_id")
+  chargedAt  DateTime  @default(now()) @map("charged_at") @db.Timestamptz(3)
+  voidedAt   DateTime? @map("voided_at") @db.Timestamptz(3)
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  patient  Patient  @relation(fields: [tenantId, patientId], references: [tenantId, id], onDelete: Restrict)
+  billLine BillLine @relation(fields: [tenantId, billLineId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, billLineId])
+  @@map("patient_registration_fees")
 }

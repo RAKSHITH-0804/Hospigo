@@ -612,6 +612,84 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
       },
     });
     sampleB.token_counters = 'composite';
+
+    // Step 4a: visits and money (bill + lines + registration record + payment in ONE transaction,
+    // because the database checks "bill equals lines" at commit; the ledger row comes from triggers).
+    const money = await prisma.$transaction(async (tx) => {
+      const visit = await tx.opdVisit.create({
+        data: {
+          tenantId: tenantB,
+          branchId: branchB,
+          patientId: sampleB.patients!,
+          doctorProfileId: sampleB.doctor_profiles!,
+          visitType: 'NEW',
+          visitDate: new Date('2030-01-01T00:00:00.000Z'),
+          createdBy: sampleB.users!,
+        },
+      });
+      const bill = await tx.bill.create({
+        data: {
+          tenantId: tenantB,
+          branchId: branchB,
+          visitId: visit.id,
+          billType: 'CONSULTATION',
+          billNumber: `ISO_BILL_${stamp}`,
+          subtotalPaise: 1100,
+          totalPaise: 1100,
+          idempotencyKey: `ISO_BILL_KEY_${stamp}`,
+          createdBy: sampleB.users!,
+        },
+      });
+      await tx.billLine.create({
+        data: {
+          tenantId: tenantB,
+          billId: bill.id,
+          lineNo: 1,
+          kind: 'CONSULTATION',
+          doctorFeeId: sampleB.doctor_fees!,
+          codeSnapshot: 'CONS',
+          descriptionSnapshot: 'Consultation',
+          unitPricePaise: 1000,
+          lineTotalPaise: 1000,
+        },
+      });
+      const regLine = await tx.billLine.create({
+        data: {
+          tenantId: tenantB,
+          billId: bill.id,
+          lineNo: 2,
+          kind: 'REGISTRATION',
+          chargeItemId: sampleB.charge_items!,
+          codeSnapshot: 'REG',
+          descriptionSnapshot: 'Registration',
+          unitPricePaise: 100,
+          lineTotalPaise: 100,
+        },
+      });
+      const fee = await tx.patientRegistrationFee.create({
+        data: { tenantId: tenantB, patientId: sampleB.patients!, billLineId: regLine.id },
+      });
+      const payment = await tx.payment.create({
+        data: {
+          tenantId: tenantB,
+          billId: bill.id,
+          branchId: branchB,
+          receiptNumber: `ISO_RCPT_${stamp}`,
+          paymentModeId: sampleB.payment_modes!,
+          amountPaise: 1100,
+          receivedBy: sampleB.users!,
+          idempotencyKey: `ISO_PAY_KEY_${stamp}`,
+        },
+      });
+      return { visit, bill, regLine, fee, payment };
+    });
+    sampleB.opd_visits = money.visit.id;
+    sampleB.bills = money.bill.id;
+    sampleB.bill_lines = money.regLine.id;
+    sampleB.patient_registration_fees = money.fee.id;
+    sampleB.payments = money.payment.id;
+    const ledgerRow = await prisma.ledgerEntry.findFirstOrThrow({ where: { tenantId: tenantB } });
+    sampleB.ledger_entries = ledgerRow.id;
   });
 
   afterAll(async () => {
