@@ -700,6 +700,90 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
     sampleB.patient_registration_fees = money.fee.id;
     sampleB.payments = money.payment.id;
     sampleB.receipts = money.receipt.id;
+
+    // Step 5a: the clinical rows of the same visit (note, vitals, prescription, addendum). The visit
+    // walks WAITING -> IN_CONSULTATION -> COMPLETED the way the API does it.
+    const doctorUserId = (
+      await prisma.doctorProfile.findUniqueOrThrow({ where: { id: sampleB.doctor_profiles! } })
+    ).userId;
+    const vitalsField = await prisma.vitalsField.findUniqueOrThrow({
+      where: { id: sampleB.vitals_fields! },
+    });
+    await prisma.opdVisit.update({
+      where: { id: money.visit.id },
+      data: {
+        status: 'WAITING',
+        tokenDate: new Date('2030-01-01T00:00:00.000Z'),
+        tokenNo: 1,
+        queuedAt: new Date(),
+      },
+    });
+    await prisma.opdVisit.update({
+      where: { id: money.visit.id },
+      data: { status: 'IN_CONSULTATION', consultationStartedAt: new Date() },
+    });
+    const note = await prisma.consultation.create({
+      data: {
+        tenantId: tenantB,
+        branchId: branchB,
+        visitId: money.visit.id,
+        doctorProfileId: sampleB.doctor_profiles!,
+        diagnosis: 'ISO diagnosis',
+      },
+    });
+    sampleB.consultations = note.id;
+    const reading = await prisma.visitVitals.create({
+      data: {
+        tenantId: tenantB,
+        branchId: branchB,
+        visitId: money.visit.id,
+        vitalsFieldId: vitalsField.id,
+        version: 1,
+        fieldCode: vitalsField.code,
+        fieldName: vitalsField.name,
+        unit: vitalsField.unit,
+        valueKind: vitalsField.valueKind,
+        ...(vitalsField.valueKind === 'NUMBER' ? { valueNumber: 72 } : { valueText: 'normal' }),
+        recordedBy: sampleB.users!,
+      },
+    });
+    sampleB.visit_vitals = reading.id;
+    const item = await prisma.prescriptionItem.create({
+      data: {
+        tenantId: tenantB,
+        branchId: branchB,
+        visitId: money.visit.id,
+        consultationId: note.id,
+        lineNo: 1,
+        medicineId: medicine.id,
+        medicineName: medicine.name,
+        isUnlisted: false,
+        dose: '1 tablet',
+        frequency: 'twice a day',
+        duration: '5 days',
+      },
+    });
+    sampleB.prescription_items = item.id;
+    await prisma.consultation.update({
+      where: { id: note.id },
+      data: { status: 'COMPLETED', completedAt: new Date() },
+    });
+    await prisma.opdVisit.update({
+      where: { id: money.visit.id },
+      data: { status: 'COMPLETED', completedAt: new Date() },
+    });
+    const addendum = await prisma.consultationAddendum.create({
+      data: {
+        tenantId: tenantB,
+        branchId: branchB,
+        consultationId: note.id,
+        visitId: money.visit.id,
+        addendumText: 'ISO addendum',
+        reason: 'ISO reason',
+        addedBy: doctorUserId,
+      },
+    });
+    sampleB.consultation_addenda = addendum.id;
     const ledgerRow = await prisma.ledgerEntry.findFirstOrThrow({ where: { tenantId: tenantB } });
     sampleB.ledger_entries = ledgerRow.id;
   });
@@ -844,6 +928,9 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
             }
             expect({ table, updated: upd.rowCount }).toEqual({ table, updated: 0 });
           } else {
+            // A refused statement aborts the transaction; the savepoint lets the DELETE probe
+            // below run too (prescription_items can be deleted but never updated).
+            await client.query('SAVEPOINT update_probe');
             await expect(
               hasId
                 ? client.query(`UPDATE ${quoteIdent(table)} SET id = id WHERE id = $1`, [sampleId])
@@ -852,6 +939,7 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
                     [tenantB],
                   ),
             ).rejects.toThrow();
+            await client.query('ROLLBACK TO SAVEPOINT update_probe');
           }
 
           if (canDelete.rows[0]?.ok) {

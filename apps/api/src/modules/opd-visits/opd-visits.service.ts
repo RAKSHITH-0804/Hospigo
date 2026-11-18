@@ -106,7 +106,7 @@ function isMissingSeriesSettings(error: unknown): boolean {
 }
 
 /** The hospital's local calendar day as a UTC-midnight Date (Prisma @db.Date). */
-function localDate(now: Date, timeZone: string): Date {
+export function localDate(now: Date, timeZone: string): Date {
   const { year, month, day } = zonedParts(now, timeZone);
   return new Date(Date.UTC(year, month - 1, day));
 }

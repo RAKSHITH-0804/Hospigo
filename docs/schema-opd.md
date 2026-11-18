@@ -391,3 +391,7 @@ RLS isolates **hospitals**. Branch isolation (a user of one branch cannot read a
 ## As built (Step 5a-1): receipts
 
 `receipts` (id, tenant_id, branch_id, bill_id, receipt_number, total_paise, issued_by, idempotency_key, created_at) is append-only with forced row level security. `payments` has `receipt_id` (no more `receipt_number`). Rules: receipt total = sum of its payments (checked at commit on both tables), one payment mode at most once per receipt, payment and receipt share the bill (composite foreign keys), receipt number unique per hospital, strong bill lock taken before the receipt's foreign key (no deadlock between parallel payers). See `docs/decisions-5a.md`.
+
+## As built (Step 5a-2 and 5a-3): clinical tables
+
+`consultations` (one per visit; `DRAFT` then `COMPLETED`, frozen once completed), `consultation_addenda` (append-only), `visit_vitals` (append-only, versioned, name/unit/kind copied from the master), `prescription_items` (rows of one draft note, deletable only while the note is a draft). All have forced row level security by hospital and no grants for `hospigo_hq` / `hospigo_patient`. The visit guard now also refuses `COMPLETED` before a completed note exists. Rules and decisions: `docs/decisions-5a.md` (PR 2 section).

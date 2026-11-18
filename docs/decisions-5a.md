@@ -29,3 +29,37 @@ Step 5a is three sub-steps with their own commits. PR 1 is 5a-1 alone; PR 2 hold
 - **Not in this PR:** true part payment (pay the rest later, queue before fully paid), refunds, receipt print settings (Step 7).
 
 Tests: API 408 -> 427 (split, shape, replay, race, permissions, payment modes), web 501 -> 556 (money parser, plan rules, form rows, page, receipt). Every new rule was removed one at a time and a test failed each time (two equivalent cases: the single-row plan ignores leftover text, and the submit-time guard sits behind the disabled button).
+
+## PR 2: Step 5a-2 and 5a-3 (doctor queue, notes, vitals, prescription API)
+
+PR title: **Step 5a-2 and 5a-3: doctor queue, consultation notes, vitals and prescription API**. Branch `feature/phase2-step-5a2-5a3-clinical`. One migration (`20261120090000_clinical_notes_vitals_prescription`), one new API module `apps/api/src/modules/opd-clinical/`. No web screens (that is Step 5b).
+
+### Migration (what the database itself guarantees)
+
+- `consultations` (one per visit), `consultation_addenda`, `visit_vitals`, `prescription_items`; forced row level security by hospital; `hospigo_hq` / `hospigo_patient` have no grants; same-hospital and same-branch composite foreign keys.
+- A note can be created only while the visit is `IN_CONSULTATION`, only for the visit's own doctor, and starts as `DRAFT`. A `COMPLETED` note is frozen (no update, no delete, owner included). Finishing a note needs complaints or diagnosis to hold text.
+- **A visit can become `COMPLETED` only after its note is `COMPLETED`** (the Step 4a visit guard was extended). Three older test fixtures that completed a visit with raw SQL now write a completed note first.
+- Addenda are append-only (who, when, why), only on a completed note and only by the visit's doctor.
+- Vitals are append-only and versioned: version 1 is the reading, every later version is a correction and needs a reason; versions have no gaps; name, unit and kind are copied from the master at write time (a later master change never rewrites history); only for a visit that has joined the queue (WAITING, IN_CONSULTATION, COMPLETED).
+- Prescription rows belong to one `DRAFT` note and are frozen with it (the note row is locked FOR SHARE, so a row cannot slip in while the note is being completed); a listed medicine's name must be a true copy of the medicines list; free text has no medicine id and is flagged `is_unlisted`.
+
+### Decisions made while building (not in the task)
+
+- **Doctor scope:** a user with a doctor profile sees and changes only their OWN visits (everywhere: queue, note, vitals). A user with no doctor profile (a nurse) works across the active branch. A user with the notes permission but no profile gets `403 DOCTOR_PROFILE_REQUIRED`. Another doctor's, another branch's or another hospital's visit is always `404 VISIT_NOT_FOUND` (never a hint it exists).
+- **Permissions:** `opd.queue.read`, `opd.vitals.read`, `opd.vitals.write`, `opd.notes.read`, `opd.notes.write` added to the catalog. Doctor: all five plus the earlier ones; Nurse: queue, vitals read/write, notes read. Admin roles still get none of them.
+- **Queue:** today's (hospital time zone) `WAITING` and `IN_CONSULTATION` visits of the token's branch in payment order. A visit left waiting past midnight drops out of the list (follow-up).
+- **One row lock per visit:** every doctor write and every vitals write first locks the visit row (`SELECT ... FOR UPDATE`), so a double click, a nurse and a doctor at the same moment, or "complete" racing "save" run one after the other. The raw query is allowlisted in the tenant safety-net scan.
+- **Start and complete are replay-safe:** a second Start click returns the same state (`replayed: true`, one audit row); a second Complete returns the finished result.
+- **Note save is a full replace** of the four fields (a field left out is cleared). Complete takes no body (the screen saves the draft first); completing needs complaints or diagnosis (`400 NOTE_EMPTY`).
+- **Prescription is replaced as a whole** (`PUT`, 0 to 30 rows); a listed row carries `medicineId` (only active medicines of this hospital; the name is copied by the server), a free-text row carries `medicineName` and is flagged unlisted. Dose, frequency and duration are required.
+- **Vitals:** a reading equal to the latest one changes nothing (a double click is harmless); a different value for a field that has a reading is a correction and needs a reason. Numbers: 0 or more, at most 2 decimals; text up to 200 characters. One request records several fields all or nothing. `outOfRange` comes from the field's warning range.
+- **Audit stores field names and ids, never text or values:** `OPD_VISIT_START`, `OPD_NOTE_SAVE` (names of filled fields), `OPD_PRESCRIPTION_SAVE` (counts), `OPD_VISIT_COMPLETE`, `OPD_NOTE_READ` (EVERY read of a note, with who and which visit; a 404 read is not audited), `OPD_NOTE_ADDENDUM`, `OPD_VITALS_RECORD` (field codes). Vitals reads are not audited (only notes, as agreed in Q6).
+- **New read route `GET /opd/medicines?q=&limit=`** (permission `opd.masters.read`): active medicines by name, code or composition, for the prescription picker. Added because the doctor had no way to pick from the list.
+
+### Tests
+
+API 427 -> 484 (database rules 48 -> 63 in `visits-billing.spec.ts`, 42 new endpoint tests in `opd-clinical.endpoints.spec.ts`, RLS spec extended with the four new tables). Every rule was removed one at a time: API 33 checks (all killed; three survivors were equivalent because a second check refuses the same request, and one real gap, a read-only doctor, got its own test) and database 25 of 27 killed (one equivalent: a draft note can only exist while its visit is in consultation; one pattern did not match its text).
+
+### Not in this PR
+
+Screens (5b), cancelling a visit, investigations and refunds (6a), cross-branch note history, true part payment.

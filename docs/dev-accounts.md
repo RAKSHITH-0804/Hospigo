@@ -51,6 +51,7 @@ What each role gets (from `GET /auth/me`, checked for Receptionist and Nurse):
 - Receptionist: `patients.registry.read`, `patients.registry.write`, `opd.masters.read` (no Settings item).
 - Nurse: `patients.registry.read`, `opd.masters.read`.
 - Doctor: same as Nurse in the seed (not yet checked with `/auth/me`).
+- After Step 5a (re-run the dev seed to get them): Nurse also gets `opd.queue.read`, `opd.vitals.read`, `opd.vitals.write`, `opd.notes.read`; Doctor gets those plus `opd.notes.write`.
 
 Doctor 1 at DEMO_NORTH has the availability switch off; one DEMO_SOUTH doctor has leave for tomorrow (IST).
 

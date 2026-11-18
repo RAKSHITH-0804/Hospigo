@@ -34,6 +34,11 @@ const PERMISSIONS = [
   { code: 'opd.visits.read', description: 'Read OPD visits' },
   { code: 'opd.billing.collect', description: 'Take payment for an OPD bill' },
   { code: 'opd.billing.read', description: 'Read OPD bills and receipts' },
+  { code: 'opd.queue.read', description: 'Read the OPD queue (own queue for a doctor)' },
+  { code: 'opd.vitals.read', description: 'Read visit vitals' },
+  { code: 'opd.vitals.write', description: 'Record and correct visit vitals' },
+  { code: 'opd.notes.read', description: 'Read consultation notes and prescriptions' },
+  { code: 'opd.notes.write', description: 'Write consultation notes and prescriptions' },
 ] as const;
 
 /**

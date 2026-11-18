@@ -9,6 +9,7 @@ import { ImportsModule } from './modules/imports/imports.module';
 import { PatientAuthModule } from './modules/patient-auth/patient-auth.module';
 import { NumberingModule } from './modules/numbering/numbering.module';
 import { OpdMastersModule } from './modules/opd-masters/opd-masters.module';
+import { OpdClinicalModule } from './modules/opd-clinical/opd-clinical.module';
 import { OpdVisitsModule } from './modules/opd-visits/opd-visits.module';
 import { PatientsModule } from './modules/patients/patients.module';
 import { StorageModule } from './modules/storage/storage.module';
@@ -32,6 +33,7 @@ import { StorageModule } from './modules/storage/storage.module';
     OpdMastersModule,
     NumberingModule,
     OpdVisitsModule,
+    OpdClinicalModule,
   ],
 })
 export class AppModule {}
