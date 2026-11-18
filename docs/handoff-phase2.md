@@ -101,6 +101,8 @@ Please start Step 3c: first give me the short read-only Cursor inspection prompt
 
 ## Where to start Step 6 (written at the end of 19 Nov 2026)
 
+**Branch note:** the closeout docs commit (this section included) lives on the local branch `docs/phase2-step5-closeout` (develop + one docs commit) and is NOT sent as its own PR; create the Step 6a branch from that docs branch (`git checkout docs/phase2-step5-closeout` then `git checkout -b feature/phase2-step-6a-...`), so the docs go into `develop` with the 6a PR. If that docs branch was merged on GitHub instead, branch from `develop` as usual.
+
 Start a new session, read the files named in `CLAUDE.md`, then plan 6a and WAIT for "approved" (Rakshith approves every plan; he reviews all of a step at once when he says so, and commits and pushes himself).
 
 **What 6a/6b are (from `docs/use-cases-opd.md`, UC-12, and the step table above):** an investigations bill (tests ordered for a visit, billed like the consultation, payable in several modes with one receipt) and refunds: the Receptionist requests with a reason, an **Admin approves**; the system writes a reversal entry (the original bill is never changed; who, when, why recorded); refunds follow the original payment mode; **no refund once the consultation has started** (`opd_visits.consultation_started_at`, set by 5a-2). Cancelling a visit that was not started also voids its token. Cancel / no-show of a paid visit is a known open item (a paid patient who is never seen stays in the queue for ever).
