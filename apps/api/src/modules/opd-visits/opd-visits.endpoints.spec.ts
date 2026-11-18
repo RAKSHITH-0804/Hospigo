@@ -140,6 +140,7 @@ describe('OPD visits and billing endpoints (HTTP)', () => {
       });
     const cash = await mode('CASH', false);
     await mode('UPI', true);
+    await mode('CARD', false);
     await mode('OLD', false, false);
 
     const staff = await owner.user.create({
@@ -369,6 +370,7 @@ describe('OPD visits and billing endpoints (HTTP)', () => {
       visits,
       bills: await owner.bill.count({ where: { tenantId: h.tenant } }),
       payments: await owner.payment.count({ where: { tenantId: h.tenant } }),
+      receipts: await owner.receipt.count({ where: { tenantId: h.tenant } }),
       ledger: await owner.ledgerEntry.count({ where: { tenantId: h.tenant } }),
     }));
   async function complete(visitId: string) {
@@ -891,6 +893,370 @@ describe('OPD visits and billing endpoints (HTTP)', () => {
           data: { followUpFreeDays: 7 },
         });
       }
+    });
+  });
+
+  // ----------------------------------------------------------------------- payment modes
+
+  describe('GET /opd/payment-modes', () => {
+    const get = (who: string) =>
+      http().get('/opd/payment-modes').set('Authorization', `Bearer ${A.tokens[who]}`);
+
+    it('lists the ACTIVE modes (no ids), the default first, with the default code and the line limit', async () => {
+      const res = await get('recv');
+      expect(res.status).toBe(200);
+      expect(res.body.items.map((m: { code: string }) => m.code)).toEqual(['CASH', 'CARD', 'UPI']);
+      expect(res.body.items).toEqual([
+        { code: 'CASH', name: 'CASH', requiresReference: false },
+        { code: 'CARD', name: 'CARD', requiresReference: false },
+        { code: 'UPI', name: 'UPI', requiresReference: true },
+      ]);
+      expect(res.body.defaultCode).toBe('CASH');
+      expect(res.body.maxLines).toBe(4);
+      // inactive mode OLD is not listed and no internal ids leak
+      expect(JSON.stringify(res.body)).not.toContain('OLD');
+      expect(JSON.stringify(res.body)).not.toContain(A.cashId);
+    });
+
+    it('needs opd.billing.collect: nurse, doctor and users without it are refused; no token is 401', async () => {
+      for (const who of ['nurse', 'doc1', 'nobody']) {
+        expect((await get(who)).status).toBe(403);
+      }
+      expect((await http().get('/opd/payment-modes')).status).toBe(401);
+    });
+
+    it('is per hospital: another hospital sees only its own modes', async () => {
+      await owner.paymentMode.create({
+        data: { tenantId: B.tenant, code: 'WALLET', name: 'Wallet', requiresReference: false },
+      });
+      const b = await http()
+        .get('/opd/payment-modes')
+        .set('Authorization', `Bearer ${B.tokens.recv}`);
+      expect(b.body.items.map((m: { code: string }) => m.code)).toContain('WALLET');
+      expect((await get('recv')).body.items.map((m: { code: string }) => m.code)).not.toContain(
+        'WALLET',
+      );
+    });
+  });
+
+  // ----------------------------------------------------------- split payment, one receipt
+
+  describe('split payment: several modes, ONE receipt (Step 5a-1)', () => {
+    const TOTAL = NEW_FEE + REG_FEE; // a brand-new patient with doctor 1
+    const upi = (amountPaise: number, referenceNo = 'UTR-5551') => ({
+      paymentModeCode: 'UPI',
+      amountPaise,
+      referenceNo,
+    });
+    const cash = (amountPaise: number) => ({ paymentModeCode: 'CASH', amountPaise });
+    async function split(
+      payments: unknown,
+      o: { patientId?: string; key?: string; extra?: Record<string, unknown>; who?: string } = {},
+    ) {
+      const patientId = o.patientId ?? (await newPatient(A));
+      const res = await create(A, o.who ?? 'recv', {
+        patientId,
+        doctorProfileId: A.doc1,
+        visitType: 'NEW',
+        idempotencyKey: o.key ?? uniq('KEY-SPLIT'),
+        payments,
+        ...o.extra,
+      });
+      return { res, patientId };
+    }
+
+    it('UPI + cash on one bill: one receipt number, two payments, bill PAID, visit in the queue', async () => {
+      const { res } = await split([upi(30_000), cash(TOTAL - 30_000)]);
+      expect(res.status).toBe(201);
+      const bill = res.body.bill;
+      expect(bill).toMatchObject({ totalPaise: TOTAL, paidPaise: TOTAL, paymentStatus: 'PAID' });
+      expect(bill.payments).toHaveLength(2);
+      expect(
+        bill.payments.map((p: { paymentMode: { code: string }; amountPaise: number }) => [
+          p.paymentMode.code,
+          p.amountPaise,
+        ]),
+      ).toEqual([
+        ['UPI', 30_000],
+        ['CASH', TOTAL - 30_000],
+      ]);
+      expect(bill.payments[0].referenceNo).toBe('UTR-5551');
+      // ONE receipt number for both payments, listed once on the bill
+      expect(bill.payments[0].receiptNumber).toBe(bill.payments[1].receiptNumber);
+      expect(bill.receipts).toEqual([
+        expect.objectContaining({
+          receiptNumber: bill.payments[0].receiptNumber,
+          totalPaise: TOTAL,
+        }),
+      ]);
+      expect(res.body.status).toBe('WAITING');
+      expect(res.body.token.no).toBeGreaterThan(0);
+
+      // In the database: one receipt row, two payments on it, two ledger payment entries.
+      const receipts = await owner.receipt.findMany({ where: { billId: bill.id } });
+      expect(receipts).toHaveLength(1);
+      expect(receipts[0]!.totalPaise).toBe(TOTAL);
+      const payments = await owner.payment.findMany({ where: { billId: bill.id } });
+      expect(payments.map((p) => p.receiptId)).toEqual([receipts[0]!.id, receipts[0]!.id]);
+      expect(
+        await owner.ledgerEntry.count({ where: { billId: bill.id, entryType: 'PAYMENT' } }),
+      ).toBe(2);
+    });
+
+    it('takes exactly ONE receipt number per split (no gap, no extra number)', async () => {
+      const first = await split([upi(30_000), cash(TOTAL - 30_000)]);
+      const last = suffix(first.res.body.bill.receipts[0].receiptNumber);
+      const next = await visit(A);
+      expect(suffix(next.res.body.bill.receipts[0].receiptNumber)).toBe(last + 1);
+    });
+
+    it('audit: one entry per payment, with the mode and amount but never the reference number', async () => {
+      const { res } = await split([upi(30_000, 'UTR-SECRET-77'), cash(TOTAL - 30_000)]);
+      const rows = await owner.auditLog.findMany({
+        where: {
+          tenantId: A.tenant,
+          action: 'OPD_PAYMENT_RECEIVE',
+          metadata: { path: ['billId'], equals: res.body.bill.id },
+        },
+      });
+      expect(rows).toHaveLength(2);
+      expect(
+        rows.map((r) => (r.metadata as { paymentModeCode: string }).paymentModeCode).sort(),
+      ).toEqual(['CASH', 'UPI']);
+      expect(JSON.stringify(rows.map((r) => r.metadata))).not.toContain('UTR-SECRET-77');
+    });
+
+    it('three modes work (CASH + UPI + CARD) and the single-mode request still works as before', async () => {
+      const three = await split([
+        cash(20_000),
+        upi(20_000),
+        { paymentModeCode: 'CARD', amountPaise: TOTAL - 40_000 },
+      ]);
+      expect(three.res.status).toBe(201);
+      expect(three.res.body.bill.payments).toHaveLength(3);
+      expect(three.res.body.bill.receipts).toHaveLength(1);
+      const single = await visit(A);
+      expect(single.res.body.bill.payments).toHaveLength(1);
+      expect(single.res.body.bill.receipts).toHaveLength(1);
+    });
+
+    it('amounts that do not add up to the total are refused (400) and nothing is stored or numbered', async () => {
+      const before = await counts(A);
+      for (const [lines, paid] of [
+        [[upi(30_000), cash(20_000)], 50_000],
+        [[upi(30_000), cash(TOTAL)], TOTAL + 30_000],
+        [[cash(TOTAL - 1)], TOTAL - 1],
+      ] as const) {
+        const { res } = await split(lines);
+        expect([res.status, res.body.code]).toEqual([400, 'PAYMENT_SUM_MISMATCH']);
+        expect(res.body).toMatchObject({ totalPaise: TOTAL, paidPaise: paid });
+      }
+      expect(await counts(A)).toEqual(before);
+    });
+
+    it('one mode twice, an unknown or inactive mode, and a missing UPI reference are refused', async () => {
+      const before = await counts(A);
+      const dup = await split([cash(30_000), cash(TOTAL - 30_000)]);
+      expect([dup.res.status, dup.res.body.code]).toEqual([400, 'PAYMENT_MODE_DUPLICATE']);
+      const unknown = await split([
+        cash(30_000),
+        { paymentModeCode: 'NOPE', amountPaise: TOTAL - 30_000 },
+      ]);
+      expect(unknown.res.body.code).toBe('PAYMENT_MODE_NOT_AVAILABLE');
+      const inactive = await split([
+        cash(30_000),
+        { paymentModeCode: 'OLD', amountPaise: TOTAL - 30_000 },
+      ]);
+      expect(inactive.res.body.code).toBe('PAYMENT_MODE_NOT_AVAILABLE');
+      const noRef = await split([
+        { paymentModeCode: 'UPI', amountPaise: 30_000 },
+        cash(TOTAL - 30_000),
+      ]);
+      expect([noRef.res.status, noRef.res.body.code]).toEqual([400, 'REFERENCE_REQUIRED']);
+      const blankRef = await split([upi(30_000, '   '), cash(TOTAL - 30_000)]);
+      expect(blankRef.res.body.code).toBe('REFERENCE_REQUIRED');
+      expect(await counts(A)).toEqual(before);
+    });
+
+    it('bad shapes are refused (400): empty, too many lines, zero, negative, fraction, text, extra fields', async () => {
+      const before = await counts(A);
+      const lines5 = [1, 2, 3, 4, 5].map((n) => cash(n));
+      const bad: unknown[] = [
+        [],
+        lines5,
+        [cash(0), upi(TOTAL)],
+        [{ paymentModeCode: 'CASH', amountPaise: -5 }],
+        [{ paymentModeCode: 'CASH', amountPaise: 10.5 }],
+        [{ paymentModeCode: 'CASH', amountPaise: '600' }],
+        [{ paymentModeCode: 'CASH', amountPaise: 2_147_483_648 }],
+        [{ amountPaise: TOTAL }],
+        [{ paymentModeCode: 'CASH', amountPaise: TOTAL, receiptNumber: 'FAKE/1' }],
+        [{ paymentModeCode: 'CASH', amountPaise: TOTAL, paymentId: 'x' }],
+        'CASH',
+        { paymentModeCode: 'CASH', amountPaise: TOTAL },
+        null,
+      ];
+      for (const lines of bad) {
+        const { res } = await split(lines);
+        expect([lines, res.status]).toEqual([lines, 400]);
+      }
+      expect(await counts(A)).toEqual(before);
+    });
+
+    it('more lines than the limit are refused by the input check itself (5 different modes, not by the mode rules)', async () => {
+      const five = ['CASH', 'UPI', 'CARD', 'M4', 'M5'].map((paymentModeCode) => ({
+        paymentModeCode,
+        amountPaise: 1,
+        referenceNo: 'R',
+      }));
+      const { res } = await split(five);
+      expect(res.status).toBe(400);
+      // A validation message about the list, not one of the payment rules (those carry a code).
+      expect(res.body.code).toBeUndefined();
+      expect(JSON.stringify(res.body.message)).toMatch(/payments/);
+    });
+
+    it('a payments list together with paymentModeCode or referenceNo is refused (one way to say it)', async () => {
+      const before = await counts(A);
+      for (const extra of [{ paymentModeCode: 'CASH' }, { referenceNo: 'UTR-1' }]) {
+        const { res } = await split([cash(TOTAL)], { extra });
+        expect([res.status, res.body.code]).toEqual([400, 'PAYMENT_FIELDS_CONFLICT']);
+      }
+      expect(await counts(A)).toEqual(before);
+    });
+
+    it('a free visit takes no money: a payments list for it is refused, no list creates it free', async () => {
+      const first = await visit(A);
+      await complete(first.res.body.id);
+      const before = await counts(A);
+      const refused = await create(A, 'recv', {
+        patientId: first.patientId,
+        doctorProfileId: A.doc1,
+        visitType: 'FOLLOW_UP',
+        idempotencyKey: uniq('KEY-FREE'),
+        payments: [cash(100)],
+      });
+      expect([refused.status, refused.body.code]).toEqual([400, 'PAYMENT_NOT_EXPECTED']);
+      expect(await counts(A)).toEqual(before);
+      const free = await visit(A, { patient: first.patientId, type: 'FOLLOW_UP' });
+      expect(free.res.status).toBe(201);
+      expect(free.res.body.bill.receipts).toEqual([]);
+      expect(free.res.body.bill.payments).toEqual([]);
+    });
+
+    it('a changed price is still refused first (PRICE_CHANGED), even when the split adds up to the old total', async () => {
+      const before = await counts(A);
+      const { res } = await split([upi(30_000), cash(TOTAL - 30_000)], {
+        extra: { expectedTotalPaise: TOTAL - 1 },
+      });
+      expect([res.status, res.body.code]).toEqual([409, 'PRICE_CHANGED']);
+      expect(await counts(A)).toEqual(before);
+    });
+
+    it('same key again = same visit and receipt (200); the same key with other amounts or modes = 409', async () => {
+      const key = uniq('KEY-SPLIT');
+      const lines = [upi(30_000), cash(TOTAL - 30_000)];
+      const first = await split(lines, { key });
+      expect(first.res.status).toBe(201);
+      const before = await counts(A);
+      const again = await create(A, 'recv', {
+        patientId: first.patientId,
+        doctorProfileId: A.doc1,
+        visitType: 'NEW',
+        idempotencyKey: key,
+        payments: [cash(TOTAL - 30_000), upi(30_000)], // same split, other order
+      });
+      expect(again.status).toBe(200);
+      expect(again.body.replayed).toBe(true);
+      expect(again.body.id).toBe(first.res.body.id);
+      expect(again.body.bill.receipts).toEqual(first.res.body.bill.receipts);
+      expect(await counts(A)).toEqual(before);
+      for (const other of [
+        [upi(10_000), cash(TOTAL - 10_000)],
+        [{ paymentModeCode: 'CARD', amountPaise: 30_000 }, cash(TOTAL - 30_000)],
+        [cash(TOTAL)],
+      ]) {
+        const reused = await create(A, 'recv', {
+          patientId: first.patientId,
+          doctorProfileId: A.doc1,
+          visitType: 'NEW',
+          idempotencyKey: key,
+          payments: other,
+        });
+        expect([reused.status, reused.body.code]).toEqual([409, 'IDEMPOTENCY_KEY_REUSED']);
+      }
+      const single = await create(A, 'recv', {
+        patientId: first.patientId,
+        doctorProfileId: A.doc1,
+        visitType: 'NEW',
+        idempotencyKey: key,
+        paymentModeCode: 'CASH',
+      });
+      expect(single.status).toBe(409);
+      expect(await counts(A)).toEqual(before);
+    });
+
+    it('PARALLEL double submit of one split (8 at once): one visit, ONE receipt, two payments', async () => {
+      // Several rounds: the race (a request pricing just after the winner charged the
+      // registration fee) is timing dependent, so one round is not enough to trust.
+      for (let round = 0; round < 4; round += 1) {
+        const key = uniq('KEY-SPLITP');
+        const patientId = await newPatient(A);
+        const body = {
+          patientId,
+          doctorProfileId: A.doc1,
+          visitType: 'NEW',
+          idempotencyKey: key,
+          expectedTotalPaise: TOTAL,
+          payments: [upi(30_000), cash(TOTAL - 30_000)],
+        };
+        const results = await Promise.all(Array.from({ length: 8 }, () => create(A, 'recv', body)));
+        for (const r of results) {
+          expect(r.body.code).toBeUndefined(); // an error would show its code here
+          expect([200, 201]).toContain(r.status);
+        }
+        expect(results.filter((r) => r.status === 201)).toHaveLength(1);
+        expect(new Set(results.map((r) => r.body.id)).size).toBe(1);
+        expect(await owner.opdVisit.count({ where: { patientId } })).toBe(1);
+        const billId = results[0]!.body.bill.id;
+        expect(await owner.receipt.count({ where: { billId } })).toBe(1);
+        expect(await owner.payment.count({ where: { billId } })).toBe(2);
+      }
+    });
+
+    it('permissions: nurse, doctor and users without the collect permission cannot send a split (403)', async () => {
+      const before = await counts(A);
+      for (const who of ['nurse', 'doc1', 'nobody']) {
+        const { res } = await split([upi(30_000), cash(TOTAL - 30_000)], { who });
+        expect(res.status).toBe(403);
+      }
+      expect(await counts(A)).toEqual(before);
+    });
+
+    it('the preview takes no payment fields, and money views show receipts only with opd.billing.read', async () => {
+      const prev = await preview(A, 'recv', {
+        patientId: await newPatient(A),
+        doctorProfileId: A.doc1,
+        visitType: 'NEW',
+        payments: [cash(TOTAL)],
+      });
+      expect(prev.status).toBe(400);
+      const { res } = await split([upi(30_000), cash(TOTAL - 30_000)]);
+      const asNurse = await http()
+        .get(`/opd/visits/${res.body.id}`)
+        .set('Authorization', `Bearer ${A.tokens.nurse}`);
+      expect(asNurse.status).toBe(200);
+      expect(asNurse.body.bill).toBeUndefined();
+      expect(JSON.stringify(asNurse.body)).not.toContain('receipt');
+    });
+
+    it('another hospital cannot see this receipt (404) and its own numbers are separate', async () => {
+      const { res } = await split([upi(30_000), cash(TOTAL - 30_000)]);
+      const other = await http()
+        .get(`/opd/visits/${res.body.id}`)
+        .set('Authorization', `Bearer ${B.tokens.recv}`);
+      expect(other.status).toBe(404);
+      expect(JSON.stringify(other.body)).not.toContain(res.body.bill.receipts[0].receiptNumber);
     });
   });
 

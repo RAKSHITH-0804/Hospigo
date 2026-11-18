@@ -54,6 +54,16 @@ export class OpdVisitsController {
     return this.visits.listDoctors(actorOf(req));
   }
 
+  @Get('opd/payment-modes')
+  @RequirePermission('opd.billing.collect', { module: 'OPD' })
+  @ApiOperation({
+    summary:
+      'Active payment modes (code, name, reference needed) plus the default mode and the most lines one receipt may carry',
+  })
+  async paymentModes(@Req() req: HttpReq) {
+    return this.visits.listPaymentModes(actorOf(req));
+  }
+
   @Post('opd/visits/preview')
   @HttpCode(200)
   @RequirePermission('opd.visits.create', { module: 'OPD' })

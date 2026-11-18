@@ -378,3 +378,28 @@ Setting `opd_settings.repeat_visit_free_hours` (whole hours, 0 to 8760, default 
 - A follow-up inside `follow_up_free_days` keeps its own label (`FOLLOW_UP_FREE_WINDOW`); the repeat rule only applies when the consultation is still above zero.
 - Preview adds `repeatVisitFree: boolean` next to `followUpFree`. The audit entry of the visit carries `freeRepeatVisit: true` (and still `freeFollowUp`), no personal values.
 - The setting has no API or screen yet: it is set in the database (demo seed: 24). The Admin settings screen is Step 7b.
+
+## Step 5a-1: split payment and payment modes
+
+**POST /opd/visits** accepts `payments` instead of `paymentModeCode` / `referenceNo`:
+
+```json
+{
+  "patientId": "...",
+  "doctorProfileId": "...",
+  "visitType": "NEW",
+  "idempotencyKey": "PM5A1-...",
+  "expectedTotalPaise": 60000,
+  "payments": [
+    { "paymentModeCode": "UPI", "amountPaise": 10000, "referenceNo": "UTR-1" },
+    { "paymentModeCode": "CASH", "amountPaise": 50000 }
+  ]
+}
+```
+
+- 1 to 4 lines, whole paise above zero, one mode once. The sum must equal the total exactly.
+- ONE receipt for all lines. Response `bill.receipts: [{ receiptNumber, totalPaise, issuedAt }]` and `bill.payments[]` (each with the same `receiptNumber`).
+- Refusals (all `400`, nothing stored or numbered): `PAYMENT_SUM_MISMATCH { totalPaise, paidPaise }`, `PAYMENT_MODE_DUPLICATE`, `REFERENCE_REQUIRED`, `PAYMENT_MODE_NOT_AVAILABLE`, `PAYMENT_FIELDS_CONFLICT` (list together with the single-mode fields), `PAYMENT_NOT_EXPECTED` (list for a free visit). A price change is still `409 PRICE_CHANGED` first.
+- Idempotency: same key and same split = `200` replay; same key with another split or another way of paying = `409 IDEMPOTENCY_KEY_REUSED`.
+
+**GET /opd/payment-modes** (permission `opd.billing.collect`): `{ items: [{ code, name, requiresReference }], defaultCode, maxLines }`, active modes of the hospital, default first.

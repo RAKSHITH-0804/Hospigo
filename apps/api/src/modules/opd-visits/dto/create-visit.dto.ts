@@ -1,5 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
   IsIn,
   IsInt,
   IsOptional,
@@ -10,6 +14,7 @@ import {
   Min,
   MinLength,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator';
 import { OPD_VISITS_CONFIG as C } from '../opd-visits.config';
 
@@ -38,6 +43,27 @@ export class PreviewVisitDto {
   visitType!: (typeof VISIT_TYPES)[number];
 }
 
+/** One payment line of a split payment (one payment mode and its amount). */
+export class PaymentLineDto {
+  @ApiProperty({ description: 'Payment mode code from the master' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(C.paymentModeCodeMaxLength)
+  paymentModeCode!: string;
+
+  @ApiProperty({ description: 'Whole paise, above zero' })
+  @IsInt()
+  @Min(1)
+  @Max(C.maxAmountPaise)
+  amountPaise!: number;
+
+  @ApiPropertyOptional({ description: 'Required when the payment mode needs a reference' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(C.referenceMaxLength)
+  referenceNo?: string;
+}
+
 /** "Create visit, bill and take payment" in one step. */
 export class CreateVisitDto extends PreviewVisitDto {
   @ApiPropertyOptional({
@@ -60,6 +86,20 @@ export class CreateVisitDto extends PreviewVisitDto {
   @MaxLength(C.idempotencyKeyMaxLength)
   @Matches(C.idempotencyKeyPattern)
   idempotencyKey!: string;
+
+  @ApiPropertyOptional({
+    type: [PaymentLineDto],
+    description:
+      'Split payment: one line per payment mode, amounts must add up exactly to the total. One receipt covers all lines. Do not combine with paymentModeCode / referenceNo.',
+  })
+  // Absent is fine; a present value (even null) must be a proper list.
+  @ValidateIf((o: CreateVisitDto) => o.payments !== undefined)
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(C.maxPaymentLines)
+  @ValidateNested({ each: true })
+  @Type(() => PaymentLineDto)
+  payments?: PaymentLineDto[];
 
   @ApiPropertyOptional({ description: 'Payment mode code from the master (default CASH)' })
   @IsOptional()

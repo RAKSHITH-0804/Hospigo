@@ -40,6 +40,26 @@ export type VisitPreview = {
 
 export type BillLineView = PreviewLine & { lineNo: number; taxPaise: number };
 
+/** One active payment mode of the hospital (no internal ids). */
+export type PaymentMode = { code: string; name: string; requiresReference: boolean };
+
+export type PaymentModesResponse = {
+  items: PaymentMode[];
+  defaultCode: string | null;
+  /** Most payment rows one receipt may carry (from the API, never hardcoded here). */
+  maxLines: number;
+};
+
+/** One line of a split payment as the API takes it. */
+export type PaymentLinePayload = {
+  paymentModeCode: string;
+  amountPaise: number;
+  referenceNo?: string;
+};
+
+/** One receipt (a split payment is ONE receipt with several payments). */
+export type ReceiptView = { receiptNumber: string; totalPaise: number; issuedAt: string };
+
 export type PaymentView = {
   id: string;
   receiptNumber: string;
@@ -61,6 +81,7 @@ export type BillView = {
   refundedPaise: number;
   paymentStatus: 'UNPAID' | 'PART_PAID' | 'PAID';
   lines?: BillLineView[];
+  receipts?: ReceiptView[];
   payments?: PaymentView[];
 };
 

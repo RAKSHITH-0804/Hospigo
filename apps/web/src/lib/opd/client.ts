@@ -1,6 +1,12 @@
 import { staffCopy } from '@/config/staff-copy';
 import { errorMessageFor, patientsApi, type PatientsApiResult } from '@/lib/patients/client';
-import type { OpdDoctorsResponse, VisitPreview, VisitType, VisitView } from './types';
+import type {
+  OpdDoctorsResponse,
+  PaymentLinePayload,
+  VisitPreview,
+  VisitType,
+  VisitView,
+} from './types';
 
 /** Next route handlers that proxy the OPD API. Browsers never see tokens. */
 export const OPD_DOCTORS_API = '/api/staff/opd/doctors';
@@ -49,7 +55,12 @@ export function previewVisit(
 }
 
 export function createVisit(
-  choice: VisitChoice & { idempotencyKey: string; expectedTotalPaise: number },
+  choice: VisitChoice & {
+    idempotencyKey: string;
+    expectedTotalPaise: number;
+    /** Left out for a free visit (nothing to pay). */
+    payments?: PaymentLinePayload[];
+  },
 ): Promise<PatientsApiResult<VisitView>> {
   return patientsApi<VisitView>(OPD_VISITS_API, { method: 'POST', body: choice });
 }

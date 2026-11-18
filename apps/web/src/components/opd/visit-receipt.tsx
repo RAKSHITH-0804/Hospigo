@@ -44,7 +44,7 @@ export function VisitReceipt({ visit, hospitalName }: { visit: VisitView; hospit
 
   const payments = bill.payments ?? [];
   const lines = bill.lines ?? [];
-  // One receipt number per payment today (split payments will share one receipt later).
+  // A split payment is ONE receipt: all its payments carry the same number, shown once.
   const receiptNumbers = [...new Set(payments.map((p) => p.receiptNumber))];
 
   const rows: Array<[string, string]> = [

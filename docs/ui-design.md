@@ -124,3 +124,5 @@ Density tokens live in `globals.css` (control ~32px, body/label ~13/12px, card r
 - Money is shown from whole paise only (`config/money.ts`: `₹600.00`, Indian grouping); a fractional amount throws instead of being shown.
 
 - **Free repeat visit** (Step 4a rule): when the preview says `repeatVisitFree`, the bill box shows "Repeat visit with the same doctor inside the free period: no consultation fee." and the button reads "Create visit (nothing to pay)"; the receipt line says "Free repeat visit".
+
+- **Payment box** (Step 5a-1, New visit): one row pays the whole total with the default mode ("Take cash ₹600.00"). "Add payment mode" turns it into a split (UPI + cash ...): per row a mode, an amount in rupees and, for modes that need it, a reference no.; a line under the rows says "Still to collect: ₹300.00", "Entered ₹50.00 more than the total" or "Total covered". The button ("Take payment ₹600.00") stays disabled until the rows add up exactly. The receipt shows ONE receipt number and each mode with its amount.

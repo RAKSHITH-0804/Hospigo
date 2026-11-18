@@ -11,6 +11,8 @@ export const OPD_VISITS_CONFIG = {
   /** Characters allowed in an idempotency key (no spaces, no personal data). */
   idempotencyKeyPattern: /^[A-Za-z0-9._:-]+$/,
   paymentModeCodeMaxLength: 32,
+  /** Most payment lines (modes) one receipt can carry: UPI + cash + card + ... */
+  maxPaymentLines: 4,
   referenceMaxLength: 64,
   idMaxLength: 64,
   listDefaultPageSize: 20,

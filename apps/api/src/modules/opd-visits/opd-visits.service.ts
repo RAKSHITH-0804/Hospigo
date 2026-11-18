@@ -20,6 +20,8 @@ export type CreateVisitInput = {
   idempotencyKey: string;
   paymentModeCode?: string;
   referenceNo?: string;
+  /** Split payment: one line per mode; replaces paymentModeCode / referenceNo. */
+  payments?: Array<{ paymentModeCode: string; amountPaise: number; referenceNo?: string }>;
   expectedTotalPaise?: number;
 };
 
@@ -32,6 +34,7 @@ const VISIT_INCLUDE = {
   bills: {
     include: {
       lines: { orderBy: { lineNo: 'asc' } },
+      receipts: { orderBy: { createdAt: 'asc' } },
       payments: {
         orderBy: { paidAt: 'asc' },
         include: {
@@ -67,6 +70,8 @@ export type BillView = {
     lineTotalPaise: number;
     pricingNote: string | null;
   }>;
+  /** One entry per receipt (a split payment is ONE receipt with several payments). */
+  receipts?: Array<{ receiptNumber: string; totalPaise: number; issuedAt: string }>;
   payments?: Array<{
     id: string;
     receiptNumber: string;
@@ -145,6 +150,11 @@ function toBillView(bill: VisitRow['bills'][number], detail: boolean): BillView 
       lineTotalPaise: l.lineTotalPaise,
       pricingNote: l.pricingNote,
     })),
+    receipts: bill.receipts.map((r) => ({
+      receiptNumber: r.receiptNumber,
+      totalPaise: r.totalPaise,
+      issuedAt: r.createdAt.toISOString(),
+    })),
     payments: bill.payments.map((p) => ({
       id: p.id,
       receiptNumber: p.receipt.receiptNumber,
@@ -201,6 +211,34 @@ export class OpdVisitsService {
     private readonly tokens: TokenCounterService,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
+
+  // ------------------------------------------------------------------- payment modes
+
+  /**
+   * Active payment modes of the hospital for the "take payment" screen: code, name and whether a
+   * reference is needed (no ids). The default mode is listed first and named, with the most
+   * payment lines one receipt may carry, so the screen hardcodes none of it.
+   */
+  async listPaymentModes(actor: Actor) {
+    return this.tenantDb.withTenant(async (tx) => {
+      const rows = await tx.paymentMode.findMany({
+        where: { tenantId: actor.tenantId, active: true },
+        orderBy: { name: 'asc' },
+        select: { code: true, name: true, requiresReference: true },
+      });
+      const items = [
+        ...rows.filter((r) => r.code === C.defaultPaymentModeCode),
+        ...rows.filter((r) => r.code !== C.defaultPaymentModeCode),
+      ];
+      return {
+        items,
+        defaultCode: items.some((r) => r.code === C.defaultPaymentModeCode)
+          ? C.defaultPaymentModeCode
+          : (items[0]?.code ?? null),
+        maxLines: C.maxPaymentLines,
+      };
+    });
+  }
 
   // ----------------------------------------------------------------------------- doctors
 
@@ -270,13 +308,16 @@ export class OpdVisitsService {
       try {
         return await this.tenantDb.withTenant((tx) => this.createInTx(tx, input, actor));
       } catch (error) {
-        if (!isUniqueViolation(error)) {
-          throw error;
-        }
-        // Same key sent at the same moment (double click): the other request won, return its result.
+        // Same key sent at the same moment (double click): the other request won and has already
+        // committed, so return ITS result. This also covers a request that priced a moment after
+        // the other one charged the registration fee (its total no longer matched: PRICE_CHANGED
+        // or PAYMENT_SUM_MISMATCH) and not only a unique-key violation.
         const replay = await this.tenantDb.withTenant((tx) => this.replayInTx(tx, input, actor));
         if (replay) {
           return replay;
+        }
+        if (!isUniqueViolation(error)) {
+          throw error;
         }
         // Another visit of the same patient took the registration fee a moment before: retry once
         // so this request sees it and leaves the fee out.
@@ -311,6 +352,28 @@ export class OpdVisitsService {
       // The same key must never mean a different request.
       throw opdError(409, OpdErrorCode.IDEMPOTENCY_KEY_REUSED);
     }
+    if (input.payments !== undefined || input.paymentModeCode !== undefined) {
+      // ... nor a different way of paying (split lines or the single mode).
+      const stored = await tx.payment.findMany({
+        where: { tenantId: actor.tenantId, billId: bill.id },
+        select: { amountPaise: true, paymentMode: { select: { code: true } } },
+      });
+      const asKey = (rows: Array<{ code: string; amount?: number }>) =>
+        rows
+          .map((r) => `${r.code}:${r.amount ?? ''}`)
+          .sort()
+          .join('|');
+      const storedRows = stored.map((p) => ({ code: p.paymentMode.code, amount: p.amountPaise }));
+      const same =
+        input.payments !== undefined
+          ? asKey(
+              input.payments.map((p) => ({ code: p.paymentModeCode, amount: p.amountPaise })),
+            ) === asKey(storedRows)
+          : stored.length === 1 && storedRows[0]!.code === input.paymentModeCode;
+      if (!same) {
+        throw opdError(409, OpdErrorCode.IDEMPOTENCY_KEY_REUSED);
+      }
+    }
     const visit = await this.viewInTx(tx, actor, v.id, { withMoney: true, detail: true });
     return { replayed: true, visit };
   }
@@ -339,21 +402,8 @@ export class OpdVisitsService {
       });
     }
 
-    // ---- payment mode (only needed when money is due)
-    let modeId: string | null = null;
-    let modeCode: string | null = null;
-    if (totalPaise > 0) {
-      const code = input.paymentModeCode ?? C.defaultPaymentModeCode;
-      const mode = await tx.paymentMode.findFirst({ where: { tenantId, code, active: true } });
-      if (!mode) {
-        throw opdError(400, OpdErrorCode.PAYMENT_MODE_NOT_AVAILABLE);
-      }
-      if (mode.requiresReference && !(input.referenceNo ?? '').trim()) {
-        throw opdError(400, OpdErrorCode.REFERENCE_REQUIRED);
-      }
-      modeId = mode.id;
-      modeCode = mode.code;
-    }
+    // ---- payments (only needed when money is due): one or several modes, one receipt
+    const plan = await this.planPayments(tx, input, totalPaise, tenantId);
 
     // ---- write everything (numbers are taken on THIS transaction: a rollback leaves no gap)
     const billNumber = await this.allocateNumber(tx, tenantId, 'BILL', now);
@@ -422,36 +472,40 @@ export class OpdVisitsService {
       });
     }
 
-    let receiptNumber: string | null = null;
-    let paymentId: string | null = null;
-    if (totalPaise > 0 && modeId) {
+    const paid: Array<{ id: string; modeCode: string; amountPaise: number }> = [];
+    if (plan.length > 0) {
+      // ONE receipt (one number) for all payment lines of this bill.
       const receiptNo = await this.allocateNumber(tx, tenantId, 'RECEIPT', now);
-      receiptNumber = receiptNo.formatted;
       const receipt = await tx.receipt.create({
         data: {
           tenantId,
           billId: bill.id,
           branchId,
-          receiptNumber,
+          receiptNumber: receiptNo.formatted,
           totalPaise,
           issuedBy: userId,
           idempotencyKey: input.idempotencyKey,
         },
       });
-      const payment = await tx.payment.create({
-        data: {
-          tenantId,
-          billId: bill.id,
-          branchId,
-          receiptId: receipt.id,
-          paymentModeId: modeId,
-          amountPaise: totalPaise,
-          referenceNo: input.referenceNo?.trim() || null,
-          receivedBy: userId,
-          idempotencyKey: input.idempotencyKey,
-        },
-      });
-      paymentId = payment.id;
+      for (const [index, line] of plan.entries()) {
+        const payment = await tx.payment.create({
+          data: {
+            tenantId,
+            billId: bill.id,
+            branchId,
+            receiptId: receipt.id,
+            paymentModeId: line.modeId,
+            amountPaise: line.amountPaise,
+            referenceNo: line.referenceNo,
+            receivedBy: userId,
+            // The first line keeps the request key; later lines get a derived key that a
+            // caller's key can never equal (the key pattern has no '#').
+            idempotencyKey:
+              index === 0 ? input.idempotencyKey : `${input.idempotencyKey}#${index + 1}`,
+          },
+        });
+        paid.push({ id: payment.id, modeCode: line.modeCode, amountPaise: line.amountPaise });
+      }
     }
 
     // The bill is settled (paid, or a free follow-up): the visit joins the queue (the database
@@ -487,7 +541,7 @@ export class OpdVisitsService {
         },
       },
     });
-    if (paymentId) {
+    for (const p of paid) {
       await tx.auditLog.create({
         data: {
           tenantId,
@@ -495,14 +549,86 @@ export class OpdVisitsService {
           branchId,
           action: OPD_AUDIT.paymentReceived,
           entityType: 'payment',
-          entityId: paymentId,
-          metadata: { billId: bill.id, amountPaise: totalPaise, paymentModeCode: modeCode },
+          entityId: p.id,
+          metadata: {
+            billId: bill.id,
+            amountPaise: p.amountPaise,
+            paymentModeCode: p.modeCode,
+            paymentLines: paid.length,
+          },
         },
       });
     }
 
     const view = await this.viewInTx(tx, actor, visit.id, { withMoney: true, detail: true });
     return { replayed: false, visit: view };
+  }
+
+  /**
+   * The payment lines of this request, checked: one line (the old single mode, default CASH) or a
+   * split list that adds up EXACTLY to the total. Nothing is taken from the request that the
+   * database does not check again (sum, one mode once per receipt).
+   */
+  private async planPayments(
+    tx: TenantTx,
+    input: CreateVisitInput,
+    totalPaise: number,
+    tenantId: string,
+  ): Promise<
+    Array<{
+      modeId: string;
+      modeCode: string;
+      amountPaise: number;
+      referenceNo: string | null;
+    }>
+  > {
+    if (
+      input.payments !== undefined &&
+      (input.paymentModeCode !== undefined || input.referenceNo !== undefined)
+    ) {
+      throw opdError(400, OpdErrorCode.PAYMENT_FIELDS_CONFLICT);
+    }
+    if (totalPaise === 0) {
+      // A free visit takes no money: a payment list for it is a mistake, not something to ignore.
+      if (input.payments !== undefined) {
+        throw opdError(400, OpdErrorCode.PAYMENT_NOT_EXPECTED);
+      }
+      return [];
+    }
+    const requested = input.payments ?? [
+      {
+        paymentModeCode: input.paymentModeCode ?? C.defaultPaymentModeCode,
+        amountPaise: totalPaise,
+        referenceNo: input.referenceNo,
+      },
+    ];
+    const codes = requested.map((r) => r.paymentModeCode);
+    if (new Set(codes).size !== codes.length) {
+      throw opdError(400, OpdErrorCode.PAYMENT_MODE_DUPLICATE);
+    }
+    const paidPaise = requested.reduce((sum, r) => sum + r.amountPaise, 0);
+    if (paidPaise !== totalPaise) {
+      throw opdError(400, OpdErrorCode.PAYMENT_SUM_MISMATCH, { totalPaise, paidPaise });
+    }
+    const plan = [];
+    for (const r of requested) {
+      const mode = await tx.paymentMode.findFirst({
+        where: { tenantId, code: r.paymentModeCode, active: true },
+      });
+      if (!mode) {
+        throw opdError(400, OpdErrorCode.PAYMENT_MODE_NOT_AVAILABLE);
+      }
+      if (mode.requiresReference && !(r.referenceNo ?? '').trim()) {
+        throw opdError(400, OpdErrorCode.REFERENCE_REQUIRED);
+      }
+      plan.push({
+        modeId: mode.id,
+        modeCode: mode.code,
+        amountPaise: r.amountPaise,
+        referenceNo: r.referenceNo?.trim() || null,
+      });
+    }
+    return plan;
   }
 
   // ------------------------------------------------------------------------ pricing

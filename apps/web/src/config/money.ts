@@ -51,3 +51,26 @@ export function formatPaise(paise: number): string {
   const fraction = String(minor).padStart(moneyConfig.fractionDigits, '0');
   return `${negative ? '-' : ''}${currencySymbol()}${grouped}${decimalSeparator()}${fraction}`;
 }
+
+/** Rupees as typed ("300", "300.5", "300.50") to whole paise; null for anything else. */
+const RUPEES_TEXT = /^(\d{1,9})(?:\.(\d{1,2}))?$/;
+
+export function parseRupeesToPaise(text: string): number | null {
+  const match = RUPEES_TEXT.exec(text.trim());
+  if (!match) {
+    return null;
+  }
+  const major = Number(match[1]);
+  const minor = Number((match[2] ?? '').padEnd(moneyConfig.fractionDigits, '0'));
+  return major * moneyConfig.minorPerMajor + minor;
+}
+
+/** 60000 -> "600.00" (plain digits for an input box; no symbol, no grouping). */
+export function paiseToRupeesText(paise: number): string {
+  if (!Number.isSafeInteger(paise) || paise < 0) {
+    throw new Error('Money must be a whole, non-negative number of paise');
+  }
+  const minor = paise % moneyConfig.minorPerMajor;
+  const major = (paise - minor) / moneyConfig.minorPerMajor;
+  return `${major}.${String(minor).padStart(moneyConfig.fractionDigits, '0')}`;
+}
