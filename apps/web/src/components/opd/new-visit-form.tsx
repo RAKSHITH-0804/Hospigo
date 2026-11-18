@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
+import { PaymentLines } from '@/components/opd/payment-lines';
 import { EmptyState } from '@/components/states/empty-state';
-import { formatPaise } from '@/config/money';
+import { formatPaise, paiseToRupeesText } from '@/config/money';
 import { staffCopy } from '@/config/staff-copy';
 import {
   createVisit,
@@ -17,7 +18,14 @@ import {
   previewVisit,
   visitReceiptPath,
 } from '@/lib/opd/client';
-import type { OpdDoctor, PreviewLine, VisitPreview, VisitType } from '@/lib/opd/types';
+import { planPayments, type PaymentDraft } from '@/lib/opd/payment-plan';
+import type {
+  OpdDoctor,
+  PaymentModesResponse,
+  PreviewLine,
+  VisitPreview,
+  VisitType,
+} from '@/lib/opd/types';
 import { ABORTED_CODE } from '@/lib/patients/client';
 import { EMPTY_VALUE } from '@/lib/patients/format';
 import { cn } from '@/lib/utils';
@@ -47,18 +55,21 @@ function feeFor(doctor: OpdDoctor, type: VisitType): string {
 }
 
 /**
- * Reception: create a visit for one patient, bill it and take cash, in one step.
+ * Reception: create a visit for one patient, bill it and take payment, in one step.
  * The amount always comes from the server (preview); the click sends the total that was shown
  * and the server refuses if it changed. One idempotency key per attempt: kept while the same
  * choice is retried, replaced when the choice (or the total) changes, so a double click or a
- * retry after a network error can never bill twice.
+ * retry after a network error can never bill twice. The payment box can split the total over
+ * several modes (UPI 300 + cash 200): one receipt, and any change to the rows is a new choice.
  */
 export function NewVisitForm({
   patient,
   doctors,
+  paymentModes,
 }: {
   patient: { id: string; name: string; uhid: string };
   doctors: OpdDoctor[];
+  paymentModes: Omit<PaymentModesResponse, 'defaultCode'> & { defaultCode: string };
 }) {
   const router = useRouter();
   const [doctorId, setDoctorId] = useState<string | null>(null);
@@ -69,11 +80,26 @@ export function NewVisitForm({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const keyRef = useRef<string | null>(null);
   const inFlightRef = useRef(false);
+  const nextRowId = useRef(1);
+  const freshRow = useCallback(
+    (): PaymentDraft => ({
+      id: nextRowId.current++,
+      modeCode: paymentModes.defaultCode,
+      amountText: '',
+      reference: '',
+    }),
+    [paymentModes.defaultCode],
+  );
+  const [rows, setRows] = useState<PaymentDraft[]>(() => [
+    { id: 0, modeCode: paymentModes.defaultCode, amountText: '', reference: '' },
+  ]);
 
   // Price preview for the current choice. A new choice always means a new key.
   useEffect(() => {
     keyRef.current = null;
     setSubmitError(null);
+    // A new choice (or a new total) starts from one payment row again.
+    setRows([freshRow()]);
     if (!doctorId) {
       setPreview({ status: 'idle' });
       return;
@@ -94,10 +120,53 @@ export function NewVisitForm({
       );
     });
     return () => controller.abort();
-  }, [patient.id, doctorId, visitType, reloadTick]);
+  }, [patient.id, doctorId, visitType, reloadTick, freshRow]);
 
-  async function takeCash() {
+  /** Every change of the payment rows is a new request: it gets a new idempotency key. */
+  function changeRows(update: (current: PaymentDraft[]) => PaymentDraft[]) {
+    keyRef.current = null;
+    setSubmitError(null);
+    setRows(update);
+  }
+
+  function addRow() {
+    changeRows((current) => {
+      const unused = paymentModes.items.find((m) => !current.some((r) => r.modeCode === m.code));
+      if (!unused || current.length >= paymentModes.maxLines || !ready) {
+        return current;
+      }
+      if (current.length === 1) {
+        // Becoming a split: the first row shows the whole total to be cut down.
+        return [
+          { ...current[0]!, amountText: paiseToRupeesText(ready.totalPaise) },
+          { ...freshRow(), modeCode: unused.code },
+        ];
+      }
+      const left = plan.remainingPaise;
+      return [
+        ...current,
+        {
+          ...freshRow(),
+          modeCode: unused.code,
+          amountText: left > 0 ? paiseToRupeesText(left) : '',
+        },
+      ];
+    });
+  }
+
+  function removeRow(id: number) {
+    changeRows((current) => {
+      const next = current.filter((r) => r.id !== id);
+      // Back to one row: it pays the whole total again, no amount to type.
+      return next.length === 1 ? [{ ...next[0]!, amountText: '' }] : next;
+    });
+  }
+
+  async function submit() {
     if (preview.status !== 'ready' || !doctorId || inFlightRef.current) {
+      return;
+    }
+    if (preview.data.totalPaise > 0 && !plan.ok) {
       return;
     }
     inFlightRef.current = true;
@@ -110,6 +179,8 @@ export function NewVisitForm({
       visitType,
       idempotencyKey: key,
       expectedTotalPaise: preview.data.totalPaise,
+      // A free visit sends no payment at all (the API refuses a list for it).
+      ...(preview.data.totalPaise > 0 ? { payments: plan.payments } : {}),
     });
     if (result.ok) {
       router.push(visitReceiptPath(result.data.id));
@@ -127,12 +198,18 @@ export function NewVisitForm({
 
   const patientPath = `/app/patients/${encodeURIComponent(patient.id)}`;
   const ready = preview.status === 'ready' ? preview.data : null;
+  const plan = planPayments(rows, paymentModes.items, ready?.totalPaise ?? 0);
+  const cashOnly = rows.length === 1 && rows[0]!.modeCode === paymentModes.defaultCode;
   const payLabel =
     ready === null
       ? ''
       : ready.totalPaise > 0
-        ? copy.takeCash.replace('{amount}', formatPaise(ready.totalPaise))
+        ? (cashOnly ? copy.takeCash : copy.takePayment).replace(
+            '{amount}',
+            formatPaise(ready.totalPaise),
+          )
         : copy.createFree;
+  const payBlocked = ready !== null && ready.totalPaise > 0 && !plan.ok;
 
   return (
     <div className="flex flex-col gap-[var(--space-3)]">
@@ -284,6 +361,33 @@ export function NewVisitForm({
                   ) : null}
                 </>
               ) : null}
+              {ready && ready.totalPaise > 0 ? (
+                <PaymentLines
+                  modes={paymentModes.items}
+                  maxLines={paymentModes.maxLines}
+                  drafts={rows}
+                  remainingPaise={plan.remainingPaise}
+                  complete={plan.ok}
+                  disabled={submitting}
+                  onMode={(id, code) =>
+                    changeRows((cur) =>
+                      cur.map((r) => (r.id === id ? { ...r, modeCode: code } : r)),
+                    )
+                  }
+                  onAmount={(id, text) =>
+                    changeRows((cur) =>
+                      cur.map((r) => (r.id === id ? { ...r, amountText: text } : r)),
+                    )
+                  }
+                  onReference={(id, text) =>
+                    changeRows((cur) =>
+                      cur.map((r) => (r.id === id ? { ...r, reference: text } : r)),
+                    )
+                  }
+                  onAdd={addRow}
+                  onRemove={removeRow}
+                />
+              ) : null}
               {submitError ? (
                 <p role="alert" className="type-label text-destructive">
                   {submitError}
@@ -293,9 +397,9 @@ export function NewVisitForm({
                 <Button
                   type="button"
                   className="touch-target"
-                  disabled={ready === null || submitting}
+                  disabled={ready === null || submitting || payBlocked}
                   aria-busy={submitting}
-                  onClick={() => void takeCash()}
+                  onClick={() => void submit()}
                 >
                   {submitting ? copy.saving : payLabel || copy.takeCash.replace('{amount}', '')}
                 </Button>

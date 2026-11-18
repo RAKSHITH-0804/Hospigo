@@ -57,6 +57,14 @@ const NO_PERMISSION = 'REDIRECT:/app?notice=no-permission';
 const idParams = { params: Promise.resolve({ id: 'p1' }) };
 const patient = { id: 'p1', uhid: 'U1', name: 'Mock Alpha', phone: '+919876543210' };
 const doctors = { items: [{ id: 'd1', name: 'Dr Meena' }] };
+const modes = {
+  items: [
+    { code: 'CASH', name: 'Cash', requiresReference: false },
+    { code: 'UPI', name: 'UPI', requiresReference: true },
+  ],
+  defaultCode: 'CASH',
+  maxLines: 4,
+};
 
 function session(permissions: string[]) {
   return { id: 'u1', kind: 'HOSPITAL', hospitalName: 'Demo Hospital One', permissions };
@@ -90,17 +98,23 @@ describe('OPD pages (server)', () => {
     it('fetches the patient and the doctors together and passes only what the form needs', async () => {
       requireKindMock.mockResolvedValue(session(['opd.visits.create', 'opd.billing.collect']));
       fetchMock.mockImplementation(async (path: string) =>
-        path === '/opd/doctors' ? ok(doctors) : ok(patient),
+        path === '/opd/payment-modes'
+          ? ok(modes)
+          : path === '/opd/doctors'
+            ? ok(doctors)
+            : ok(patient),
       );
       render(await NewVisitPage(idParams));
       expect(fetchMock.mock.calls.map((c) => c[0]).sort()).toEqual([
         '/opd/doctors',
+        '/opd/payment-modes',
         '/patients/p1',
       ]);
       const props = propsOf('new-visit-form');
       expect(props).toEqual({
         patient: { id: 'p1', name: 'Mock Alpha', uhid: 'U1' },
         doctors: doctors.items,
+        paymentModes: modes,
       });
       // Phone and other personal fields never reach the client form.
       expect(JSON.stringify(props)).not.toContain('9876543210');
@@ -109,25 +123,77 @@ describe('OPD pages (server)', () => {
     it('patient not found, patient error and doctors error show calm messages', async () => {
       requireKindMock.mockResolvedValue(session(['opd.visits.create', 'opd.billing.collect']));
       fetchMock.mockImplementation(async (path: string) =>
-        path === '/opd/doctors' ? ok(doctors) : { status: 'notFound' },
+        path === '/opd/payment-modes'
+          ? ok(modes)
+          : path === '/opd/doctors'
+            ? ok(doctors)
+            : { status: 'notFound' },
       );
       const first = render(await NewVisitPage(idParams));
       expect(screen.getByText(staffCopy.patients.record.notFoundTitle)).toBeTruthy();
       first.unmount();
 
       fetchMock.mockImplementation(async (path: string) =>
-        path === '/opd/doctors' ? ok(doctors) : { status: 'error', code: 'UNAVAILABLE' },
+        path === '/opd/payment-modes'
+          ? ok(modes)
+          : path === '/opd/doctors'
+            ? ok(doctors)
+            : { status: 'error', code: 'UNAVAILABLE' },
       );
       const second = render(await NewVisitPage(idParams));
       expect(screen.getByRole('alert').textContent).toBe(staffCopy.errors.unreachable);
       second.unmount();
 
       fetchMock.mockImplementation(async (path: string) =>
-        path === '/opd/doctors' ? { status: 'forbidden' } : ok(patient),
+        path === '/opd/payment-modes'
+          ? ok(modes)
+          : path === '/opd/doctors'
+            ? { status: 'forbidden' }
+            : ok(patient),
       );
       render(await NewVisitPage(idParams));
       expect(screen.getByText(staffCopy.opd.newVisit.doctorsErrorTitle)).toBeTruthy();
       expect(screen.getByRole('alert').textContent).toBe(staffCopy.errors.forbidden);
+    });
+  });
+
+  describe('new visit page, payment modes', () => {
+    const open = () =>
+      requireKindMock.mockResolvedValue(session(['opd.visits.create', 'opd.billing.collect']));
+
+    it('a failed payment-modes fetch shows a calm message instead of the form', async () => {
+      open();
+      fetchMock.mockImplementation(async (path: string) =>
+        path === '/opd/payment-modes'
+          ? { status: 'forbidden' }
+          : path === '/opd/doctors'
+            ? ok(doctors)
+            : ok(patient),
+      );
+      render(await NewVisitPage(idParams));
+      expect(screen.getByText(staffCopy.opd.newVisit.paymentModesErrorTitle)).toBeTruthy();
+      expect(screen.getByRole('alert').textContent).toBe(staffCopy.errors.forbidden);
+      expect(screen.queryByTestId('new-visit-form')).toBeNull();
+    });
+
+    it('no active payment mode means no form (nothing could be collected)', async () => {
+      open();
+      for (const empty of [
+        { items: [], defaultCode: null, maxLines: 4 },
+        { items: modes.items, defaultCode: null, maxLines: 4 },
+      ]) {
+        fetchMock.mockImplementation(async (path: string) =>
+          path === '/opd/payment-modes'
+            ? ok(empty)
+            : path === '/opd/doctors'
+              ? ok(doctors)
+              : ok(patient),
+        );
+        const view = render(await NewVisitPage(idParams));
+        expect(screen.getByText(staffCopy.opd.newVisit.noPaymentModes)).toBeTruthy();
+        expect(screen.queryByTestId('new-visit-form')).toBeNull();
+        view.unmount();
+      }
     });
   });
 

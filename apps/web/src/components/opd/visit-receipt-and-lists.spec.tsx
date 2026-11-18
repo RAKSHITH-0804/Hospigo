@@ -171,6 +171,35 @@ describe('VisitReceipt', () => {
     expect(screen.queryByText(copy.freeFollowUp)).toBeNull();
   });
 
+  it('a split payment shows ONE receipt number and each mode with its amount', () => {
+    const split: BillView = {
+      ...bill,
+      payments: [
+        {
+          ...bill.payments![0]!,
+          id: 'pa',
+          receiptNumber: '2627/00042',
+          amountPaise: 20_000,
+          paymentMode: { code: 'UPI', name: 'UPI' },
+          referenceNo: 'UTR-9',
+        },
+        {
+          ...bill.payments![0]!,
+          id: 'pb',
+          receiptNumber: '2627/00042',
+          amountPaise: bill.totalPaise - 20_000,
+          paymentMode: { code: 'CASH', name: 'Cash' },
+          referenceNo: null,
+        },
+      ],
+    };
+    render(<VisitReceipt visit={visit({ bill: split })} hospitalName="Demo" />);
+    expect(screen.getAllByText('2627/00042')).toHaveLength(1);
+    expect(screen.getByText(`${copy.mode}: UPI · ${copy.reference}: UTR-9`)).toBeTruthy();
+    expect(screen.getByText(`${copy.mode}: Cash`)).toBeTruthy();
+    expect(screen.getAllByText(formatPaise(20_000)).length).toBeGreaterThan(0);
+  });
+
   it('shows a payment reference when there is one', () => {
     const upi: BillView = {
       ...bill,

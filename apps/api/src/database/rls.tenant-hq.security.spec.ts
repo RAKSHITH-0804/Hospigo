@@ -669,25 +669,37 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
       const fee = await tx.patientRegistrationFee.create({
         data: { tenantId: tenantB, patientId: sampleB.patients!, billLineId: regLine.id },
       });
-      const payment = await tx.payment.create({
+      const receipt = await tx.receipt.create({
         data: {
           tenantId: tenantB,
           billId: bill.id,
           branchId: branchB,
           receiptNumber: `ISO_RCPT_${stamp}`,
+          totalPaise: 1100,
+          issuedBy: sampleB.users!,
+          idempotencyKey: `ISO_RCPT_KEY_${stamp}`,
+        },
+      });
+      const payment = await tx.payment.create({
+        data: {
+          tenantId: tenantB,
+          billId: bill.id,
+          branchId: branchB,
+          receiptId: receipt.id,
           paymentModeId: sampleB.payment_modes!,
           amountPaise: 1100,
           receivedBy: sampleB.users!,
           idempotencyKey: `ISO_PAY_KEY_${stamp}`,
         },
       });
-      return { visit, bill, regLine, fee, payment };
+      return { visit, bill, regLine, fee, payment, receipt };
     });
     sampleB.opd_visits = money.visit.id;
     sampleB.bills = money.bill.id;
     sampleB.bill_lines = money.regLine.id;
     sampleB.patient_registration_fees = money.fee.id;
     sampleB.payments = money.payment.id;
+    sampleB.receipts = money.receipt.id;
     const ledgerRow = await prisma.ledgerEntry.findFirstOrThrow({ where: { tenantId: tenantB } });
     sampleB.ledger_entries = ledgerRow.id;
   });

@@ -21,6 +21,7 @@ const MONEY_TABLES = [
   'bills',
   'bill_lines',
   'payments',
+  'receipts',
   'ledger_entries',
   'patient_registration_fees',
 ] as const;
@@ -116,7 +117,7 @@ describe('OPD visits and money (database rules, hospigo_test)', () => {
     const upi = await mode('UPI', true);
     const oldMode = await mode('OLD', false, false);
     const patients: string[] = [];
-    for (let i = 0; i < 12; i += 1) {
+    for (let i = 0; i < 40; i += 1) {
       const p = await owner.patient.create({
         data: {
           tenantId: tenant,
@@ -339,25 +340,65 @@ describe('OPD visits and money (database rules, hospigo_test)', () => {
       mode?: string;
       reference?: string | null;
       key?: string;
+      /** receipt NUMBER for the receipt this call creates */
       receipt?: string;
+      /** attach to an existing receipt (split payment) instead of creating one */
+      receiptId?: string;
+      /** total of the receipt this call creates (default: this payment's amount) */
+      receiptTotal?: number;
     },
   ): Promise<string> {
+    const branch = o.branch ?? o.f.mainBranch;
+    let receiptId = o.receiptId;
+    if (!receiptId) {
+      receiptId = await newReceipt(c, {
+        f: o.f,
+        bill: o.bill,
+        branch,
+        total: o.receiptTotal ?? o.amount,
+        number: o.receipt,
+      });
+    }
     const id = randomUUID();
     await c.query(
-      `INSERT INTO payments (id, tenant_id, bill_id, branch_id, receipt_number, payment_mode_id,
+      `INSERT INTO payments (id, tenant_id, bill_id, branch_id, receipt_id, payment_mode_id,
                              amount_paise, reference_no, received_by, idempotency_key)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [
         id,
         o.f.tenant,
         o.bill,
-        o.branch ?? o.f.mainBranch,
-        o.receipt ?? unique('RCPT'),
+        branch,
+        receiptId,
         o.mode ?? o.f.cash,
         o.amount,
         o.reference ?? null,
         o.f.user,
         o.key ?? unique('PK'),
+      ],
+    );
+    return id;
+  }
+
+  /** A receipt row (the payments of it must be inserted in the same transaction). */
+  async function newReceipt(
+    c: Client,
+    o: { f: Fixture; bill: string; branch?: string; total: number; number?: string },
+  ): Promise<string> {
+    const id = randomUUID();
+    await c.query(
+      `INSERT INTO receipts (id, tenant_id, branch_id, bill_id, receipt_number, total_paise,
+                             issued_by, idempotency_key)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        id,
+        o.f.tenant,
+        o.branch ?? o.f.mainBranch,
+        o.bill,
+        o.number ?? unique('RCPT'),
+        o.total,
+        o.f.user,
+        unique('RK'),
       ],
     );
     return id;
@@ -949,6 +990,260 @@ describe('OPD visits and money (database rules, hospigo_test)', () => {
     });
   });
 
+  // ------------------------------------------------------------- split payment, one receipt
+
+  describe('split payment: one receipt covers several payments (Step 5a-1)', () => {
+    const receiptRows = (f: Fixture, bill: string) =>
+      asOwner(
+        async (c) =>
+          (
+            await c.query<{ id: string; receipt_number: string; total_paise: number }>(
+              `SELECT id, receipt_number, total_paise FROM receipts WHERE tenant_id = $1 AND bill_id = $2`,
+              [f.tenant, bill],
+            )
+          ).rows,
+      );
+    const paymentRows = (f: Fixture, bill: string) =>
+      asOwner(
+        async (c) =>
+          (
+            await c.query<{ receipt_id: string; amount_paise: number }>(
+              `SELECT receipt_id, amount_paise FROM payments WHERE tenant_id = $1 AND bill_id = $2 ORDER BY amount_paise`,
+              [f.tenant, bill],
+            )
+          ).rows,
+      );
+
+    it('UPI 300 + cash 200 on a bill of 500 = ONE receipt, two payments, two ledger entries, bill PAID', async () => {
+      const made = await inTenant(A.tenant, (c) =>
+        newBill(c, { f: A, patient: patientFor(A), fee: 50_000 }),
+      );
+      await inTenant(A.tenant, async (c) => {
+        const receipt = await newReceipt(c, { f: A, bill: made.bill, total: 50_000 });
+        await pay(c, {
+          f: A,
+          bill: made.bill,
+          amount: 30_000,
+          mode: A.upi,
+          reference: 'UTR-1',
+          receiptId: receipt,
+        });
+        await pay(c, { f: A, bill: made.bill, amount: 20_000, receiptId: receipt });
+      });
+      const receipts = await receiptRows(A, made.bill);
+      expect(receipts).toHaveLength(1);
+      expect(receipts[0]!.total_paise).toBe(50_000);
+      const payments = await paymentRows(A, made.bill);
+      expect(payments.map((p) => p.amount_paise)).toEqual([20_000, 30_000]);
+      expect(new Set(payments.map((p) => p.receipt_id))).toEqual(new Set([receipts[0]!.id]));
+      expect(await billState(A, made.bill)).toEqual({
+        paid: 50_000,
+        refunded: 0,
+        status: 'PAID',
+        total: 50_000,
+      });
+      const ledger = (await ledgerOf(A, made.bill)).filter((r) => r.entry_type === 'PAYMENT');
+      expect(ledger.map((r) => r.amount_paise).sort((a, b) => a - b)).toEqual([20_000, 30_000]);
+    });
+
+    it('a receipt must equal the sum of its payments at commit (too small, too big, or no payment at all)', async () => {
+      const make = () =>
+        inTenant(A.tenant, (c) => newBill(c, { f: A, patient: patientFor(A), fee: 50_000 }));
+      // receipt says 500 but the payments are only 300
+      const a = await make();
+      await expect(
+        inTenant(A.tenant, async (c) => {
+          const r = await newReceipt(c, { f: A, bill: a.bill, total: 50_000 });
+          await pay(c, { f: A, bill: a.bill, amount: 30_000, receiptId: r });
+        }),
+      ).rejects.toThrow(/sum of its payments/i);
+      // receipt says 300 but the payments add up to 500
+      const b = await make();
+      await expect(
+        inTenant(A.tenant, async (c) => {
+          const r = await newReceipt(c, { f: A, bill: b.bill, total: 30_000 });
+          await pay(c, {
+            f: A,
+            bill: b.bill,
+            amount: 30_000,
+            mode: A.upi,
+            reference: 'U',
+            receiptId: r,
+          });
+          await pay(c, { f: A, bill: b.bill, amount: 20_000, receiptId: r });
+        }),
+      ).rejects.toThrow(/sum of its payments/i);
+      // a receipt with no payment
+      const d = await make();
+      await expect(
+        inTenant(A.tenant, (c) => newReceipt(c, { f: A, bill: d.bill, total: 50_000 })),
+      ).rejects.toThrow(/sum of its payments/i);
+      for (const m of [a, b, d]) {
+        expect(await receiptRows(A, m.bill)).toHaveLength(0);
+        expect(await paymentRows(A, m.bill)).toHaveLength(0);
+        expect(await billState(A, m.bill)).toMatchObject({ paid: 0, status: 'UNPAID' });
+      }
+    });
+
+    it('one payment mode at most once per receipt; a payment on a receipt of ANOTHER bill is refused', async () => {
+      const x = await inTenant(A.tenant, (c) =>
+        newBill(c, { f: A, patient: patientFor(A), fee: 50_000 }),
+      );
+      await expect(
+        inTenant(A.tenant, async (c) => {
+          const r = await newReceipt(c, { f: A, bill: x.bill, total: 50_000 });
+          await pay(c, { f: A, bill: x.bill, amount: 30_000, receiptId: r });
+          await pay(c, { f: A, bill: x.bill, amount: 20_000, receiptId: r });
+        }),
+      ).rejects.toThrow(/payments_receipt_mode_key|duplicate key/i);
+      const y = await inTenant(A.tenant, (c) =>
+        newBill(c, { f: A, patient: patientFor(A), fee: 50_000 }),
+      );
+      const z = await inTenant(A.tenant, (c) =>
+        newBill(c, { f: A, patient: patientFor(A), fee: 50_000 }),
+      );
+      await expect(
+        inTenant(A.tenant, async (c) => {
+          const r = await newReceipt(c, { f: A, bill: y.bill, total: 50_000 });
+          await pay(c, { f: A, bill: z.bill, amount: 50_000, receiptId: r });
+        }),
+      ).rejects.toThrow(/payments_receipt_fkey|foreign key/i);
+    });
+
+    it('a payment can NOT be added to a receipt that was already issued (a later payment needs its own receipt)', async () => {
+      const made = await inTenant(A.tenant, (c) =>
+        newBill(c, { f: A, patient: patientFor(A), fee: 100_000 }),
+      );
+      // Receipt of 500 on a bill of 1000: room is left on the bill.
+      const receipt = await inTenant(A.tenant, async (c) => {
+        const r = await newReceipt(c, { f: A, bill: made.bill, total: 50_000 });
+        await pay(c, { f: A, bill: made.bill, amount: 50_000, receiptId: r });
+        return r;
+      });
+      // A second transaction tries to slip another payment onto the same receipt.
+      await expect(
+        inTenant(A.tenant, (c) =>
+          pay(c, {
+            f: A,
+            bill: made.bill,
+            amount: 30_000,
+            mode: A.upi,
+            reference: 'LATE',
+            receiptId: receipt,
+          }),
+        ),
+      ).rejects.toThrow(/sum of its payments/i);
+      expect(await billState(A, made.bill)).toMatchObject({ paid: 50_000, status: 'PART_PAID' });
+      // The rest of the bill is paid with a NEW receipt.
+      await inTenant(A.tenant, (c) => pay(c, { f: A, bill: made.bill, amount: 50_000 }));
+      expect(await receiptRows(A, made.bill)).toHaveLength(2);
+      expect(await billState(A, made.bill)).toMatchObject({ paid: 100_000, status: 'PAID' });
+    });
+
+    it('a receipt in another branch than its bill is refused', async () => {
+      const made = await inTenant(A.tenant, (c) =>
+        newBill(c, { f: A, patient: patientFor(A), fee: 10_000 }),
+      );
+      await expect(
+        inTenant(A.tenant, (c) =>
+          newReceipt(c, { f: A, bill: made.bill, branch: A.eastBranch, total: 10_000 }),
+        ),
+      ).rejects.toThrow(/receipts_bill_fkey|foreign key/i);
+    });
+
+    it('receipts are append-only, even for the owner; the app role cannot change or delete them', async () => {
+      const made = await inTenant(A.tenant, (c) =>
+        newBill(c, { f: A, patient: patientFor(A), fee: 10_000 }),
+      );
+      await inTenant(A.tenant, (c) => pay(c, { f: A, bill: made.bill, amount: 10_000 }));
+      const [receipt] = await receiptRows(A, made.bill);
+      await asOwner(async (c) => {
+        await expect(
+          c.query(`UPDATE receipts SET total_paise = 1 WHERE id = $1`, [receipt!.id]),
+        ).rejects.toThrow(/append-only/i);
+        await expect(c.query(`DELETE FROM receipts WHERE id = $1`, [receipt!.id])).rejects.toThrow(
+          /append-only/i,
+        );
+        await expect(c.query(`TRUNCATE receipts`)).rejects.toThrow(/append-only|truncate/i);
+      });
+      await inTenant(A.tenant, async (c) => {
+        await expect(
+          c.query(`UPDATE receipts SET total_paise = 1 WHERE id = $1`, [receipt!.id]),
+        ).rejects.toThrow(/permission denied|append-only/i);
+      });
+    });
+
+    it('the receipt number is unique per hospital; another hospital may use the same number', async () => {
+      const m1 = await inTenant(A.tenant, (c) =>
+        newBill(c, { f: A, patient: patientFor(A), fee: 10_000 }),
+      );
+      const m2 = await inTenant(A.tenant, (c) =>
+        newBill(c, { f: A, patient: patientFor(A), fee: 10_000 }),
+      );
+      const number = unique('RN');
+      await inTenant(A.tenant, (c) =>
+        pay(c, { f: A, bill: m1.bill, amount: 10_000, receipt: number }),
+      );
+      await expect(
+        inTenant(A.tenant, (c) => pay(c, { f: A, bill: m2.bill, amount: 10_000, receipt: number })),
+      ).rejects.toThrow(/receipts_tenant_id_receipt_number_key|duplicate key/i);
+      const other = await inTenant(B.tenant, (c) =>
+        newBill(c, { f: B, patient: patientFor(B), fee: 10_000 }),
+      );
+      await inTenant(B.tenant, (c) =>
+        pay(c, { f: B, bill: other.bill, amount: 10_000, receipt: number }),
+      );
+    });
+
+    it('another hospital cannot add a receipt to this hospital\'s bill (same "bill not found" as an unknown bill)', async () => {
+      const made = await inTenant(A.tenant, (c) =>
+        newBill(c, { f: A, patient: patientFor(A), fee: 10_000 }),
+      );
+      const own = await inTenant(B.tenant, (c) =>
+        newReceipt(c, { f: B, bill: made.bill, total: 10_000 }),
+      ).catch((e: Error) => e.message);
+      const unknown = await inTenant(B.tenant, (c) =>
+        newReceipt(c, { f: B, bill: randomUUID(), total: 10_000 }),
+      ).catch((e: Error) => e.message);
+      expect(String(own)).toMatch(/bill not found/i);
+      expect(String(own)).toBe(String(unknown));
+      const forged = await inTenant(B.tenant, (c) =>
+        newReceipt(c, { f: A, bill: made.bill, total: 10_000 }),
+      ).catch((e: Error) => e.message);
+      expect(String(forged)).toMatch(/tenant mismatch/i);
+    });
+
+    it('PARALLEL split receipts on one bill: exactly one wins, no deadlock, no overpayment', async () => {
+      const made = await inTenant(A.tenant, (c) =>
+        newBill(c, { f: A, patient: patientFor(A), fee: 50_000 }),
+      );
+      const results = await Promise.allSettled(
+        Array.from({ length: 8 }, () =>
+          inTenant(A.tenant, async (c) => {
+            const r = await newReceipt(c, { f: A, bill: made.bill, total: 50_000 });
+            await pay(c, {
+              f: A,
+              bill: made.bill,
+              amount: 30_000,
+              mode: A.upi,
+              reference: 'U',
+              receiptId: r,
+            });
+            await pay(c, { f: A, bill: made.bill, amount: 20_000, receiptId: r });
+          }),
+        ),
+      );
+      const failed = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+      for (const f of failed) {
+        expect(String(f.reason)).toMatch(/exceeds/i);
+        expect(String(f.reason)).not.toMatch(/deadlock/i);
+      }
+      expect(await receiptRows(A, made.bill)).toHaveLength(1);
+      expect(await billState(A, made.bill)).toMatchObject({ paid: 50_000, status: 'PAID' });
+    });
+  });
+
   // ---------------------------------------------------------------------------------- visits
 
   describe('visits, queue gate and tokens', () => {
@@ -1401,12 +1696,23 @@ describe('OPD visits and money (database rules, hospigo_test)', () => {
               lineTotalPaise: CONSULTATION_FEE,
             },
           });
-          await tx.payment.create({
+          const receipt = await tx.receipt.create({
             data: {
               tenantId: A.tenant,
               billId: bill.id,
               branchId: A.mainBranch,
               receiptNumber: unique('PR'),
+              totalPaise: CONSULTATION_FEE,
+              issuedBy: A.user,
+              idempotencyKey: unique('PRK'),
+            },
+          });
+          await tx.payment.create({
+            data: {
+              tenantId: A.tenant,
+              billId: bill.id,
+              branchId: A.mainBranch,
+              receiptId: receipt.id,
               paymentModeId: A.cash,
               amountPaise: CONSULTATION_FEE,
               receivedBy: A.user,

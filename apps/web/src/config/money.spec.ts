@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { formatPaise } from './money';
+import { formatPaise, paiseToRupeesText, parseRupeesToPaise } from './money';
 
 describe('formatPaise (whole paise only, integer arithmetic)', () => {
   it.each([
@@ -41,5 +41,54 @@ describe('formatPaise (whole paise only, integer arithmetic)', () => {
     expect(() => formatPaise('600' as unknown as number)).toThrow();
     expect(() => formatPaise(undefined as unknown as number)).toThrow();
     expect(() => formatPaise(null as unknown as number)).toThrow();
+  });
+});
+
+describe('parseRupeesToPaise / paiseToRupeesText (rupee text of an input box, integer arithmetic)', () => {
+  it.each([
+    ['300', 30_000],
+    ['300.5', 30_050],
+    ['300.50', 30_050],
+    ['0.05', 5],
+    ['0', 0],
+    ['  12  ', 1200],
+    ['999999999.99', 99_999_999_999],
+  ])('%s -> %i paise', (text, paise) => {
+    expect(parseRupeesToPaise(text)).toBe(paise);
+  });
+
+  it.each([
+    '',
+    ' ',
+    'abc',
+    '-5',
+    '+5',
+    '1,000',
+    '1e3',
+    '12.345',
+    '.5',
+    '5.',
+    '1 000',
+    '0x10',
+    '1.2.3',
+    '9999999999',
+    'Infinity',
+    'NaN',
+  ])('refuses %j', (text) => {
+    expect(parseRupeesToPaise(text)).toBeNull();
+  });
+
+  it('is the exact inverse of paiseToRupeesText for many amounts (no rounding)', () => {
+    for (let paise = 0; paise < 300_000; paise += 7) {
+      expect(parseRupeesToPaise(paiseToRupeesText(paise))).toBe(paise);
+    }
+    expect(paiseToRupeesText(60_000)).toBe('600.00');
+    expect(paiseToRupeesText(5)).toBe('0.05');
+  });
+
+  it('paiseToRupeesText refuses fractions, negatives and unsafe numbers', () => {
+    for (const bad of [1.5, -1, Number.NaN, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(() => paiseToRupeesText(bad)).toThrow();
+    }
   });
 });
