@@ -1175,6 +1175,7 @@ model OpdSettings {
   id                 String   @id @default(cuid())
   tenantId           String   @map("tenant_id")
   followUpFreeDays   Int      @default(7) @map("follow_up_free_days")
+  repeatVisitFreeHours Int    @default(0) @map("repeat_visit_free_hours")
   tokenPrefix        String   @default("T") @map("token_prefix")
   timezone           String   @default("Asia/Kolkata")
   taxEnabled         Boolean  @default(false) @map("tax_enabled")

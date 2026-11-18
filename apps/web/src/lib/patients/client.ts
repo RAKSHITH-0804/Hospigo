@@ -26,6 +26,10 @@ export type PatientsApiError = {
   code: string;
   matches?: DuplicateMatch[];
   fieldErrors?: Record<string, string>;
+  /** Extra facts for explaining a refusal (for example the new total after PRICE_CHANGED). */
+  reason?: string;
+  what?: string;
+  totalPaise?: number;
 };
 export type PatientsApiResult<T> = PatientsApiOk<T> | PatientsApiError;
 
@@ -109,6 +113,9 @@ async function fetchPatientsOnce<T>(
       code: typeof record.code === 'string' ? record.code : 'UNKNOWN',
       matches: readMatches(record.matches),
       fieldErrors: readFieldErrors(record.fieldErrors),
+      reason: typeof record.reason === 'string' ? record.reason : undefined,
+      what: typeof record.what === 'string' ? record.what : undefined,
+      totalPaise: typeof record.totalPaise === 'number' ? record.totalPaise : undefined,
     };
   } catch (error) {
     if (init.signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {

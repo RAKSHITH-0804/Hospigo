@@ -76,3 +76,33 @@ API-part follow-ups: the bill-number series row is locked for the whole request 
 - **Split payment gets ONE receipt covering all its payments** (for example UPI 300 + cash 200 on a 500 bill = one receipt number). Consequence for the later step: `payments.receipt_number` is unique per payment today, so split payments need a receipt concept (a receipts row that several payments point to, or equivalent). The 4a migration will already be pushed by then, so it will be a new migration. Not built in 4a.
 - **Free follow-up counts a completed visit at any branch: confirmed.** The number of free days is a hospital setting (`opd_settings.follow_up_free_days`, default 7, range 0 to 365), never hardcoded. The permission to change it exists (`opd.settings.write`); the screen and the API route to change it are Step 7b (Settings screens). Who may hold it (SuperAdmin only, or Branch Admin too) is decided in 7b.
 - **Same doctor twice on one day: kept as pending work** until Rakshith has talked to the hospitals.
+
+## Web part, Step 4b (decided while building)
+
+- **Price preview + expected total** (approved): `POST /opd/visits/preview` shows exactly what the real create will charge; the create takes `expectedTotalPaise` and refuses with 409 `PRICE_CHANGED` when it differs. A tampered browser cannot lower a price: the server price always wins and a different total is refused.
+- **Idempotency key rules in the screen:** one key per attempt, kept for retries (network error, silent session renewal) and replaced when the doctor, visit type or total changes. A double click is blocked by an in-flight guard (tested with three clicks in one batch).
+- **Receipt:** browser print view, A5 by default (setting `WEB_RECEIPT_PAPER_SIZE`; real print templates are Step 7). After "Take cash" the receipt opens; the print dialog opens only on Print. One receipt number per payment today (a split payment will share one receipt, see the second-round answers above).
+- **Money display:** `₹600.00` with Indian grouping from whole paise, integer arithmetic only (`config/money.ts`).
+- **Record tabs:** the Visits and Bills tabs replace the old empty states; they show the active branch only, paginated by links; the Bills tab needs `opd.billing.read`.
+- **Same-day warning:** the preview says when the patient already has a visit with this doctor today (any branch); it never blocks (the charging rule is pending, see above).
+- Old copy keys `visitsEmpty*` / `billsEmpty*` under `patients.record` were removed (replaced by `opd.tabs`); the old "empty states" tab test and the record-page props test were updated on purpose.
+
+Tests: API 383 -> 390 (preview and expected-total tests), web 406 -> 499 (money, client helpers, routes, form, receipt, lists, pages, record page). Every safety behaviour in the screens (in-flight guard, key reuse, key reset, shown-total check, re-check after PRICE_CHANGED, permissions, branch guard, money formatting) was removed one at a time and a test failed each time.
+
+Follow-ups: after a network error on "Take cash" the safest advice is to look at the patient's Visits tab before choosing a different doctor (the same-choice retry is safe, a changed choice starts a new key); the Back button after a receipt shows a fresh form (a second click would create a second visit, the same-day warning appears); the receipt page shows no hospital address or phone (hospital-level print settings come in Step 7).
+
+### Browser click test of 4b (18 Nov 2026): all steps passed, notes from Rakshith
+
+- **Receipt content later.** The hospital header and footer, the receptionist's name, which doctor the bill is for, and other receipt details should be hospital settings (SuperAdmin or Admin), together with the paper size. This is Step 7 (print templates) and Step 7b (settings screens).
+- **Second visit inside a time window should collect no money, and the window is set by the Admin or SuperAdmin.** Today the free window already exists for visits the receptionist marks as Follow-up (`follow_up_free_days`, default 7, a hospital setting). Not built: a window that treats a repeat visit with the same doctor as free even when the receptionist picked New, and its own setting (days or hours). **Built after this note ("Build that also"):** see "Free repeat-visit window" below. Still pending the talks with the hospitals: charging once per patient, doctor and day regardless of the window (the warning stays).
+- The print preview used the browser's default paper and showed the browser's date/URL header and footer; to be re-checked with Save as PDF (the receipt page sets `@page` A5, margin 0, as the registration slip does).
+
+## Free repeat-visit window (built in Step 4a, after the click test)
+
+- **Rule:** same patient + same doctor within `repeat_visit_free_hours` of the last PAID consultation = consultation fee 0, whatever visit type the receptionist picked. 0 turns it off (default; demo hospitals seed 24).
+- **Where the window starts:** the last visit that really paid a consultation (queued, not cancelled, PAID bill with a consultation line above zero). A free visit never restarts the clock, so the hospital cannot be gamed into endless free visits and the clock cannot be pushed forward by free visits.
+- **Boundary:** strictly inside the window is free; exactly at the limit is charged.
+- **Scope:** the doctor and patient must match; branch does not matter (a hospital-wide rule, like the registration fee). Another hospital's setting and data are never read (row level security).
+- **Order with follow-up:** a follow-up inside `follow_up_free_days` keeps its follow-up label; the repeat rule applies afterwards only if the consultation is still above zero (for example a follow-up outside its days but inside the repeat window).
+- **Migration handled in place:** `opd_settings` was pushed in Step 2, so the new column and its CHECK (0 to 8760) are an `ALTER TABLE` inside the still-unpushed Step 4a migration. A dev database that already ran the migration needs the two SQL lines in the review report (the migration file is not re-run).
+- **Not built:** the Admin screen for the setting (Step 7b); charging once per patient, doctor and day regardless of any window (talks with hospitals).

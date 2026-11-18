@@ -18,6 +18,9 @@ export const OPD_VISITS_CONFIG = {
   /** One retry when another request charged the same patient's registration fee at the same moment. */
   createMaxAttempts: 2,
   msPerDay: 24 * 60 * 60 * 1000,
+  msPerHour: 60 * 60 * 1000,
+  /** Largest amount (paise) the database stores (INTEGER). */
+  maxAmountPaise: 2_147_483_647,
 } as const;
 
 /** Audit action names. */

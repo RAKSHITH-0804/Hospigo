@@ -242,6 +242,103 @@ describe('patients pages', () => {
       patient,
       labels: { title: 'Title' },
       canWrite: false,
+      canCreateVisit: false,
+      canReadBills: false,
+      visitsTab: { status: 'noAccess' },
+    });
+  });
+
+  describe('record page: visits and bills tabs (Step 4b)', () => {
+    const VISITS_PATH = '/patients/p1/visits';
+    const visitsPage = { items: [{ id: 'v1' }], total: 1, page: 1, pageSize: 10 };
+
+    function withVisits(visitsResult: unknown) {
+      return async (requested: string) => {
+        if (requested === CONFIG_PATH) {
+          return ok(formConfig);
+        }
+        if (requested === VISITS_PATH) {
+          return visitsResult;
+        }
+        return ok(patient);
+      };
+    }
+
+    it('without opd.visits.read it never asks for visits', async () => {
+      requireKindMock.mockResolvedValue(hospitalSession(['patients.registry.read']));
+      fetchMock.mockImplementation(byPath(ok(formConfig), ok(patient)));
+      render(await PatientRecordPage(idParams));
+      expect(fetchMock.mock.calls.map((c) => c[0])).not.toContain(VISITS_PATH);
+    });
+
+    it('with opd.visits.read it fetches page 1 in parallel with the patient and passes it on', async () => {
+      requireKindMock.mockResolvedValue(
+        hospitalSession(['patients.registry.read', 'opd.visits.read']),
+      );
+      fetchMock.mockImplementation(withVisits(ok(visitsPage)));
+      render(await PatientRecordPage(idParams));
+      expect(fetchMock).toHaveBeenCalledWith(VISITS_PATH, { page: 1, pageSize: 10 });
+      expect(propsOf('patient-record')).toMatchObject({
+        canCreateVisit: false,
+        canReadBills: false,
+        visitsTab: { status: 'ok', data: visitsPage },
+      });
+    });
+
+    it('reads the page and the tab from the address; bad values fall back to page 1 / no tab', async () => {
+      requireKindMock.mockResolvedValue(
+        hospitalSession(['patients.registry.read', 'opd.visits.read', 'opd.billing.read']),
+      );
+      fetchMock.mockImplementation(withVisits(ok(visitsPage)));
+      render(
+        await PatientRecordPage({
+          ...idParams,
+          searchParams: Promise.resolve({ vp: '3', tab: 'bills' }),
+        }),
+      );
+      expect(fetchMock).toHaveBeenCalledWith(VISITS_PATH, { page: 3, pageSize: 10 });
+      expect(propsOf('patient-record')).toMatchObject({ canReadBills: true, initialTab: 'bills' });
+
+      fetchMock.mockReset();
+      fetchMock.mockImplementation(withVisits(ok(visitsPage)));
+      render(
+        await PatientRecordPage({
+          ...idParams,
+          searchParams: Promise.resolve({ vp: '-4', tab: ['x', 'y'] }),
+        }),
+      );
+      expect(fetchMock).toHaveBeenCalledWith(VISITS_PATH, { page: 1, pageSize: 10 });
+    });
+
+    it('the New visit button needs BOTH visits.create and billing.collect', async () => {
+      for (const [perms, expected] of [
+        [['opd.visits.create'], false],
+        [['opd.billing.collect'], false],
+        [['opd.visits.create', 'opd.billing.collect'], true],
+      ] as const) {
+        requireKindMock.mockResolvedValue(hospitalSession(['patients.registry.read', ...perms]));
+        fetchMock.mockImplementation(byPath(ok(formConfig), ok(patient)));
+        const view = render(await PatientRecordPage(idParams));
+        expect(propsOf('patient-record').canCreateVisit).toBe(expected);
+        view.unmount();
+      }
+    });
+
+    it('a forbidden or failed visits fetch becomes a calm message, not a broken page', async () => {
+      requireKindMock.mockResolvedValue(
+        hospitalSession(['patients.registry.read', 'opd.visits.read']),
+      );
+      fetchMock.mockImplementation(withVisits({ status: 'forbidden' }));
+      const first = render(await PatientRecordPage(idParams));
+      expect(propsOf('patient-record').visitsTab).toEqual({ status: 'noAccess' });
+      first.unmount();
+
+      fetchMock.mockImplementation(withVisits({ status: 'error', code: 'UNAVAILABLE' }));
+      render(await PatientRecordPage(idParams));
+      expect(propsOf('patient-record').visitsTab).toEqual({
+        status: 'error',
+        message: staffCopy.errors.unreachable,
+      });
     });
   });
 

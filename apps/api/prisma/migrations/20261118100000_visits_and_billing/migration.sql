@@ -21,6 +21,12 @@ CREATE TYPE "bill_type" AS ENUM ('CONSULTATION', 'INVESTIGATION');
 CREATE TYPE "payment_status" AS ENUM ('UNPAID', 'PART_PAID', 'PAID');
 CREATE TYPE "ledger_entry_type" AS ENUM ('CHARGE', 'PAYMENT', 'REFUND', 'CHARGE_REVERSAL');
 
+-- Hospital setting: a repeat visit with the SAME doctor inside this many hours of the last PAID
+-- consultation collects no consultation money. 0 = off (default). Set by Admin (screen: Step 7b).
+ALTER TABLE "opd_settings" ADD COLUMN "repeat_visit_free_hours" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "opd_settings" ADD CONSTRAINT "opd_settings_repeat_free_chk"
+  CHECK ("repeat_visit_free_hours" >= 0 AND "repeat_visit_free_hours" <= 8760);
+
 -- ---------------------------------------------------------------------------------------------
 -- Tables
 -- ---------------------------------------------------------------------------------------------

@@ -15,7 +15,7 @@ import { RequirePermission } from '../access/permission.decorators';
 import { TokenKinds } from '../auth/token-kinds.decorator';
 import type { AccessClaims, HospitalAccessClaims } from '../auth/token.types';
 import { isHospitalTokenType } from '../auth/token.types';
-import { CreateVisitDto } from './dto/create-visit.dto';
+import { CreateVisitDto, PreviewVisitDto } from './dto/create-visit.dto';
 import { OPD_VISITS_CONFIG as C } from './opd-visits.config';
 import { OpdVisitsService, type Actor } from './opd-visits.service';
 
@@ -52,6 +52,17 @@ export class OpdVisitsController {
   @ApiOperation({ summary: 'Doctors of the active branch with availability and current fees' })
   async doctors(@Req() req: HttpReq) {
     return this.visits.listDoctors(actorOf(req));
+  }
+
+  @Post('opd/visits/preview')
+  @HttpCode(200)
+  @RequirePermission('opd.visits.create', { module: 'OPD' })
+  @ApiOperation({
+    summary:
+      'What creating this visit would charge (lines and total in paise). Writes nothing, takes no number. Same checks and refusals as the real create.',
+  })
+  async preview(@Req() req: HttpReq, @Body() body: PreviewVisitDto) {
+    return this.visits.previewVisit(body, actorOf(req));
   }
 
   @Post('opd/visits')

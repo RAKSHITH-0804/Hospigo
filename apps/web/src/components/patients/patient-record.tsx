@@ -16,7 +16,11 @@ import {
 } from '@/lib/patients/format';
 import type { CustomFieldValue, PatientDetail } from '@/lib/patients/types';
 import { cn } from '@/lib/utils';
-import { RecordTabs } from './record-tabs';
+import { BillsPanel, VisitsPanel } from '@/components/opd/visit-lists';
+import { newVisitPath } from '@/lib/opd/client';
+import type { VisitsTabData } from '@/lib/opd/types';
+import { RECORD_TAB_BILLS, RECORD_TAB_VISITS, RecordTabs } from './record-tabs';
+import { opdWebConfig } from '@/config/opd';
 
 const copy = staffCopy.patients;
 
@@ -92,11 +96,22 @@ export function PatientRecord({
   patient,
   labels,
   canWrite,
+  canCreateVisit = false,
+  canReadBills = false,
+  visitsTab = { status: 'noAccess' },
+  initialTab,
 }: {
   patient: PatientDetail;
   /** Custom field code → label, from form-config. */
   labels: Record<string, string>;
   canWrite: boolean;
+  /** Both permissions needed to create a visit: opd.visits.create and opd.billing.collect. */
+  canCreateVisit?: boolean;
+  /** opd.billing.read: bills (and receipts) are shown. */
+  canReadBills?: boolean;
+  /** The patient's visits for the active branch (page already fetched on the server). */
+  visitsTab?: VisitsTabData;
+  initialTab?: string;
 }) {
   const base = `/app/patients/${encodeURIComponent(patient.id)}`;
   const addressRows: Array<[string, string | null]> = [
@@ -142,6 +157,9 @@ export function PatientRecord({
     </div>
   );
 
+  const hrefFor = (tab: string) => (page: number) =>
+    `${base}?tab=${tab}&${opdWebConfig.visitsPageParam}=${page}`;
+
   return (
     <div className="flex flex-col gap-[var(--space-3)]">
       <PageHeader
@@ -150,6 +168,14 @@ export function PatientRecord({
         backHref="/app/patients"
         actions={
           <>
+            {canCreateVisit ? (
+              <Link
+                href={newVisitPath(patient.id)}
+                className={cn(buttonVariants(), 'touch-target')}
+              >
+                {staffCopy.opd.newVisit.action}
+              </Link>
+            ) : null}
             <Link
               href={`${base}/slip`}
               className={cn(buttonVariants({ variant: 'outline' }), 'touch-target')}
@@ -164,7 +190,24 @@ export function PatientRecord({
           </>
         }
       />
-      <RecordTabs overview={overview} />
+      <RecordTabs
+        overview={overview}
+        initialTab={initialTab}
+        visits={
+          <VisitsPanel
+            tab={visitsTab}
+            hrefFor={hrefFor(RECORD_TAB_VISITS)}
+            canSeeReceipt={canReadBills}
+          />
+        }
+        bills={
+          <BillsPanel
+            tab={visitsTab}
+            hrefFor={hrefFor(RECORD_TAB_BILLS)}
+            canReadBills={canReadBills}
+          />
+        }
+      />
     </div>
   );
 }

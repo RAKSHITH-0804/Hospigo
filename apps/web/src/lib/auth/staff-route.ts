@@ -31,12 +31,18 @@ function safeUpstreamErrorPayload(body: Record<string, unknown> | undefined): {
   message?: string;
   matches?: unknown;
   fieldErrors?: unknown;
+  reason?: string;
+  what?: string;
+  totalPaise?: number;
 } {
   const out: {
     code?: string;
     message?: string;
     matches?: unknown;
     fieldErrors?: unknown;
+    reason?: string;
+    what?: string;
+    totalPaise?: number;
   } = {};
   if (!body) {
     return out;
@@ -52,6 +58,16 @@ function safeUpstreamErrorPayload(body: Record<string, unknown> | undefined): {
   }
   if (body.fieldErrors !== undefined && typeof body.fieldErrors === 'object') {
     out.fieldErrors = body.fieldErrors;
+  }
+  // Small facts a screen needs to explain a refusal (never tokens or personal data).
+  if (typeof body.reason === 'string') {
+    out.reason = body.reason;
+  }
+  if (typeof body.what === 'string') {
+    out.what = body.what;
+  }
+  if (typeof body.totalPaise === 'number' && Number.isSafeInteger(body.totalPaise)) {
+    out.totalPaise = body.totalPaise;
   }
   return out;
 }

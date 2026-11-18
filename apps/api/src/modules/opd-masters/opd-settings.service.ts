@@ -5,11 +5,14 @@ import { requireContext } from '../../common/request-context';
 import {
   OPD_FOLLOW_UP_FREE_DAYS_MAX,
   OPD_FOLLOW_UP_FREE_DAYS_MIN,
+  OPD_REPEAT_VISIT_FREE_HOURS_MAX,
+  OPD_REPEAT_VISIT_FREE_HOURS_MIN,
   OPD_SETTINGS_DEFAULTS,
 } from './opd-settings.defaults';
 
 export type OpdSettingsView = {
   followUpFreeDays: number;
+  repeatVisitFreeHours: number;
   tokenPrefix: string;
   timezone: string;
   taxEnabled: boolean;
@@ -22,6 +25,7 @@ export type OpdSettingsView = {
 
 export type OpdSettingsUpsertInput = {
   followUpFreeDays?: number;
+  repeatVisitFreeHours?: number;
   tokenPrefix?: string;
   timezone?: string;
   taxEnabled?: boolean;
@@ -43,6 +47,18 @@ function validateUpsert(input: OpdSettingsUpsertInput): void {
       );
     }
   }
+  if (input.repeatVisitFreeHours !== undefined) {
+    const h = input.repeatVisitFreeHours;
+    if (
+      !Number.isInteger(h) ||
+      h < OPD_REPEAT_VISIT_FREE_HOURS_MIN ||
+      h > OPD_REPEAT_VISIT_FREE_HOURS_MAX
+    ) {
+      throw new Error(
+        `repeat_visit_free_hours must be ${OPD_REPEAT_VISIT_FREE_HOURS_MIN}..${OPD_REPEAT_VISIT_FREE_HOURS_MAX}`,
+      );
+    }
+  }
   if (input.tokenPrefix !== undefined && input.tokenPrefix.length === 0) {
     throw new Error('token_prefix must not be empty');
   }
@@ -54,6 +70,7 @@ function validateUpsert(input: OpdSettingsUpsertInput): void {
 function toView(row: OpdSettings): OpdSettingsView {
   return {
     followUpFreeDays: row.followUpFreeDays,
+    repeatVisitFreeHours: row.repeatVisitFreeHours,
     tokenPrefix: row.tokenPrefix,
     timezone: row.timezone,
     taxEnabled: row.taxEnabled,
@@ -77,6 +94,7 @@ export class OpdSettingsService {
       if (!row) {
         return {
           followUpFreeDays: OPD_SETTINGS_DEFAULTS.followUpFreeDays,
+          repeatVisitFreeHours: OPD_SETTINGS_DEFAULTS.repeatVisitFreeHours,
           tokenPrefix: OPD_SETTINGS_DEFAULTS.tokenPrefix,
           timezone: OPD_SETTINGS_DEFAULTS.timezone,
           taxEnabled: OPD_SETTINGS_DEFAULTS.taxEnabled,
@@ -99,6 +117,8 @@ export class OpdSettingsService {
       const existing = await tx.opdSettings.findUnique({ where: { tenantId } });
       const data = {
         followUpFreeDays: input.followUpFreeDays ?? OPD_SETTINGS_DEFAULTS.followUpFreeDays,
+        repeatVisitFreeHours:
+          input.repeatVisitFreeHours ?? OPD_SETTINGS_DEFAULTS.repeatVisitFreeHours,
         tokenPrefix: input.tokenPrefix ?? OPD_SETTINGS_DEFAULTS.tokenPrefix,
         timezone: input.timezone ?? OPD_SETTINGS_DEFAULTS.timezone,
         taxEnabled: input.taxEnabled ?? OPD_SETTINGS_DEFAULTS.taxEnabled,
@@ -114,6 +134,7 @@ export class OpdSettingsService {
           where: { id: existing.id },
           data: {
             followUpFreeDays: input.followUpFreeDays ?? existing.followUpFreeDays,
+            repeatVisitFreeHours: input.repeatVisitFreeHours ?? existing.repeatVisitFreeHours,
             tokenPrefix: input.tokenPrefix ?? existing.tokenPrefix,
             timezone: input.timezone ?? existing.timezone,
             taxEnabled: input.taxEnabled ?? existing.taxEnabled,

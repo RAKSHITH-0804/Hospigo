@@ -108,14 +108,15 @@ A doctor works across branches. "Not Available Now" = switch off, or on leave to
 
 ### opd_settings (one row per hospital)
 
-| Column                        | Default      | Used for                           |
-| ----------------------------- | ------------ | ---------------------------------- |
-| follow_up_free_days           | 7            | free follow-up window              |
-| token_prefix                  | `T`          | token label                        |
-| timezone                      | Asia/Kolkata | rule dates and token day           |
-| tax_enabled                   | false        | tax on bills                       |
-| tax_name, tax_registration_no | null         | printed on receipts                |
-| tax_inclusive                 | false        | price includes tax or tax is added |
+| Column                        | Default      | Used for                                                                                                                        |
+| ----------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| follow_up_free_days           | 7            | free follow-up window                                                                                                           |
+| repeat_visit_free_hours       | 0 (off)      | same doctor again inside N hours of the last paid consultation: no consultation fee (0 to 8760, added in the Step 4a migration) |
+| token_prefix                  | `T`          | token label                                                                                                                     |
+| timezone                      | Asia/Kolkata | rule dates and token day                                                                                                        |
+| tax_enabled                   | false        | tax on bills                                                                                                                    |
+| tax_name, tax_registration_no | null         | printed on receipts                                                                                                             |
+| tax_inclusive                 | false        | price includes tax or tax is added                                                                                              |
 
 ### number_series_settings
 

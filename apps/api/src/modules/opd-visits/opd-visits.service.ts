@@ -20,7 +20,10 @@ export type CreateVisitInput = {
   idempotencyKey: string;
   paymentModeCode?: string;
   referenceNo?: string;
+  expectedTotalPaise?: number;
 };
+
+export type PreviewInput = Pick<CreateVisitInput, 'patientId' | 'doctorProfileId' | 'visitType'>;
 
 const VISIT_INCLUDE = {
   patient: { select: { id: true, uhid: true, name: true } },
@@ -322,115 +325,16 @@ export class OpdVisitsService {
     const { tenantId, branchId, userId } = actor;
     const now = this.clock.now();
 
-    const settings = await tx.opdSettings.findUnique({ where: { tenantId } });
-    if (settings?.taxEnabled) {
-      // Tax columns exist but the tax rules are not decided yet: never bill wrongly in silence.
-      throw opdError(501, OpdErrorCode.TAX_NOT_SUPPORTED);
-    }
-    const timeZone = settings?.timezone ?? OPD_SETTINGS_DEFAULTS.timezone;
-    const followUpFreeDays = settings?.followUpFreeDays ?? OPD_SETTINGS_DEFAULTS.followUpFreeDays;
-
-    const patient = await tx.patient.findFirst({
-      where: { id: input.patientId, tenantId, isActive: true },
-      select: { id: true },
-    });
-    if (!patient) {
-      throw opdError(404, OpdErrorCode.PATIENT_NOT_FOUND);
-    }
-
-    const doctor = await tx.doctorProfile.findFirst({
-      where: { id: input.doctorProfileId, tenantId, active: true, user: { isActive: true } },
-      include: { user: { select: { displayName: true } } },
-    });
-    if (!doctor) {
-      throw opdError(404, OpdErrorCode.DOCTOR_NOT_FOUND);
-    }
-    const inBranch = await tx.userBranch.findFirst({
-      where: { tenantId, userId: doctor.userId, branchId, isActive: true },
-      select: { id: true },
-    });
-    if (!inBranch) {
-      throw opdError(400, OpdErrorCode.DOCTOR_NOT_IN_BRANCH);
-    }
-    const availability = await this.availability.getAvailabilityInTx(
-      tx,
-      tenantId,
-      doctor.id,
-      branchId,
-      now,
-    );
-    if (!availability.available) {
-      throw opdError(400, OpdErrorCode.DOCTOR_UNAVAILABLE, { reason: availability.reason });
-    }
-
-    // ---- prices (the amount is never taken from the request)
-    const fee = await tx.doctorFee.findFirst({
-      where: {
-        tenantId,
-        doctorProfileId: doctor.id,
-        visitType: input.visitType,
-        effectiveFrom: { lte: now },
-      },
-      orderBy: { effectiveFrom: 'desc' },
-    });
-    if (!fee) {
-      throw opdError(409, OpdErrorCode.FEE_NOT_CONFIGURED, { what: 'CONSULTATION' });
-    }
-    const today = localDate(now, timeZone);
-
-    let previousVisitId: string | null = null;
-    let consultationUnit = fee.amountPaise;
-    let pricingNote: string | null = null;
-    if (input.visitType === 'FOLLOW_UP') {
-      const previous = await tx.opdVisit.findFirst({
-        where: {
-          tenantId,
-          patientId: patient.id,
-          doctorProfileId: doctor.id,
-          status: 'COMPLETED',
-        },
-        orderBy: { visitDate: 'desc' },
-        select: { id: true, visitDate: true },
+    const priced = await this.priceVisit(tx, input, actor, now);
+    const { patient, doctor, fee, today, previousVisitId, consultationUnit, pricingNote } = priced;
+    const { registration, totalPaise } = priced;
+    if (input.expectedTotalPaise !== undefined && input.expectedTotalPaise !== totalPaise) {
+      // The screen showed another total: collect nothing, let the receptionist look again.
+      throw opdError(409, OpdErrorCode.PRICE_CHANGED, {
+        totalPaise,
+        expectedTotalPaise: input.expectedTotalPaise,
       });
-      if (!previous) {
-        throw opdError(400, OpdErrorCode.FOLLOW_UP_NEEDS_PREVIOUS_VISIT);
-      }
-      previousVisitId = previous.id;
-      const daysSince = Math.floor((today.getTime() - previous.visitDate.getTime()) / C.msPerDay);
-      if (daysSince <= followUpFreeDays) {
-        consultationUnit = 0;
-        pricingNote = 'FOLLOW_UP_FREE_WINDOW';
-      }
     }
-
-    // Registration fee: once per patient, across all branches (the database guarantees it).
-    let registration: { itemId: string; code: string; name: string; unit: number } | null = null;
-    const alreadyCharged = await tx.patientRegistrationFee.findFirst({
-      where: { tenantId, patientId: patient.id, voidedAt: null },
-      select: { id: true },
-    });
-    if (!alreadyCharged) {
-      const item = await tx.chargeItem.findFirst({
-        where: { tenantId, kind: 'REGISTRATION', active: true },
-        orderBy: { code: 'asc' },
-      });
-      if (item) {
-        const price = await tx.chargeItemPrice.findFirst({
-          where: { tenantId, chargeItemId: item.id, effectiveFrom: { lte: now } },
-          orderBy: { effectiveFrom: 'desc' },
-        });
-        if (!price) {
-          throw opdError(409, OpdErrorCode.FEE_NOT_CONFIGURED, { what: 'REGISTRATION' });
-        }
-        registration = {
-          itemId: item.id,
-          code: item.code,
-          name: item.name,
-          unit: price.amountPaise,
-        };
-      }
-    }
-    const totalPaise = consultationUnit + (registration?.unit ?? 0);
 
     // ---- payment mode (only needed when money is due)
     let modeId: string | null = null;
@@ -564,7 +468,8 @@ export class OpdVisitsService {
           doctorProfileId: doctor.id,
           totalPaise,
           registrationCharged: registration !== null,
-          freeFollowUp: pricingNote !== null,
+          freeFollowUp: pricingNote === 'FOLLOW_UP_FREE_WINDOW',
+          freeRepeatVisit: pricingNote === 'REPEAT_VISIT_FREE_WINDOW',
         },
       },
     });
@@ -584,6 +489,232 @@ export class OpdVisitsService {
 
     const view = await this.viewInTx(tx, actor, visit.id, { withMoney: true, detail: true });
     return { replayed: false, visit: view };
+  }
+
+  // ------------------------------------------------------------------------ pricing
+
+  /**
+   * Everything that decides the price and whether the visit may be made (tax, patient, doctor,
+   * branch membership, availability, fees, follow-up window, registration fee). Used by BOTH the
+   * preview and the real create, so the amount shown is the amount charged.
+   */
+  private async priceVisit(tx: TenantTx, input: PreviewInput, actor: Actor, now: Date) {
+    const { tenantId, branchId } = actor;
+
+    const settings = await tx.opdSettings.findUnique({ where: { tenantId } });
+    if (settings?.taxEnabled) {
+      // Tax columns exist but the tax rules are not decided yet: never bill wrongly in silence.
+      throw opdError(501, OpdErrorCode.TAX_NOT_SUPPORTED);
+    }
+    const timeZone = settings?.timezone ?? OPD_SETTINGS_DEFAULTS.timezone;
+    const followUpFreeDays = settings?.followUpFreeDays ?? OPD_SETTINGS_DEFAULTS.followUpFreeDays;
+    const repeatFreeHours =
+      settings?.repeatVisitFreeHours ?? OPD_SETTINGS_DEFAULTS.repeatVisitFreeHours;
+
+    const patient = await tx.patient.findFirst({
+      where: { id: input.patientId, tenantId, isActive: true },
+      select: { id: true },
+    });
+    if (!patient) {
+      throw opdError(404, OpdErrorCode.PATIENT_NOT_FOUND);
+    }
+
+    const doctor = await tx.doctorProfile.findFirst({
+      where: { id: input.doctorProfileId, tenantId, active: true, user: { isActive: true } },
+      include: { user: { select: { displayName: true } } },
+    });
+    if (!doctor) {
+      throw opdError(404, OpdErrorCode.DOCTOR_NOT_FOUND);
+    }
+    const inBranch = await tx.userBranch.findFirst({
+      where: { tenantId, userId: doctor.userId, branchId, isActive: true },
+      select: { id: true },
+    });
+    if (!inBranch) {
+      throw opdError(400, OpdErrorCode.DOCTOR_NOT_IN_BRANCH);
+    }
+    const availability = await this.availability.getAvailabilityInTx(
+      tx,
+      tenantId,
+      doctor.id,
+      branchId,
+      now,
+    );
+    if (!availability.available) {
+      throw opdError(400, OpdErrorCode.DOCTOR_UNAVAILABLE, { reason: availability.reason });
+    }
+
+    // ---- prices (the amount is never taken from the request)
+    const fee = await tx.doctorFee.findFirst({
+      where: {
+        tenantId,
+        doctorProfileId: doctor.id,
+        visitType: input.visitType,
+        effectiveFrom: { lte: now },
+      },
+      orderBy: { effectiveFrom: 'desc' },
+    });
+    if (!fee) {
+      throw opdError(409, OpdErrorCode.FEE_NOT_CONFIGURED, { what: 'CONSULTATION' });
+    }
+    const today = localDate(now, timeZone);
+
+    let previousVisitId: string | null = null;
+    let consultationUnit = fee.amountPaise;
+    let pricingNote: string | null = null;
+    if (input.visitType === 'FOLLOW_UP') {
+      const previous = await tx.opdVisit.findFirst({
+        where: {
+          tenantId,
+          patientId: patient.id,
+          doctorProfileId: doctor.id,
+          status: 'COMPLETED',
+        },
+        orderBy: { visitDate: 'desc' },
+        select: { id: true, visitDate: true },
+      });
+      if (!previous) {
+        throw opdError(400, OpdErrorCode.FOLLOW_UP_NEEDS_PREVIOUS_VISIT);
+      }
+      previousVisitId = previous.id;
+      const daysSince = Math.floor((today.getTime() - previous.visitDate.getTime()) / C.msPerDay);
+      if (daysSince <= followUpFreeDays) {
+        consultationUnit = 0;
+        pricingNote = 'FOLLOW_UP_FREE_WINDOW';
+      }
+    }
+
+    // Repeat visit with the same doctor inside the hospital's window (hours; 0 = off): free, even
+    // when "New" was picked. The window counts from the last visit that really PAID a consultation
+    // (queued, not cancelled, consultation line above zero), so a free repeat never extends it.
+    if (consultationUnit > 0 && repeatFreeHours > 0) {
+      const anchor = await tx.opdVisit.findFirst({
+        where: {
+          tenantId,
+          patientId: patient.id,
+          doctorProfileId: doctor.id,
+          status: { not: 'CANCELLED' },
+          queuedAt: { not: null },
+          bills: {
+            some: {
+              paymentStatus: 'PAID',
+              lines: { some: { kind: 'CONSULTATION', unitPricePaise: { gt: 0 } } },
+            },
+          },
+        },
+        orderBy: { queuedAt: 'desc' },
+        select: { queuedAt: true },
+      });
+      if (
+        anchor?.queuedAt &&
+        now.getTime() - anchor.queuedAt.getTime() < repeatFreeHours * C.msPerHour
+      ) {
+        consultationUnit = 0;
+        pricingNote = 'REPEAT_VISIT_FREE_WINDOW';
+      }
+    }
+
+    // Registration fee: once per patient, across all branches (the database guarantees it).
+    let registration: { itemId: string; code: string; name: string; unit: number } | null = null;
+    const alreadyCharged = await tx.patientRegistrationFee.findFirst({
+      where: { tenantId, patientId: patient.id, voidedAt: null },
+      select: { id: true },
+    });
+    if (!alreadyCharged) {
+      const item = await tx.chargeItem.findFirst({
+        where: { tenantId, kind: 'REGISTRATION', active: true },
+        orderBy: { code: 'asc' },
+      });
+      if (item) {
+        const price = await tx.chargeItemPrice.findFirst({
+          where: { tenantId, chargeItemId: item.id, effectiveFrom: { lte: now } },
+          orderBy: { effectiveFrom: 'desc' },
+        });
+        if (!price) {
+          throw opdError(409, OpdErrorCode.FEE_NOT_CONFIGURED, { what: 'REGISTRATION' });
+        }
+        registration = {
+          itemId: item.id,
+          code: item.code,
+          name: item.name,
+          unit: price.amountPaise,
+        };
+      }
+    }
+    const totalPaise = consultationUnit + (registration?.unit ?? 0);
+
+    return {
+      patient,
+      doctor,
+      fee,
+      today,
+      timeZone,
+      previousVisitId,
+      consultationUnit,
+      pricingNote,
+      registration,
+      totalPaise,
+    };
+  }
+
+  /**
+   * What "Take payment" would charge, without writing anything and without taking any number.
+   * Same checks and the same refusals as the real create.
+   */
+  async previewVisit(input: PreviewInput, actor: Actor) {
+    const now = this.clock.now();
+    return this.tenantDb.withTenant(async (tx) => {
+      const priced = await this.priceVisit(tx, input, actor, now);
+      const sameDay = await tx.opdVisit.count({
+        where: {
+          tenantId: actor.tenantId,
+          patientId: priced.patient.id,
+          doctorProfileId: priced.doctor.id,
+          visitDate: priced.today,
+          status: { not: 'CANCELLED' },
+        },
+      });
+      const lines = [
+        {
+          kind: 'CONSULTATION',
+          code: priced.doctor.code,
+          description: priced.doctor.user.displayName,
+          quantity: 1,
+          unitPricePaise: priced.consultationUnit,
+          lineTotalPaise: priced.consultationUnit,
+          pricingNote: priced.pricingNote,
+        },
+        ...(priced.registration
+          ? [
+              {
+                kind: 'REGISTRATION',
+                code: priced.registration.code,
+                description: priced.registration.name,
+                quantity: 1,
+                unitPricePaise: priced.registration.unit,
+                lineTotalPaise: priced.registration.unit,
+                pricingNote: null,
+              },
+            ]
+          : []),
+      ];
+      return {
+        visitType: input.visitType,
+        visitDate: isoDate(priced.today),
+        doctor: {
+          id: priced.doctor.id,
+          code: priced.doctor.code,
+          name: priced.doctor.user.displayName,
+        },
+        lines,
+        totalPaise: priced.totalPaise,
+        followUpFree: priced.pricingNote === 'FOLLOW_UP_FREE_WINDOW',
+        repeatVisitFree: priced.pricingNote === 'REPEAT_VISIT_FREE_WINDOW',
+        registrationIncluded: priced.registration !== null,
+        /** The patient already has a visit with this doctor today (any branch): a warning only. */
+        sameDayVisitWithDoctor: sameDay > 0,
+      };
+    });
   }
 
   // ------------------------------------------------------------------------------- reads

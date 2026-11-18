@@ -1,15 +1,26 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+  ValidateIf,
+} from 'class-validator';
 import { OPD_VISITS_CONFIG as C } from '../opd-visits.config';
 
 export const VISIT_TYPES = ['NEW', 'FOLLOW_UP'] as const;
 
 /**
- * "Create visit, bill and take payment" in one step.
- * There is NO branch, tenant, amount or status field: the branch comes from the token and the
- * amount from the price lists. Unknown fields are rejected (forbidNonWhitelisted).
+ * What the price depends on: patient, doctor and visit type. Used by the price preview and,
+ * extended, by "create visit". There is NO branch, tenant, amount or status field: the branch
+ * comes from the token and the amount from the price lists. Unknown fields are rejected.
  */
-export class CreateVisitDto {
+export class PreviewVisitDto {
   @ApiProperty()
   @IsString()
   @MinLength(1)
@@ -25,6 +36,20 @@ export class CreateVisitDto {
   @ApiProperty({ enum: VISIT_TYPES })
   @IsIn(VISIT_TYPES)
   visitType!: (typeof VISIT_TYPES)[number];
+}
+
+/** "Create visit, bill and take payment" in one step. */
+export class CreateVisitDto extends PreviewVisitDto {
+  @ApiPropertyOptional({
+    description:
+      'The total (paise) the screen showed. If the server now calculates a different total the call is refused with 409 PRICE_CHANGED and nothing is charged.',
+  })
+  // Absent is fine; a present value (even null) must be a whole number.
+  @ValidateIf((o: CreateVisitDto) => o.expectedTotalPaise !== undefined)
+  @IsInt()
+  @Min(0)
+  @Max(C.maxAmountPaise)
+  expectedTotalPaise?: number;
 
   @ApiProperty({
     description:

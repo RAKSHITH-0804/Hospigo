@@ -328,3 +328,53 @@ One visit of the **active branch** with its bill, lines and payments when the ca
 ## GET /patients/:patientId/visits
 
 Visits of one patient in the active branch, newest first: `{ items, total, page, pageSize }` (`page`, `pageSize` capped at 100). Items carry a bill summary (no lines or payments) for callers with `opd.billing.read`. Same branch and doctor rules as above; an unknown or foreign patient is `404 PATIENT_NOT_FOUND`.
+
+## Step 4b additions: price preview and the expected-total check
+
+**POST /opd/visits/preview** (permission `opd.visits.create`, OPD module): body `{ patientId, doctorProfileId, visitType }` only. Same checks and refusals as the real create (tax, patient, doctor, branch membership, availability, fees, follow-up rules). It writes nothing and takes no bill, receipt or token number. Response:
+
+```json
+{
+  "visitType": "NEW",
+  "visitDate": "2026-11-18",
+  "doctor": { "id": "clxdoctor01", "code": "DR002", "name": "Doctor North 2" },
+  "lines": [
+    {
+      "kind": "CONSULTATION",
+      "code": "DR002",
+      "description": "Doctor North 2",
+      "quantity": 1,
+      "unitPricePaise": 50000,
+      "lineTotalPaise": 50000,
+      "pricingNote": null
+    },
+    {
+      "kind": "REGISTRATION",
+      "code": "REG",
+      "description": "Registration",
+      "quantity": 1,
+      "unitPricePaise": 10000,
+      "lineTotalPaise": 10000,
+      "pricingNote": null
+    }
+  ],
+  "totalPaise": 60000,
+  "followUpFree": false,
+  "registrationIncluded": true,
+  "sameDayVisitWithDoctor": false
+}
+```
+
+`sameDayVisitWithDoctor` is true when the patient already has a visit (not cancelled) with this doctor today at any branch: a warning for the screen, never a block.
+
+**`expectedTotalPaise` on POST /opd/visits** (optional, whole number 0 to 2147483647): the total the screen showed. If the server now calculates a different total the call is refused with `409 PRICE_CHANGED { totalPaise, expectedTotalPaise }` and nothing is created, charged or numbered. The reception screen always sends it. A present value must be a whole number (`null`, text and decimals are `400`); zero is a real value.
+
+## Free repeat visit with the same doctor (Step 4a, hospital setting)
+
+Setting `opd_settings.repeat_visit_free_hours` (whole hours, 0 to 8760, default **0 = off**). When it is above 0, a visit for the **same patient and same doctor** (any branch of the hospital) made less than that many hours after the **last paid consultation** has a consultation line of `0` with `pricingNote: REPEAT_VISIT_FREE_WINDOW`, even when `visitType` is `NEW`. The bill is settled with no payment but still has a bill number and a token (same as a free follow-up).
+
+- The window counts from `queued_at` of the latest visit that is not cancelled, was queued, and whose bill is PAID with a consultation line above zero. A free repeat visit never becomes the anchor, so repeated free visits cannot extend the window.
+- Exactly at the limit it is charged (`elapsed < window` is free). A different doctor, a different patient or another hospital is charged normally.
+- A follow-up inside `follow_up_free_days` keeps its own label (`FOLLOW_UP_FREE_WINDOW`); the repeat rule only applies when the consultation is still above zero.
+- Preview adds `repeatVisitFree: boolean` next to `followUpFree`. The audit entry of the visit carries `freeRepeatVisit: true` (and still `freeFollowUp`), no personal values.
+- The setting has no API or screen yet: it is set in the database (demo seed: 24). The Admin settings screen is Step 7b.

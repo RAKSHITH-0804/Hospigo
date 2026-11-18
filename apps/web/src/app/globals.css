@@ -204,6 +204,7 @@
   --size-field-narrow: 12rem;
   --size-field-medium: 24rem;
   --size-slip-max: 24rem;
+  --font-size-token: 2.5rem;
   --size-skeleton-line: 0.75rem;
   --size-skeleton-title: 1.25rem;
   --size-skeleton-title-width: 12rem;
@@ -1636,6 +1637,50 @@
     text-align: right;
   }
 
+  .visit-receipt {
+    width: 100%;
+    max-width: var(--size-slip-max);
+    border-radius: var(--radius-card);
+    background: var(--card);
+    color: var(--card-foreground);
+    padding: var(--space-slip-padding);
+    box-shadow: 0 0 0 1px color-mix(in oklch, var(--foreground) 10%, transparent);
+  }
+
+  .visit-receipt-token-box {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-top: var(--space-3);
+  }
+
+  .visit-receipt-token {
+    font-size: var(--font-size-token);
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .visit-receipt-lines {
+    width: 100%;
+    margin-top: var(--space-3);
+    border-collapse: collapse;
+    font-size: var(--font-size-body);
+  }
+
+  .visit-receipt-lines th,
+  .visit-receipt-lines td {
+    padding: var(--space-1) 0;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--row-divider);
+  }
+
+  .visit-receipt-lines .visit-receipt-amount {
+    text-align: right;
+    white-space: nowrap;
+  }
+
   /* Loading skeletons (loading.tsx): same frame as the page, tokens only. */
   .skeleton {
     border-radius: var(--radius-control);
@@ -1856,8 +1901,16 @@
     padding: 0;
   }
 
-  .patient-slip-print-root {
+  .patient-slip-print-root,
+  .visit-receipt-print-root {
     display: block;
+  }
+
+  .visit-receipt {
+    max-width: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: var(--space-slip-padding);
   }
 
   .patient-slip {

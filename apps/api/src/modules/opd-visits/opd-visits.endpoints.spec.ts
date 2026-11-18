@@ -345,6 +345,12 @@ describe('OPD visits and billing endpoints (HTTP)', () => {
   function create(h: Hospital, who: string, body: CreateBody) {
     return http().post('/opd/visits').set('Authorization', `Bearer ${h.tokens[who]}`).send(body);
   }
+  function preview(h: Hospital, who: string, body: Record<string, unknown>) {
+    return http()
+      .post('/opd/visits/preview')
+      .set('Authorization', `Bearer ${h.tokens[who]}`)
+      .send(body);
+  }
   async function visit(
     h: Hospital,
     o: { patient?: string; doctor?: string; type?: string; key?: string; who?: string } = {},
@@ -728,6 +734,166 @@ describe('OPD visits and billing endpoints (HTTP)', () => {
     });
   });
 
+  // ------------------------------------------------------------- free repeat-visit window
+
+  describe('free repeat visit with the same doctor (hospital setting, hours)', () => {
+    const HOUR = 60 * 60 * 1000;
+    async function withWindow(hours: number, run: () => Promise<void>) {
+      await owner.opdSettings.update({
+        where: { tenantId: A.tenant },
+        data: { repeatVisitFreeHours: hours },
+      });
+      try {
+        await run();
+      } finally {
+        await owner.opdSettings.update({
+          where: { tenantId: A.tenant },
+          data: { repeatVisitFreeHours: 0 },
+        });
+      }
+    }
+    const queuedAtOf = async (visitId: string) =>
+      (await owner.opdVisit.findUniqueOrThrow({ where: { id: visitId } })).queuedAt!;
+    const previewNew = (patientId: string, doctorProfileId: string, visitType = 'NEW') =>
+      preview(A, 'recv', { patientId, doctorProfileId, visitType });
+
+    it('the setting is off by default: a second visit the same day is charged in full', async () => {
+      const first = await visit(A);
+      const second = await visit(A, { patient: first.patientId });
+      expect(second.res.status).toBe(201);
+      expect(second.res.body.bill.totalPaise).toBe(NEW_FEE);
+    });
+
+    it('inside the window the same doctor is free even though "New" was picked, and it is audited', async () => {
+      await withWindow(24, async () => {
+        const first = await visit(A);
+        expect(first.res.body.bill.totalPaise).toBe(NEW_FEE + REG_FEE);
+        clock.set(new Date(Date.now() + 2 * HOUR));
+        const shown = await previewNew(first.patientId, A.doc1);
+        expect(shown.body).toMatchObject({
+          totalPaise: 0,
+          repeatVisitFree: true,
+          followUpFree: false,
+        });
+        expect(shown.body.lines[0]).toMatchObject({
+          unitPricePaise: 0,
+          pricingNote: 'REPEAT_VISIT_FREE_WINDOW',
+        });
+        const second = await create(A, 'recv', {
+          patientId: first.patientId,
+          doctorProfileId: A.doc1,
+          visitType: 'NEW',
+          idempotencyKey: uniq('KEY-REPEAT'),
+          expectedTotalPaise: 0,
+        });
+        expect(second.status).toBe(201);
+        expect(second.body.bill.totalPaise).toBe(0);
+        expect(second.body.bill.lines[0].pricingNote).toBe('REPEAT_VISIT_FREE_WINDOW');
+        // A zero total counts as settled: the visit is in the queue.
+        const row = await owner.opdVisit.findUniqueOrThrow({ where: { id: second.body.id } });
+        expect(row.status).toBe('WAITING');
+        const audit = await owner.auditLog.findFirstOrThrow({
+          where: { tenantId: A.tenant, entityId: second.body.id },
+        });
+        expect(audit.metadata).toMatchObject({ freeRepeatVisit: true, totalPaise: 0 });
+      });
+    });
+
+    it('a different doctor is still charged, and so is a different patient', async () => {
+      await withWindow(24, async () => {
+        const first = await visit(A);
+        const otherDoctor = await visit(A, { patient: first.patientId, doctor: A.doc2 });
+        expect(otherDoctor.res.body.bill.totalPaise).toBe(DOC2_NEW_FEE);
+        const otherPatient = await visit(A);
+        expect(otherPatient.res.body.bill.totalPaise).toBe(NEW_FEE + REG_FEE);
+      });
+    });
+
+    it('the window ends exactly at the setting: 1 ms before it is free, at the limit it is charged', async () => {
+      await withWindow(3, async () => {
+        const first = await visit(A);
+        const at = (await queuedAtOf(first.res.body.id)).getTime();
+        clock.set(new Date(at + 3 * HOUR - 1));
+        expect((await previewNew(first.patientId, A.doc1)).body.totalPaise).toBe(0);
+        clock.set(new Date(at + 3 * HOUR));
+        expect((await previewNew(first.patientId, A.doc1)).body).toMatchObject({
+          totalPaise: NEW_FEE,
+          repeatVisitFree: false,
+        });
+      });
+    });
+
+    it('a free repeat visit does not extend the window (it counts from the last PAID consultation)', async () => {
+      await withWindow(3, async () => {
+        const first = await visit(A);
+        const at = (await queuedAtOf(first.res.body.id)).getTime();
+        clock.set(new Date(at + 2 * HOUR));
+        const free = await visit(A, { patient: first.patientId });
+        expect(free.res.body.bill.totalPaise).toBe(0);
+        // 4 hours after the paid visit is 2 hours after the free one, still outside the window.
+        clock.set(new Date(at + 4 * HOUR));
+        const later = await visit(A, { patient: first.patientId });
+        expect(later.res.body.bill.totalPaise).toBe(NEW_FEE);
+      });
+    });
+
+    it('a cancelled earlier visit does not give a free one', async () => {
+      await withWindow(24, async () => {
+        const first = await visit(A);
+        await asOwner(async (c) => {
+          await c.query(
+            `UPDATE opd_visits SET status='CANCELLED', cancelled_at=now(), cancelled_reason='test', updated_at=now() WHERE id=$1`,
+            [first.res.body.id],
+          );
+        });
+        const again = await visit(A, { patient: first.patientId });
+        expect(again.res.body.bill.totalPaise).toBe(NEW_FEE);
+      });
+    });
+
+    it('the setting is per hospital: another hospital with window 0 still charges', async () => {
+      await withWindow(24, async () => {
+        const firstB = await visit(B);
+        const secondB = await visit(B, { patient: firstB.patientId });
+        expect(secondB.res.body.bill.totalPaise).toBe(NEW_FEE);
+      });
+    });
+
+    it('a follow-up inside its own window keeps its follow-up label (that rule comes first)', async () => {
+      await withWindow(24, async () => {
+        const first = await visit(A);
+        await complete(first.res.body.id);
+        const res = await previewNew(first.patientId, A.doc1, 'FOLLOW_UP');
+        expect(res.body).toMatchObject({
+          totalPaise: 0,
+          followUpFree: true,
+          repeatVisitFree: false,
+        });
+      });
+    });
+
+    it('a follow-up outside its window but inside the repeat window is free as a repeat visit', async () => {
+      await owner.opdSettings.update({
+        where: { tenantId: A.tenant },
+        data: { followUpFreeDays: 0 },
+      });
+      try {
+        await withWindow(48, async () => {
+          const first = await visit(A);
+          await complete(first.res.body.id);
+          clock.set(new Date(Date.now() + 25 * HOUR));
+          const res = await previewNew(first.patientId, A.doc1, 'FOLLOW_UP');
+          expect(res.body).toMatchObject({ totalPaise: 0, repeatVisitFree: true });
+        });
+      } finally {
+        await owner.opdSettings.update({
+          where: { tenantId: A.tenant },
+          data: { followUpFreeDays: 7 },
+        });
+      }
+    });
+  });
+
   // ------------------------------------------------------------------------ idempotency
 
   describe('idempotency (a double click never bills or charges twice)', () => {
@@ -1043,6 +1209,263 @@ describe('OPD visits and billing endpoints (HTTP)', () => {
             .set('Authorization', `Bearer ${A.tokens.nobody}`)
         ).status,
       ).toBe(403);
+    });
+  });
+
+  // ------------------------------------------------ price preview and expected total
+
+  describe('POST /opd/visits/preview and expectedTotalPaise', () => {
+    async function addDoctor(h: Hospital, code: string, amount: number): Promise<string> {
+      const u = await owner.user.create({
+        data: {
+          tenantId: h.tenant,
+          code: `X${code}${stamp}`.slice(0, 40),
+          email: `ov_x_${code}_${stamp}@example.test`,
+          displayName: `Doc ${code}`,
+          passwordHash: 'x',
+        },
+      });
+      await owner.userBranch.create({
+        data: { tenantId: h.tenant, userId: u.id, branchId: h.main },
+      });
+      const profile = await owner.doctorProfile.create({
+        data: { tenantId: h.tenant, userId: u.id, code: `DOC_X_${code}_${stamp}` },
+      });
+      for (const type of ['NEW', 'FOLLOW_UP'] as const) {
+        await owner.doctorFee.create({
+          data: {
+            tenantId: h.tenant,
+            doctorProfileId: profile.id,
+            visitType: type,
+            amountPaise: amount,
+            effectiveFrom: new Date('2020-01-01'),
+            createdBy: h.user,
+          },
+        });
+      }
+      return profile.id;
+    }
+
+    it('shows exactly what the real create charges (lines and total) and writes nothing', async () => {
+      const patientId = await newPatient(A);
+      const before = await counts(A);
+      const res = await preview(A, 'recv', {
+        patientId,
+        doctorProfileId: A.doc1,
+        visitType: 'NEW',
+      });
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        visitType: 'NEW',
+        totalPaise: NEW_FEE + REG_FEE,
+        followUpFree: false,
+        registrationIncluded: true,
+        sameDayVisitWithDoctor: false,
+        doctor: { id: A.doc1 },
+      });
+      expect(
+        res.body.lines.map((l: { kind: string; lineTotalPaise: number }) => [
+          l.kind,
+          l.lineTotalPaise,
+        ]),
+      ).toEqual([
+        ['CONSULTATION', NEW_FEE],
+        ['REGISTRATION', REG_FEE],
+      ]);
+      expect(await counts(A)).toEqual(before);
+
+      // The real create with the previewed total charges exactly that.
+      const created = await create(A, 'recv', {
+        patientId,
+        doctorProfileId: A.doc1,
+        visitType: 'NEW',
+        idempotencyKey: uniq('KEY-PREV'),
+        expectedTotalPaise: res.body.totalPaise,
+      });
+      expect(created.status).toBe(201);
+      expect(created.body.bill.totalPaise).toBe(res.body.totalPaise);
+      expect(
+        created.body.bill.lines.map((l: { lineTotalPaise: number }) => l.lineTotalPaise),
+      ).toEqual(res.body.lines.map((l: { lineTotalPaise: number }) => l.lineTotalPaise));
+
+      // After the first visit the registration fee is gone from the preview.
+      const again = await preview(A, 'recv', {
+        patientId,
+        doctorProfileId: A.doc2,
+        visitType: 'NEW',
+      });
+      expect(again.body).toMatchObject({ totalPaise: DOC2_NEW_FEE, registrationIncluded: false });
+    });
+
+    it('takes no bill, receipt or token number (previews leave no gap)', async () => {
+      const first = await visit(A);
+      const lastBill = suffix(first.res.body.bill.billNumber);
+      const lastReceipt = suffix(first.res.body.bill.payments[0].receiptNumber);
+      const lastToken = first.res.body.token.no as number;
+      for (let i = 0; i < 3; i += 1) {
+        const r = await preview(A, 'recv', {
+          patientId: await newPatient(A),
+          doctorProfileId: A.doc1,
+          visitType: 'NEW',
+        });
+        expect(r.status).toBe(200);
+      }
+      const next = await visit(A);
+      expect(suffix(next.res.body.bill.billNumber)).toBe(lastBill + 1);
+      expect(suffix(next.res.body.bill.payments[0].receiptNumber)).toBe(lastReceipt + 1);
+      expect(next.res.body.token.no).toBe(lastToken + 1);
+    });
+
+    it('refuses what the real create refuses (same codes), and needs the same permission', async () => {
+      const patientId = await newPatient(A);
+      const body = { patientId, doctorProfileId: A.doc1, visitType: 'NEW' };
+      expect(
+        (await preview(A, 'recv', { ...body, doctorProfileId: A.doc3Off })).body,
+      ).toMatchObject({ code: 'DOCTOR_UNAVAILABLE', reason: 'SWITCH_OFF' });
+      expect(
+        (await preview(A, 'recv', { ...body, doctorProfileId: A.doc4EastOnly })).body.code,
+      ).toBe('DOCTOR_NOT_IN_BRANCH');
+      expect((await preview(A, 'recv', { ...body, doctorProfileId: A.doc5NoFee })).body.code).toBe(
+        'FEE_NOT_CONFIGURED',
+      );
+      expect((await preview(A, 'recv', { ...body, visitType: 'FOLLOW_UP' })).body.code).toBe(
+        'FOLLOW_UP_NEEDS_PREVIOUS_VISIT',
+      );
+      expect((await preview(A, 'recv', { ...body, patientId: await newPatient(B) })).status).toBe(
+        404,
+      );
+      expect((await preview(A, 'recv', { ...body, doctorProfileId: B.doc1 })).status).toBe(404);
+      for (const who of ['nurse', 'nobody', 'doc1']) {
+        expect((await preview(A, who, body)).status).toBe(403);
+      }
+      expect((await http().post('/opd/visits/preview').send(body)).status).toBe(401);
+      for (const extra of [
+        { totalPaise: 1 },
+        { branchId: A.east },
+        { idempotencyKey: 'KEY-12345678' },
+      ]) {
+        expect((await preview(A, 'recv', { ...body, ...extra })).status).toBe(400);
+      }
+      await owner.opdSettings.update({ where: { tenantId: A.tenant }, data: { taxEnabled: true } });
+      try {
+        expect((await preview(A, 'recv', body)).status).toBe(501);
+      } finally {
+        await owner.opdSettings.update({
+          where: { tenantId: A.tenant },
+          data: { taxEnabled: false },
+        });
+      }
+    });
+
+    it('a free follow-up previews as zero and says so', async () => {
+      const first = await visit(A);
+      await complete(first.res.body.id);
+      const res = await preview(A, 'recv', {
+        patientId: first.patientId,
+        doctorProfileId: A.doc1,
+        visitType: 'FOLLOW_UP',
+      });
+      expect(res.body).toMatchObject({
+        totalPaise: 0,
+        followUpFree: true,
+        registrationIncluded: false,
+      });
+      expect(res.body.lines[0]).toMatchObject({
+        unitPricePaise: 0,
+        pricingNote: 'FOLLOW_UP_FREE_WINDOW',
+      });
+    });
+
+    it('warns when the patient already has a visit with this doctor today (not with another doctor)', async () => {
+      const first = await visit(A, { doctor: A.doc1 });
+      const same = await preview(A, 'recv', {
+        patientId: first.patientId,
+        doctorProfileId: A.doc1,
+        visitType: 'NEW',
+      });
+      const other = await preview(A, 'recv', {
+        patientId: first.patientId,
+        doctorProfileId: A.doc2,
+        visitType: 'NEW',
+      });
+      expect(same.body.sameDayVisitWithDoctor).toBe(true);
+      expect(other.body.sameDayVisitWithDoctor).toBe(false);
+      // Tomorrow it is a new day.
+      clock.set(new Date(Date.now() + 24 * 60 * 60 * 1000));
+      const next = await preview(A, 'recv', {
+        patientId: first.patientId,
+        doctorProfileId: A.doc1,
+        visitType: 'NEW',
+      });
+      expect(next.body.sameDayVisitWithDoctor).toBe(false);
+    });
+
+    it('a changed total is refused (409 PRICE_CHANGED) and nothing is charged or numbered', async () => {
+      const doctor = await addDoctor(A, `chg${seq}`, 20_000);
+      const patientId = await newPatient(A);
+      const shown = await preview(A, 'recv', {
+        patientId,
+        doctorProfileId: doctor,
+        visitType: 'NEW',
+      });
+      expect(shown.body.totalPaise).toBe(20_000 + REG_FEE);
+
+      // The fee list changes between the preview and the click.
+      await owner.doctorFee.create({
+        data: {
+          tenantId: A.tenant,
+          doctorProfileId: doctor,
+          visitType: 'NEW',
+          amountPaise: 25_000,
+          effectiveFrom: new Date(Date.now() - 1000),
+          createdBy: A.user,
+        },
+      });
+      const before = await counts(A);
+      const refused = await create(A, 'recv', {
+        patientId,
+        doctorProfileId: doctor,
+        visitType: 'NEW',
+        idempotencyKey: uniq('KEY-CHG'),
+        expectedTotalPaise: shown.body.totalPaise,
+      });
+      expect(refused.status).toBe(409);
+      expect(refused.body).toMatchObject({
+        code: 'PRICE_CHANGED',
+        totalPaise: 25_000 + REG_FEE,
+        expectedTotalPaise: 20_000 + REG_FEE,
+      });
+      expect(await counts(A)).toEqual(before);
+
+      // Looking again and confirming the new total works.
+      const again = await create(A, 'recv', {
+        patientId,
+        doctorProfileId: doctor,
+        visitType: 'NEW',
+        idempotencyKey: uniq('KEY-CHG'),
+        expectedTotalPaise: 25_000 + REG_FEE,
+      });
+      expect(again.status).toBe(201);
+      expect(again.body.bill.totalPaise).toBe(25_000 + REG_FEE);
+    });
+
+    it('expectedTotalPaise must be a whole non-negative number within the integer limit', async () => {
+      const base = { patientId: await newPatient(A), doctorProfileId: A.doc1, visitType: 'NEW' };
+      for (const bad of [-1, 1.5, '600', 2_147_483_648, null]) {
+        const res = await create(A, 'recv', {
+          ...base,
+          idempotencyKey: uniq('KEY-AAAA'),
+          expectedTotalPaise: bad,
+        });
+        expect(res.status).toBe(400);
+      }
+      // A wrong total of zero is refused too (not treated as "absent").
+      const zero = await create(A, 'recv', {
+        ...base,
+        idempotencyKey: uniq('KEY-AAAA'),
+        expectedTotalPaise: 0,
+      });
+      expect(zero.status).toBe(409);
     });
   });
 

@@ -528,6 +528,15 @@ describe('OPD masters (Phase 2 Step 2)', () => {
         }),
       ).rejects.toThrow();
 
+      for (const bad of [-1, 8761]) {
+        await expect(
+          owner.opdSettings.update({
+            where: { tenantId: tenantA },
+            data: { repeatVisitFreeHours: bad },
+          }),
+        ).rejects.toThrow();
+      }
+
       await expect(
         owner.vitalsField.create({
           data: {
@@ -802,6 +811,8 @@ describe('OPD masters (Phase 2 Step 2)', () => {
       expect(view.persisted).toBe(false);
       expect(view.followUpFreeDays).toBe(OPD_SETTINGS_DEFAULTS.followUpFreeDays);
       expect(view.timezone).toBe(OPD_SETTINGS_DEFAULTS.timezone);
+      expect(view.repeatVisitFreeHours).toBe(0);
+      expect(OPD_SETTINGS_DEFAULTS.repeatVisitFreeHours).toBe(0);
       const count = await owner.opdSettings.count({ where: { tenantId: h.id } });
       expect(count).toBe(0);
 
@@ -815,6 +826,24 @@ describe('OPD masters (Phase 2 Step 2)', () => {
       expect(saved.persisted).toBe(true);
       expect(saved.followUpFreeDays).toBe(14);
       expect(saved.tokenPrefix).toBe('X');
+      expect(saved.repeatVisitFreeHours).toBe(0);
+
+      for (const bad of [-1, 8761, 1.5, Number.NaN]) {
+        await expect(
+          runWithContext(hospitalContext(h.id), () =>
+            settings.upsert({ repeatVisitFreeHours: bad }),
+          ),
+        ).rejects.toThrow(/repeat_visit_free_hours/);
+      }
+      const hours = await runWithContext(hospitalContext(h.id), () =>
+        settings.upsert({ repeatVisitFreeHours: 24 }),
+      );
+      expect(hours.repeatVisitFreeHours).toBe(24);
+      // Saving something else keeps the hours.
+      const kept = await runWithContext(hospitalContext(h.id), () =>
+        settings.upsert({ tokenPrefix: 'Y' }),
+      );
+      expect(kept.repeatVisitFreeHours).toBe(24);
     });
 
     it('validates and renders number-series format (e.g. 2627/00001)', () => {
