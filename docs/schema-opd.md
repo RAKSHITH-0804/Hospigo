@@ -387,3 +387,7 @@ Tables: `opd_visits`, `bills`, `bill_lines`, `payments`, `ledger_entries`, `pati
 | Counters                    | follow-up                                        | Triggers: `number_series.last_number` and `token_counters.last_token` can never decrease                                                                                       |
 
 RLS isolates **hospitals**. Branch isolation (a user of one branch cannot read another branch's bills) is a service rule tested in the API part of 4a, not an RLS rule.
+
+## As built (Step 5a-1): receipts
+
+`receipts` (id, tenant_id, branch_id, bill_id, receipt_number, total_paise, issued_by, idempotency_key, created_at) is append-only with forced row level security. `payments` has `receipt_id` (no more `receipt_number`). Rules: receipt total = sum of its payments (checked at commit on both tables), one payment mode at most once per receipt, payment and receipt share the bill (composite foreign keys), receipt number unique per hospital, strong bill lock taken before the receipt's foreign key (no deadlock between parallel payers). See `docs/decisions-5a.md`.

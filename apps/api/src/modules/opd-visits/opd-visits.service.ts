@@ -34,7 +34,10 @@ const VISIT_INCLUDE = {
       lines: { orderBy: { lineNo: 'asc' } },
       payments: {
         orderBy: { paidAt: 'asc' },
-        include: { paymentMode: { select: { code: true, name: true } } },
+        include: {
+          paymentMode: { select: { code: true, name: true } },
+          receipt: { select: { receiptNumber: true } },
+        },
       },
     },
   },
@@ -144,7 +147,7 @@ function toBillView(bill: VisitRow['bills'][number], detail: boolean): BillView 
     })),
     payments: bill.payments.map((p) => ({
       id: p.id,
-      receiptNumber: p.receiptNumber,
+      receiptNumber: p.receipt.receiptNumber,
       amountPaise: p.amountPaise,
       paymentMode: p.paymentMode,
       referenceNo: p.referenceNo,
@@ -422,14 +425,25 @@ export class OpdVisitsService {
     let receiptNumber: string | null = null;
     let paymentId: string | null = null;
     if (totalPaise > 0 && modeId) {
-      const receipt = await this.allocateNumber(tx, tenantId, 'RECEIPT', now);
-      receiptNumber = receipt.formatted;
-      const payment = await tx.payment.create({
+      const receiptNo = await this.allocateNumber(tx, tenantId, 'RECEIPT', now);
+      receiptNumber = receiptNo.formatted;
+      const receipt = await tx.receipt.create({
         data: {
           tenantId,
           billId: bill.id,
           branchId,
           receiptNumber,
+          totalPaise,
+          issuedBy: userId,
+          idempotencyKey: input.idempotencyKey,
+        },
+      });
+      const payment = await tx.payment.create({
+        data: {
+          tenantId,
+          billId: bill.id,
+          branchId,
+          receiptId: receipt.id,
           paymentModeId: modeId,
           amountPaise: totalPaise,
           referenceNo: input.referenceNo?.trim() || null,

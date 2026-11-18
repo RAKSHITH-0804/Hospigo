@@ -266,6 +266,7 @@ model Hospital {
   bills Bill[]
   billLines BillLine[]
   payments Payment[]
+  receipts Receipt[]
   ledgerEntries LedgerEntry[]
   patientRegistrationFees PatientRegistrationFee[]
 
@@ -392,6 +393,7 @@ model User {
   opdVisitsCreated OpdVisit[] @relation("OpdVisitCreatedBy")
   billsCreated Bill[] @relation("BillCreatedBy")
   paymentsReceived Payment[] @relation("PaymentReceivedBy")
+  receiptsIssued Receipt[] @relation("ReceiptIssuedBy")
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -1338,6 +1340,7 @@ model Bill {
   creator       User          @relation("BillCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
   lines         BillLine[]
   payments      Payment[]
+  receipts      Receipt[]
   ledgerEntries LedgerEntry[]
 
   @@unique([tenantId, id])
@@ -1382,7 +1385,7 @@ model Payment {
   tenantId       String   @map("tenant_id")
   billId         String   @map("bill_id")
   branchId       String   @map("branch_id")
-  receiptNumber  String   @map("receipt_number")
+  receiptId      String   @map("receipt_id")
   paymentModeId  String   @map("payment_mode_id")
   amountPaise    Int      @map("amount_paise")
   referenceNo    String?  @map("reference_no")
@@ -1393,15 +1396,43 @@ model Payment {
 
   hospital      Hospital      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   bill          Bill          @relation(fields: [tenantId, billId, branchId], references: [tenantId, id, branchId], onDelete: Restrict)
+  receipt       Receipt       @relation(fields: [tenantId, receiptId, billId], references: [tenantId, id, billId], onDelete: Restrict)
   paymentMode   PaymentMode   @relation(fields: [tenantId, paymentModeId], references: [tenantId, id], onDelete: Restrict)
   receiver      User          @relation("PaymentReceivedBy", fields: [tenantId, receivedBy], references: [tenantId, id], onDelete: Restrict)
   ledgerEntries LedgerEntry[]
 
   @@unique([tenantId, id])
-  @@unique([tenantId, receiptNumber])
+  @@unique([tenantId, receiptId, paymentModeId], map: "payments_receipt_mode_key")
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId, billId], map: "payments_bill_idx")
+  @@index([tenantId, receiptId], map: "payments_receipt_idx")
   @@map("payments")
+}
+
+/// One receipt covers one or several payments of ONE bill (split payment). Append-only.
+/// The database checks at commit that total_paise equals the sum of its payments.
+model Receipt {
+  id             String   @id @default(cuid())
+  tenantId       String   @map("tenant_id")
+  branchId       String   @map("branch_id")
+  billId         String   @map("bill_id")
+  receiptNumber  String   @map("receipt_number")
+  totalPaise     Int      @map("total_paise")
+  issuedBy       String   @map("issued_by")
+  idempotencyKey String   @map("idempotency_key")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  hospital Hospital  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  bill     Bill      @relation(fields: [tenantId, billId, branchId], references: [tenantId, id, branchId], onDelete: Restrict)
+  issuer   User      @relation("ReceiptIssuedBy", fields: [tenantId, issuedBy], references: [tenantId, id], onDelete: Restrict)
+  payments Payment[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, id, billId])
+  @@unique([tenantId, receiptNumber])
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, billId], map: "receipts_bill_idx")
+  @@map("receipts")
 }
 
 /// Written ONLY by database triggers (the app role has no INSERT). Append-only.
