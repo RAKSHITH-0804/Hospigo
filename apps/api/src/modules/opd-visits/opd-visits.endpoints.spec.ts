@@ -379,6 +379,17 @@ describe('OPD visits and billing endpoints (HTTP)', () => {
         `UPDATE opd_visits SET status='IN_CONSULTATION', consultation_started_at=now(), updated_at=now() WHERE id=$1`,
         [visitId],
       );
+      // A visit completes only with a completed note (Step 5a-2).
+      await c.query(
+        `INSERT INTO consultations (id, tenant_id, branch_id, visit_id, doctor_profile_id, diagnosis)
+         SELECT gen_random_uuid()::text, tenant_id, branch_id, id, doctor_profile_id, 'test note'
+           FROM opd_visits WHERE id = $1`,
+        [visitId],
+      );
+      await c.query(
+        `UPDATE consultations SET status='COMPLETED', completed_at=now(), updated_at=now() WHERE visit_id=$1`,
+        [visitId],
+      );
       await c.query(
         `UPDATE opd_visits SET status='COMPLETED', completed_at=now(), updated_at=now() WHERE id=$1`,
         [visitId],

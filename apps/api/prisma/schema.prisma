@@ -269,6 +269,10 @@ model Hospital {
   receipts Receipt[]
   ledgerEntries LedgerEntry[]
   patientRegistrationFees PatientRegistrationFee[]
+  consultations Consultation[]
+  consultationAddenda ConsultationAddendum[]
+  visitVitals VisitVitals[]
+  prescriptionItems PrescriptionItem[]
 
   @@map("hospitals")
 }
@@ -394,6 +398,8 @@ model User {
   billsCreated Bill[] @relation("BillCreatedBy")
   paymentsReceived Payment[] @relation("PaymentReceivedBy")
   receiptsIssued Receipt[] @relation("ReceiptIssuedBy")
+  addendaWritten ConsultationAddendum[] @relation("AddendumAddedBy")
+  vitalsRecorded VisitVitals[] @relation("VitalsRecordedBy")
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -1004,6 +1010,7 @@ model DoctorProfile {
   leaves   DoctorLeave[]
   fees     DoctorFee[]
   opdVisits OpdVisit[]
+  consultations Consultation[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, userId])
@@ -1125,6 +1132,7 @@ model Medicine {
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  prescriptionItems PrescriptionItem[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -1147,6 +1155,7 @@ model VitalsField {
   updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  readings VisitVitals[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -1307,6 +1316,8 @@ model OpdVisit {
   followUps     OpdVisit[]    @relation("OpdVisitPrevious")
   creator       User          @relation("OpdVisitCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
   bills         Bill[]
+  consultation  Consultation?
+  vitals        VisitVitals[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, id, branchId])
@@ -1433,6 +1444,124 @@ model Receipt {
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId, billId], map: "receipts_bill_idx")
   @@map("receipts")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Step 5a-2 / 5a-3: consultation note, addenda, vitals, prescription
+// ---------------------------------------------------------------------------------------------
+
+enum ConsultationStatus {
+  DRAFT
+  COMPLETED
+
+  @@map("consultation_status")
+}
+
+/// One note per visit. DRAFT until the doctor completes it; a COMPLETED note is frozen by a trigger.
+model Consultation {
+  id              String             @id @default(cuid())
+  tenantId        String             @map("tenant_id")
+  branchId        String             @map("branch_id")
+  visitId         String             @map("visit_id")
+  doctorProfileId String             @map("doctor_profile_id")
+  status          ConsultationStatus @default(DRAFT)
+  complaints      String?
+  diagnosis       String?
+  advice          String?
+  followUpDate    DateTime?          @map("follow_up_date") @db.Date
+  completedAt     DateTime?          @map("completed_at") @db.Timestamptz(3)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital          Hospital               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  visit             OpdVisit               @relation(fields: [tenantId, visitId, branchId], references: [tenantId, id, branchId], onDelete: Restrict)
+  doctor            DoctorProfile          @relation(fields: [tenantId, doctorProfileId], references: [tenantId, id], onDelete: Restrict)
+  addenda           ConsultationAddendum[]
+  prescriptionItems PrescriptionItem[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, id, visitId, branchId])
+  @@unique([tenantId, visitId])
+  @@unique([tenantId, visitId, branchId])
+  @@index([tenantId, doctorProfileId, status], map: "consultations_doctor_idx")
+  @@map("consultations")
+}
+
+/// Append-only correction of a completed note: who, when and why.
+model ConsultationAddendum {
+  id             String   @id @default(cuid())
+  tenantId       String   @map("tenant_id")
+  branchId       String   @map("branch_id")
+  consultationId String   @map("consultation_id")
+  visitId        String   @map("visit_id")
+  addendumText   String   @map("addendum_text")
+  reason         String
+  addedBy        String   @map("added_by")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  hospital     Hospital     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  consultation Consultation @relation(fields: [tenantId, consultationId, visitId, branchId], references: [tenantId, id, visitId, branchId], onDelete: Restrict)
+  author       User         @relation("AddendumAddedBy", fields: [tenantId, addedBy], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, consultationId, createdAt], map: "consultation_addenda_consultation_idx")
+  @@map("consultation_addenda")
+}
+
+/// Append-only, versioned vitals: a correction is a NEW version with a reason; the latest counts.
+model VisitVitals {
+  id               String           @id @default(cuid())
+  tenantId         String           @map("tenant_id")
+  branchId         String           @map("branch_id")
+  visitId          String           @map("visit_id")
+  vitalsFieldId    String           @map("vitals_field_id")
+  version          Int
+  fieldCode        String           @map("field_code")
+  fieldName        String           @map("field_name")
+  unit             String
+  valueKind        VitalsValueKind  @map("value_kind")
+  valueNumber      Decimal?         @map("value_number") @db.Decimal(10, 2)
+  valueText        String?          @map("value_text")
+  correctionReason String?          @map("correction_reason")
+  recordedBy       String           @map("recorded_by")
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  hospital   Hospital    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  visit      OpdVisit    @relation(fields: [tenantId, visitId, branchId], references: [tenantId, id, branchId], onDelete: Restrict)
+  field      VitalsField @relation(fields: [tenantId, vitalsFieldId], references: [tenantId, id], onDelete: Restrict)
+  recorder   User        @relation("VitalsRecordedBy", fields: [tenantId, recordedBy], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, visitId, vitalsFieldId, version], map: "visit_vitals_version_key")
+  @@index([tenantId, visitId], map: "visit_vitals_visit_idx")
+  @@map("visit_vitals")
+}
+
+/// Rows of one DRAFT note (replaced as a whole while drafting; frozen with the note).
+model PrescriptionItem {
+  id             String   @id @default(cuid())
+  tenantId       String   @map("tenant_id")
+  branchId       String   @map("branch_id")
+  visitId        String   @map("visit_id")
+  consultationId String   @map("consultation_id")
+  lineNo         Int      @map("line_no")
+  medicineId     String?  @map("medicine_id")
+  medicineName   String   @map("medicine_name")
+  isUnlisted     Boolean  @map("is_unlisted")
+  dose           String
+  frequency      String
+  duration       String
+  instructions   String?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  hospital     Hospital     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  consultation Consultation @relation(fields: [tenantId, consultationId, visitId, branchId], references: [tenantId, id, visitId, branchId], onDelete: Restrict)
+  medicine     Medicine?    @relation(fields: [tenantId, medicineId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, consultationId, lineNo], map: "prescription_items_line_key")
+  @@index([tenantId, visitId], map: "prescription_items_visit_idx")
+  @@map("prescription_items")
 }
 
 /// Written ONLY by database triggers (the app role has no INSERT). Append-only.

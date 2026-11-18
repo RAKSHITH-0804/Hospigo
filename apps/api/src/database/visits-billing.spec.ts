@@ -433,6 +433,21 @@ describe('OPD visits and money (database rules, hospigo_test)', () => {
     );
   }
 
+  /** A visit may become COMPLETED only after its note is COMPLETED (Step 5a-2): write one. */
+  async function completeNote(c: Client, visit: string): Promise<void> {
+    await c.query(
+      `INSERT INTO consultations (id, tenant_id, branch_id, visit_id, doctor_profile_id, diagnosis)
+       SELECT gen_random_uuid()::text, tenant_id, branch_id, id, doctor_profile_id, 'test note'
+         FROM opd_visits WHERE id = $1`,
+      [visit],
+    );
+    await c.query(
+      `UPDATE consultations SET status = 'COMPLETED', completed_at = now(), updated_at = now()
+        WHERE visit_id = $1`,
+      [visit],
+    );
+  }
+
   let nextPatient = 0;
   const patientFor = (f: Fixture) => {
     nextPatient = (nextPatient + 1) % f.patients.length;
@@ -1356,7 +1371,8 @@ describe('OPD visits and money (database rules, hospigo_test)', () => {
       await expect(
         upd(`UPDATE opd_visits SET status='WAITING', updated_at=now() WHERE id=$V`),
       ).rejects.toThrow(/cannot go from/i);
-      // Cancel needs a reason; completion needs completed_at.
+      // Cancel needs a reason; completion needs completed_at and a completed note.
+      await inTenant(A.tenant, (c) => completeNote(c, m.visit));
       await expect(
         upd(`UPDATE opd_visits SET status='COMPLETED', updated_at=now() WHERE id=$V`),
       ).rejects.toThrow(/check|violates/i);
@@ -1415,6 +1431,7 @@ describe('OPD visits and money (database rules, hospigo_test)', () => {
           `UPDATE opd_visits SET status='IN_CONSULTATION', consultation_started_at=now(), updated_at=now() WHERE id=$1`,
           [made.visit],
         );
+        await completeNote(c, made.visit);
         await c.query(
           `UPDATE opd_visits SET status='COMPLETED', completed_at=now(), updated_at=now() WHERE id=$1`,
           [made.visit],
@@ -1653,6 +1670,589 @@ describe('OPD visits and money (database rules, hospigo_test)', () => {
   });
 
   // --------------------------------------------------------- Prisma models mirror the tables
+
+  describe('clinical rows: note, addenda, vitals, prescription (Step 5a)', () => {
+    let tokenSeq = 30_000;
+    let pulseA: { id: string; code: string; name: string; unit: string };
+    let postureA: { id: string; code: string; name: string; unit: string };
+    let medicineA: { id: string; name: string };
+    let medicineB: { id: string };
+    let doctorUserA: string;
+    let otherDoctorA: string;
+
+    beforeAll(async () => {
+      doctorUserA = (
+        await owner.doctorProfile.findUniqueOrThrow({ where: { id: A.doctorProfile } })
+      ).userId;
+      const otherUser = await owner.user.create({
+        data: {
+          tenantId: A.tenant,
+          code: `OD${stamp}`,
+          email: `vb_other_doc_${stamp}@example.test`,
+          displayName: 'Other Doctor',
+          passwordHash: 'x',
+        },
+      });
+      otherDoctorA = (
+        await owner.doctorProfile.create({
+          data: { tenantId: A.tenant, userId: otherUser.id, code: `ODOC${stamp}` },
+        })
+      ).id;
+      pulseA = await owner.vitalsField.create({
+        data: {
+          tenantId: A.tenant,
+          code: 'PULSE',
+          name: 'Pulse',
+          unit: 'bpm',
+          valueKind: 'NUMBER',
+        },
+      });
+      postureA = await owner.vitalsField.create({
+        data: {
+          tenantId: A.tenant,
+          code: 'POSTURE',
+          name: 'Posture',
+          unit: '-',
+          valueKind: 'TEXT',
+        },
+      });
+      medicineA = await owner.medicine.create({
+        data: { tenantId: A.tenant, code: 'PARA', name: 'Paracetamol 500' },
+      });
+      medicineB = await owner.medicine.create({
+        data: { tenantId: B.tenant, code: 'PARA', name: 'Paracetamol 500' },
+      });
+    });
+
+    /** A visit in the wanted state, made the way the API does it (bill, payment, queue, start). */
+    async function visitIn(
+      f: Fixture,
+      status: 'AWAITING_PAYMENT' | 'WAITING' | 'IN_CONSULTATION',
+    ): Promise<string> {
+      return inTenant(f.tenant, async (c) => {
+        const made = await newBill(c, { f, patient: patientFor(f) });
+        if (status === 'AWAITING_PAYMENT') {
+          return made.visit;
+        }
+        await pay(c, { f, bill: made.bill, amount: made.total });
+        await queueVisit(c, made.visit, (tokenSeq += 1));
+        if (status === 'IN_CONSULTATION') {
+          await c.query(
+            `UPDATE opd_visits SET status='IN_CONSULTATION', consultation_started_at=now(), updated_at=now() WHERE id=$1`,
+            [made.visit],
+          );
+        }
+        return made.visit;
+      });
+    }
+
+    async function insertNote(
+      c: Client,
+      visit: string,
+      o: { doctor?: string; status?: string; completedAt?: string; diagnosis?: string | null } = {},
+    ): Promise<string> {
+      const r = await c.query<{ id: string }>(
+        `INSERT INTO consultations (id, tenant_id, branch_id, visit_id, doctor_profile_id, status,
+                                    diagnosis, completed_at)
+         SELECT gen_random_uuid()::text, tenant_id, branch_id, id, COALESCE($2, doctor_profile_id),
+                COALESCE($3, 'DRAFT')::consultation_status, $4, $5::timestamptz
+           FROM opd_visits WHERE id = $1
+         RETURNING id`,
+        [
+          visit,
+          o.doctor ?? null,
+          o.status ?? null,
+          o.diagnosis === undefined ? 'dx' : o.diagnosis,
+          o.completedAt ?? null,
+        ],
+      );
+      return r.rows[0]!.id;
+    }
+
+    const finishNote = (c: Client, note: string) =>
+      c.query(
+        `UPDATE consultations SET status='COMPLETED', completed_at=now(), updated_at=now() WHERE id=$1`,
+        [note],
+      );
+
+    async function insertAddendum(
+      c: Client,
+      note: string,
+      o: { by?: string; text?: string; reason?: string } = {},
+    ) {
+      return c.query(
+        `INSERT INTO consultation_addenda (id, tenant_id, branch_id, consultation_id, visit_id,
+                                           addendum_text, reason, added_by)
+         SELECT gen_random_uuid()::text, tenant_id, branch_id, id, visit_id, $2, $3, $4
+           FROM consultations WHERE id = $1`,
+        [note, o.text ?? 'extra advice', o.reason ?? 'forgot to add', o.by ?? doctorUserA],
+      );
+    }
+
+    async function insertVitals(
+      c: Client,
+      visit: string,
+      field: { id: string; code: string; name: string; unit: string },
+      o: {
+        version?: number;
+        number?: number | null;
+        text?: string | null;
+        reason?: string | null;
+        kind?: 'NUMBER' | 'TEXT';
+        unit?: string;
+        by?: string;
+      } = {},
+    ) {
+      const kind = o.kind ?? (field.code === 'POSTURE' ? 'TEXT' : 'NUMBER');
+      return c.query(
+        `INSERT INTO visit_vitals (id, tenant_id, branch_id, visit_id, vitals_field_id, version,
+                                   field_code, field_name, unit, value_kind, value_number,
+                                   value_text, correction_reason, recorded_by)
+         SELECT gen_random_uuid()::text, tenant_id, branch_id, id, $2, $3, $4, $5, $6,
+                $7::vitals_value_kind, $8, $9, $10, $11
+           FROM opd_visits WHERE id = $1`,
+        [
+          visit,
+          field.id,
+          o.version ?? 1,
+          field.code,
+          field.name,
+          o.unit ?? field.unit,
+          kind,
+          o.number === undefined ? (kind === 'NUMBER' ? 72 : null) : o.number,
+          o.text === undefined ? (kind === 'TEXT' ? 'sitting' : null) : o.text,
+          o.reason ?? null,
+          o.by ?? A.user,
+        ],
+      );
+    }
+
+    async function insertRx(
+      c: Client,
+      note: string,
+      o: {
+        line?: number;
+        medicine?: string | null;
+        name?: string;
+        unlisted?: boolean;
+        dose?: string;
+      } = {},
+    ) {
+      const medicine = o.medicine === undefined ? medicineA.id : o.medicine;
+      return c.query(
+        `INSERT INTO prescription_items (id, tenant_id, branch_id, visit_id, consultation_id, line_no,
+                                         medicine_id, medicine_name, is_unlisted, dose, frequency, duration)
+         SELECT gen_random_uuid()::text, tenant_id, branch_id, visit_id, id, $2, $3, $4, $5, $6,
+                'twice a day', '5 days'
+           FROM consultations WHERE id = $1`,
+        [
+          note,
+          o.line ?? 1,
+          medicine,
+          o.name ?? (medicine === null ? 'Home remedy' : medicineA.name),
+          o.unlisted ?? medicine === null,
+          o.dose ?? '1 tablet',
+        ],
+      );
+    }
+
+    it('a note can only be started while the visit is IN_CONSULTATION, once', async () => {
+      const unpaid = await visitIn(A, 'AWAITING_PAYMENT');
+      const waiting = await visitIn(A, 'WAITING');
+      const started = await visitIn(A, 'IN_CONSULTATION');
+      for (const visit of [unpaid, waiting]) {
+        await expect(inTenant(A.tenant, (c) => insertNote(c, visit))).rejects.toThrow(
+          /in consultation/i,
+        );
+      }
+      await inTenant(A.tenant, (c) => insertNote(c, started));
+      await expect(inTenant(A.tenant, (c) => insertNote(c, started))).rejects.toThrow(
+        /duplicate key|unique/i,
+      );
+    });
+
+    it('a note belongs to the doctor of the visit and always starts as a draft', async () => {
+      const visit = await visitIn(A, 'IN_CONSULTATION');
+      await expect(
+        inTenant(A.tenant, (c) => insertNote(c, visit, { doctor: otherDoctorA })),
+      ).rejects.toThrow(/doctor of the visit/i);
+      await expect(
+        inTenant(A.tenant, (c) =>
+          insertNote(c, visit, { status: 'COMPLETED', completedAt: new Date().toISOString() }),
+        ),
+      ).rejects.toThrow(/starts as a draft/i);
+      // a visit of another branch cannot get a note of this branch's id mix-up either
+      await expect(
+        inTenant(A.tenant, (c) =>
+          c.query(
+            `INSERT INTO consultations (id, tenant_id, branch_id, visit_id, doctor_profile_id)
+             SELECT gen_random_uuid()::text, tenant_id, $2, id, doctor_profile_id
+               FROM opd_visits WHERE id = $1`,
+            [visit, A.eastBranch],
+          ),
+        ),
+      ).rejects.toThrow(/foreign key/i);
+    });
+
+    it('a draft can change, a finished note needs text, and a COMPLETED note is frozen', async () => {
+      const visit = await visitIn(A, 'IN_CONSULTATION');
+      const note = await inTenant(A.tenant, (c) => insertNote(c, visit, { diagnosis: null }));
+      await inTenant(A.tenant, (c) =>
+        c.query(`UPDATE consultations SET complaints = 'cough', updated_at = now() WHERE id = $1`, [
+          note,
+        ]),
+      );
+      // complaints or diagnosis must hold something to finish
+      await expect(
+        inTenant(A.tenant, (c) =>
+          c.query(
+            `UPDATE consultations SET complaints = '   ', status = 'COMPLETED', completed_at = now(), updated_at = now() WHERE id = $1`,
+            [note],
+          ),
+        ),
+      ).rejects.toThrow(/check|violates/i);
+      await expect(
+        inTenant(A.tenant, (c) =>
+          c.query(
+            `UPDATE consultations SET status = 'COMPLETED', updated_at = now() WHERE id = $1`,
+            [note],
+          ),
+        ),
+      ).rejects.toThrow(/check|violates/i);
+      await inTenant(A.tenant, (c) => finishNote(c, note));
+
+      for (const run of [
+        inTenant.bind(null, A.tenant),
+        (fn: (c: Client) => Promise<unknown>) => asOwner(fn),
+      ]) {
+        await expect(
+          run((c: Client) =>
+            c.query(`UPDATE consultations SET advice = 'x', updated_at = now() WHERE id = $1`, [
+              note,
+            ]),
+          ),
+        ).rejects.toThrow(/completed note cannot be changed/i);
+      }
+      await expect(
+        asOwner((c) => c.query(`DELETE FROM consultations WHERE id = $1`, [note])),
+      ).rejects.toThrow(/append-only/i);
+      await expect(
+        inTenant(A.tenant, (c) => c.query(`DELETE FROM consultations WHERE id = $1`, [note])),
+      ).rejects.toThrow(/permission denied/i);
+    });
+
+    it('identity columns of a note cannot be changed (app has no privilege; owner is stopped)', async () => {
+      const visit = await visitIn(A, 'IN_CONSULTATION');
+      const note = await inTenant(A.tenant, (c) => insertNote(c, visit));
+      await expect(
+        inTenant(A.tenant, (c) =>
+          c.query(`UPDATE consultations SET doctor_profile_id = $2 WHERE id = $1`, [
+            note,
+            otherDoctorA,
+          ]),
+        ),
+      ).rejects.toThrow(/permission denied/i);
+      await expect(
+        asOwner((c) =>
+          c.query(`UPDATE consultations SET doctor_profile_id = $2 WHERE id = $1`, [
+            note,
+            otherDoctorA,
+          ]),
+        ),
+      ).rejects.toThrow(/immutable/i);
+    });
+
+    it('a visit becomes COMPLETED only after its note is COMPLETED', async () => {
+      const visit = await visitIn(A, 'IN_CONSULTATION');
+      const complete = () =>
+        inTenant(A.tenant, (c) =>
+          c.query(
+            `UPDATE opd_visits SET status='COMPLETED', completed_at=now(), updated_at=now() WHERE id=$1`,
+            [visit],
+          ),
+        );
+      await expect(complete()).rejects.toThrow(/note is completed/i);
+      const note = await inTenant(A.tenant, (c) => insertNote(c, visit));
+      await expect(complete()).rejects.toThrow(/note is completed/i);
+      await inTenant(A.tenant, (c) => finishNote(c, note));
+      await complete();
+    });
+
+    it('addenda: only on a COMPLETED note, only by the visit doctor, append-only, never blank', async () => {
+      const visit = await visitIn(A, 'IN_CONSULTATION');
+      const note = await inTenant(A.tenant, (c) => insertNote(c, visit));
+      await expect(inTenant(A.tenant, (c) => insertAddendum(c, note))).rejects.toThrow(
+        /completed note/i,
+      );
+      await inTenant(A.tenant, (c) => finishNote(c, note));
+      await expect(
+        inTenant(A.tenant, (c) => insertAddendum(c, note, { by: A.user })),
+      ).rejects.toThrow(/only the doctor of the visit/i);
+      await expect(
+        inTenant(A.tenant, (c) => insertAddendum(c, note, { text: '  ' })),
+      ).rejects.toThrow(/check|violates/i);
+      await expect(
+        inTenant(A.tenant, (c) => insertAddendum(c, note, { reason: '' })),
+      ).rejects.toThrow(/check|violates/i);
+      await inTenant(A.tenant, (c) => insertAddendum(c, note));
+      await inTenant(A.tenant, (c) => insertAddendum(c, note, { text: 'second correction' }));
+      for (const run of [
+        inTenant.bind(null, A.tenant),
+        (fn: (c: Client) => Promise<unknown>) => asOwner(fn),
+      ]) {
+        await expect(
+          run((c: Client) => c.query(`UPDATE consultation_addenda SET reason = 'x'`)),
+        ).rejects.toThrow(/append-only|permission denied/i);
+        await expect(
+          run((c: Client) => c.query(`DELETE FROM consultation_addenda`)),
+        ).rejects.toThrow(/append-only|permission denied/i);
+      }
+    });
+
+    it('vitals: only for a visit that has joined the queue', async () => {
+      const unpaid = await visitIn(A, 'AWAITING_PAYMENT');
+      const waiting = await visitIn(A, 'WAITING');
+      await expect(inTenant(A.tenant, (c) => insertVitals(c, unpaid, pulseA))).rejects.toThrow(
+        /joined the queue/i,
+      );
+      await inTenant(A.tenant, (c) => insertVitals(c, waiting, pulseA));
+      await inTenant(A.tenant, (c) => insertVitals(c, waiting, postureA));
+    });
+
+    it('vitals: gapless versions, a correction needs a reason, the copy must be true', async () => {
+      const visit = await visitIn(A, 'WAITING');
+      await expect(
+        inTenant(A.tenant, (c) => insertVitals(c, visit, pulseA, { version: 2, reason: 'typo' })),
+      ).rejects.toThrow(/follow the latest/i);
+      await inTenant(A.tenant, (c) => insertVitals(c, visit, pulseA));
+      await expect(
+        inTenant(A.tenant, (c) => insertVitals(c, visit, pulseA, { version: 2, number: 80 })),
+      ).rejects.toThrow(/check|violates/i);
+      await expect(
+        inTenant(A.tenant, (c) =>
+          insertVitals(c, visit, pulseA, { version: 2, number: 80, reason: '   ' }),
+        ),
+      ).rejects.toThrow(/check|violates/i);
+      await inTenant(A.tenant, (c) =>
+        insertVitals(c, visit, pulseA, { version: 2, number: 80, reason: 'wrong cuff' }),
+      );
+      await expect(
+        inTenant(A.tenant, (c) =>
+          insertVitals(c, visit, pulseA, { version: 2, number: 81, reason: 'again' }),
+        ),
+      ).rejects.toThrow(/follow the latest|duplicate key/i);
+      await inTenant(A.tenant, (c) =>
+        insertVitals(c, visit, pulseA, { version: 3, number: 78, reason: 'rechecked' }),
+      );
+      // the unit (or name, or kind) is a copy of the master: a lie is refused
+      const other = await visitIn(A, 'WAITING');
+      await expect(
+        inTenant(A.tenant, (c) => insertVitals(c, other, pulseA, { unit: 'mmHg' })),
+      ).rejects.toThrow(/true copy/i);
+    });
+
+    it('vitals: a number field holds a number, a text field holds text', async () => {
+      const visit = await visitIn(A, 'WAITING');
+      await expect(
+        inTenant(A.tenant, (c) =>
+          insertVitals(c, visit, pulseA, { kind: 'NUMBER', number: null, text: 'fast' }),
+        ),
+      ).rejects.toThrow(/check|violates/i);
+      await expect(
+        inTenant(A.tenant, (c) =>
+          insertVitals(c, visit, postureA, { kind: 'TEXT', text: '   ', number: null }),
+        ),
+      ).rejects.toThrow(/check|violates/i);
+      await expect(
+        inTenant(A.tenant, (c) =>
+          insertVitals(c, visit, postureA, { kind: 'TEXT', text: 'sitting', number: 5 }),
+        ),
+      ).rejects.toThrow(/check|violates/i);
+    });
+
+    it('vitals are append-only and can still be corrected after the visit is COMPLETED', async () => {
+      const visit = await visitIn(A, 'IN_CONSULTATION');
+      await inTenant(A.tenant, (c) => insertVitals(c, visit, pulseA));
+      const note = await inTenant(A.tenant, (c) => insertNote(c, visit));
+      await inTenant(A.tenant, async (c) => {
+        await finishNote(c, note);
+        await c.query(
+          `UPDATE opd_visits SET status='COMPLETED', completed_at=now(), updated_at=now() WHERE id=$1`,
+          [visit],
+        );
+      });
+      await inTenant(A.tenant, (c) =>
+        insertVitals(c, visit, pulseA, { version: 2, number: 75, reason: 'rechecked later' }),
+      );
+      for (const run of [
+        inTenant.bind(null, A.tenant),
+        (fn: (c: Client) => Promise<unknown>) => asOwner(fn),
+      ]) {
+        await expect(
+          run((c: Client) => c.query(`UPDATE visit_vitals SET value_number = 1`)),
+        ).rejects.toThrow(/append-only|permission denied/i);
+        await expect(run((c: Client) => c.query(`DELETE FROM visit_vitals`))).rejects.toThrow(
+          /append-only|permission denied/i,
+        );
+      }
+    });
+
+    it('prescription: listed rows are a true copy of the medicines list, free text is flagged unlisted', async () => {
+      const visit = await visitIn(A, 'IN_CONSULTATION');
+      const note = await inTenant(A.tenant, (c) => insertNote(c, visit));
+      await expect(
+        inTenant(A.tenant, (c) => insertRx(c, note, { name: 'Something else' })),
+      ).rejects.toThrow(/true copy/i);
+      await inTenant(A.tenant, (c) => insertRx(c, note));
+      await inTenant(A.tenant, (c) => insertRx(c, note, { line: 2, medicine: null }));
+      // a listed row cannot claim to be unlisted, and free text cannot claim to be listed
+      await expect(
+        inTenant(A.tenant, (c) => insertRx(c, note, { line: 3, unlisted: true })),
+      ).rejects.toThrow(/check|violates/i);
+      await expect(
+        inTenant(A.tenant, (c) => insertRx(c, note, { line: 3, medicine: null, unlisted: false })),
+      ).rejects.toThrow(/check|violates/i);
+      // one row per line number, and a medicine of ANOTHER hospital is refused
+      await expect(inTenant(A.tenant, (c) => insertRx(c, note, { line: 2 }))).rejects.toThrow(
+        /duplicate key|unique/i,
+      );
+      await expect(
+        inTenant(A.tenant, (c) => insertRx(c, note, { line: 3, medicine: medicineB.id })),
+      ).rejects.toThrow(/foreign key|true copy/i);
+      await expect(
+        inTenant(A.tenant, (c) => insertRx(c, note, { line: 3, dose: '  ' })),
+      ).rejects.toThrow(/check|violates/i);
+      for (const run of [
+        inTenant.bind(null, A.tenant),
+        (fn: (c: Client) => Promise<unknown>) => asOwner(fn),
+      ]) {
+        await expect(
+          run((c: Client) => c.query(`UPDATE prescription_items SET dose = 'x'`)),
+        ).rejects.toThrow(/append-only|permission denied/i);
+      }
+    });
+
+    it('prescription: rows can be replaced while the note is a draft and are frozen once it is completed', async () => {
+      const visit = await visitIn(A, 'IN_CONSULTATION');
+      const note = await inTenant(A.tenant, (c) => insertNote(c, visit));
+      await inTenant(A.tenant, (c) => insertRx(c, note));
+      await inTenant(A.tenant, (c) =>
+        c.query(`DELETE FROM prescription_items WHERE consultation_id = $1`, [note]),
+      );
+      await inTenant(A.tenant, (c) => insertRx(c, note));
+      await inTenant(A.tenant, (c) => finishNote(c, note));
+      await expect(inTenant(A.tenant, (c) => insertRx(c, note, { line: 2 }))).rejects.toThrow(
+        /completed note/i,
+      );
+      await expect(
+        inTenant(A.tenant, (c) =>
+          c.query(`DELETE FROM prescription_items WHERE consultation_id = $1`, [note]),
+        ),
+      ).rejects.toThrow(/completed note/i);
+      await expect(
+        asOwner((c) =>
+          c.query(`DELETE FROM prescription_items WHERE consultation_id = $1`, [note]),
+        ),
+      ).rejects.toThrow(/completed note/i);
+    });
+
+    it('a prescription row cannot slip in while the note is being completed (row lock)', async () => {
+      const visit = await visitIn(A, 'IN_CONSULTATION');
+      const note = await inTenant(A.tenant, (c) => insertNote(c, visit));
+      const completer = createPgClient('app');
+      const writer = createPgClient('app');
+      await completer.connect();
+      await writer.connect();
+      try {
+        for (const c of [completer, writer]) {
+          await c.query(`SELECT set_config('app.tenant_id', $1, false)`, [A.tenant]);
+        }
+        await completer.query('BEGIN');
+        await finishNote(completer, note); // holds the row lock, not committed yet
+        await writer.query('BEGIN');
+        const slipIn = insertRx(writer, note); // waits for the lock
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        await completer.query('COMMIT');
+        await expect(slipIn).rejects.toThrow(/completed note/i);
+        await writer.query('ROLLBACK');
+      } finally {
+        await completer.end();
+        await writer.end();
+      }
+    });
+
+    it('another hospital can neither see nor write clinical rows of this one', async () => {
+      const visit = await visitIn(A, 'IN_CONSULTATION');
+      const note = await inTenant(A.tenant, (c) => insertNote(c, visit));
+      await inTenant(A.tenant, (c) => insertRx(c, note));
+      await inTenant(A.tenant, (c) => finishNote(c, note));
+      await inTenant(A.tenant, (c) => insertAddendum(c, note));
+      const seen = await inTenant(B.tenant, async (c) => {
+        const out: Record<string, number> = {};
+        for (const t of [
+          'consultations',
+          'consultation_addenda',
+          'visit_vitals',
+          'prescription_items',
+        ]) {
+          out[t] = (
+            await c.query<{ n: string }>(
+              `SELECT count(*)::text AS n FROM ${t} WHERE tenant_id = $1`,
+              [A.tenant],
+            )
+          ).rows.map((r) => Number(r.n))[0]!;
+        }
+        return out;
+      });
+      expect(seen).toEqual({
+        consultations: 0,
+        consultation_addenda: 0,
+        visit_vitals: 0,
+        prescription_items: 0,
+      });
+      // hospital B writing a note for hospital A's visit: refused (row level security)
+      const stolen = await visitIn(A, 'IN_CONSULTATION');
+      await expect(
+        inTenant(B.tenant, (c) =>
+          c.query(
+            `INSERT INTO consultations (id, tenant_id, branch_id, visit_id, doctor_profile_id)
+             VALUES (gen_random_uuid()::text, $1, $2, $3, $4)`,
+            [A.tenant, A.mainBranch, stolen, A.doctorProfile],
+          ),
+        ),
+      ).rejects.toThrow(/row-level security|in consultation/i);
+      expect(await owner.consultation.count({ where: { visitId: stolen } })).toBe(0);
+    });
+
+    it('hospigo_hq and hospigo_patient have no privileges on the clinical tables', async () => {
+      await asOwner(async (c) => {
+        for (const role of ['hospigo_hq', 'hospigo_patient']) {
+          for (const table of [
+            'consultations',
+            'consultation_addenda',
+            'visit_vitals',
+            'prescription_items',
+          ]) {
+            const r = await c.query<{ s: boolean; i: boolean; u: boolean; d: boolean }>(
+              `SELECT has_table_privilege($1, $2, 'SELECT') AS s,
+                      has_table_privilege($1, $2, 'INSERT') AS i,
+                      has_table_privilege($1, $2, 'UPDATE') AS u,
+                      has_table_privilege($1, $2, 'DELETE') AS d`,
+              [role, `public.${table}`],
+            );
+            expect({ role, table, ...r.rows[0] }).toEqual({
+              role,
+              table,
+              s: false,
+              i: false,
+              u: false,
+              d: false,
+            });
+          }
+        }
+      });
+    });
+  });
 
   describe('Prisma models match the migration', () => {
     it('creates a visit, bill, lines and payment through the app client and reads the result', async () => {
