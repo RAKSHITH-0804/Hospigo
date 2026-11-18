@@ -30,7 +30,27 @@ const PERMISSIONS = [
   { code: 'opd.settings.write', description: 'Write OPD settings' },
   { code: 'patients.registry.read', description: 'Read patient registry' },
   { code: 'patients.registry.write', description: 'Write patient registry' },
+  { code: 'opd.visits.create', description: 'Create an OPD visit and its consultation bill' },
+  { code: 'opd.visits.read', description: 'Read OPD visits' },
+  { code: 'opd.billing.collect', description: 'Take payment for an OPD bill' },
+  { code: 'opd.billing.read', description: 'Read OPD bills and receipts' },
 ] as const;
+
+/**
+ * Permissions the SYSTEM admin roles (SuperAdmin, Branch Admin) never receive automatically.
+ * Admins read visits and bills, but do not create visits, collect cash, or see clinical data
+ * (queue, vitals, consultation notes). Hospitals can still grant them through their own roles.
+ * Codes that are not in the catalog yet (clinical steps) are listed so they stay excluded.
+ */
+export const ADMIN_EXCLUDED_PERMISSION_CODES: readonly string[] = [
+  'opd.visits.create',
+  'opd.billing.collect',
+  'opd.queue.read',
+  'opd.vitals.read',
+  'opd.vitals.write',
+  'opd.notes.read',
+  'opd.notes.write',
+];
 
 /** Idempotent prod-safe catalog seed (modules, permissions). System role templates are per-tenant. */
 export async function seedReferenceData(prisma: PrismaClient): Promise<void> {
@@ -168,7 +188,9 @@ export async function ensureSystemRolesForTenant(
   prisma: PrismaClient,
   tenantId: string,
 ): Promise<{ superAdminRoleId: string; branchAdminRoleId: string }> {
-  const permissions = await prisma.permission.findMany({ where: { isActive: true } });
+  const allPermissions = await prisma.permission.findMany({ where: { isActive: true } });
+  const excluded = new Set(ADMIN_EXCLUDED_PERMISSION_CODES);
+  const permissions = allPermissions.filter((p) => !excluded.has(p.code));
 
   const superAdmin = await prisma.role.upsert({
     where: { tenantId_code: { tenantId, code: SYSTEM_ROLE_CODES.SUPER_ADMIN } },
@@ -216,6 +238,19 @@ export async function ensureSystemRolesForTenant(
       },
       create: { tenantId, roleId: branchAdmin.id, permissionId: permission.id },
       update: { isActive: true },
+    });
+  }
+
+  // Idempotent clean-up: an excluded permission granted by an earlier seed run is switched off.
+  const excludedIds = allPermissions.filter((p) => excluded.has(p.code)).map((p) => p.id);
+  if (excludedIds.length > 0) {
+    await prisma.rolePermission.updateMany({
+      where: {
+        tenantId,
+        roleId: { in: [superAdmin.id, branchAdmin.id] },
+        permissionId: { in: excludedIds },
+      },
+      data: { isActive: false },
     });
   }
 

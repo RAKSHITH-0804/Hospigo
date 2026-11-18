@@ -271,9 +271,13 @@ async function seedOpdMasters(
       'opd.masters.read',
       'patients.registry.read',
       'patients.registry.write',
+      'opd.visits.create',
+      'opd.visits.read',
+      'opd.billing.collect',
+      'opd.billing.read',
     ],
-    [OPD_ROLE_CODES.NURSE]: ['opd.masters.read', 'patients.registry.read'],
-    [OPD_ROLE_CODES.DOCTOR]: ['opd.masters.read', 'patients.registry.read'],
+    [OPD_ROLE_CODES.NURSE]: ['opd.masters.read', 'patients.registry.read', 'opd.visits.read'],
+    [OPD_ROLE_CODES.DOCTOR]: ['opd.masters.read', 'patients.registry.read', 'opd.visits.read'],
   };
 
   const roleDefs = [

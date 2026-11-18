@@ -263,3 +263,68 @@ Raises the counter for the **current period** resolved from the effective UHID f
 | No token                          | 401            |
 | Patient / HQ token (wrong kind)   | 401            |
 | Hospital token without permission | 403            |
+
+---
+
+# Visits and billing (Step 4a)
+
+Money is integer paise everywhere. The **branch, tenant and user always come from the token**, never from the body. Reads show only the **active branch** of the token. Failures return `{ statusCode, code, ... }`; the API carries no UI text.
+
+## Permissions
+
+| Code                  | Used by                                                                                 |
+| --------------------- | --------------------------------------------------------------------------------------- |
+| `opd.visits.create`   | `GET /opd/doctors`, `POST /opd/visits` (the route; taking the money also needs collect) |
+| `opd.billing.collect` | `POST /opd/visits` (checked inside; without it the call is 403 and nothing is created)  |
+| `opd.visits.read`     | `GET /opd/visits/:id`, `GET /patients/:patientId/visits`                                |
+| `opd.billing.read`    | money in the two read routes (without it the response has no `bill` at all)             |
+
+SuperAdmin and Branch Admin (system roles) get only `opd.visits.read` and `opd.billing.read`. Receptionist gets all four. Nurse and Doctor get `opd.visits.read`; a doctor who cannot read bills sees only their own visits. All routes also need the OPD module on the active branch.
+
+## GET /opd/doctors
+
+Doctors whose login is a member of the active branch (active profile, active user): `{ items: [{ id, code, name, department, available, unavailableReason, outsideTimings, feeNewPaise, feeFollowUpPaise }] }`. `unavailableReason` is `SWITCH_OFF` or `ON_LEAVE`; an unavailable doctor cannot be assigned. Fees are the current price-list value (null when not configured).
+
+## POST /opd/visits (visit + bill + cash payment in ONE transaction)
+
+```json
+{
+  "patientId": "clxpatient01",
+  "doctorProfileId": "clxdoctor01",
+  "visitType": "NEW",
+  "idempotencyKey": "one-key-per-click-1234",
+  "paymentModeCode": "CASH",
+  "referenceNo": "optional, required when the mode needs one"
+}
+```
+
+There is no branch, amount, tax or status field (unknown fields are `400`). The server prices the visit:
+
+- consultation fee = the doctor's current fee for the visit type; **registration fee** is added only when the patient has no active registration-fee record (once per patient, all branches);
+- `FOLLOW_UP` needs a **completed** earlier visit of the same patient with the same doctor (any branch), else `400 FOLLOW_UP_NEEDS_PREVIOUS_VISIT`. If that visit's day is within `follow_up_free_days` of today (hospital time zone) the consultation line is `0` with `pricingNote: FOLLOW_UP_FREE_WINDOW`: the bill is settled with no payment, but still has a bill number and a token;
+- paid in full by the chosen mode (default `CASH`); bill number and receipt number come from the hospital series, the token from the branch's day series (hospital time zone, restarts at 1 each day); the visit becomes `WAITING`.
+
+Response `201` (new) or `200` (same `idempotencyKey` again: the same visit, bill and receipt are returned with `replayed: true`; the same key with a different patient, doctor, type or branch is `409`). The body is the visit view: `id, status, visitType, visitDate, branch, patient{id,uhid,name}, doctor{id,code,name}, token{date,no,label}, bill{billNumber, totalPaise, paidPaise, paymentStatus, lines[], payments[]}`.
+
+| Status | Code                                                     | Meaning                                                                  |
+| ------ | -------------------------------------------------------- | ------------------------------------------------------------------------ |
+| 400    | validation                                               | unknown field, bad type, oversized value                                 |
+| 400    | `DOCTOR_UNAVAILABLE` (+ `reason`)                        | switch off or on leave                                                   |
+| 400    | `DOCTOR_NOT_IN_BRANCH`                                   | the doctor is not a member of the active branch                          |
+| 400    | `FOLLOW_UP_NEEDS_PREVIOUS_VISIT`                         |                                                                          |
+| 400    | `PAYMENT_MODE_NOT_AVAILABLE`, `REFERENCE_REQUIRED`       | unknown or inactive mode; mode needs a reference                         |
+| 403    | `FORBIDDEN`                                              | no `opd.billing.collect` (or no `opd.visits.create`); nothing is created |
+| 404    | `PATIENT_NOT_FOUND`, `DOCTOR_NOT_FOUND`                  | unknown, inactive, or another hospital's (same answer)                   |
+| 409    | `FEE_NOT_CONFIGURED` (+ `what`)                          | no fee in the price list; nothing is billed as zero by accident          |
+| 409    | `IDEMPOTENCY_KEY_REUSED`, `NUMBER_SERIES_NOT_CONFIGURED` |                                                                          |
+| 501    | `TAX_NOT_SUPPORTED`                                      | tax is switched on in the hospital settings but tax billing is not built |
+
+Everything is in one database transaction: a refused or failed request stores nothing and burns no bill, receipt or token number. The database also refuses wrong money (see `docs/schema-opd.md`, "As built (Step 4a)").
+
+## GET /opd/visits/:id
+
+One visit of the **active branch** with its bill, lines and payments when the caller has `opd.billing.read`; otherwise the same visit without any `bill`. A visit of another branch or hospital, an unknown id, or (for a doctor) another doctor's visit is `404 VISIT_NOT_FOUND`.
+
+## GET /patients/:patientId/visits
+
+Visits of one patient in the active branch, newest first: `{ items, total, page, pageSize }` (`page`, `pageSize` capped at 100). Items carry a bill summary (no lines or payments) for callers with `opd.billing.read`. Same branch and doctor rules as above; an unknown or foreign patient is `404 PATIENT_NOT_FOUND`.

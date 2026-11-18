@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { TenantDb } from '../../database/tenant-db';
+import { TenantDb, type TenantTx } from '../../database/tenant-db';
 import { requireContext } from '../../common/request-context';
 import { zonedParts } from '../patients/uhid.util';
 import { OPD_SETTINGS_DEFAULTS } from './opd-settings.defaults';
@@ -61,57 +61,66 @@ export class DoctorAvailabilityService {
   ): Promise<DoctorAvailability> {
     return this.tenantDb.withTenant(async (tx) => {
       const ctx = requireContext();
-      const tenantId = ctx.tenantId!;
-
-      const settings = await tx.opdSettings.findUnique({ where: { tenantId } });
-      const timeZone = settings?.timezone ?? OPD_SETTINGS_DEFAULTS.timezone;
-
-      const profile = await tx.doctorProfile.findFirst({
-        where: { tenantId, id: doctorProfileId },
-      });
-      if (!profile) {
-        throw new Error('Doctor profile not found');
-      }
-
-      const weekday = zonedWeekday(at, timeZone);
-      const dateStr = localDateString(at, timeZone);
-      const minutes = localMinutes(at, timeZone);
-
-      const leave = await tx.doctorLeave.findFirst({
-        where: {
-          tenantId,
-          doctorProfileId,
-          fromDate: { lte: new Date(`${dateStr}T00:00:00.000Z`) },
-          toDate: { gte: new Date(`${dateStr}T00:00:00.000Z`) },
-        },
-      });
-
-      let available = true;
-      let reason: AvailabilityReason = null;
-      if (!profile.availabilityOn) {
-        available = false;
-        reason = 'SWITCH_OFF';
-      } else if (leave) {
-        available = false;
-        reason = 'ON_LEAVE';
-      }
-
-      const timings = await tx.doctorTiming.findMany({
-        where: { tenantId, doctorProfileId, branchId },
-      });
-
-      let outsideTimings = false;
-      if (timings.length > 0) {
-        const today = timings.filter((t) => t.weekday === weekday);
-        const inWindow = today.some((t) => {
-          const start = timeMinutesFromPrisma(t.startTime);
-          const end = timeMinutesFromPrisma(t.endTime);
-          return minutes >= start && minutes < end;
-        });
-        outsideTimings = !inWindow;
-      }
-
-      return { available, reason, outsideTimings };
+      return this.getAvailabilityInTx(tx, ctx.tenantId!, doctorProfileId, branchId, at);
     });
+  }
+
+  /** Same rules, on the caller's transaction (one consistent snapshot with the rest of a request). */
+  async getAvailabilityInTx(
+    tx: TenantTx,
+    tenantId: string,
+    doctorProfileId: string,
+    branchId: string,
+    at: Date,
+  ): Promise<DoctorAvailability> {
+    const settings = await tx.opdSettings.findUnique({ where: { tenantId } });
+    const timeZone = settings?.timezone ?? OPD_SETTINGS_DEFAULTS.timezone;
+
+    const profile = await tx.doctorProfile.findFirst({
+      where: { tenantId, id: doctorProfileId },
+    });
+    if (!profile) {
+      throw new Error('Doctor profile not found');
+    }
+
+    const weekday = zonedWeekday(at, timeZone);
+    const dateStr = localDateString(at, timeZone);
+    const minutes = localMinutes(at, timeZone);
+
+    const leave = await tx.doctorLeave.findFirst({
+      where: {
+        tenantId,
+        doctorProfileId,
+        fromDate: { lte: new Date(`${dateStr}T00:00:00.000Z`) },
+        toDate: { gte: new Date(`${dateStr}T00:00:00.000Z`) },
+      },
+    });
+
+    let available = true;
+    let reason: AvailabilityReason = null;
+    if (!profile.availabilityOn) {
+      available = false;
+      reason = 'SWITCH_OFF';
+    } else if (leave) {
+      available = false;
+      reason = 'ON_LEAVE';
+    }
+
+    const timings = await tx.doctorTiming.findMany({
+      where: { tenantId, doctorProfileId, branchId },
+    });
+
+    let outsideTimings = false;
+    if (timings.length > 0) {
+      const today = timings.filter((t) => t.weekday === weekday);
+      const inWindow = today.some((t) => {
+        const start = timeMinutesFromPrisma(t.startTime);
+        const end = timeMinutesFromPrisma(t.endTime);
+        return minutes >= start && minutes < end;
+      });
+      outsideTimings = !inWindow;
+    }
+
+    return { available, reason, outsideTimings };
   }
 }
