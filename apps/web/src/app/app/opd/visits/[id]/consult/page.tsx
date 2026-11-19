@@ -8,7 +8,8 @@ import { opdWebConfig } from '@/config/opd';
 import { staffCopy } from '@/config/staff-copy';
 import { requirePermission } from '@/lib/auth/guards';
 import type { ConsultationResponse, VitalsResponse } from '@/lib/opd/clinical-types';
-import { apiConsultationPath, apiVisitVitalsPath } from '@/lib/opd/server';
+import type { VisitTestsResponse } from '@/lib/opd/tests-types';
+import { apiConsultationPath, apiVisitTestsPath, apiVisitVitalsPath } from '@/lib/opd/server';
 import { errorMessageFor } from '@/lib/patients/client';
 import { fetchStaffOnServer, serverErrorCode } from '@/lib/patients/server';
 
@@ -23,10 +24,14 @@ export default async function ConsultPage({ params }: { params: Promise<{ id: st
   const permissions = session.permissions ?? [];
 
   // The note (this read is audited by the API) and the vitals are fetched in parallel.
-  const [consult, vitals] = await Promise.all([
+  const canOrderTests = permissions.includes('opd.investigations.order');
+  const [consult, vitals, tests] = await Promise.all([
     fetchStaffOnServer<ConsultationResponse>(apiConsultationPath(id)),
     permissions.includes('opd.vitals.read')
       ? fetchStaffOnServer<VitalsResponse>(apiVisitVitalsPath(id))
+      : Promise.resolve(null),
+    canOrderTests
+      ? fetchStaffOnServer<VisitTestsResponse>(apiVisitTestsPath(id))
       : Promise.resolve(null),
   ]);
 
@@ -49,6 +54,8 @@ export default async function ConsultPage({ params }: { params: Promise<{ id: st
       vitals={vitals && vitals.status === 'ok' ? vitals.data.fields : []}
       canWrite={permissions.includes('opd.notes.write')}
       canRecordVitals={permissions.includes('opd.vitals.write')}
+      canOrderTests={canOrderTests}
+      initialTests={tests && tests.status === 'ok' ? tests.data.orders : []}
       settings={{
         autosaveSeconds: opdWebConfig.autosaveSeconds,
         minChars: opdWebConfig.medicineSearchMinChars,
@@ -56,6 +63,11 @@ export default async function ConsultPage({ params }: { params: Promise<{ id: st
         limit: opdWebConfig.medicineSearchLimit,
         calendarWeekStart: opdWebConfig.calendarWeekStart,
         followUpQuickDays: opdWebConfig.followUpQuickDays,
+        testsSearch: {
+          minChars: opdWebConfig.testsSearchMinChars,
+          debounceMs: opdWebConfig.testsSearchDebounceMs,
+          limit: opdWebConfig.testsSearchLimit,
+        },
       }}
       backHref={QUEUE_PATH}
     >

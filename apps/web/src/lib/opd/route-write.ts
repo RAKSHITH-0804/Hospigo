@@ -44,3 +44,17 @@ export async function visitPathOf(context: VisitRouteContext, tail = ''): Promis
   const { id } = await context.params;
   return `/opd/visits/${encodeURIComponent(id)}${tail}`;
 }
+
+export type BillRouteContext = { params: Promise<{ billId: string }> };
+
+/** The bill path of the API for the bill id in the URL (the id is encoded). */
+export async function billPathOf(context: BillRouteContext, tail = ''): Promise<string> {
+  const { billId } = await context.params;
+  return `/opd/bills/${encodeURIComponent(billId)}${tail}`;
+}
+
+/** The refund-request path of the API for the request id in the URL (the id is encoded). */
+export async function refundRequestPathOf(context: VisitRouteContext, tail = ''): Promise<string> {
+  const { id } = await context.params;
+  return `/opd/refund-requests/${encodeURIComponent(id)}${tail}`;
+}

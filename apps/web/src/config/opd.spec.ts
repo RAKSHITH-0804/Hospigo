@@ -37,4 +37,29 @@ describe('OPD web settings (clinical screens)', () => {
   ])('refuses %s=%s', (key, value) => {
     expect(() => loadOpdWebConfig({ [key]: value })).toThrow(key);
   });
+
+  it('Step 6b settings: tests box, pending refresh and refund list size', () => {
+    const d = loadOpdWebConfig({});
+    expect(d).toMatchObject({
+      testsSearchMinChars: 2,
+      testsSearchDebounceMs: 300,
+      testsSearchLimit: 10,
+      pendingRefreshSeconds: 20,
+      refundsPageSize: 20,
+      refundsPageParam: 'rp',
+    });
+    const c = loadOpdWebConfig({
+      WEB_OPD_PENDING_REFRESH_SECONDS: '0',
+      WEB_OPD_REFUNDS_PAGE_SIZE: '50',
+    });
+    expect(c).toMatchObject({ pendingRefreshSeconds: 0, refundsPageSize: 50 });
+    for (const [key, value] of [
+      ['WEB_OPD_PENDING_REFRESH_SECONDS', '601'],
+      ['WEB_OPD_REFUNDS_PAGE_SIZE', '0'],
+      ['WEB_OPD_REFUNDS_PAGE_SIZE', '101'],
+      ['WEB_OPD_REFUNDS_PAGE_SIZE', 'many'],
+    ]) {
+      expect(() => loadOpdWebConfig({ [key!]: value })).toThrow(key);
+    }
+  });
 });

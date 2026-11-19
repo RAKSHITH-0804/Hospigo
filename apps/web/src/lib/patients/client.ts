@@ -34,6 +34,14 @@ export type PatientsApiError = {
   fieldCode?: string;
   /** Which prescription row a refusal is about (0 based). */
   index?: number;
+  /** Step 6b: facts that explain a refusal about tests, refunds and cancellations. */
+  paymentModeCode?: string;
+  /** A visit or request status named by the refusal (the HTTP status is `status`). */
+  upstreamStatus?: string;
+  series?: string;
+  refundablePaise?: number;
+  pendingPaise?: number;
+  max?: number;
 };
 export type PatientsApiResult<T> = PatientsApiOk<T> | PatientsApiError;
 
@@ -122,6 +130,14 @@ async function fetchPatientsOnce<T>(
       totalPaise: typeof record.totalPaise === 'number' ? record.totalPaise : undefined,
       fieldCode: typeof record.fieldCode === 'string' ? record.fieldCode : undefined,
       index: typeof record.index === 'number' ? record.index : undefined,
+      paymentModeCode:
+        typeof record.paymentModeCode === 'string' ? record.paymentModeCode : undefined,
+      upstreamStatus: typeof record.status === 'string' ? record.status : undefined,
+      series: typeof record.series === 'string' ? record.series : undefined,
+      refundablePaise:
+        typeof record.refundablePaise === 'number' ? record.refundablePaise : undefined,
+      pendingPaise: typeof record.pendingPaise === 'number' ? record.pendingPaise : undefined,
+      max: typeof record.max === 'number' ? record.max : undefined,
     };
   } catch (error) {
     if (init.signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {

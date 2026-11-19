@@ -25,8 +25,8 @@ function jsonResponse(data: unknown, status: number): NextResponse {
   return NextResponse.json(data, { status, headers: NO_STORE });
 }
 
-/** Pick only known upstream error fields for the browser. Never forwards tokens. */
-function safeUpstreamErrorPayload(body: Record<string, unknown> | undefined): {
+/** The only upstream error facts a browser may receive (codes, numbers, small labels; no tokens). */
+export type UpstreamErrorPayload = {
   code?: string;
   message?: string;
   matches?: unknown;
@@ -36,18 +36,29 @@ function safeUpstreamErrorPayload(body: Record<string, unknown> | undefined): {
   totalPaise?: number;
   fieldCode?: string;
   index?: number;
-} {
-  const out: {
-    code?: string;
-    message?: string;
-    matches?: unknown;
-    fieldErrors?: unknown;
-    reason?: string;
-    what?: string;
-    totalPaise?: number;
-    fieldCode?: string;
-    index?: number;
-  } = {};
+  /** Step 6b: facts that explain a refusal about tests, refunds and cancellations. */
+  paymentModeCode?: string;
+  /** A visit or request status (for example "REJECTED"). */
+  status?: string;
+  series?: string;
+  refundablePaise?: number;
+  pendingPaise?: number;
+  max?: number;
+};
+
+const SAFE_TEXT_KEYS = [
+  'reason',
+  'what',
+  'fieldCode',
+  'paymentModeCode',
+  'status',
+  'series',
+] as const;
+const SAFE_NUMBER_KEYS = ['totalPaise', 'index', 'refundablePaise', 'pendingPaise', 'max'] as const;
+
+/** Pick only known upstream error fields for the browser. Never forwards tokens. */
+function safeUpstreamErrorPayload(body: Record<string, unknown> | undefined): UpstreamErrorPayload {
+  const out: UpstreamErrorPayload = {};
   if (!body) {
     return out;
   }
@@ -64,21 +75,17 @@ function safeUpstreamErrorPayload(body: Record<string, unknown> | undefined): {
     out.fieldErrors = body.fieldErrors;
   }
   // Small facts a screen needs to explain a refusal (never tokens or personal data).
-  if (typeof body.reason === 'string') {
-    out.reason = body.reason;
+  for (const key of SAFE_TEXT_KEYS) {
+    const value = body[key];
+    if (typeof value === 'string') {
+      out[key] = value;
+    }
   }
-  if (typeof body.what === 'string') {
-    out.what = body.what;
-  }
-  if (typeof body.totalPaise === 'number' && Number.isSafeInteger(body.totalPaise)) {
-    out.totalPaise = body.totalPaise;
-  }
-  // Which vitals field / prescription row a refusal is about (a code and a number, no values).
-  if (typeof body.fieldCode === 'string') {
-    out.fieldCode = body.fieldCode;
-  }
-  if (typeof body.index === 'number' && Number.isSafeInteger(body.index)) {
-    out.index = body.index;
+  for (const key of SAFE_NUMBER_KEYS) {
+    const value = body[key];
+    if (typeof value === 'number' && Number.isSafeInteger(value)) {
+      out[key] = value;
+    }
   }
   return out;
 }

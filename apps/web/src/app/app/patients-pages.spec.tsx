@@ -244,7 +244,22 @@ describe('patients pages', () => {
       canWrite: false,
       canCreateVisit: false,
       canReadBills: false,
+      // Step 6b: reception actions for tests and refunds follow their own permissions
+      canRequestRefund: false,
+      canSeeTests: false,
       visitsTab: { status: 'noAccess' },
+    });
+  });
+
+  it('record page passes the refund and tests permissions on (Step 6b)', async () => {
+    requireKindMock.mockResolvedValue(
+      hospitalSession(['patients.registry.read', 'opd.refunds.request', 'opd.investigations.bill']),
+    );
+    fetchMock.mockImplementation(byPath(ok(formConfig), ok(patient)));
+    render(await PatientRecordPage(idParams));
+    expect(propsOf('patient-record')).toMatchObject({
+      canRequestRefund: true,
+      canSeeTests: true,
     });
   });
 
