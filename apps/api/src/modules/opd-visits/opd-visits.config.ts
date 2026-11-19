@@ -29,4 +29,11 @@ export const OPD_VISITS_CONFIG = {
 export const OPD_AUDIT = {
   visitCreated: 'OPD_VISIT_CREATE',
   paymentReceived: 'OPD_PAYMENT_RECEIVE',
+  testsOrdered: 'OPD_INVESTIGATION_ORDER',
+  testsBilled: 'OPD_INVESTIGATION_BILL',
+  testsNotTaken: 'OPD_INVESTIGATION_NOT_TAKEN',
+  refundRequested: 'OPD_REFUND_REQUEST',
+  refundApproved: 'OPD_REFUND_APPROVE',
+  refundRejected: 'OPD_REFUND_REJECT',
+  visitCancelled: 'OPD_VISIT_CANCEL',
 } as const;

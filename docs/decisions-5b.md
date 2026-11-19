@@ -1,6 +1,6 @@
 # Decisions: Step 5b (nurse and doctor screens)
 
-PR title: **Step 5b: OPD queue, vitals and consultation screens for nurse and doctor**. Branch `feature/phase2-step-5b-nurse-doctor-web`. Web only: no migration, no new permission, no API change (the 5a API from PR #47 is used as it is).
+PR title: **Step 5b: OPD queue, vitals and consultation screens for nurse and doctor**. Branch `feature/phase2-step-5b-nurse-doctor-web`, merged as PR #51 (378e4cf). Web, plus one small API change made after the first manual test: `GET /opd/queue` now lists every open visit and today's completed visits (see the sections below). No migration, no new permission code.
 
 ## What was built
 

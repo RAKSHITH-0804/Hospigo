@@ -39,6 +39,13 @@ const PERMISSIONS = [
   { code: 'opd.vitals.write', description: 'Record and correct visit vitals' },
   { code: 'opd.notes.read', description: 'Read consultation notes and prescriptions' },
   { code: 'opd.notes.write', description: 'Write consultation notes and prescriptions' },
+  { code: 'opd.investigations.order', description: 'Order tests during a consultation' },
+  { code: 'opd.investigations.bill', description: 'See ordered tests and bill them' },
+  { code: 'opd.refunds.request', description: 'Ask for a refund or a visit cancellation' },
+  {
+    code: 'opd.refunds.approve',
+    description: 'Approve or reject refund and cancellation requests',
+  },
 ] as const;
 
 /**
@@ -46,6 +53,7 @@ const PERMISSIONS = [
  * Admins read visits and bills, but do not create visits, collect cash, or see clinical data
  * (queue, vitals, consultation notes). Hospitals can still grant them through their own roles.
  * Codes that are not in the catalog yet (clinical steps) are listed so they stay excluded.
+ * Admins DO get opd.refunds.approve (they decide refunds) but never ask for one, order tests or bill them.
  */
 export const ADMIN_EXCLUDED_PERMISSION_CODES: readonly string[] = [
   'opd.visits.create',
@@ -55,6 +63,9 @@ export const ADMIN_EXCLUDED_PERMISSION_CODES: readonly string[] = [
   'opd.vitals.write',
   'opd.notes.read',
   'opd.notes.write',
+  'opd.investigations.order',
+  'opd.investigations.bill',
+  'opd.refunds.request',
 ];
 
 /** Idempotent prod-safe catalog seed (modules, permissions). System role templates are per-tenant. */

@@ -6,7 +6,7 @@ Hospigo is Indigo's multi-tenant hospital management SaaS. Monorepo with two wor
 ## Read first, every session
 
 1. `docs/project-context.md` (what the project is and every decision behind it)
-2. `docs/handoff-phase2.md` and `docs/decisions-3c.md` (current phase, step list, latest decisions)
+2. `docs/handoff-phase2.md` (current phase, step list, where to start) and the newest decisions file (`docs/decisions-5b.md`; earlier ones: `docs/decisions-5a.md`, `4a`, `3d`, `3c`)
 3. `docs/engineering-tracker.md` (step status) and the doc for the area you work on (`docs/api-opd.md`, `docs/ui-design.md`, `docs/schema-opd.md`, ...)
 
 You do not have access to the planning chats. Anything not written in the repo docs does not exist for you: if you are unsure of a decision, ask Rakshith instead of guessing.
@@ -39,6 +39,7 @@ Self-review at every review gate: after your code and tests are done, do a separ
 - Use `git --no-pager`. Stop dev servers before `npm ci`. Never run `npm audit fix --force`.
 - Before any commit: `git checkout -- apps/web/next-env.d.ts`, `npm run format:check`, and make sure `.env` is not staged.
 - Check the branch and the PR base before giving or running git commands.
+- Do NOT add "Generated with Claude Code", `Co-Authored-By` or any other AI attribution line to commit messages, PR descriptions or files (Rakshith's rule).
 
 ## Standing rules (non-negotiable)
 

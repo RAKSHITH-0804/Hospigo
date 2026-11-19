@@ -9,6 +9,7 @@ import { DoctorAvailabilityService } from '../opd-masters/doctor-availability.se
 import { OPD_SETTINGS_DEFAULTS } from '../opd-masters/opd-settings.defaults';
 import { zonedParts } from '../patients/uhid.util';
 import { opdError, OpdErrorCode } from './opd-visit.errors';
+import { allocateBillingNumber, planPayments, type PaymentPlanLine } from './billing-helpers';
 import { OPD_AUDIT, OPD_VISITS_CONFIG as C } from './opd-visits.config';
 
 export type Actor = { tenantId: string; userId: string; branchId: string };
@@ -27,23 +28,24 @@ export type CreateVisitInput = {
 
 export type PreviewInput = Pick<CreateVisitInput, 'patientId' | 'doctorProfileId' | 'visitType'>;
 
+/** What a bill carries when it is shown (lines, receipts, payments). Shared with the 6a services. */
+export const BILL_INCLUDE = {
+  lines: { orderBy: { lineNo: 'asc' } },
+  receipts: { orderBy: { createdAt: 'asc' } },
+  payments: {
+    orderBy: { paidAt: 'asc' },
+    include: {
+      paymentMode: { select: { code: true, name: true } },
+      receipt: { select: { receiptNumber: true } },
+    },
+  },
+} satisfies Prisma.BillInclude;
+
 const VISIT_INCLUDE = {
   patient: { select: { id: true, uhid: true, name: true } },
   doctor: { select: { id: true, code: true, user: { select: { displayName: true } } } },
   branch: { select: { id: true, name: true } },
-  bills: {
-    include: {
-      lines: { orderBy: { lineNo: 'asc' } },
-      receipts: { orderBy: { createdAt: 'asc' } },
-      payments: {
-        orderBy: { paidAt: 'asc' },
-        include: {
-          paymentMode: { select: { code: true, name: true } },
-          receipt: { select: { receiptNumber: true } },
-        },
-      },
-    },
-  },
+  bills: { include: BILL_INCLUDE },
 } satisfies Prisma.OpdVisitInclude;
 
 type VisitRow = Prisma.OpdVisitGetPayload<{ include: typeof VISIT_INCLUDE }>;
@@ -100,11 +102,6 @@ export type VisitView = {
 
 const isoDate = (d: Date): string => d.toISOString().slice(0, 10);
 
-/** The numbering service throws a plain Error when the hospital has no series settings yet. */
-function isMissingSeriesSettings(error: unknown): boolean {
-  return error instanceof Error && /^No number_series_settings/.test(error.message);
-}
-
 /** The hospital's local calendar day as a UTC-midnight Date (Prisma @db.Date). */
 export function localDate(now: Date, timeZone: string): Date {
   const { year, month, day } = zonedParts(now, timeZone);
@@ -121,7 +118,7 @@ function isUniqueViolation(error: unknown): boolean {
   );
 }
 
-function toBillView(bill: VisitRow['bills'][number], detail: boolean): BillView {
+export function toBillView(bill: VisitRow['bills'][number], detail: boolean): BillView {
   const base: BillView = {
     id: bill.id,
     billNumber: bill.billNumber,
@@ -564,71 +561,14 @@ export class OpdVisitsService {
     return { replayed: false, visit: view };
   }
 
-  /**
-   * The payment lines of this request, checked: one line (the old single mode, default CASH) or a
-   * split list that adds up EXACTLY to the total. Nothing is taken from the request that the
-   * database does not check again (sum, one mode once per receipt).
-   */
-  private async planPayments(
+  /** The payment lines of this request, checked (shared with the investigations bill). */
+  private planPayments(
     tx: TenantTx,
     input: CreateVisitInput,
     totalPaise: number,
     tenantId: string,
-  ): Promise<
-    Array<{
-      modeId: string;
-      modeCode: string;
-      amountPaise: number;
-      referenceNo: string | null;
-    }>
-  > {
-    if (
-      input.payments !== undefined &&
-      (input.paymentModeCode !== undefined || input.referenceNo !== undefined)
-    ) {
-      throw opdError(400, OpdErrorCode.PAYMENT_FIELDS_CONFLICT);
-    }
-    if (totalPaise === 0) {
-      // A free visit takes no money: a payment list for it is a mistake, not something to ignore.
-      if (input.payments !== undefined) {
-        throw opdError(400, OpdErrorCode.PAYMENT_NOT_EXPECTED);
-      }
-      return [];
-    }
-    const requested = input.payments ?? [
-      {
-        paymentModeCode: input.paymentModeCode ?? C.defaultPaymentModeCode,
-        amountPaise: totalPaise,
-        referenceNo: input.referenceNo,
-      },
-    ];
-    const codes = requested.map((r) => r.paymentModeCode);
-    if (new Set(codes).size !== codes.length) {
-      throw opdError(400, OpdErrorCode.PAYMENT_MODE_DUPLICATE);
-    }
-    const paidPaise = requested.reduce((sum, r) => sum + r.amountPaise, 0);
-    if (paidPaise !== totalPaise) {
-      throw opdError(400, OpdErrorCode.PAYMENT_SUM_MISMATCH, { totalPaise, paidPaise });
-    }
-    const plan = [];
-    for (const r of requested) {
-      const mode = await tx.paymentMode.findFirst({
-        where: { tenantId, code: r.paymentModeCode, active: true },
-      });
-      if (!mode) {
-        throw opdError(400, OpdErrorCode.PAYMENT_MODE_NOT_AVAILABLE);
-      }
-      if (mode.requiresReference && !(r.referenceNo ?? '').trim()) {
-        throw opdError(400, OpdErrorCode.REFERENCE_REQUIRED);
-      }
-      plan.push({
-        modeId: mode.id,
-        modeCode: mode.code,
-        amountPaise: r.amountPaise,
-        referenceNo: r.referenceNo?.trim() || null,
-      });
-    }
-    return plan;
+  ): Promise<PaymentPlanLine[]> {
+    return planPayments(tx, input, totalPaise, tenantId);
   }
 
   // ------------------------------------------------------------------------ pricing
@@ -936,20 +876,8 @@ export class OpdVisitsService {
     return toVisitView(row, await this.tokenPrefix(tx, actor.tenantId), opts);
   }
 
-  private async allocateNumber(
-    tx: TenantTx,
-    tenantId: string,
-    series: 'BILL' | 'RECEIPT',
-    now: Date,
-  ) {
-    try {
-      return await this.numbering.allocate({ tenantId, series, tx, now });
-    } catch (error) {
-      if (isMissingSeriesSettings(error)) {
-        throw opdError(409, OpdErrorCode.NUMBER_SERIES_NOT_CONFIGURED, { series });
-      }
-      throw error;
-    }
+  private allocateNumber(tx: TenantTx, tenantId: string, series: 'BILL' | 'RECEIPT', now: Date) {
+    return allocateBillingNumber(this.numbering, tx, tenantId, series, now);
   }
 
   private async tokenPrefix(tx: TenantTx, tenantId: string): Promise<string> {

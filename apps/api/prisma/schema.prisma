@@ -273,6 +273,9 @@ model Hospital {
   consultationAddenda ConsultationAddendum[]
   visitVitals VisitVitals[]
   prescriptionItems PrescriptionItem[]
+  investigationOrders InvestigationOrder[]
+  refundRequests RefundRequest[]
+  refunds Refund[]
 
   @@map("hospitals")
 }
@@ -400,6 +403,11 @@ model User {
   receiptsIssued Receipt[] @relation("ReceiptIssuedBy")
   addendaWritten ConsultationAddendum[] @relation("AddendumAddedBy")
   vitalsRecorded VisitVitals[] @relation("VitalsRecordedBy")
+  investigationsOrdered InvestigationOrder[] @relation("InvestigationOrderedBy")
+  investigationsResolved InvestigationOrder[] @relation("InvestigationResolvedBy")
+  refundsRequested RefundRequest[] @relation("RefundRequestedBy")
+  refundsDecided RefundRequest[] @relation("RefundDecidedBy")
+  refundsRecorded Refund[] @relation("RefundRecordedBy")
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -1011,6 +1019,7 @@ model DoctorProfile {
   fees     DoctorFee[]
   opdVisits OpdVisit[]
   consultations Consultation[]
+  investigationOrders InvestigationOrder[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, userId])
@@ -1072,6 +1081,7 @@ model ChargeItem {
   hospital Hospital          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   prices   ChargeItemPrice[]
   billLines BillLine[]
+  investigationOrders InvestigationOrder[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -1176,6 +1186,7 @@ model PaymentMode {
   hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   payments Payment[]
+  refunds  Refund[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -1318,6 +1329,8 @@ model OpdVisit {
   bills         Bill[]
   consultation  Consultation?
   vitals        VisitVitals[]
+  investigationOrders InvestigationOrder[]
+  refundRequests RefundRequest[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, id, branchId])
@@ -1353,6 +1366,8 @@ model Bill {
   payments      Payment[]
   receipts      Receipt[]
   ledgerEntries LedgerEntry[]
+  refundRequests RefundRequest[]
+  refunds       Refund[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, id, branchId])
@@ -1385,6 +1400,7 @@ model BillLine {
   chargeItem      ChargeItem?             @relation(fields: [tenantId, chargeItemId], references: [tenantId, id], onDelete: Restrict)
   doctorFee       DoctorFee?              @relation(fields: [tenantId, doctorFeeId], references: [tenantId, id], onDelete: Restrict)
   registrationFee PatientRegistrationFee?
+  investigationOrder InvestigationOrder?
 
   @@unique([tenantId, id])
   @@unique([tenantId, billId, lineNo], map: "bill_lines_tenant_bill_line_no_key")
@@ -1411,8 +1427,10 @@ model Payment {
   paymentMode   PaymentMode   @relation(fields: [tenantId, paymentModeId], references: [tenantId, id], onDelete: Restrict)
   receiver      User          @relation("PaymentReceivedBy", fields: [tenantId, receivedBy], references: [tenantId, id], onDelete: Restrict)
   ledgerEntries LedgerEntry[]
+  refunds       Refund[]
 
   @@unique([tenantId, id])
+  @@unique([tenantId, id, billId])
   @@unique([tenantId, receiptId, paymentModeId], map: "payments_receipt_mode_key")
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId, billId], map: "payments_bill_idx")
@@ -1599,4 +1617,130 @@ model PatientRegistrationFee {
   @@unique([tenantId, id])
   @@unique([tenantId, billLineId])
   @@map("patient_registration_fees")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Step 6a: tests ordered by the doctor, the investigations bill, refunds
+// ---------------------------------------------------------------------------------------------
+
+enum InvestigationOrderStatus {
+  ORDERED
+  BILLED
+  NOT_TAKEN
+
+  @@map("investigation_order_status")
+}
+
+enum RefundRequestType {
+  REFUND
+  CANCEL_VISIT
+
+  @@map("refund_request_type")
+}
+
+enum RefundRequestStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+
+  @@map("refund_request_status")
+}
+
+/// A test the doctor ordered for a visit. ORDERED -> BILLED (its bill line) or NOT_TAKEN (reason).
+model InvestigationOrder {
+  id              String                   @id @default(cuid())
+  tenantId        String                   @map("tenant_id")
+  branchId        String                   @map("branch_id")
+  visitId         String                   @map("visit_id")
+  doctorProfileId String                   @map("doctor_profile_id")
+  chargeItemId    String                   @map("charge_item_id")
+  codeSnapshot    String                   @map("code_snapshot")
+  nameSnapshot    String                   @map("name_snapshot")
+  status          InvestigationOrderStatus @default(ORDERED)
+  billLineId      String?                  @map("bill_line_id")
+  notTakenReason  String?                  @map("not_taken_reason")
+  orderedBy       String                   @map("ordered_by")
+  resolvedBy      String?                  @map("resolved_by")
+  resolvedAt      DateTime?                @map("resolved_at") @db.Timestamptz(3)
+  createdAt       DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  hospital   Hospital      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  visit      OpdVisit      @relation(fields: [tenantId, visitId, branchId], references: [tenantId, id, branchId], onDelete: Restrict)
+  doctor     DoctorProfile @relation(fields: [tenantId, doctorProfileId], references: [tenantId, id], onDelete: Restrict)
+  chargeItem ChargeItem    @relation(fields: [tenantId, chargeItemId], references: [tenantId, id], onDelete: Restrict)
+  billLine   BillLine?     @relation(fields: [tenantId, billLineId], references: [tenantId, id], onDelete: Restrict)
+  orderer    User          @relation("InvestigationOrderedBy", fields: [tenantId, orderedBy], references: [tenantId, id], onDelete: Restrict)
+  resolver   User?         @relation("InvestigationResolvedBy", fields: [tenantId, resolvedBy], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, visitId, chargeItemId], map: "investigation_orders_visit_test_key")
+  @@unique([tenantId, billLineId], map: "investigation_orders_bill_line_key")
+  @@index([tenantId, branchId, status, createdAt], map: "investigation_orders_pending_idx")
+  @@map("investigation_orders")
+}
+
+/// A request to return money (REFUND) or to cancel a waiting visit and return its fee (CANCEL_VISIT).
+/// The receptionist asks, an Admin decides; the asker never decides. Decided rows never change.
+model RefundRequest {
+  id             String              @id @default(cuid())
+  tenantId       String              @map("tenant_id")
+  branchId       String              @map("branch_id")
+  billId         String              @map("bill_id")
+  visitId        String              @map("visit_id")
+  requestType    RefundRequestType   @map("request_type")
+  amountPaise    Int                 @map("amount_paise")
+  reason         String
+  status         RefundRequestStatus @default(REQUESTED)
+  requestedBy    String              @map("requested_by")
+  requestedAt    DateTime            @default(now()) @map("requested_at") @db.Timestamptz(3)
+  decidedBy      String?             @map("decided_by")
+  decidedAt      DateTime?           @map("decided_at") @db.Timestamptz(3)
+  decisionNote   String?             @map("decision_note")
+  /// The refund voucher number, only when money is returned.
+  refundNumber   String?             @map("refund_number")
+  idempotencyKey String              @map("idempotency_key")
+
+  hospital  Hospital @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  bill      Bill     @relation(fields: [tenantId, billId, branchId], references: [tenantId, id, branchId], onDelete: Restrict)
+  visit     OpdVisit @relation(fields: [tenantId, visitId, branchId], references: [tenantId, id, branchId], onDelete: Restrict)
+  requester User     @relation("RefundRequestedBy", fields: [tenantId, requestedBy], references: [tenantId, id], onDelete: Restrict)
+  decider   User?    @relation("RefundDecidedBy", fields: [tenantId, decidedBy], references: [tenantId, id], onDelete: Restrict)
+  refunds   Refund[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, id, billId])
+  @@unique([tenantId, idempotencyKey], map: "refund_requests_idempotency_key")
+  @@unique([tenantId, refundNumber], map: "refund_requests_refund_number_key")
+  @@index([tenantId, branchId, status, requestedAt], map: "refund_requests_list_idx")
+  @@index([tenantId, billId], map: "refund_requests_bill_idx")
+  @@map("refund_requests")
+}
+
+/// Money returned for an approved request, one row per original payment, in that payment's mode.
+/// Append-only; a row writes its REFUND ledger entry by trigger.
+model Refund {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  branchId      String   @map("branch_id")
+  billId        String   @map("bill_id")
+  requestId     String   @map("request_id")
+  paymentId     String   @map("payment_id")
+  paymentModeId String   @map("payment_mode_id")
+  amountPaise   Int      @map("amount_paise")
+  referenceNo   String?  @map("reference_no")
+  refundedBy    String   @map("refunded_by")
+  refundedAt    DateTime @default(now()) @map("refunded_at") @db.Timestamptz(3)
+
+  hospital    Hospital      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  bill        Bill          @relation(fields: [tenantId, billId, branchId], references: [tenantId, id, branchId], onDelete: Restrict)
+  request     RefundRequest @relation(fields: [tenantId, requestId, billId], references: [tenantId, id, billId], onDelete: Restrict)
+  payment     Payment       @relation(fields: [tenantId, paymentId, billId], references: [tenantId, id, billId], onDelete: Restrict)
+  paymentMode PaymentMode   @relation(fields: [tenantId, paymentModeId], references: [tenantId, id], onDelete: Restrict)
+  refunder    User          @relation("RefundRecordedBy", fields: [tenantId, refundedBy], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, requestId, paymentId], map: "refunds_request_payment_key")
+  @@index([tenantId, billId], map: "refunds_bill_idx")
+  @@index([tenantId, paymentId], map: "refunds_payment_idx")
+  @@map("refunds")
 }

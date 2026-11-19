@@ -395,3 +395,13 @@ RLS isolates **hospitals**. Branch isolation (a user of one branch cannot read a
 ## As built (Step 5a-2 and 5a-3): clinical tables
 
 `consultations` (one per visit; `DRAFT` then `COMPLETED`, frozen once completed), `consultation_addenda` (append-only), `visit_vitals` (append-only, versioned, name/unit/kind copied from the master), `prescription_items` (rows of one draft note, deletable only while the note is a draft). All have forced row level security by hospital and no grants for `hospigo_hq` / `hospigo_patient`. The visit guard now also refuses `COMPLETED` before a completed note exists. Rules and decisions: `docs/decisions-5a.md` (PR 2 section).
+
+## As built (Step 6a, migration `20261121090000_investigations_and_refunds`)
+
+The design sections above planned `investigation_orders` and one `bill_reversals` table. As built there are three tables, all with forced row level security by hospital and no grants for `hospigo_hq` / `hospigo_patient`:
+
+- `investigation_orders`: `ORDERED`, then `BILLED` (`bill_line_id`, one line per order) or `NOT_TAKEN` (`not_taken_reason`). No `CANCELLED` status (an order is simply removed while still `ORDERED` and the visit is in consultation). Code and name copied from the tests list. Unique per visit and test.
+- `refund_requests` (instead of `bill_reversals`): `request_type` `REFUND` or `CANCEL_VISIT`, `amount_paise` (0 allowed only for a cancellation), `reason`, `status`, who and when asked and decided, `decision_note`, `refund_number` (only when money is returned), `idempotency_key`. The decider is never the asker.
+- `refunds` (append-only): one row per ORIGINAL payment returned, same payment mode, `reference_no` when the mode needs one. A row writes its `REFUND` ledger entry itself; `bills.refunded_paise` is recalculated by the ledger trigger.
+
+Rules enforced by the database: no refund of a consultation bill once `consultation_started_at` is set; refund never more than the bill's paid minus refunded and never more than that payment received; open requests count against the refundable amount; the bill is locked first; an approved request equals the sum of its refunds at commit; an approved cancellation leaves the visit `CANCELLED`; a WAITING visit becomes CANCELLED only through an approved cancellation request; an investigations bill needs a visit that is IN_CONSULTATION or COMPLETED and every line must be an ordered test. `CHARGE_REVERSAL` is not used yet. See `docs/decisions-6a.md`.
