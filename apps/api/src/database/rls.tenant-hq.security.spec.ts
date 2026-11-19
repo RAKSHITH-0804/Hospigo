@@ -764,6 +764,28 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
       },
     });
     sampleB.prescription_items = item.id;
+    // Step 6a: a test the doctor ordered (only possible while the visit is IN_CONSULTATION).
+    const testItem = await prisma.chargeItem.create({
+      data: {
+        tenantId: tenantB,
+        code: `ISO_TEST_${stamp}`,
+        name: 'ISO test',
+        kind: 'INVESTIGATION',
+      },
+    });
+    const testOrder = await prisma.investigationOrder.create({
+      data: {
+        tenantId: tenantB,
+        branchId: branchB,
+        visitId: money.visit.id,
+        doctorProfileId: sampleB.doctor_profiles!,
+        chargeItemId: testItem.id,
+        codeSnapshot: testItem.code,
+        nameSnapshot: testItem.name,
+        orderedBy: doctorUserId,
+      },
+    });
+    sampleB.investigation_orders = testOrder.id;
     await prisma.consultation.update({
       where: { id: note.id },
       data: { status: 'COMPLETED', completedAt: new Date() },
@@ -786,6 +808,115 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
     sampleB.consultation_addenda = addendum.id;
     const ledgerRow = await prisma.ledgerEntry.findFirstOrThrow({ where: { tenantId: tenantB } });
     sampleB.ledger_entries = ledgerRow.id;
+
+    // Step 6a: the test is billed (bill + line + receipt + payment), then a refund is asked for,
+    // approved by ANOTHER user and written, all in one transaction (the database checks at commit).
+    const approver = await prisma.user.create({
+      data: {
+        tenantId: tenantB,
+        code: `ISO_APPROVER_${stamp}`,
+        email: `iso_approver_${stamp}@example.test`,
+        displayName: 'ISO approver',
+        passwordHash: 'x',
+      },
+    });
+    const refundSample = await prisma.$transaction(async (tx) => {
+      const bill = await tx.bill.create({
+        data: {
+          tenantId: tenantB,
+          branchId: branchB,
+          visitId: money.visit.id,
+          billType: 'INVESTIGATION',
+          billNumber: `ISO_IBILL_${stamp}`,
+          subtotalPaise: 500,
+          totalPaise: 500,
+          idempotencyKey: `ISO_IBILL_KEY_${stamp}`,
+          createdBy: sampleB.users!,
+        },
+      });
+      const line = await tx.billLine.create({
+        data: {
+          tenantId: tenantB,
+          billId: bill.id,
+          lineNo: 1,
+          kind: 'INVESTIGATION',
+          chargeItemId: testItem.id,
+          codeSnapshot: testItem.code,
+          descriptionSnapshot: testItem.name,
+          unitPricePaise: 500,
+          lineTotalPaise: 500,
+        },
+      });
+      await tx.investigationOrder.update({
+        where: { id: testOrder.id },
+        data: {
+          status: 'BILLED',
+          billLineId: line.id,
+          resolvedBy: sampleB.users!,
+          resolvedAt: new Date(),
+        },
+      });
+      const receipt = await tx.receipt.create({
+        data: {
+          tenantId: tenantB,
+          billId: bill.id,
+          branchId: branchB,
+          receiptNumber: `ISO_IRCPT_${stamp}`,
+          totalPaise: 500,
+          issuedBy: sampleB.users!,
+          idempotencyKey: `ISO_IRCPT_KEY_${stamp}`,
+        },
+      });
+      const payment = await tx.payment.create({
+        data: {
+          tenantId: tenantB,
+          billId: bill.id,
+          branchId: branchB,
+          receiptId: receipt.id,
+          paymentModeId: sampleB.payment_modes!,
+          amountPaise: 500,
+          receivedBy: sampleB.users!,
+          idempotencyKey: `ISO_IPAY_KEY_${stamp}`,
+        },
+      });
+      const request = await tx.refundRequest.create({
+        data: {
+          tenantId: tenantB,
+          branchId: branchB,
+          billId: bill.id,
+          visitId: money.visit.id,
+          requestType: 'REFUND',
+          amountPaise: 200,
+          reason: 'ISO refund',
+          requestedBy: sampleB.users!,
+          idempotencyKey: `ISO_RF_KEY_${stamp}`,
+        },
+      });
+      await tx.refundRequest.update({
+        where: { id: request.id },
+        data: {
+          status: 'APPROVED',
+          decidedBy: approver.id,
+          decidedAt: new Date(),
+          refundNumber: `ISO_RF_${stamp}`,
+        },
+      });
+      const refund = await tx.refund.create({
+        data: {
+          tenantId: tenantB,
+          branchId: branchB,
+          billId: bill.id,
+          requestId: request.id,
+          paymentId: payment.id,
+          paymentModeId: sampleB.payment_modes!,
+          amountPaise: 200,
+          refundedBy: approver.id,
+        },
+      });
+      return { request, refund };
+    });
+    sampleB.refund_requests = refundSample.request.id;
+    sampleB.refunds = refundSample.refund.id;
   });
 
   afterAll(async () => {

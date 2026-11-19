@@ -853,11 +853,29 @@ describe('OPD visits and billing endpoints (HTTP)', () => {
     it('a cancelled earlier visit does not give a free one', async () => {
       await withWindow(24, async () => {
         const first = await visit(A);
+        // Step 6a: a waiting visit is cancelled only through an APPROVED cancellation request
+        // (asked by one person, approved by another), all in one transaction.
         await asOwner(async (c) => {
+          await c.query('BEGIN');
+          await c.query(
+            `INSERT INTO refund_requests (id, tenant_id, branch_id, bill_id, visit_id, request_type,
+                                          amount_paise, reason, requested_by, idempotency_key)
+             SELECT gen_random_uuid()::text, b.tenant_id, b.branch_id, b.id, b.visit_id,
+                    'CANCEL_VISIT', 0, 'test', $2, 'cancel-' || b.id
+               FROM bills b WHERE b.visit_id = $1`,
+            [first.res.body.id, A.users.recv],
+          );
+          await c.query(
+            `UPDATE refund_requests
+                SET status = 'APPROVED', decided_by = $2, decided_at = now()
+              WHERE visit_id = $1`,
+            [first.res.body.id, A.users.nurse],
+          );
           await c.query(
             `UPDATE opd_visits SET status='CANCELLED', cancelled_at=now(), cancelled_reason='test', updated_at=now() WHERE id=$1`,
             [first.res.body.id],
           );
+          await c.query('COMMIT');
         });
         const again = await visit(A, { patient: first.patientId });
         expect(again.res.body.bill.totalPaise).toBe(NEW_FEE);
@@ -1941,6 +1959,8 @@ describe('OPD visits and billing endpoints (HTTP)', () => {
             'opd.billing.read',
             'patients.registry.read',
             'opd.masters.read',
+            // Step 6a: admins DECIDE refunds
+            'opd.refunds.approve',
           ]),
         );
         for (const forbidden of [
@@ -1951,6 +1971,10 @@ describe('OPD visits and billing endpoints (HTTP)', () => {
           'opd.vitals.write',
           'opd.notes.read',
           'opd.notes.write',
+          // Step 6a: admins never ask for refunds, order tests or bill them
+          'opd.refunds.request',
+          'opd.investigations.order',
+          'opd.investigations.bill',
         ]) {
           expect(codes).not.toContain(forbidden);
         }
