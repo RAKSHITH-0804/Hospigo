@@ -83,3 +83,4 @@ Planned order: 3d, 4a (migration part, then API part), 4b, 5a, 5b, 6a, 6b, 7, 7b
 | Prescription print            | Open        | No printable prescription yet; print layouts are Step 7                                                                                                               |
 | Patient phone for the doctor  | Open        | Not shown on the consultation screen (the API does not send it); add only if the doctors ask                                                                          |
 | Cross-branch note history     | Open        | Previous visits list only the visits a doctor or nurse may already see in this branch                                                                                 |
+| Doctor orders tests           | Open        | Described in UC-08 / UC-09 but not built in Step 5 (no table, API or screen). Planned with Step 6a                                                                    |

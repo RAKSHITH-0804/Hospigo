@@ -107,6 +107,8 @@ Start a new session, read the files named in `CLAUDE.md`, then plan 6a and WAIT 
 
 **What 6a/6b are (from `docs/use-cases-opd.md`, UC-12, and the step table above):** an investigations bill (tests ordered for a visit, billed like the consultation, payable in several modes with one receipt) and refunds: the Receptionist requests with a reason, an **Admin approves**; the system writes a reversal entry (the original bill is never changed; who, when, why recorded); refunds follow the original payment mode; **no refund once the consultation has started** (`opd_visits.consultation_started_at`, set by 5a-2). Cancelling a visit that was not started also voids its token. Cancel / no-show of a paid visit is a known open item (a paid patient who is never seen stays in the queue for ever).
 
+**Gap to know about (found when planning 6a, 19 Nov):** the docs say tests the doctor orders appear on a pending-investigations list at reception (UC-08, UC-09), but Step 5 never built test ordering: there is no table, API or screen for it. Decide in the 6a plan where it belongs (a small "tests ordered" list in the consultation that feeds the reception list is the recommendation).
+
 **What already exists and can be reused:**
 
 - Money tables with database rules (append-only, ledger written only by triggers, bills equal their lines, receipts equal their payments): `docs/schema-opd.md`, migrations `20261118100000_visits_and_billing`, `20261119090000_split_payment_receipts`. `bill_type` already has `INVESTIGATION`; `ledger_entry_type` already has `REFUND` and `CHARGE_REVERSAL`; `charge_items` of kind `INVESTIGATION` and their price list exist (mock tests `INV001...`).
