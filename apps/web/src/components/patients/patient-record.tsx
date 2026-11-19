@@ -98,6 +98,8 @@ export function PatientRecord({
   canWrite,
   canCreateVisit = false,
   canReadBills = false,
+  canRequestRefund = false,
+  canSeeTests = false,
   visitsTab = { status: 'noAccess' },
   initialTab,
 }: {
@@ -109,6 +111,8 @@ export function PatientRecord({
   canCreateVisit?: boolean;
   /** opd.billing.read: bills (and receipts) are shown. */
   canReadBills?: boolean;
+  canRequestRefund?: boolean;
+  canSeeTests?: boolean;
   /** The patient's visits for the active branch (page already fetched on the server). */
   visitsTab?: VisitsTabData;
   initialTab?: string;
@@ -198,6 +202,8 @@ export function PatientRecord({
             tab={visitsTab}
             hrefFor={hrefFor(RECORD_TAB_VISITS)}
             canSeeReceipt={canReadBills}
+            canRequestRefund={canRequestRefund && canReadBills}
+            canSeeTests={canSeeTests}
           />
         }
         bills={
@@ -205,6 +211,7 @@ export function PatientRecord({
             tab={visitsTab}
             hrefFor={hrefFor(RECORD_TAB_BILLS)}
             canReadBills={canReadBills}
+            canRequestRefund={canRequestRefund}
           />
         }
       />

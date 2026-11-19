@@ -5,7 +5,9 @@ import { buttonVariants } from '@/components/ui/button';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { formatPaise } from '@/config/money';
 import { staffCopy } from '@/config/staff-copy';
+import { RefundRequestAction } from '@/components/opd/refund-request-action';
 import { visitReceiptPath } from '@/lib/opd/client';
+import { visitTestsPath } from '@/lib/opd/tests-client';
 import type { BillView, VisitListResponse, VisitsTabData, VisitView } from '@/lib/opd/types';
 import { formatDateOnly } from '@/lib/patients/format';
 import { cn } from '@/lib/utils';
@@ -94,11 +96,17 @@ export function VisitsPanel({
   tab,
   hrefFor,
   canSeeReceipt,
+  canRequestRefund = false,
+  canSeeTests = false,
 }: {
   tab: VisitsTabData;
   hrefFor: (page: number) => string;
   /** The receipt page needs the visit and its bill (billing.read). */
   canSeeReceipt: boolean;
+  /** Reception may ask an Admin to cancel a waiting visit (opd.refunds.request). */
+  canRequestRefund?: boolean;
+  /** Reception may open the tests of a visit (opd.investigations.bill). */
+  canSeeTests?: boolean;
 }) {
   if (tab.status !== 'ok') {
     return <Unavailable tab={tab} />;
@@ -132,6 +140,35 @@ export function VisitsPanel({
           } satisfies DataTableColumn<VisitView>,
         ]
       : []),
+    ...(canRequestRefund || canSeeTests
+      ? [
+          {
+            id: 'actions',
+            header: '',
+            cell: (v: VisitView) => (
+              <div className="flex flex-col items-start gap-[var(--space-2)]">
+                {canSeeTests && (v.status === 'IN_CONSULTATION' || v.status === 'COMPLETED') ? (
+                  <Link
+                    href={visitTestsPath(v.id)}
+                    className="text-primary underline-offset-4 hover:underline"
+                  >
+                    {staffCopy.opd.tests.refund.testsLink}
+                  </Link>
+                ) : null}
+                {canRequestRefund && v.status === 'WAITING' && v.bill ? (
+                  <RefundRequestAction
+                    kind="CANCEL"
+                    billId={v.bill.id}
+                    visitId={v.id}
+                    billNumber={v.bill.billNumber}
+                    refundablePaise={Math.max(v.bill.paidPaise - v.bill.refundedPaise, 0)}
+                  />
+                ) : null}
+              </div>
+            ),
+          } satisfies DataTableColumn<VisitView>,
+        ]
+      : []),
   ];
   return (
     <div className="flex flex-col gap-[var(--space-3)]">
@@ -146,10 +183,13 @@ export function BillsPanel({
   tab,
   hrefFor,
   canReadBills,
+  canRequestRefund = false,
 }: {
   tab: VisitsTabData;
   hrefFor: (page: number) => string;
   canReadBills: boolean;
+  /** Reception may ask an Admin for a refund of the consultation fee (opd.refunds.request). */
+  canRequestRefund?: boolean;
 }) {
   if (!canReadBills) {
     return <EmptyState title={copy.noAccessTitle} description={copy.noAccessDescription} />;
@@ -170,9 +210,18 @@ export function BillsPanel({
       id: 'payment',
       header: copy.paymentCaption,
       cell: (v) => (
-        <Badge variant={PAYMENT_VARIANT[v.bill.paymentStatus]}>
-          {PAYMENT_LABEL[v.bill.paymentStatus]}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-[var(--space-1)]">
+          <Badge variant={PAYMENT_VARIANT[v.bill.paymentStatus]}>
+            {PAYMENT_LABEL[v.bill.paymentStatus]}
+          </Badge>
+          {v.bill.refundedPaise > 0 ? (
+            <Badge variant="info">
+              {v.bill.refundedPaise >= v.bill.paidPaise
+                ? copy.refundedFull
+                : copy.refundedPart.replace('{amount}', formatPaise(v.bill.refundedPaise))}
+            </Badge>
+          ) : null}
+        </div>
       ),
     },
     {
@@ -187,6 +236,25 @@ export function BillsPanel({
         </Link>
       ),
     },
+    ...(canRequestRefund
+      ? [
+          {
+            id: 'refund',
+            header: '',
+            // Only before the consultation starts: after that the fee can no longer be refunded.
+            cell: (v: VisitView & { bill: BillView }) =>
+              v.status === 'WAITING' && v.bill.paidPaise - v.bill.refundedPaise > 0 ? (
+                <RefundRequestAction
+                  kind="REFUND"
+                  billId={v.bill.id}
+                  visitId={v.id}
+                  billNumber={v.bill.billNumber}
+                  refundablePaise={v.bill.paidPaise - v.bill.refundedPaise}
+                />
+              ) : null,
+          } satisfies DataTableColumn<VisitView & { bill: BillView }>,
+        ]
+      : []),
   ];
   return (
     <div className="flex flex-col gap-[var(--space-3)]">

@@ -237,6 +237,54 @@ describe('consultation page', () => {
     expect(propsOf('consult').vitals).toEqual([]);
   });
 
+  it('a doctor who may order tests also gets the tests of the visit; a failed fetch does not stop the note', async () => {
+    sessionMock.mockResolvedValue(session([...DOCTOR, 'opd.investigations.order']));
+    const orders = [
+      { id: 'o1', chargeItemId: 't1', code: 'INV001', name: 'Mock', status: 'ORDERED' },
+    ];
+    fetchMock.mockImplementation(async (path: string) => {
+      if (path.endsWith('/investigations')) {
+        return ok({ visitId: 'visit-1', visitStatus: 'IN_CONSULTATION', orders });
+      }
+      return path.endsWith('/vitals') ? ok({ visit: makeVisit(), fields: [] }) : ok(makeConsult());
+    });
+    const first = render(await ConsultPage(params('visit-1')));
+    expect(fetchMock.mock.calls.map((c) => c[0]).sort()).toEqual([
+      '/opd/visits/visit-1/consultation',
+      '/opd/visits/visit-1/investigations',
+      '/opd/visits/visit-1/vitals',
+    ]);
+    expect(propsOf('consult')).toMatchObject({
+      canOrderTests: true,
+      initialTests: orders,
+      settings: {
+        testsSearch: {
+          minChars: opdWebConfig.testsSearchMinChars,
+          debounceMs: opdWebConfig.testsSearchDebounceMs,
+          limit: opdWebConfig.testsSearchLimit,
+        },
+      },
+    });
+    first.unmount();
+    fetchMock.mockImplementation(async (path: string) =>
+      path.endsWith('/investigations')
+        ? { status: 'error', code: 'UNAVAILABLE' }
+        : path.endsWith('/vitals')
+          ? ok({ visit: makeVisit(), fields: [] })
+          : ok(makeConsult()),
+    );
+    render(await ConsultPage(params('visit-1')));
+    expect(propsOf('consult')).toMatchObject({ canOrderTests: true, initialTests: [] });
+  });
+
+  it('a doctor without the ordering permission never asks for tests', async () => {
+    sessionMock.mockResolvedValue(session(DOCTOR));
+    fetchMock.mockResolvedValue(ok(makeConsult()));
+    render(await ConsultPage(params('visit-1')));
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('investigations'))).toBe(false);
+    expect(propsOf('consult')).toMatchObject({ canOrderTests: false, initialTests: [] });
+  });
+
   it('not found and failures are shown in plain words', async () => {
     sessionMock.mockResolvedValue(session(DOCTOR));
     fetchMock.mockResolvedValue({ status: 'notFound' });

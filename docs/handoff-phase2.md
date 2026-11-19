@@ -121,3 +121,7 @@ Start a new session, read the files named in `CLAUDE.md`, then plan 6a and WAIT 
 **Dev setup facts:** servers `npm run dev -w @hospigo/api` (3000) and `npm run dev -w @hospigo/web` (3001, open `http://127.0.0.1:3001`); after pulling run `npm run prisma:migrate -w @hospigo/api` and re-run the dev seed (`NODE_ENV=development npm run prisma:seed -w @hospigo/api`) so roles get new permissions; demo logins in `docs/dev-accounts.md` (access code `demo-north-main`; Rakshith logs in himself; passwords live in `.env`); Postman collections are in the git-ignored `postman/collections/` folder (4a, 5a-1 and 5a doctor queue exist; each step ships its own).
 
 **Rakshith's working preferences (also in `CLAUDE.md`):** plain-words teaching, short summaries, no large pastes; no AI attribution lines in commits, PRs or files; screens must fit on one page where possible and avoid long scrolling; he tests by clicking and by running Postman.
+
+## Update 20 Nov 2026 (Step 6)
+
+6a (API and migration, commit c819fa6) and 6b (web, branch `feature/phase2-step-6b-tests-refunds-web`) are built and waiting for review and PRs. Read `docs/decisions-6a.md`, `docs/decisions-6b.md` and `docs/future-lab-pharmacy.md` (LAB and PHARMACY are Phase 3; the prescription reaches the pharmacy when the consultation is completed). Next after the 6a and 6b PRs: Step 7 (print templates and reports) and 7b (settings screens).

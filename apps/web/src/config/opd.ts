@@ -25,6 +25,15 @@ export type OpdWebConfig = {
   calendarWeekStart: number;
   /** Follow-up date quick picks, in days from today. */
   followUpQuickDays: readonly number[];
+  /** Tests box: characters before searching, wait after typing, hits shown. */
+  testsSearchMinChars: number;
+  testsSearchDebounceMs: number;
+  testsSearchLimit: number;
+  /** Reception "Tests to bill": seconds between automatic refreshes (0 turns them off). */
+  pendingRefreshSeconds: number;
+  /** Refund requests per page, and the query parameter of the page. */
+  refundsPageSize: number;
+  refundsPageParam: string;
 };
 
 const DEFAULTS = {
@@ -40,6 +49,12 @@ const DEFAULTS = {
   previousVisitsLimit: 5,
   calendarWeekStart: 1,
   followUpQuickDays: [1, 3, 7, 14, 30],
+  testsSearchMinChars: 2,
+  testsSearchDebounceMs: 300,
+  testsSearchLimit: 10,
+  pendingRefreshSeconds: 20,
+  refundsPageSize: 20,
+  refundsPageParam: 'rp',
 } as const;
 
 const VISITS_PAGE_SIZE_MIN = 1;
@@ -102,6 +117,24 @@ export function loadOpdWebConfig(
     ),
     calendarWeekStart: intEnv(env, 'WEB_CALENDAR_WEEK_START', DEFAULTS.calendarWeekStart, 0, 6),
     followUpQuickDays: DEFAULTS.followUpQuickDays,
+    testsSearchMinChars: DEFAULTS.testsSearchMinChars,
+    testsSearchDebounceMs: DEFAULTS.testsSearchDebounceMs,
+    testsSearchLimit: DEFAULTS.testsSearchLimit,
+    pendingRefreshSeconds: intEnv(
+      env,
+      'WEB_OPD_PENDING_REFRESH_SECONDS',
+      DEFAULTS.pendingRefreshSeconds,
+      0,
+      600,
+    ),
+    refundsPageSize: intEnv(
+      env,
+      'WEB_OPD_REFUNDS_PAGE_SIZE',
+      DEFAULTS.refundsPageSize,
+      VISITS_PAGE_SIZE_MIN,
+      VISITS_PAGE_SIZE_MAX,
+    ),
+    refundsPageParam: DEFAULTS.refundsPageParam,
   };
 }
 

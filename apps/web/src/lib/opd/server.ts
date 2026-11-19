@@ -23,3 +23,11 @@ export function apiConsultationPath(visitId: string): string {
 export function apiVisitVitalsPath(visitId: string): string {
   return `${apiVisitPath(visitId)}/vitals`;
 }
+
+// Step 6b (tests and refunds).
+export const API_OPD_PENDING_TESTS = '/opd/investigations/pending';
+export const API_OPD_REFUND_REQUESTS = '/opd/refund-requests';
+
+export function apiVisitTestsPath(visitId: string): string {
+  return `${apiVisitPath(visitId)}/investigations`;
+}

@@ -24,7 +24,7 @@ function lineLabel(kind: string, description: string): string {
     case 'REGISTRATION':
       return staffCopy.opd.newVisit.lineRegistration;
     case 'INVESTIGATION':
-      return staffCopy.opd.newVisit.lineInvestigation;
+      return `${staffCopy.opd.newVisit.lineInvestigation} · ${description}`;
     default:
       return `${staffCopy.opd.newVisit.lineConsultation} · ${description}`;
   }
@@ -128,6 +128,12 @@ export function VisitReceipt({ visit, hospitalName }: { visit: VisitView; hospit
                 {formatPaise(bill.paidPaise)} · {statusLabel(bill.paymentStatus)}
               </td>
             </tr>
+            {bill.refundedPaise > 0 ? (
+              <tr>
+                <th scope="row">{copy.refunded}</th>
+                <td className="visit-receipt-amount">{formatPaise(bill.refundedPaise)}</td>
+              </tr>
+            ) : null}
           </tfoot>
         </table>
 

@@ -8,6 +8,7 @@ import {
   PrescriptionEditor,
   type MedicineSearchSettings,
 } from '@/components/opd/prescription-editor';
+import { TestsBox, type TestsSearchSettings } from '@/components/opd/tests-box';
 import { VisitHeader } from '@/components/opd/visit-header';
 import { VitalsSummary } from '@/components/opd/vitals-summary';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -30,6 +31,17 @@ import type {
 import { opdErrorMessageFor } from '@/lib/opd/client';
 import { canCompleteNote, noteFromView, noteToBody, type NoteDraft } from '@/lib/opd/note-draft';
 import { emptyRxRow, rxFromView, toRxPayload, type RxDraft } from '@/lib/opd/prescription-draft';
+import {
+  addChip,
+  chipIds,
+  chipsFromOrders,
+  mergeServer,
+  removeChip,
+  testsKey,
+  type TestChip,
+} from '@/lib/opd/tests-draft';
+import { saveTestOrders } from '@/lib/opd/tests-client';
+import type { OrderView, TestItem } from '@/lib/opd/tests-types';
 import { useAutosave, type SaveResult } from '@/lib/opd/use-autosave';
 import { cn } from '@/lib/utils';
 
@@ -39,6 +51,8 @@ export type ConsultSettings = MedicineSearchSettings & {
   autosaveSeconds: number;
   calendarWeekStart: number;
   followUpQuickDays: readonly number[];
+  /** Tests box search settings; the box is shown only when these are given. */
+  testsSearch?: TestsSearchSettings;
 };
 
 /**
@@ -53,6 +67,8 @@ export function ConsultScreen({
   vitals,
   canWrite,
   canRecordVitals,
+  initialTests = [],
+  canOrderTests = false,
   settings,
   backHref,
   children,
@@ -61,6 +77,9 @@ export function ConsultScreen({
   vitals: VitalsReadingView[];
   canWrite: boolean;
   canRecordVitals: boolean;
+  /** The tests already ordered for this visit (doctors with the ordering permission). */
+  initialTests?: OrderView[];
+  canOrderTests?: boolean;
   settings: ConsultSettings;
   backHref: string;
   /** The server-rendered "previous visits" section. */
@@ -74,6 +93,9 @@ export function ConsultScreen({
     return saved.length > 0 ? saved : [emptyRxRow(1)];
   });
   const [addenda, setAddenda] = useState<AddendumView[]>(initial.addenda);
+  const [tests, setTests] = useState<TestChip[]>(() => chipsFromOrders(initialTests));
+  const testsRef = useRef(tests);
+  testsRef.current = tests;
   const [revision, setRevision] = useState(0);
   const [starting, setStarting] = useState(false);
   const [completing, setCompleting] = useState(false);
@@ -83,6 +105,7 @@ export function ConsultScreen({
   const nextRowId = useRef(Math.max(initial.prescription.length + 1, 2));
   const savedNote = useRef(JSON.stringify(noteToBody(noteFromView(initial.consultation))));
   const savedRx = useRef(JSON.stringify(toRxPayload(rxFromView(initial.prescription)).items));
+  const savedTests = useRef(testsKey(chipsFromOrders(initialTests)));
 
   const editable = canWrite && visit.status === 'IN_CONSULTATION';
   const completed = visit.status === 'COMPLETED';
@@ -108,8 +131,21 @@ export function ConsultScreen({
       }
       savedRx.current = rxJson;
     }
+    if (canOrderTests) {
+      const current = testsRef.current;
+      const testsJson = testsKey(current);
+      if (testsJson !== savedTests.current) {
+        const result = await saveTestOrders(visit.id, chipIds(current));
+        if (!result.ok) {
+          return { ok: false, code: result.code };
+        }
+        savedTests.current = testsJson;
+        // Take over the server's statuses without undoing what was typed while this ran.
+        setTests((now) => mergeServer(now, result.data.orders));
+      }
+    }
     return { ok: true };
-  }, [note, rows, visit.id]);
+  }, [note, rows, visit.id, canOrderTests]);
 
   const autosave = useAutosave({
     enabled: editable,
@@ -139,6 +175,18 @@ export function ConsultScreen({
 
   function changeRows(next: RxDraft[]) {
     setRows(next);
+    setRevision((r) => r + 1);
+    setActionError(null);
+  }
+
+  function addTest(test: TestItem) {
+    setTests((t) => addChip(t, test));
+    setRevision((r) => r + 1);
+    setActionError(null);
+  }
+
+  function removeTest(chargeItemId: string) {
+    setTests((t) => removeChip(t, chargeItemId));
     setRevision((r) => r + 1);
     setActionError(null);
   }
@@ -265,6 +313,15 @@ export function ConsultScreen({
             readOnly={!editable}
             search={settings}
           />
+          {settings.testsSearch && (canOrderTests || tests.length > 0) ? (
+            <TestsBox
+              chips={tests}
+              onAdd={addTest}
+              onRemove={removeTest}
+              readOnly={!editable || !canOrderTests}
+              search={settings.testsSearch}
+            />
+          ) : null}
           {editable && incomplete > 0 ? (
             <p role="status" className="type-small text-destructive">
               {fill(copy.incompleteRowsHint, { count: incomplete })}
