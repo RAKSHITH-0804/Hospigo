@@ -44,6 +44,34 @@ export class AccessService {
   }
 
   /**
+   * Branches the caller holds a permission on through ALL active branches of the hospital (a
+   * hospital-wide grant such as SuperAdmin). Unlike can(), this deliberately IGNORES the token's
+   * active-branch narrowing, because it answers "may this person look across branches" (for
+   * example a combined report). It is empty unless the permission covers EVERY active branch; with
+   * a module code, branches where that module is not active are left out. Default deny.
+   */
+  async hospitalWideBranches(permissionCode: string, moduleCode?: string): Promise<string[]> {
+    const snap = await this.loadSnapshot();
+    if (!snap.userActive || !snap.hospitalActive) {
+      return [];
+    }
+    const active = [...snap.branches].filter(([, isActive]) => isActive).map(([id]) => id);
+    const covered = snap.permissionBranches.get(permissionCode);
+    if (active.length === 0 || !covered || !active.every((id) => covered.has(id))) {
+      return [];
+    }
+    return active
+      .filter((id) => {
+        if (!moduleCode) {
+          return true;
+        }
+        const mod = snap.branchModules.get(id)?.get(moduleCode);
+        return !!mod && mod.isActive && mod.enabledByIndigo && !mod.restrictedByHospital;
+      })
+      .sort();
+  }
+
+  /**
    * Permission codes the caller may use on the active branch.
    * Same rules as can(code, activeBranchId) with no module gate; sorted, unique.
    */

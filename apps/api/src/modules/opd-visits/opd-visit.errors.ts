@@ -40,6 +40,11 @@ export const OpdErrorCode = {
   SELF_APPROVAL_FORBIDDEN: 'SELF_APPROVAL_FORBIDDEN',
   /** A database rule refused the money change (for example two decisions at the same moment). */
   RULE_REFUSED: 'RULE_REFUSED',
+  // ---- Step 7: reports and print templates
+  REPORT_DATE_INVALID: 'REPORT_DATE_INVALID',
+  REPORT_SCOPE_FORBIDDEN: 'REPORT_SCOPE_FORBIDDEN',
+  PRINT_TEMPLATE_INVALID: 'PRINT_TEMPLATE_INVALID',
+  PRINT_DOC_TYPE_INVALID: 'PRINT_DOC_TYPE_INVALID',
 } as const;
 
 export type OpdErrorCode = (typeof OpdErrorCode)[keyof typeof OpdErrorCode];

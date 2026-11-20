@@ -46,6 +46,7 @@ const PERMISSIONS = [
     code: 'opd.refunds.approve',
     description: 'Approve or reject refund and cancellation requests',
   },
+  { code: 'opd.reports.read', description: 'Read the OPD collection reports' },
 ] as const;
 
 /**

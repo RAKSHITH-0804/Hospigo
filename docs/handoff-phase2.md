@@ -125,3 +125,18 @@ Start a new session, read the files named in `CLAUDE.md`, then plan 6a and WAIT 
 ## Update 20 Nov 2026 (Step 6)
 
 6a (API and migration, commit c819fa6) and 6b (web, branch `feature/phase2-step-6b-tests-refunds-web`) are built and waiting for review and PRs. Read `docs/decisions-6a.md`, `docs/decisions-6b.md` and `docs/future-lab-pharmacy.md` (LAB and PHARMACY are Phase 3; the prescription reaches the pharmacy when the consultation is completed). Next after the 6a and 6b PRs: Step 7 (print templates and reports) and 7b (settings screens).
+
+## Update 20 Nov 2026 (Step 7) and questions for management
+
+6a (PR #52) and 6b (PR #53) are merged. Step 7 API and migrations are built and waiting for review (`docs/decisions-7.md`): daily collection report with CSV, print templates, report indexes. Next: 7-2 (report screen), 7-4 (print views and Printing settings, prescription print), then 7b (settings screens) and the separate **7c: doctor profile setup**.
+
+**Per-doctor prescription layout (a future upgrade).** Rakshith's reference photo is a hospital's pre-printed continuous (tractor-feed, dot-matrix) stationery: fixed letterhead and the doctors' names and qualifications already printed at the edges, a large empty box for the data. Hospital and branch details are the same on every document; on **prescriptions** the doctor part changes. Doctors will enter their own qualifications, speciality line and registration number in their profile (step 7c); the prescription template already accepts those fields. Questions for management:
+
+1. Does each doctor need a separate prescription letterhead, or one hospital letterhead plus a doctor line?
+2. Which doctor details must print: name, qualifications, speciality, medical council registration number, signature or stamp image, clinic timings?
+3. If the stationery already lists the doctors, the software must print only the data. Which hospitals will use pre-printed stationery?
+4. Do doctors who work in more than one branch need different details per branch?
+5. Does anyone verify the registration number (for example the Admin ticks "verified"), or is the doctor's entry trusted? Can the Admin correct a doctor's details, or only the doctor?
+6. Should the system refuse to print a prescription when the doctor has no registration number, or print without it?
+7. If a doctor changes their details later, old prescriptions must keep the details as they were (a completed prescription should store a copy of the doctor block when it is written).
+8. Which printer is it (dot-matrix, continuous paper)? Pre-printed mode needs a real test on that printer.

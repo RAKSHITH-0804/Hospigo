@@ -34,6 +34,10 @@ const RAW_SQL_ALLOWLIST = new Map<string, string>([
     'Visit row lock (SELECT ... FOR UPDATE, filtered by tenant, branch and doctor) on the caller TenantDb tx',
   ],
   [
+    'modules/opd-reports/daily-collection.service.ts',
+    'Read-only day totals (sums and counts, tenant and branch filtered, values as parameters) on the TenantDb tx, so row level security applies',
+  ],
+  [
     'modules/patient-auth/patient-auth.service.ts',
     'OTP attempt/consume + request invalidate+insert use $queryRaw/$executeRaw on PatientPrisma (global tables)',
   ],

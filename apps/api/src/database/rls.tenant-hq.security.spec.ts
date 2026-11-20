@@ -917,6 +917,18 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
     });
     sampleB.refund_requests = refundSample.request.id;
     sampleB.refunds = refundSample.refund.id;
+
+    // Step 7-3: a print template of hospital B (the app role may change only its setting columns).
+    const printTemplate = await prisma.printTemplate.create({
+      data: {
+        tenantId: tenantB,
+        docType: 'RECEIPT',
+        paper: 'A5',
+        createdBy: sampleB.users!,
+        updatedBy: sampleB.users!,
+      },
+    });
+    sampleB.print_templates = printTemplate.id;
   });
 
   afterAll(async () => {
