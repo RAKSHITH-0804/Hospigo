@@ -2,6 +2,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Client } from 'pg';
 import { runWithContext, type RequestContext } from '../common/request-context';
 import { PrismaClient } from '../generated/prisma';
+import { appPoolConfig } from './pg-session';
 import { TenantDb } from './tenant-db';
 import { PrismaService } from './prisma.service';
 
@@ -37,7 +38,7 @@ export function requireTestDatabaseUrl(): string {
 }
 
 export function createAppPrisma(): PrismaClient {
-  const adapter = new PrismaPg({ connectionString: requireTestDatabaseUrl() });
+  const adapter = new PrismaPg(appPoolConfig(requireTestDatabaseUrl()));
   return new PrismaClient({ adapter });
 }
 
@@ -51,7 +52,7 @@ export function createOwnerPrisma(): PrismaClient {
   if (dbName !== 'hospigo_test') {
     throw new Error(`Refusing fixtures against database "${dbName}"`);
   }
-  const adapter = new PrismaPg({ connectionString: url });
+  const adapter = new PrismaPg(appPoolConfig(url));
   return new PrismaClient({ adapter });
 }
 
