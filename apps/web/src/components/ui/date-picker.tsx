@@ -38,6 +38,8 @@ export function DatePicker({
   max,
   weekStart,
   quickDays,
+  quickPicks,
+  todayIso,
   disabled,
   locale = patientsWebConfig.dateLocale,
 }: {
@@ -48,6 +50,10 @@ export function DatePicker({
   max?: string;
   weekStart: number;
   quickDays: readonly number[];
+  /** Quick picks with their own words, in days from today (0 today, -1 yesterday). They replace `quickDays`. */
+  quickPicks?: ReadonlyArray<{ label: string; days: number }>;
+  /** Today as the hospital counts it (a time zone may differ from the browser's). */
+  todayIso?: string;
   disabled?: boolean;
   locale?: string;
 }) {
@@ -55,7 +61,7 @@ export function DatePicker({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const [open, setOpen] = useState(false);
-  const today = useMemo(() => localTodayIso(), [open]);
+  const today = useMemo(() => todayIso ?? localTodayIso(), [open, todayIso]);
   const startDay = parseIsoDay(value) ?? parseIsoDay(min ?? today) ?? parseIsoDay(today)!;
   const [view, setView] = useState({
     year: startDay.getUTCFullYear(),
@@ -200,17 +206,24 @@ export function DatePicker({
             aria-label={copy.quickHeading}
             className="flex flex-wrap gap-[var(--space-1)]"
           >
-            {quickDays.map((days) => {
+            {(
+              quickPicks ??
+              quickDays.map((days) => ({
+                days,
+                label:
+                  days === 1 ? copy.quickTomorrow : copy.quickDays.replace('{n}', String(days)),
+              }))
+            ).map(({ days, label }) => {
               const iso = addDays(today, days);
               return (
                 <Button
-                  key={days}
+                  key={`${days}-${label}`}
                   type="button"
                   variant="outline"
                   disabled={!isWithin(iso, min, max)}
                   onClick={() => pick(iso)}
                 >
-                  {days === 1 ? copy.quickTomorrow : copy.quickDays.replace('{n}', String(days))}
+                  {label}
                 </Button>
               );
             })}

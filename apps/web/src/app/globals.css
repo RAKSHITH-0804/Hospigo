@@ -1808,6 +1808,10 @@
     gap: var(--space-4);
   }
 
+  .settings-content-wide {
+    max-width: none;
+  }
+
   .settings-block {
     display: flex;
     flex-direction: column;
@@ -2065,4 +2069,584 @@
     /* The @page margin is 0 (config), so the slip carries its own inner padding. */
     padding: var(--space-slip-padding);
   }
+}
+
+/* Step 7-2: the daily collection report. */
+.report-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.report-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.report-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.report-input {
+  min-height: var(--size-touch);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.report-print-title {
+  display: none;
+}
+
+.report-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--space-3);
+}
+
+.report-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+}
+
+.report-tile-value {
+  font-size: var(--font-size-title);
+  font-weight: 600;
+}
+
+.report-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.report-table-wrap {
+  overflow-x: auto;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.report-table th,
+.report-table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.report-table .report-amount {
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media print {
+  .report-print-title {
+    display: block;
+  }
+
+  .report-tile {
+    break-inside: avoid;
+  }
+}
+
+/* Step 7-5: template-driven print sheets made of boxes. */
+.print-paper-wrap {
+  overflow-x: auto;
+  padding: var(--space-4);
+  background: var(--muted);
+  border-radius: var(--radius-lg);
+}
+
+/* Paper: Canvas and CanvasText follow the colour scheme of the screen, and print as black on white. */
+.print-sheet {
+  position: relative;
+  box-sizing: border-box;
+  background: Canvas;
+  color: CanvasText;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.print-box {
+  position: absolute;
+  box-sizing: border-box;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.print-font-sans {
+  font-family: inherit;
+}
+
+.print-font-serif {
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+.print-font-mono {
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.print-tone-black {
+  color: CanvasText;
+}
+
+.print-tone-grey {
+  color: GrayText;
+}
+
+.print-caption {
+  display: inline-block;
+  margin-right: 0.4em;
+  font-weight: 600;
+}
+
+.print-caption::after {
+  content: ':';
+}
+
+.print-caption-block {
+  display: block;
+}
+
+.print-line {
+  display: block;
+}
+
+.print-value-inline {
+  display: inline;
+}
+
+.print-pair {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.print-pair-amount {
+  white-space: nowrap;
+}
+
+.print-rule {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: currentColor;
+}
+
+.print-box-line {
+  line-height: 0;
+}
+
+.print-image-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border: 1px dashed currentColor;
+  font-size: 0.8em;
+}
+
+@media print {
+  .print-paper-wrap {
+    overflow: visible;
+    padding: 0;
+    background: transparent;
+    border-radius: 0;
+  }
+
+  .print-sheet {
+    border: 0;
+    background: transparent;
+    overflow: visible;
+  }
+}
+
+/* Step 7-4: the Printing settings screen. */
+.printing-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.printing-docs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.printing-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.printing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--space-3);
+}
+
+.printing-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--space-2);
+}
+
+.printing-check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.printing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.printing-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Step 7-5: the print designer (a page of boxes, like a word processor). */
+:root {
+  --size-ruler: 1.25rem;
+  --size-handle: 0.6rem;
+}
+
+.printing-designer {
+  display: grid;
+  grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 64rem) {
+  .printing-designer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.printing-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.printing-view-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.print-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+}
+
+.print-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.print-toolbar-gap {
+  flex: 1;
+}
+
+.print-canvas-frame {
+  overflow-x: auto;
+  overflow-y: hidden;
+  width: 100%;
+  padding: var(--space-3);
+  background: var(--muted);
+  border-radius: var(--radius-lg);
+  box-sizing: border-box;
+}
+
+.print-canvas-scaled {
+  position: relative;
+}
+
+.print-canvas-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: var(--size-ruler) max-content;
+  grid-template-rows: var(--size-ruler) max-content;
+  width: max-content;
+}
+
+.print-ruler {
+  position: relative;
+  background: var(--card);
+  color: var(--muted-foreground);
+  font-size: 0.6rem;
+  line-height: 1;
+  user-select: none;
+}
+
+.print-ruler-horizontal {
+  grid-column: 2;
+  grid-row: 1;
+  height: var(--size-ruler);
+  border-bottom: 1px solid var(--border);
+}
+
+.print-ruler-vertical {
+  grid-column: 1;
+  grid-row: 2;
+  width: var(--size-ruler);
+  border-right: 1px solid var(--border);
+}
+
+.print-ruler-mark {
+  position: absolute;
+  padding: 1px 0 0 2px;
+  border-left: 1px solid var(--border);
+}
+
+.print-ruler-vertical .print-ruler-mark {
+  padding: 1px 0 0;
+  border-left: 0;
+  border-top: 1px solid var(--border);
+}
+
+.print-canvas {
+  grid-column: 2;
+  grid-row: 2;
+  position: relative;
+  touch-action: none;
+}
+
+.print-canvas:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.print-canvas-sheet {
+  overflow: visible;
+}
+
+.print-margin-guide {
+  position: absolute;
+  border: 1px dashed var(--border);
+  pointer-events: none;
+}
+
+.designer-box {
+  cursor: move;
+  touch-action: none;
+  outline: 1px dashed transparent;
+}
+
+.designer-box:hover {
+  outline-color: var(--ring);
+}
+
+.designer-box.is-selected {
+  outline: 2px solid var(--primary);
+}
+
+.designer-box.is-ghost {
+  opacity: 0.35;
+}
+
+.print-handle {
+  position: absolute;
+  box-sizing: border-box;
+  width: var(--size-handle);
+  height: var(--size-handle);
+  border: 1px solid var(--background);
+  background: var(--primary);
+  touch-action: none;
+}
+
+.print-handle-n,
+.print-handle-s {
+  left: 50%;
+  margin-left: calc(var(--size-handle) / -2);
+}
+
+.print-handle-e,
+.print-handle-w {
+  top: 50%;
+  margin-top: calc(var(--size-handle) / -2);
+}
+
+.print-handle-n,
+.print-handle-ne,
+.print-handle-nw {
+  top: calc(var(--size-handle) / -2);
+}
+
+.print-handle-s,
+.print-handle-se,
+.print-handle-sw {
+  bottom: calc(var(--size-handle) / -2);
+}
+
+.print-handle-w,
+.print-handle-nw,
+.print-handle-sw {
+  left: calc(var(--size-handle) / -2);
+}
+
+.print-handle-e,
+.print-handle-ne,
+.print-handle-se {
+  right: calc(var(--size-handle) / -2);
+}
+
+@media print {
+  .print-toolbar,
+  .print-canvas-frame,
+  .opd-tabs {
+    display: none;
+  }
+}
+
+/* Touch screens: handles big enough for a finger. */
+@media (pointer: coarse) {
+  :root {
+    --size-handle: 1.25rem;
+  }
+}
+
+/* The report toolbar: day, branch, filters, and the Print menu. It wraps on any width. */
+.report-toolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  align-items: end;
+  gap: var(--space-3);
+}
+
+.report-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  grid-column: 1 / -1;
+}
+
+.action-menu {
+  position: relative;
+  display: inline-block;
+}
+
+.action-menu-popup {
+  position: absolute;
+  right: 0;
+  z-index: 30;
+  display: flex;
+  min-width: 14rem;
+  flex-direction: column;
+  margin-top: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  box-shadow: 0 8px 24px color-mix(in oklch, var(--foreground) 15%, transparent);
+}
+
+.action-menu-item {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+}
+
+.action-menu-item:hover,
+.action-menu-item:focus-visible {
+  background: var(--muted);
+  outline: none;
+}
+
+/* Step 7-5b: rich text boxes and the editor inside them. */
+.print-para {
+  min-height: 1lh;
+}
+
+.print-empty-line::before {
+  content: ' a0';
+}
+
+.print-block {
+  display: block;
+}
+
+.designer-box.is-editing {
+  cursor: text;
+  outline: 2px solid var(--primary);
+  background: color-mix(in oklch, var(--primary) 6%, transparent);
+}
+
+.print-editor-host {
+  width: 100%;
+  height: 100%;
+}
+
+.print-editor {
+  min-height: 100%;
+  outline: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.print-editor p {
+  margin: 0;
+  min-height: 1lh;
+}
+
+/* A value placed inside the words: one piece, shown as a chip while the text is edited. */
+.print-token {
+  display: inline-block;
+  padding: 0 0.25em;
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklch, var(--primary) 18%, transparent);
+  color: var(--primary);
+  white-space: nowrap;
+  user-select: all;
+}
+
+.print-editor .ProseMirror-selectednode.print-token,
+.print-editor .print-token.ProseMirror-selectednode {
+  outline: 2px solid var(--primary);
 }

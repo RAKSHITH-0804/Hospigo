@@ -1939,7 +1939,27 @@ describe('OPD visits and billing endpoints (HTTP)', () => {
   // ------------------------------------------------------------ admin roles are read-only
 
   describe('system admin roles', () => {
-    it('SuperAdmin and Branch Admin get the read permissions but never create, collect or clinical ones', async () => {
+    const NEVER_DONE_BY_AN_ADMIN = [
+      'opd.visits.create',
+      'opd.billing.collect',
+      'opd.vitals.write',
+      'opd.notes.write',
+      // Step 6a: admins never ask for refunds, order tests or bill them
+      'opd.refunds.request',
+      'opd.investigations.order',
+      'opd.investigations.bill',
+    ];
+    const FLOOR_READS = ['opd.queue.read', 'opd.vitals.read', 'opd.notes.read'];
+
+    async function codesOf(roleId: string): Promise<string[]> {
+      const rows = await owner.rolePermission.findMany({
+        where: { roleId, isActive: true },
+        include: { permission: true },
+      });
+      return rows.map((r) => r.permission.code);
+    }
+
+    it('both admin roles read visits, bills and registry, decide refunds and read reports, but never create, collect, write or order', async () => {
       const hospital = await owner.hospital.create({
         data: { code: `OV_ADM_${stamp}`, name: 'Admin roles', isTest: true },
       });
@@ -1948,11 +1968,7 @@ describe('OPD visits and billing endpoints (HTTP)', () => {
         hospital.id,
       );
       for (const roleId of [superAdminRoleId, branchAdminRoleId]) {
-        const rows = await owner.rolePermission.findMany({
-          where: { roleId, isActive: true },
-          include: { permission: true },
-        });
-        const codes = rows.map((r) => r.permission.code);
+        const codes = await codesOf(roleId);
         expect(codes).toEqual(
           expect.arrayContaining([
             'opd.visits.read',
@@ -1961,36 +1977,98 @@ describe('OPD visits and billing endpoints (HTTP)', () => {
             'opd.masters.read',
             // Step 6a: admins DECIDE refunds
             'opd.refunds.approve',
+            'opd.reports.read',
           ]),
         );
-        for (const forbidden of [
-          'opd.visits.create',
-          'opd.billing.collect',
-          'opd.queue.read',
-          'opd.vitals.read',
-          'opd.vitals.write',
-          'opd.notes.read',
-          'opd.notes.write',
-          // Step 6a: admins never ask for refunds, order tests or bill them
-          'opd.refunds.request',
-          'opd.investigations.order',
-          'opd.investigations.bill',
-        ]) {
-          expect(codes).not.toContain(forbidden);
+        for (const forbidden of NEVER_DONE_BY_AN_ADMIN) {
+          expect({ roleId, forbidden, has: codes.includes(forbidden) }).toEqual({
+            roleId,
+            forbidden,
+            has: false,
+          });
         }
       }
       // An earlier grant is switched off when the seed runs again (idempotent clean-up).
-      const create = await owner.permission.findUniqueOrThrow({
-        where: { code: 'opd.visits.create' },
-      });
-      await owner.rolePermission.create({
-        data: { tenantId: hospital.id, roleId: superAdminRoleId, permissionId: create.id },
-      });
+      for (const roleId of [superAdminRoleId, branchAdminRoleId]) {
+        const create = await owner.permission.findUniqueOrThrow({
+          where: { code: 'opd.visits.create' },
+        });
+        await owner.rolePermission.upsert({
+          where: {
+            tenantId_roleId_permissionId: {
+              tenantId: hospital.id,
+              roleId,
+              permissionId: create.id,
+            },
+          },
+          create: { tenantId: hospital.id, roleId, permissionId: create.id },
+          update: { isActive: true },
+        });
+      }
       await ensureSystemRolesForTenant(owner, hospital.id);
-      const after = await owner.rolePermission.findFirstOrThrow({
-        where: { roleId: superAdminRoleId, permissionId: create.id },
+      for (const roleId of [superAdminRoleId, branchAdminRoleId]) {
+        const create = await owner.permission.findUniqueOrThrow({
+          where: { code: 'opd.visits.create' },
+        });
+        const after = await owner.rolePermission.findFirstOrThrow({
+          where: { roleId, permissionId: create.id },
+        });
+        expect(after.isActive).toBe(false);
+      }
+    });
+
+    it('the SuperAdmin, the main controller, also READS the OPD floor: queue (all statuses), vitals and notes', async () => {
+      const hospital = await owner.hospital.create({
+        data: { code: `OV_SA_${stamp}`, name: 'Super admin reads', isTest: true },
       });
-      expect(after.isActive).toBe(false);
+      const { superAdminRoleId, branchAdminRoleId } = await ensureSystemRolesForTenant(
+        owner,
+        hospital.id,
+      );
+      const superCodes = await codesOf(superAdminRoleId);
+      for (const code of FLOOR_READS) {
+        expect(superCodes).toContain(code);
+      }
+      // the Branch Admin does not: only the hospital-wide controller does
+      const branchCodes = await codesOf(branchAdminRoleId);
+      for (const code of FLOOR_READS) {
+        expect(branchCodes).not.toContain(code);
+      }
+    });
+
+    it('a SuperAdmin made by the older seed (without the reads) gets them on the next seed run', async () => {
+      const hospital = await owner.hospital.create({
+        data: { code: `OV_SU_${stamp}`, name: 'Super admin upgrade', isTest: true },
+      });
+      const { superAdminRoleId } = await ensureSystemRolesForTenant(owner, hospital.id);
+      const queue = await owner.permission.findUniqueOrThrow({ where: { code: 'opd.queue.read' } });
+      await owner.rolePermission.updateMany({
+        where: { roleId: superAdminRoleId, permissionId: queue.id },
+        data: { isActive: false },
+      });
+      expect(await codesOf(superAdminRoleId)).not.toContain('opd.queue.read');
+      await ensureSystemRolesForTenant(owner, hospital.id);
+      expect(await codesOf(superAdminRoleId)).toContain('opd.queue.read');
+    });
+
+    it('every permission of the catalog is either given to the SuperAdmin or on its short list of person-only actions', async () => {
+      const hospital = await owner.hospital.create({
+        data: { code: `OV_SC_${stamp}`, name: 'Super admin catalog', isTest: true },
+      });
+      const { superAdminRoleId } = await ensureSystemRolesForTenant(owner, hospital.id);
+      const { SUPER_ADMIN_EXCLUDED_PERMISSION_CODES } =
+        await import('../../../prisma/seeds/reference');
+      const catalog = (await owner.permission.findMany({ where: { isActive: true } })).map(
+        (p) => p.code,
+      );
+      const have = new Set(await codesOf(superAdminRoleId));
+      const missing = catalog.filter(
+        (code) => !have.has(code) && !SUPER_ADMIN_EXCLUDED_PERMISSION_CODES.includes(code),
+      );
+      expect(missing).toEqual([]);
+      expect([...SUPER_ADMIN_EXCLUDED_PERMISSION_CODES].sort()).toEqual(
+        [...NEVER_DONE_BY_AN_ADMIN].sort(),
+      );
     });
   });
 });

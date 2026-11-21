@@ -50,8 +50,8 @@ const PERMISSIONS = [
 ] as const;
 
 /**
- * Permissions the SYSTEM admin roles (SuperAdmin, Branch Admin) never receive automatically.
- * Admins read visits and bills, but do not create visits, collect cash, or see clinical data
+ * Permissions the BRANCH ADMIN role never receives automatically (the SuperAdmin has a shorter list
+ * below). Branch Admins read visits and bills, but do not create visits, collect cash, or see clinical data
  * (queue, vitals, consultation notes). Hospitals can still grant them through their own roles.
  * Codes that are not in the catalog yet (clinical steps) are listed so they stay excluded.
  * Admins DO get opd.refunds.approve (they decide refunds) but never ask for one, order tests or bill them.
@@ -63,6 +63,25 @@ export const ADMIN_EXCLUDED_PERMISSION_CODES: readonly string[] = [
   'opd.vitals.read',
   'opd.vitals.write',
   'opd.notes.read',
+  'opd.notes.write',
+  'opd.investigations.order',
+  'opd.investigations.bill',
+  'opd.refunds.request',
+];
+
+/**
+ * What the SuperAdmin never receives automatically: the ACTIONS that belong to a person (taking
+ * cash, creating a visit, writing a note, recording vitals, ordering or billing tests, asking for a
+ * refund). The SuperAdmin DOES receive the read permissions of the OPD floor (queue, vitals, notes),
+ * so the main controller of a hospital can see everything and approve what needs approving, while
+ * the work itself stays with the roles that do it. The API still ties many actions to a person (only
+ * the visit's own doctor completes a consultation) and records reads of clinical data.
+ * Branch Admin keeps the longer list above.
+ */
+export const SUPER_ADMIN_EXCLUDED_PERMISSION_CODES: readonly string[] = [
+  'opd.visits.create',
+  'opd.billing.collect',
+  'opd.vitals.write',
   'opd.notes.write',
   'opd.investigations.order',
   'opd.investigations.bill',
@@ -206,8 +225,8 @@ export async function ensureSystemRolesForTenant(
   tenantId: string,
 ): Promise<{ superAdminRoleId: string; branchAdminRoleId: string }> {
   const allPermissions = await prisma.permission.findMany({ where: { isActive: true } });
-  const excluded = new Set(ADMIN_EXCLUDED_PERMISSION_CODES);
-  const permissions = allPermissions.filter((p) => !excluded.has(p.code));
+  const branchAdminExcluded = new Set(ADMIN_EXCLUDED_PERMISSION_CODES);
+  const superAdminExcluded = new Set(SUPER_ADMIN_EXCLUDED_PERMISSION_CODES);
 
   const superAdmin = await prisma.role.upsert({
     where: { tenantId_code: { tenantId, code: SYSTEM_ROLE_CODES.SUPER_ADMIN } },
@@ -233,42 +252,35 @@ export async function ensureSystemRolesForTenant(
     update: { name: 'Branch Admin', isActive: true, isSystem: true },
   });
 
-  for (const permission of permissions) {
-    await prisma.rolePermission.upsert({
-      where: {
-        tenantId_roleId_permissionId: {
-          tenantId,
-          roleId: superAdmin.id,
-          permissionId: permission.id,
+  const roles = [
+    { id: superAdmin.id, excluded: superAdminExcluded },
+    { id: branchAdmin.id, excluded: branchAdminExcluded },
+  ];
+  for (const role of roles) {
+    for (const permission of allPermissions) {
+      if (role.excluded.has(permission.code)) {
+        continue;
+      }
+      await prisma.rolePermission.upsert({
+        where: {
+          tenantId_roleId_permissionId: {
+            tenantId,
+            roleId: role.id,
+            permissionId: permission.id,
+          },
         },
-      },
-      create: { tenantId, roleId: superAdmin.id, permissionId: permission.id },
-      update: { isActive: true },
-    });
-    await prisma.rolePermission.upsert({
-      where: {
-        tenantId_roleId_permissionId: {
-          tenantId,
-          roleId: branchAdmin.id,
-          permissionId: permission.id,
-        },
-      },
-      create: { tenantId, roleId: branchAdmin.id, permissionId: permission.id },
-      update: { isActive: true },
-    });
-  }
-
-  // Idempotent clean-up: an excluded permission granted by an earlier seed run is switched off.
-  const excludedIds = allPermissions.filter((p) => excluded.has(p.code)).map((p) => p.id);
-  if (excludedIds.length > 0) {
-    await prisma.rolePermission.updateMany({
-      where: {
-        tenantId,
-        roleId: { in: [superAdmin.id, branchAdmin.id] },
-        permissionId: { in: excludedIds },
-      },
-      data: { isActive: false },
-    });
+        create: { tenantId, roleId: role.id, permissionId: permission.id },
+        update: { isActive: true },
+      });
+    }
+    // Idempotent clean-up: an excluded permission granted by an earlier seed run is switched off.
+    const excludedIds = allPermissions.filter((p) => role.excluded.has(p.code)).map((p) => p.id);
+    if (excludedIds.length > 0) {
+      await prisma.rolePermission.updateMany({
+        where: { tenantId, roleId: role.id, permissionId: { in: excludedIds } },
+        data: { isActive: false },
+      });
+    }
   }
 
   return { superAdminRoleId: superAdmin.id, branchAdminRoleId: branchAdmin.id };

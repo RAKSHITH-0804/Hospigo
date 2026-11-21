@@ -140,3 +140,7 @@ Start a new session, read the files named in `CLAUDE.md`, then plan 6a and WAIT 
 6. Should the system refuse to print a prescription when the doctor has no registration number, or print without it?
 7. If a doctor changes their details later, old prescriptions must keep the details as they were (a completed prescription should store a copy of the doctor block when it is written).
 8. Which printer is it (dot-matrix, continuous paper)? Pre-printed mode needs a real test on that printer.
+
+**Update (Step 7 web built):** 7-2 (collection report screen with CSV and print) and 7-4 (print views for receipt, slip and prescription; Printing settings screen) are built on the same branch and wait for click-testing and review (`docs/decisions-7.md`, web part). Next: 7b (settings screens: needs new API routes for UHID format, follow-up days and required fields) and 7c (doctor profile setup: migration and API), then 8a, 8b, 9. One PR for all of Step 7 at the end (Rakshith's choice, 20 Nov).
+
+**Update (21 Nov, Step 7-5):** the Word-style print designer (boxes on a page, API layout version 2) is built on the same branch and waits for click-testing (`docs/decisions-7.md`, last section). Also built since the first click-test: report sections (department, tests billed) and the Excel download (new dependency `exceljs` in `apps/api`). One PR for all of Step 7 at the end. Still to do: 7b (settings screens, needs new API routes), 7c (doctor profile setup), 8a (logo upload), 8b, 9.

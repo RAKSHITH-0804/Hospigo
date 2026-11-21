@@ -471,6 +471,15 @@ describe('after completion', () => {
     expect(screen.getByText(/Dr Meena on/)).toBeTruthy();
   });
 
+  it('offers to print the prescription of a completed consultation, and not before', () => {
+    const done = renderScreen({ initial: completedConsult() });
+    const link = screen.getByRole('link', { name: staffCopy.print.prescription.print });
+    expect(link.getAttribute('href')).toMatch(/^\/app\/opd\/visits\/[^/]+\/prescription$/);
+    done.unmount();
+    renderScreen();
+    expect(screen.queryByRole('link', { name: staffCopy.print.prescription.print })).toBeNull();
+  });
+
   it('the doctor can add an addendum; it needs both text and reason', async () => {
     api({
       [`POST ${url('/consultation/addenda')}`]: (body) =>

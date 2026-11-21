@@ -14,6 +14,8 @@ export type StaffRouteOptions = {
   path: string;
   query?: CallStaffApiOptions['query'];
   body?: unknown;
+  /** A file download: the API's bytes are passed on with this type and file name. */
+  download?: { contentType: string; fileName: string };
   /**
    * The incoming browser request. REQUIRED for every write (POST/PUT/PATCH/DELETE): it carries
    * the stale-tab branch header checked by the branch guard. A write without it is refused.
@@ -35,6 +37,8 @@ export type UpstreamErrorPayload = {
   what?: string;
   totalPaise?: number;
   fieldCode?: string;
+  /** A print template that was refused: which field, and why (`reason`). */
+  field?: string;
   index?: number;
   /** Step 6b: facts that explain a refusal about tests, refunds and cancellations. */
   paymentModeCode?: string;
@@ -47,6 +51,7 @@ export type UpstreamErrorPayload = {
 };
 
 const SAFE_TEXT_KEYS = [
+  'field',
   'reason',
   'what',
   'fieldCode',
@@ -118,8 +123,19 @@ export async function staffRoute(options: StaffRouteOptions): Promise<NextRespon
     method,
     query: options.query,
     body: options.body,
+    ...(options.download ? { raw: true } : {}),
   });
 
+  if (result.ok && options.download) {
+    return new NextResponse(result.data as ArrayBuffer, {
+      status: 200,
+      headers: {
+        'Content-Type': options.download.contentType,
+        'Content-Disposition': `attachment; filename="${options.download.fileName}"`,
+        ...NO_STORE,
+      },
+    });
+  }
   if (result.ok) {
     return jsonResponse(result.data ?? null, 200);
   }

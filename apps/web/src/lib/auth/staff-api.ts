@@ -6,6 +6,8 @@ export type CallStaffApiOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   query?: Record<string, string | number | boolean | undefined | null>;
+  /** The answer is a file: its bytes are returned as an ArrayBuffer instead of JSON. */
+  raw?: boolean;
 };
 
 function buildPath(path: string, query?: CallStaffApiOptions['query']): string {
@@ -52,6 +54,7 @@ export async function callStaffApi<T>(
     method,
     json: options.body,
     timeoutMs: sessionConfig.staffUpstreamTimeoutMs,
+    raw: options.raw,
     headers: { Authorization: `Bearer ${access}` },
   });
 }

@@ -34,6 +34,11 @@ export type OpdWebConfig = {
   /** Refund requests per page, and the query parameter of the page. */
   refundsPageSize: number;
   refundsPageParam: string;
+  /** Collection report: the time zone that decides what "today" is when the page opens. */
+  reportTimeZone: string;
+  /** Collection report print view: paper and margin. */
+  reportPaperSize: string;
+  reportPageMargin: string;
 };
 
 const DEFAULTS = {
@@ -55,6 +60,9 @@ const DEFAULTS = {
   pendingRefreshSeconds: 20,
   refundsPageSize: 20,
   refundsPageParam: 'rp',
+  reportTimeZone: 'Asia/Kolkata',
+  reportPaperSize: 'A4',
+  reportPageMargin: '12mm',
 } as const;
 
 const VISITS_PAGE_SIZE_MIN = 1;
@@ -81,6 +89,20 @@ function intEnv(
     throw new Error(`${key} must be an integer ${min}..${max}`);
   }
   return n;
+}
+
+function timeZoneEnv(
+  env: Record<string, string | undefined>,
+  key: string,
+  fallback: string,
+): string {
+  const value = strEnv(env, key, fallback);
+  try {
+    new Intl.DateTimeFormat('en-CA', { timeZone: value });
+  } catch {
+    throw new Error(`${key} must be a real time zone name`);
+  }
+  return value;
 }
 
 export function loadOpdWebConfig(
@@ -135,6 +157,9 @@ export function loadOpdWebConfig(
       VISITS_PAGE_SIZE_MAX,
     ),
     refundsPageParam: DEFAULTS.refundsPageParam,
+    reportTimeZone: timeZoneEnv(env, 'WEB_REPORT_TIME_ZONE', DEFAULTS.reportTimeZone),
+    reportPaperSize: strEnv(env, 'WEB_REPORT_PAPER_SIZE', DEFAULTS.reportPaperSize),
+    reportPageMargin: strEnv(env, 'WEB_REPORT_PAGE_MARGIN', DEFAULTS.reportPageMargin),
   };
 }
 

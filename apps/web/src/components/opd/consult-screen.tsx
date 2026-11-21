@@ -289,9 +289,17 @@ export function ConsultScreen({
         <section className="flex flex-col gap-[var(--space-4)]" aria-label={copy.notesHeading}>
           <h2 className="section-heading">{copy.notesHeading}</h2>
           {completed ? (
-            <p role="status" className="type-label text-muted-foreground">
-              {copy.completedBanner}
-            </p>
+            <>
+              <p role="status" className="type-label text-muted-foreground">
+                {copy.completedBanner}
+              </p>
+              <Link
+                href={`/app/opd/visits/${encodeURIComponent(visit.id)}/prescription`}
+                className={cn(buttonVariants({ variant: 'outline' }), 'touch-target w-fit')}
+              >
+                {staffCopy.print.prescription.print}
+              </Link>
+            </>
           ) : null}
           {!canWrite && !completed ? (
             <p className="type-label text-muted-foreground">{copy.readOnlyNote}</p>

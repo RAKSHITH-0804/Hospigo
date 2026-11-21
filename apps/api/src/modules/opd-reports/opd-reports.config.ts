@@ -8,6 +8,11 @@ export const OPD_REPORTS_CONFIG = {
   /** Excel needs this mark to read a UTF-8 file correctly. */
   csvBom: '﻿',
   csvFileNamePrefix: 'collection-',
+  /** Bill types a report can be narrowed to. */
+  billTypes: ['CONSULTATION', 'INVESTIGATION'] as const,
+  /** Tests offered in the dropdown (a hospital rarely has more; the list is cut here). */
+  maxTestOptions: 2000,
+  xlsxContentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 } as const;
 
 export const OPD_REPORT_AUDIT = {

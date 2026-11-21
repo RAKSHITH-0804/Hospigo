@@ -1,4 +1,22 @@
 import { opdError, OpdErrorCode } from '../opd-visits/opd-visit.errors';
+import {
+  buildElements,
+  toRichElements,
+  ELEMENT_ALIGNS,
+  ELEMENT_FONTS,
+  ELEMENT_TONES,
+  ELEMENT_TYPES,
+  IMAGE_SLOTS,
+  type ElementAlign,
+  type ElementFont,
+  type ElementTone,
+  type PrintElement,
+  type RichContent,
+  type RichElement,
+  type RichParagraph,
+  type RichRun,
+  type RichStyle,
+} from './print-layout';
 
 /**
  * What a print template is, which numbers and fields it may hold, the built-in presets and the
@@ -26,6 +44,18 @@ export const PRINT_LIMITS = {
   fontMaxPt: 24,
   textMaxLength: 300,
   presetKeyMaxLength: 40,
+  /** Boxes on one page, the size of a box, and of a text inside it. */
+  elementsMax: 40,
+  elementMinMm: 1,
+  lineMinMm: 0.1,
+  boxFontMaxPt: 72,
+  elementIdMaxLength: 40,
+  /** The saved layout stays under the database limit (16 000 characters) with room to spare. */
+  layoutMaxChars: 15000,
+  /** Inside one rich text box. */
+  paragraphsMax: 30,
+  runsMax: 40,
+  runTextMax: 300,
 } as const;
 
 /** Size of the standard papers in portrait, millimetres. */
@@ -42,6 +72,7 @@ export const PAPER_SIZES_MM: Record<'A4' | 'A5' | 'A6', { width: number; height:
  */
 export const PRINT_FIELDS: Record<PrintDocType, readonly string[]> = {
   REGISTRATION_SLIP: [
+    'hospitalName',
     'uhid',
     'patientName',
     'age',
@@ -52,6 +83,7 @@ export const PRINT_FIELDS: Record<PrintDocType, readonly string[]> = {
     'branchName',
   ],
   RECEIPT: [
+    'hospitalName',
     'billNumber',
     'receiptNumber',
     'token',
@@ -68,6 +100,7 @@ export const PRINT_FIELDS: Record<PrintDocType, readonly string[]> = {
     'referenceNo',
   ],
   PRESCRIPTION: [
+    'hospitalName',
     'patientName',
     'uhid',
     'age',
@@ -90,19 +123,40 @@ export const PRINT_FIELDS: Record<PrintDocType, readonly string[]> = {
   ],
 };
 
-export type PrintLayout = {
+/** The older (version 1) layout: fields switched on or off, positions only for pre-printed stationery. */
+type LegacyLayout = {
   version: 1;
   fontSizePt: number;
-  /** Hospital header lines for FULL mode (the hospital name itself comes from the hospital record). */
   headerText: string;
   footerText: string;
   showLogo: boolean;
-  /** Which fields appear (every field of the document has an entry). */
   fields: Record<string, boolean>;
-  /** Nudges the whole printout (fine tuning of pre-printed stationery). */
   offset: { xMm: number; yMm: number };
-  /** PREPRINTED mode: where each field starts, from the top-left corner of the page. */
   positions: Record<string, { xMm: number; yMm: number }>;
+};
+
+/** The layout of version 2: boxes of a field or a text each with one style (still accepted, converted). */
+export type PrintLayoutV2 = {
+  version: 2;
+  /** The size of text that has none of its own, and the size the starting arrangements use. */
+  fontSizePt: number;
+  /** Moves the whole printout (fine tuning of pre-printed stationery). */
+  offset: { xMm: number; yMm: number };
+  elements: PrintElement[];
+};
+
+/**
+ * The layout (version 3): rich text boxes on the page, like text boxes in a word processor. A box
+ * holds words typed by a person, each stretch with its own style, and values of the document placed
+ * inside the words (like a mail-merge field).
+ */
+export type PrintLayout = {
+  version: 3;
+  /** The size of text that has none of its own. */
+  fontSizePt: number;
+  /** Moves the whole printout (fine tuning of pre-printed stationery). */
+  offset: { xMm: number; yMm: number };
+  elements: RichElement[];
 };
 
 export type PrintTemplateInput = {
@@ -163,9 +217,9 @@ export const PRESETS: Record<string, Preset> = {
     mode: 'FULL',
     fontSizePt: 8,
     fieldsOnly: {
-      REGISTRATION_SLIP: ['uhid', 'patientName', 'age', 'gender', 'registeredOn'],
-      RECEIPT: ['billNumber', 'token', 'patientName', 'total'],
-      PRESCRIPTION: ['patientName', 'uhid', 'doctorName', 'medicines'],
+      REGISTRATION_SLIP: ['hospitalName', 'uhid', 'patientName', 'age', 'gender', 'registeredOn'],
+      RECEIPT: ['hospitalName', 'billNumber', 'token', 'patientName', 'total'],
+      PRESCRIPTION: ['hospitalName', 'patientName', 'uhid', 'doctorName', 'medicines'],
     },
   },
   PREPRINTED_BILL: {
@@ -180,10 +234,6 @@ export const PRESETS: Record<string, Preset> = {
   },
 };
 
-/** The template of a document that its hospital has not changed yet. */
-/** Distance between two fields of a starting layout on pre-printed stationery, millimetres. */
-const POSITION_ROW_MM = 8;
-
 export const DEFAULT_PRESET_BY_DOC: Record<PrintDocType, string> = {
   REGISTRATION_SLIP: 'A4_FULL',
   RECEIPT: 'A5_FULL',
@@ -191,32 +241,26 @@ export const DEFAULT_PRESET_BY_DOC: Record<PrintDocType, string> = {
 };
 
 /** Starting point of a document from a preset (a settings screen copies it, then adjusts it). */
-export function presetInput(presetKey: string, docType: PrintDocType): PrintTemplateInput {
+export function presetInputV2(
+  presetKey: string,
+  docType: PrintDocType,
+): Omit<PrintTemplateInput, 'layout'> & { layout: PrintLayoutV2 } {
   const preset = PRESETS[presetKey];
   if (!preset) {
     throw printError('preset', 'UNKNOWN_PRESET');
   }
-  const visible = new Set(preset.fieldsOnly?.[docType] ?? PRINT_FIELDS[docType]);
-  const fields = Object.fromEntries(PRINT_FIELDS[docType].map((k) => [k, visible.has(k)]));
-  // Pre-printed stationery gets a plain starting position for each visible field: top to bottom,
-  // then a second column, so every field starts on the page whatever the document.
-  const positions: PrintLayout['positions'] = {};
+  const wanted = new Set(preset.fieldsOnly?.[docType] ?? PRINT_FIELDS[docType]);
+  // Pre-printed stationery already carries the hospital name.
   if (preset.mode === 'PREPRINTED') {
-    const pageHeight = preset.heightMm ?? 0;
-    const pageWidth = preset.widthMm ?? 0;
-    const perColumn = Math.max(1, Math.floor((pageHeight - 25) / POSITION_ROW_MM));
-    let index = 0;
-    for (const key of PRINT_FIELDS[docType]) {
-      if (fields[key]) {
-        const column = Math.floor(index / perColumn);
-        positions[key] = {
-          xMm: round1(Math.min(10 + column * (pageWidth / 2), pageWidth)),
-          yMm: round1(15 + (index % perColumn) * POSITION_ROW_MM),
-        };
-        index += 1;
-      }
-    }
+    wanted.delete('hospitalName');
   }
+  const margins = {
+    topMm: preset.marginMm,
+    rightMm: preset.marginMm,
+    bottomMm: preset.marginMm,
+    leftMm: preset.marginMm,
+  };
+  const page = pageSizeMm(preset);
   return {
     enabled: true,
     preset: presetKey,
@@ -224,22 +268,36 @@ export function presetInput(presetKey: string, docType: PrintDocType): PrintTemp
     widthMm: preset.widthMm,
     heightMm: preset.heightMm,
     orientation: preset.orientation,
-    margins: {
-      topMm: preset.marginMm,
-      rightMm: preset.marginMm,
-      bottomMm: preset.marginMm,
-      leftMm: preset.marginMm,
-    },
+    margins,
     mode: preset.mode,
     layout: {
-      version: 1,
+      version: 2,
       fontSizePt: preset.fontSizePt,
-      headerText: '',
-      footerText: '',
-      showLogo: preset.mode === 'FULL',
-      fields,
       offset: { xMm: 0, yMm: 0 },
-      positions,
+      elements: buildElements({
+        fieldKeys: PRINT_FIELDS[docType],
+        visible: wanted,
+        page,
+        margins,
+        mode: preset.mode,
+        fontSizePt: preset.fontSizePt,
+        headerText: '',
+        footerText: '',
+      }),
+    },
+  };
+}
+
+/** Starting point of a document from a preset: rich text boxes (version 3). */
+export function presetInput(presetKey: string, docType: PrintDocType): PrintTemplateInput {
+  const v2 = presetInputV2(presetKey, docType);
+  return {
+    ...v2,
+    layout: {
+      version: 3,
+      fontSizePt: v2.layout.fontSizePt,
+      offset: v2.layout.offset,
+      elements: toRichElements(v2.layout.elements),
     },
   };
 }
@@ -406,7 +464,7 @@ export function validateTemplate(docType: PrintDocType, raw: unknown): PrintTemp
     throw printError('margins', 'NO_ROOM_TO_PRINT_DOWN');
   }
 
-  const layout = validateLayout(docType, raw.layout, raw.mode as PrintMode, page);
+  const layout = validateLayout(docType, raw.layout, raw.mode as PrintMode, page, margins);
   return {
     enabled,
     preset,
@@ -417,12 +475,12 @@ export function validateTemplate(docType: PrintDocType, raw: unknown): PrintTemp
   };
 }
 
-function validateLayout(
+function validateLegacyLayout(
   docType: PrintDocType,
   raw: unknown,
   mode: PrintMode,
   page: { widthMm: number; heightMm: number },
-): PrintLayout {
+): LegacyLayout {
   if (!isObject(raw)) {
     throw printError('layout', 'NOT_AN_OBJECT');
   }
@@ -493,7 +551,7 @@ function validateLayout(
     throw printError('layout.positions', 'NOT_AN_OBJECT');
   }
   onlyKeys('layout.positions', positionsIn, allowed);
-  const positions: PrintLayout['positions'] = {};
+  const positions: LegacyLayout['positions'] = {};
   for (const [key, value] of Object.entries(positionsIn)) {
     if (!isObject(value)) {
       throw printError(`layout.positions.${key}`, 'NOT_AN_OBJECT');
@@ -530,4 +588,434 @@ function validateLayout(
     offset,
     positions,
   };
+}
+
+// ------------------------------------------------------------------- layout (version 2)
+
+function parseOffset(raw: unknown): { xMm: number; yMm: number } {
+  if (raw === undefined) {
+    return { xMm: 0, yMm: 0 };
+  }
+  if (!isObject(raw)) {
+    throw printError('layout.offset', 'NOT_AN_OBJECT');
+  }
+  onlyKeys('layout.offset', raw, ['xMm', 'yMm']);
+  return {
+    xMm: num(
+      'layout.offset.xMm',
+      raw.xMm ?? 0,
+      -PRINT_LIMITS.offsetMaxMm,
+      PRINT_LIMITS.offsetMaxMm,
+    ),
+    yMm: num(
+      'layout.offset.yMm',
+      raw.yMm ?? 0,
+      -PRINT_LIMITS.offsetMaxMm,
+      PRINT_LIMITS.offsetMaxMm,
+    ),
+  };
+}
+
+const ELEMENT_COMMON = ['id', 'type', 'xMm', 'yMm', 'widthMm', 'heightMm'] as const;
+const ELEMENT_STYLE = [
+  'fontSizePt',
+  'bold',
+  'italic',
+  'underline',
+  'align',
+  'font',
+  'tone',
+] as const;
+const ELEMENT_KEYS: Record<PrintElement['type'], readonly string[]> = {
+  FIELD: [...ELEMENT_COMMON, 'field', 'caption', ...ELEMENT_STYLE],
+  TEXT: [...ELEMENT_COMMON, 'text', ...ELEMENT_STYLE],
+  LINE: [...ELEMENT_COMMON, 'tone'],
+  IMAGE: [...ELEMENT_COMMON, 'slot'],
+};
+const ELEMENT_ID = /^[A-Za-z0-9_-]+$/;
+
+function oneOf<T extends string>(
+  field: string,
+  value: unknown,
+  allowed: readonly T[],
+  reason: string,
+): T {
+  if (typeof value !== 'string' || !(allowed as readonly string[]).includes(value)) {
+    throw printError(field, reason);
+  }
+  return value as T;
+}
+
+function flag(field: string, value: unknown): boolean {
+  if (typeof value !== 'boolean') {
+    throw printError(field, 'NOT_A_BOOLEAN');
+  }
+  return value;
+}
+
+function validateElement(
+  docType: PrintDocType,
+  raw: unknown,
+  index: number,
+  page: { widthMm: number; heightMm: number },
+  seen: Set<string>,
+): PrintElement {
+  const f = `layout.elements.${index}`;
+  if (!isObject(raw)) {
+    throw printError(f, 'NOT_AN_OBJECT');
+  }
+  const type = oneOf(`${f}.type`, raw.type, ELEMENT_TYPES, 'UNKNOWN_TYPE');
+  onlyKeys(f, raw, ELEMENT_KEYS[type]);
+
+  if (
+    typeof raw.id !== 'string' ||
+    raw.id.length < 1 ||
+    raw.id.length > PRINT_LIMITS.elementIdMaxLength ||
+    !ELEMENT_ID.test(raw.id)
+  ) {
+    throw printError(`${f}.id`, 'BAD_ID');
+  }
+  if (seen.has(raw.id)) {
+    throw printError(`${f}.id`, 'DUPLICATE_ID');
+  }
+  seen.add(raw.id);
+
+  const min = type === 'LINE' ? PRINT_LIMITS.lineMinMm : PRINT_LIMITS.elementMinMm;
+  const xMm = num(`${f}.xMm`, raw.xMm, 0, page.widthMm);
+  const yMm = num(`${f}.yMm`, raw.yMm, 0, page.heightMm);
+  const widthMm = num(`${f}.widthMm`, raw.widthMm, min, page.widthMm);
+  const heightMm = num(`${f}.heightMm`, raw.heightMm, min, page.heightMm);
+  // A box stays on the page: a part outside it would be cut off by the printer.
+  if (round1(xMm + widthMm) > page.widthMm) {
+    throw printError(`${f}.widthMm`, 'OUT_OF_PAGE');
+  }
+  if (round1(yMm + heightMm) > page.heightMm) {
+    throw printError(`${f}.heightMm`, 'OUT_OF_PAGE');
+  }
+  const out: PrintElement = { id: raw.id, type, xMm, yMm, widthMm, heightMm };
+
+  if (type === 'FIELD') {
+    if (typeof raw.field !== 'string' || !PRINT_FIELDS[docType].includes(raw.field)) {
+      throw printError(`${f}.field`, 'UNKNOWN_FIELD');
+    }
+    out.field = raw.field;
+    out.caption = raw.caption === undefined ? true : flag(`${f}.caption`, raw.caption);
+  }
+  if (type === 'TEXT') {
+    if (raw.text === undefined || (typeof raw.text === 'string' && raw.text.trim() === '')) {
+      throw printError(`${f}.text`, 'REQUIRED');
+    }
+    out.text = text(`${f}.text`, raw.text);
+  }
+  if (type === 'IMAGE') {
+    out.slot =
+      raw.slot === undefined ? 'LOGO' : oneOf(`${f}.slot`, raw.slot, IMAGE_SLOTS, 'UNKNOWN_SLOT');
+  }
+  if (type === 'FIELD' || type === 'TEXT') {
+    if (raw.fontSizePt !== undefined) {
+      out.fontSizePt = num(
+        `${f}.fontSizePt`,
+        raw.fontSizePt,
+        PRINT_LIMITS.fontMinPt,
+        PRINT_LIMITS.boxFontMaxPt,
+      );
+    }
+    for (const key of ['bold', 'italic', 'underline'] as const) {
+      if (raw[key] !== undefined) {
+        out[key] = flag(`${f}.${key}`, raw[key]);
+      }
+    }
+    if (raw.align !== undefined) {
+      out.align = oneOf<ElementAlign>(`${f}.align`, raw.align, ELEMENT_ALIGNS, 'UNKNOWN_ALIGN');
+    }
+    if (raw.font !== undefined) {
+      out.font = oneOf<ElementFont>(`${f}.font`, raw.font, ELEMENT_FONTS, 'UNKNOWN_FONT');
+    }
+  }
+  if (type !== 'IMAGE' && raw.tone !== undefined) {
+    out.tone = oneOf<ElementTone>(`${f}.tone`, raw.tone, ELEMENT_TONES, 'UNKNOWN_TONE');
+  }
+  return out;
+}
+
+/**
+ * The layout. Version 2 (boxes) is checked box by box. A version 1 layout (an older template or an
+ * older caller) is converted: the same fields in the same places, as boxes. Either way the result
+ * is version 2.
+ */
+function validateLayoutV2(
+  docType: PrintDocType,
+  raw: unknown,
+  mode: PrintMode,
+  page: { widthMm: number; heightMm: number },
+  margins: PrintTemplateInput['margins'],
+): PrintLayoutV2 {
+  if (!isObject(raw)) {
+    throw printError('layout', 'NOT_AN_OBJECT');
+  }
+  const legacy = raw.version === 1 || (raw.version === undefined && !('elements' in raw));
+  if (legacy) {
+    const old = validateLegacyLayout(docType, raw, mode, page);
+    const visible = new Set(
+      Object.entries(old.fields)
+        .filter(([, on]) => on)
+        .map(([key]) => key),
+    );
+    if (mode === 'PREPRINTED') {
+      visible.delete('hospitalName');
+    }
+    return {
+      version: 2,
+      fontSizePt: old.fontSizePt,
+      offset: old.offset,
+      elements: buildElements({
+        fieldKeys: PRINT_FIELDS[docType],
+        visible,
+        page,
+        margins,
+        mode,
+        fontSizePt: old.fontSizePt,
+        headerText: old.headerText,
+        footerText: old.footerText,
+        positions: old.positions,
+      }),
+    };
+  }
+
+  onlyKeys('layout', raw, ['version', 'fontSizePt', 'offset', 'elements']);
+  if (raw.version !== 2) {
+    throw printError('layout.version', 'UNKNOWN_VERSION');
+  }
+  const fontSizePt = num(
+    'layout.fontSizePt',
+    raw.fontSizePt,
+    PRINT_LIMITS.fontMinPt,
+    PRINT_LIMITS.fontMaxPt,
+  );
+  if (!Array.isArray(raw.elements)) {
+    throw printError('layout.elements', 'NOT_A_LIST');
+  }
+  if (raw.elements.length > PRINT_LIMITS.elementsMax) {
+    throw printError('layout.elements', 'TOO_MANY');
+  }
+  const seen = new Set<string>();
+  const elements = raw.elements.map((e, index) => validateElement(docType, e, index, page, seen));
+  return {
+    version: 2,
+    fontSizePt,
+    offset: parseOffset(raw.offset),
+    elements,
+  };
+}
+
+// ------------------------------------------------------------------- layout (version 3)
+
+const RICH_KEYS: Record<RichElement['type'], readonly string[]> = {
+  RICH: [...ELEMENT_COMMON, 'content'],
+  LINE: [...ELEMENT_COMMON, 'tone'],
+  IMAGE: [...ELEMENT_COMMON, 'slot'],
+};
+const RICH_TYPES = ['RICH', 'LINE', 'IMAGE'] as const;
+const STYLE_KEYS = ['size', 'bold', 'italic', 'underline', 'font', 'tone'] as const;
+
+function validateStyle(field: string, raw: unknown): RichStyle | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (!isObject(raw)) {
+    throw printError(field, 'NOT_AN_OBJECT');
+  }
+  onlyKeys(field, raw, STYLE_KEYS);
+  const style: RichStyle = {};
+  if (raw.size !== undefined) {
+    style.size = num(`${field}.size`, raw.size, PRINT_LIMITS.fontMinPt, PRINT_LIMITS.boxFontMaxPt);
+  }
+  for (const key of ['bold', 'italic', 'underline'] as const) {
+    if (raw[key] !== undefined) {
+      style[key] = flag(`${field}.${key}`, raw[key]);
+    }
+  }
+  if (raw.font !== undefined) {
+    style.font = oneOf<ElementFont>(`${field}.font`, raw.font, ELEMENT_FONTS, 'UNKNOWN_FONT');
+  }
+  if (raw.tone !== undefined) {
+    style.tone = oneOf<ElementTone>(`${field}.tone`, raw.tone, ELEMENT_TONES, 'UNKNOWN_TONE');
+  }
+  return Object.keys(style).length > 0 ? style : undefined;
+}
+
+function validateRun(docType: PrintDocType, raw: unknown, f: string): RichRun {
+  if (!isObject(raw)) {
+    throw printError(f, 'NOT_AN_OBJECT');
+  }
+  if (raw.t === 'text') {
+    onlyKeys(f, raw, ['t', 'text', 'style']);
+    if (typeof raw.text !== 'string') {
+      throw printError(`${f}.text`, 'NOT_TEXT');
+    }
+    if (raw.text.length === 0) {
+      throw printError(`${f}.text`, 'REQUIRED');
+    }
+    if (raw.text.length > PRINT_LIMITS.runTextMax) {
+      throw printError(`${f}.text`, 'TOO_LONG');
+    }
+    // A line break is a new paragraph, never a character inside a stretch of words.
+    if (/[\r\n]/.test(raw.text)) {
+      throw printError(`${f}.text`, 'NOT_TEXT');
+    }
+    const style = validateStyle(`${f}.style`, raw.style);
+    return style ? { t: 'text', text: raw.text, style } : { t: 'text', text: raw.text };
+  }
+  if (raw.t === 'field') {
+    onlyKeys(f, raw, ['t', 'field', 'style']);
+    if (typeof raw.field !== 'string' || !PRINT_FIELDS[docType].includes(raw.field)) {
+      throw printError(`${f}.field`, 'UNKNOWN_FIELD');
+    }
+    const style = validateStyle(`${f}.style`, raw.style);
+    return style ? { t: 'field', field: raw.field, style } : { t: 'field', field: raw.field };
+  }
+  throw printError(`${f}.t`, 'UNKNOWN_TYPE');
+}
+
+function validateContent(docType: PrintDocType, raw: unknown, f: string): RichContent {
+  if (!isObject(raw)) {
+    throw printError(f, 'NOT_AN_OBJECT');
+  }
+  onlyKeys(f, raw, ['paragraphs']);
+  if (!Array.isArray(raw.paragraphs)) {
+    throw printError(`${f}.paragraphs`, 'NOT_A_LIST');
+  }
+  if (raw.paragraphs.length < 1) {
+    throw printError(`${f}.paragraphs`, 'REQUIRED');
+  }
+  if (raw.paragraphs.length > PRINT_LIMITS.paragraphsMax) {
+    throw printError(`${f}.paragraphs`, 'TOO_MANY');
+  }
+  const paragraphs = raw.paragraphs.map((p, pi): RichParagraph => {
+    const pf = `${f}.paragraphs.${pi}`;
+    if (!isObject(p)) {
+      throw printError(pf, 'NOT_AN_OBJECT');
+    }
+    onlyKeys(pf, p, ['align', 'runs']);
+    if (!Array.isArray(p.runs)) {
+      throw printError(`${pf}.runs`, 'NOT_A_LIST');
+    }
+    if (p.runs.length > PRINT_LIMITS.runsMax) {
+      throw printError(`${pf}.runs`, 'TOO_MANY');
+    }
+    const runs = p.runs.map((r, ri) => validateRun(docType, r, `${pf}.runs.${ri}`));
+    if (p.align === undefined) {
+      return { runs };
+    }
+    return {
+      align: oneOf<ElementAlign>(`${pf}.align`, p.align, ELEMENT_ALIGNS, 'UNKNOWN_ALIGN'),
+      runs,
+    };
+  });
+  return { paragraphs };
+}
+
+function validateRichElement(
+  docType: PrintDocType,
+  raw: unknown,
+  index: number,
+  page: { widthMm: number; heightMm: number },
+  seen: Set<string>,
+): RichElement {
+  const f = `layout.elements.${index}`;
+  if (!isObject(raw)) {
+    throw printError(f, 'NOT_AN_OBJECT');
+  }
+  const type = oneOf(`${f}.type`, raw.type, RICH_TYPES, 'UNKNOWN_TYPE');
+  onlyKeys(f, raw, RICH_KEYS[type]);
+  if (
+    typeof raw.id !== 'string' ||
+    raw.id.length < 1 ||
+    raw.id.length > PRINT_LIMITS.elementIdMaxLength ||
+    !ELEMENT_ID.test(raw.id)
+  ) {
+    throw printError(`${f}.id`, 'BAD_ID');
+  }
+  if (seen.has(raw.id)) {
+    throw printError(`${f}.id`, 'DUPLICATE_ID');
+  }
+  seen.add(raw.id);
+  const min = type === 'LINE' ? PRINT_LIMITS.lineMinMm : PRINT_LIMITS.elementMinMm;
+  const xMm = num(`${f}.xMm`, raw.xMm, 0, page.widthMm);
+  const yMm = num(`${f}.yMm`, raw.yMm, 0, page.heightMm);
+  const widthMm = num(`${f}.widthMm`, raw.widthMm, min, page.widthMm);
+  const heightMm = num(`${f}.heightMm`, raw.heightMm, min, page.heightMm);
+  if (round1(xMm + widthMm) > page.widthMm) {
+    throw printError(`${f}.widthMm`, 'OUT_OF_PAGE');
+  }
+  if (round1(yMm + heightMm) > page.heightMm) {
+    throw printError(`${f}.heightMm`, 'OUT_OF_PAGE');
+  }
+  const out: RichElement = { id: raw.id, type, xMm, yMm, widthMm, heightMm };
+  if (type === 'RICH') {
+    if (raw.content === undefined) {
+      throw printError(`${f}.content`, 'REQUIRED');
+    }
+    out.content = validateContent(docType, raw.content, `${f}.content`);
+  }
+  if (type === 'IMAGE') {
+    out.slot =
+      raw.slot === undefined ? 'LOGO' : oneOf(`${f}.slot`, raw.slot, IMAGE_SLOTS, 'UNKNOWN_SLOT');
+  }
+  if (type === 'LINE' && raw.tone !== undefined) {
+    out.tone = oneOf<ElementTone>(`${f}.tone`, raw.tone, ELEMENT_TONES, 'UNKNOWN_TONE');
+  }
+  return out;
+}
+
+/**
+ * The layout. Version 3 (rich text boxes) is checked box by box, run by run. Version 2 and
+ * version 1 layouts (older templates or older callers) are checked by their own rules and then
+ * CONVERTED: the same words, values and places, as rich text boxes. The result is always version 3.
+ */
+function validateLayout(
+  docType: PrintDocType,
+  raw: unknown,
+  mode: PrintMode,
+  page: { widthMm: number; heightMm: number },
+  margins: PrintTemplateInput['margins'],
+): PrintLayout {
+  if (!isObject(raw)) {
+    throw printError('layout', 'NOT_AN_OBJECT');
+  }
+  if (raw.version !== 3) {
+    const old = validateLayoutV2(docType, raw, mode, page, margins);
+    return finishLayout({
+      version: 3,
+      fontSizePt: old.fontSizePt,
+      offset: old.offset,
+      elements: toRichElements(old.elements),
+    });
+  }
+  onlyKeys('layout', raw, ['version', 'fontSizePt', 'offset', 'elements']);
+  const fontSizePt = num(
+    'layout.fontSizePt',
+    raw.fontSizePt,
+    PRINT_LIMITS.fontMinPt,
+    PRINT_LIMITS.fontMaxPt,
+  );
+  if (!Array.isArray(raw.elements)) {
+    throw printError('layout.elements', 'NOT_A_LIST');
+  }
+  if (raw.elements.length > PRINT_LIMITS.elementsMax) {
+    throw printError('layout.elements', 'TOO_MANY');
+  }
+  const seen = new Set<string>();
+  const elements = raw.elements.map((e, index) =>
+    validateRichElement(docType, e, index, page, seen),
+  );
+  return finishLayout({ version: 3, fontSizePt, offset: parseOffset(raw.offset), elements });
+}
+
+/** The saved layout stays under the database limit with room to spare. */
+function finishLayout(layout: PrintLayout): PrintLayout {
+  if (JSON.stringify(layout).length > PRINT_LIMITS.layoutMaxChars) {
+    throw printError('layout', 'TOO_LARGE');
+  }
+  return layout;
 }

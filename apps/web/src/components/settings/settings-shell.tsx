@@ -11,10 +11,13 @@ import { staffCopy } from '@/config/staff-copy';
 export function SettingsShell({
   sections,
   activeId,
+  wide,
   children,
 }: {
   sections: readonly SettingsSection[];
   activeId?: string;
+  /** A section that needs the whole width of the screen (the print designer). */
+  wide?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -36,7 +39,9 @@ export function SettingsShell({
             ))}
           </ul>
         </nav>
-        <div className="settings-content">{children}</div>
+        <div className={wide ? 'settings-content settings-content-wide' : 'settings-content'}>
+          {children}
+        </div>
       </div>
     </div>
   );

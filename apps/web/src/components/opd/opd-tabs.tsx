@@ -26,7 +26,7 @@ export function OpdTabs({ items }: { items: OpdTabItem[] }) {
   return (
     <nav
       aria-label={staffCopy.opd.tests.nav.label}
-      className="flex flex-wrap gap-[var(--space-2)] pb-[var(--space-3)]"
+      className="opd-tabs flex flex-wrap gap-[var(--space-2)] pb-[var(--space-3)]"
     >
       {items.map((item) => (
         <Link

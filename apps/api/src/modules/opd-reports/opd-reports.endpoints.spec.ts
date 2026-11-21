@@ -5,6 +5,7 @@ import { config as loadEnv } from 'dotenv';
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import ExcelJS from 'exceljs';
 import request from 'supertest';
 import { CLOCK, FakeClock } from '../../common/clock';
 import { createOwnerPrisma, createPgClient } from '../../database/db-test.util';
@@ -555,6 +556,209 @@ describe('OPD daily collection report (HTTP)', () => {
       expect(res.body.byBranch).toEqual([]);
     });
 
+    it('also groups the same money by the doctor department, adding up to the total', async () => {
+      const res = await report(R, 'adminMain', today);
+      const depts = res.body.byDepartment as Loose[];
+      expect(depts.length).toBeGreaterThan(0);
+      expect(depts.reduce((s, r) => s + r.collectedPaise, 0)).toBe(res.body.totals.collectedPaise);
+      expect(depts.reduce((s, r) => s + r.refundedPaise, 0)).toBe(res.body.totals.refundedPaise);
+      // a doctor without a department is grouped under a fixed key, never dropped
+      expect(depts.every((r) => typeof r.key === 'string' && r.key !== '')).toBe(true);
+    });
+
+    it('lists each test billed that day with how many and the billed amount', async () => {
+      const res = await report(R, 'adminMain', today);
+      const tests = res.body.byTest as Loose[];
+      expect(tests).toHaveLength(2);
+      expect(tests.every((t) => t.count === 1)).toBe(true);
+      // the two tests of the tests bill: 50,000 paise in all (a refund does not change what was billed)
+      expect(tests.reduce((s, t) => s + t.billedPaise, 0)).toBe(50_000);
+    });
+
+    describe('filters: pick one value and the whole report narrows to it', () => {
+      const codeOfDoctor = async (id: string) =>
+        (await owner.doctorProfile.findUniqueOrThrow({ where: { id } })).code;
+      const codeOfTest = async (id: string) =>
+        (await owner.chargeItem.findUniqueOrThrow({ where: { id } })).code;
+      const filtered = (query: string) => report(R, 'adminMain', today, query);
+
+      it('a doctor: only that doctor money, visits and bills; the ledger cannot be compared and says so', async () => {
+        const code = await codeOfDoctor(R.doc1);
+        const res = await filtered(`&doctor=${code}`);
+        expect(res.status).toBe(200);
+        const expected = book.byDoctor[R.doc1]!;
+        expect(res.body.totals).toMatchObject({
+          collectedPaise: expected.paid,
+          refundedPaise: expected.refunded,
+          netPaise: expected.paid - expected.refunded,
+        });
+        expect(res.body.byDoctor).toHaveLength(1);
+        expect(res.body.byDoctor[0]).toMatchObject({ key: code, visits: expected.visits });
+        expect(res.body.counts.visits).toBe(expected.visits);
+        // every table adds up to the narrowed total
+        for (const rows of [res.body.byMode, res.body.byBillType, res.body.byDepartment]) {
+          expect((rows as Loose[]).reduce((t, r) => t + r.collectedPaise, 0)).toBe(expected.paid);
+        }
+        expect(res.body.ledger.matches).toBeNull();
+        expect(res.body.filters).toEqual({ doctor: code });
+      });
+
+      it('a payment mode: only money taken (or returned) in that mode', async () => {
+        const res = await filtered('&paymentMode=UPI');
+        expect(res.body.totals).toMatchObject({
+          collectedPaise: book.paid.UPI,
+          refundedPaise: book.refunded.UPI ?? 0,
+        });
+        expect(res.body.byMode.map((m: Loose) => m.key)).toEqual(['UPI']);
+        const cash = await filtered('&paymentMode=CASH');
+        expect(cash.body.totals.collectedPaise).toBe(book.paid.CASH);
+        expect(cash.body.totals.refundedPaise).toBe(book.refunded.CASH);
+      });
+
+      it('a bill type: consultation and tests are each their own money, tests list follows', async () => {
+        const tests = await filtered('&billType=INVESTIGATION');
+        expect(tests.body.totals).toMatchObject({ collectedPaise: 50_000, refundedPaise: 10_000 });
+        expect(tests.body.byBillType.map((r: Loose) => r.key)).toEqual(['INVESTIGATION']);
+        expect((tests.body.byTest as Loose[]).reduce((t, r) => t + r.billedPaise, 0)).toBe(50_000);
+        const consult = await filtered('&billType=CONSULTATION');
+        expect(consult.body.totals.collectedPaise).toBe(sum(book.paid) - 50_000);
+        expect(consult.body.byTest).toEqual([]);
+      });
+
+      it('a test: the bills that contain it (whole bills), and only that test in the tests list', async () => {
+        const code = await codeOfTest(R.items.a);
+        const res = await filtered(`&test=${code}`);
+        expect(res.body.totals).toMatchObject({ collectedPaise: 50_000, refundedPaise: 10_000 });
+        expect(res.body.byTest).toHaveLength(1);
+        expect(res.body.byTest[0]).toMatchObject({ key: code, count: 1 });
+        expect(res.body.byBillType.map((r: Loose) => r.key)).toEqual(['INVESTIGATION']);
+      });
+
+      it('a department: the money of the doctors of that department', async () => {
+        const unfiltered = await report(R, 'adminMain', today);
+        const row = (unfiltered.body.byDepartment as Loose[])[0]!;
+        const res = await filtered(`&department=${encodeURIComponent(row.key)}`);
+        expect(res.body.totals.collectedPaise).toBe(row.collectedPaise);
+        expect(res.body.totals.refundedPaise).toBe(row.refundedPaise);
+        expect(res.body.byDepartment.map((r: Loose) => r.key)).toEqual([row.key]);
+      });
+
+      it('filters combine: the same visit must match every one', async () => {
+        const code = await codeOfDoctor(R.doc2);
+        const both = await filtered(`&doctor=${code}&paymentMode=UPI`);
+        // the UPI payment belongs to the visit of doctor 2
+        expect(both.body.totals.collectedPaise).toBe(book.paid.UPI);
+        const none = await filtered(`&doctor=${await codeOfDoctor(R.doc3)}&paymentMode=UPI`);
+        expect(none.body.totals.collectedPaise).toBe(0);
+        expect(none.body.byMode).toEqual([]);
+      });
+
+      it('CSV and Excel follow the same filters', async () => {
+        const code = await codeOfDoctor(R.doc1);
+        const csv = await get(
+          R,
+          'adminMain',
+          `/opd/reports/daily-collection.csv?date=${today}&doctor=${code}`,
+        ).buffer(true);
+        const total = csv.text.split('\r\n').find((r) => r.includes(',TOTAL,'))!;
+        const paid = book.byDoctor[R.doc1]!.paid;
+        expect(total).toContain(
+          `,${Math.trunc(paid / 100)}.${String(paid % 100).padStart(2, '0')},`,
+        );
+        expect(csv.text.split('\r\n').filter((r) => r.includes(',DOCTOR,'))).toHaveLength(1);
+        expect(
+          (
+            await get(
+              R,
+              'adminMain',
+              `/opd/reports/daily-collection.csv?date=${today}&doctor=nobody`,
+            )
+          ).status,
+        ).toBe(400);
+        expect(
+          (
+            await get(
+              R,
+              'adminMain',
+              `/opd/reports/daily-collection.xlsx?date=${today}&doctor=nobody`,
+            )
+          ).status,
+        ).toBe(400);
+      });
+
+      it('an unknown value, another hospital value or an attack string is a clean 400, never an empty page or a crash', async () => {
+        const other = await seedHospital('OF');
+        const strangerCode = await codeOfDoctor(other.doc1);
+        const bad = [
+          '&doctor=nobody',
+          `&doctor=${strangerCode}`, // a doctor of another hospital
+          '&paymentMode=BITCOIN',
+          '&department=Nowhere',
+          '&billType=PHARMACY',
+          '&billType=consultation',
+          '&test=NOPE',
+          `&doctor=${encodeURIComponent("x' OR '1'='1")}`,
+          `&department=${encodeURIComponent("'; DROP TABLE payments; --")}`,
+          `&test=${encodeURIComponent('a'.repeat(65))}`,
+        ];
+        for (const query of bad) {
+          const res = await filtered(query);
+          expect({ query, status: res.status }).toEqual({ query, status: 400 });
+          expect(res.body.code === 'REPORT_FILTER_INVALID' || Array.isArray(res.body.message)).toBe(
+            true,
+          );
+        }
+        // nothing was damaged
+        expect(await owner.payment.count({ where: { tenantId: R.tenant } })).toBeGreaterThan(0);
+      });
+
+      it('the audit log says which filters were used, never what was picked', async () => {
+        const code = await codeOfDoctor(R.doc1);
+        await filtered(`&doctor=${code}&paymentMode=UPI`);
+        const last = (
+          await owner.auditLog.findMany({
+            where: { tenantId: R.tenant, action: 'OPD_REPORT_VIEW' },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          })
+        )[0]!;
+        expect((last.metadata as Loose).filtered).toEqual(['doctor', 'paymentMode']);
+        expect(JSON.stringify(last.metadata)).not.toContain(code);
+        expect(JSON.stringify(last.metadata)).not.toContain('UPI');
+      });
+    });
+
+    describe('the values the dropdowns offer', () => {
+      it('lists this hospital doctors, payment modes, departments, bill types, tests and the branches the person may report on', async () => {
+        const res = await get(R, 'adminMain', '/opd/reports/filters');
+        expect(res.status).toBe(200);
+        expect(res.body.doctors).toHaveLength(3);
+        expect(res.body.paymentModes.map((m: Loose) => m.code).sort()).toEqual(['CASH', 'UPI']);
+        expect(res.body.billTypes).toEqual(['CONSULTATION', 'INVESTIGATION']);
+        expect(res.body.departments.length).toBeGreaterThan(0);
+        expect(res.body.tests.map((t: Loose) => t.name).length).toBeGreaterThanOrEqual(2);
+        // a branch Admin sees their own branch by name, and no "all branches"
+        expect(res.body.branches.map((b: Loose) => b.id)).toEqual([R.main]);
+        expect(res.body.activeBranchId).toBe(R.main);
+        expect(res.body.canAllBranches).toBe(false);
+        // the names are sorted for a dropdown
+        const names = res.body.doctors.map((d: Loose) => d.name);
+        expect(names).toEqual([...names].sort((x: string, y: string) => x.localeCompare(y)));
+      });
+
+      it('is only for people who may read the report, and never shows another hospital', async () => {
+        expect((await get(R, 'recvMain', '/opd/reports/filters')).status).toBe(403);
+        const other = await seedHospital('OO');
+        const res = await get(other, 'adminMain', '/opd/reports/filters');
+        const codes = (await owner.doctorProfile.findMany({ where: { tenantId: R.tenant } })).map(
+          (d) => d.code,
+        );
+        for (const d of res.body.doctors as Loose[]) {
+          expect(codes).not.toContain(d.code);
+        }
+      });
+    });
+
     it('matches the ledger of the day to the paise', async () => {
       const res = await report(R, 'adminMain', today);
       expect(res.body.ledger).toEqual({
@@ -601,8 +805,9 @@ describe('OPD daily collection report (HTTP)', () => {
         'date=2019-12-31',
         `date=${addDays(today, 1)}`,
         `date=${addDays(today, 400)}`,
-        `date=${today}&branch=EVIL`,
-        `date=${today}&branch=${R.main}`,
+        `date=${today}&branch=a%20b`,
+        `date=${today}&branch=`,
+        `date=${today}&branch=${'x'.repeat(65)}`,
         `date=${today}&tenantId=${R.tenant}`,
         `date=${today}&amount=1`,
       ];
@@ -611,6 +816,15 @@ describe('OPD daily collection report (HTTP)', () => {
         expect({ q, status: res.status }).toEqual({ q, status: 400 });
       }
       expect((await get(R, 'adminMain', '/opd/reports/daily-collection')).status).toBe(400);
+      // a branch id that is well formed but not one the person may report on is a 403, their own is fine
+      expect(
+        (await get(R, 'adminMain', `/opd/reports/daily-collection?date=${today}&branch=EVIL`))
+          .status,
+      ).toBe(403);
+      expect(
+        (await get(R, 'adminMain', `/opd/reports/daily-collection?date=${today}&branch=${R.main}`))
+          .status,
+      ).toBe(200);
     });
 
     it('a looked-at report is recorded (who, which day, which scope) and never changes any money', async () => {
@@ -635,6 +849,7 @@ describe('OPD daily collection report (HTTP)', () => {
 
     describe('CSV download', () => {
       const lines = (text: string) => text.slice(BOM.length).trimEnd().split('\r\n');
+      const book_paid = () => book.paid;
 
       it('is a file Excel can open: type, name, BOM, header, and amounts in rupees', async () => {
         const res = await get(
@@ -653,7 +868,7 @@ describe('OPD daily collection report (HTTP)', () => {
         expect(text.startsWith(BOM)).toBe(true);
         const rows = lines(text);
         expect(rows[0]).toBe(
-          'date,branches,section,key,name,payments,refunds,collected_rupees,refunded_rupees,net_rupees,visits',
+          'date,branches,section,key,name,payments,refunds,collected_rupees,refunded_rupees,net_rupees,visits,tests_billed,billed_rupees',
         );
         const total = rows.find((r) => r.includes(',TOTAL,'))!;
         expect(total).toContain(`${today},MAIN,TOTAL,total,Total,6,2,`);
@@ -665,6 +880,89 @@ describe('OPD daily collection report (HTTP)', () => {
         expect(rows.filter((r) => r.includes(',DOCTOR,'))).toHaveLength(3);
         expect(rows.filter((r) => r.includes(',BILL_TYPE,'))).toHaveLength(2);
         expect(rows.filter((r) => r.includes(',BRANCH,'))).toHaveLength(0);
+      });
+
+      it('writes only the chosen sections (the total row always), and test rows use their own columns', async () => {
+        const res = await get(
+          R,
+          'adminMain',
+          `/opd/reports/daily-collection.csv?date=${today}&sections=TEST,MODE`,
+        ).buffer(true);
+        expect(res.status).toBe(200);
+        const rows = lines(res.text);
+        expect(rows.filter((r) => r.includes(',TOTAL,'))).toHaveLength(1);
+        expect(rows.filter((r) => r.includes(',MODE,'))).toHaveLength(2);
+        expect(rows.filter((r) => r.includes(',DOCTOR,'))).toHaveLength(0);
+        expect(rows.filter((r) => r.includes(',BILL_TYPE,'))).toHaveLength(0);
+        const testRows = rows.filter((r) => r.includes(',TEST,'));
+        expect(testRows).toHaveLength(2);
+        // payments..visits are empty; then the count (1) and the billed amount in rupees
+        expect(testRows.every((r) => /,,,,,,1,\d+\.\d{2}$/.test(r))).toBe(true);
+      });
+
+      it('rejects an unknown section', async () => {
+        for (const bad of ['EVIL', 'MODE,EVIL', 'mode', 'MODE,,TEST']) {
+          const res = await get(
+            R,
+            'adminMain',
+            `/opd/reports/daily-collection.csv?date=${today}&sections=${bad}`,
+          );
+          expect({ bad, status: res.status }).toEqual({ bad, status: 400 });
+        }
+      });
+
+      it('the Excel file: type, name, sheets, numbers, and the same permission and audit as the CSV', async () => {
+        const binary = (res: Loose, done: (err: Error | null, body?: Buffer) => void) => {
+          const chunks: Buffer[] = [];
+          res.on('data', (c: Buffer) => chunks.push(c));
+          res.on('end', () => done(null, Buffer.concat(chunks)));
+        };
+        const res = await get(
+          R,
+          'adminMain',
+          `/opd/reports/daily-collection.xlsx?date=${today}&sections=MODE,TEST`,
+        )
+          .buffer(true)
+          .parse(binary as never);
+        expect(res.status).toBe(200);
+        expect(res.headers['content-type']).toContain(
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        expect(res.headers['content-disposition']).toBe(
+          `attachment; filename="collection-${today}.xlsx"`,
+        );
+        expect(res.headers['cache-control']).toBe('no-store');
+        const book = new ExcelJS.Workbook();
+        await book.xlsx.load(res.body as never);
+        expect(book.worksheets.map((s) => s.name)).toEqual([
+          'Summary',
+          'By payment mode',
+          'Tests billed',
+        ]);
+        let collected: unknown = null;
+        book.getWorksheet('Summary')!.eachRow((r) => {
+          if (r.getCell(1).text === 'Collected') collected = r.getCell(2).value;
+        });
+        expect(collected).toBe(sum(book_paid()) / 100);
+        expect(book.getWorksheet('Tests billed')!.rowCount).toBe(3);
+
+        // Reception cannot download it; a bad section is refused; the download is audited as an export
+        expect(
+          (await get(R, 'recvMain', `/opd/reports/daily-collection.xlsx?date=${today}`)).status,
+        ).toBe(403);
+        expect(
+          (
+            await get(
+              R,
+              'adminMain',
+              `/opd/reports/daily-collection.xlsx?date=${today}&sections=EVIL`,
+            )
+          ).status,
+        ).toBe(400);
+        const audits = await owner.auditLog.count({
+          where: { tenantId: R.tenant, action: 'OPD_REPORT_EXPORT' },
+        });
+        expect(audits).toBeGreaterThan(0);
       });
 
       it('a doctor name can never run as a formula or break the columns', async () => {
@@ -843,6 +1141,60 @@ describe('OPD daily collection report (HTTP)', () => {
       const own = await report(H, 'superAdmin', today);
       expect(own.body.totals.collectedPaise).toBe(sum(bookMain.paid));
       expect(own.body.combined).toBe(false);
+    });
+
+    it('a named branch: only where the person holds the permission, with the name in the list', async () => {
+      const N = await seedHospital('N');
+      const bookMain = newBook();
+      const bookEast = newBook();
+      const today = dayIn('Asia/Kolkata');
+      await visit(N, 'recvMain', N.doc1, bookMain);
+      await visit(N, 'recvEast', N.doc2, bookEast);
+      // hospital-wide: may point the report at the east branch
+      const east = await report(N, 'superAdmin', today, `&branch=${N.east}`);
+      expect(east.status).toBe(200);
+      expect(east.body.combined).toBe(false);
+      expect(east.body.branches.map((b: Loose) => b.code)).toEqual(['EAST']);
+      expect(east.body.totals.collectedPaise).toBe(sum(bookEast.paid));
+      // the active branch named explicitly is the usual report
+      const own = await report(N, 'adminMain', today, `&branch=${N.main}`);
+      expect(own.body.totals.collectedPaise).toBe(sum(bookMain.paid));
+      // a branch Admin cannot name the other branch
+      const denied = await report(N, 'adminMain', today, `&branch=${N.east}`);
+      expect(denied.status).toBe(403);
+      expect(denied.body.code).toBe('REPORT_SCOPE_FORBIDDEN');
+      // a branch id of another hospital, or one that does not exist, is refused the same way
+      const stranger = await seedHospital('NS');
+      for (const id of [stranger.main, stranger.east, 'cknothing000000000000000']) {
+        const res = await report(N, 'superAdmin', today, `&branch=${id}`);
+        expect({ id, status: res.status }).toEqual({ id, status: 403 });
+      }
+      // a value that is not even shaped like an id is a 400
+      expect((await report(N, 'superAdmin', today, '&branch=a%20b')).status).toBe(400);
+      // the file names do not say "all" for one branch
+      const csv = await get(
+        N,
+        'superAdmin',
+        `/opd/reports/daily-collection.csv?date=${today}&branch=${N.east}`,
+      ).buffer(true);
+      expect(csv.headers['content-disposition']).toBe(
+        `attachment; filename="collection-${today}.csv"`,
+      );
+      // the dropdown lists the branch names the person may report on
+      const options = await get(N, 'superAdmin', '/opd/reports/filters');
+      expect(options.body.branches.map((b: Loose) => b.id).sort()).toEqual([N.east, N.main].sort());
+      expect(options.body.canAllBranches).toBe(true);
+      const branchOptions = await get(N, 'adminEast', '/opd/reports/filters');
+      expect(branchOptions.body.branches.map((b: Loose) => b.id)).toEqual([N.east]);
+      expect(branchOptions.body.canAllBranches).toBe(false);
+      // a branch where the hospital switched the OPD module off cannot be reported on, even by name
+      await owner.branchModule.updateMany({
+        where: { tenantId: N.tenant, branchId: N.east },
+        data: { restrictedByHospital: true },
+      });
+      expect((await report(N, 'superAdmin', today, `&branch=${N.east}`)).status).toBe(403);
+      const after = await get(N, 'superAdmin', '/opd/reports/filters');
+      expect(after.body.branches.map((b: Loose) => b.id)).toEqual([N.main]);
     });
 
     it('another hospital sees none of it, and "all" never reaches across hospitals', async () => {

@@ -192,6 +192,14 @@ describe('print templates (HTTP)', () => {
     ...over,
   });
 
+  /** The values of the document placed in the rich text boxes, in order. */
+  const fieldsIn = (layout: Loose): string[] =>
+    (layout.elements as Loose[]).flatMap((e) =>
+      ((e.content?.paragraphs ?? []) as Loose[]).flatMap((p) =>
+        (p.runs as Loose[]).filter((r) => r.t === 'field').map((r) => r.field as string),
+      ),
+    );
+
   describe('access', () => {
     it('401 without a token or with a patient token, on every route', async () => {
       const patientToken = tokenService.signPatientAccess({ accountId: 'acc' });
@@ -264,7 +272,12 @@ describe('print templates (HTTP)', () => {
         updatedAt: null,
         enabled: true,
       });
-      expect(one.body.layout.fields.total).toBe(true);
+      expect(one.body.layout.version).toBe(3);
+      expect(fieldsIn(one.body.layout)).toContain('total');
+      expect(fieldsIn(one.body.layout)[0]).toBe('hospitalName');
+      expect(one.body.layout.elements[0].content.paragraphs[0].runs[0].style).toMatchObject({
+        bold: true,
+      });
     });
 
     it('lists the four built-in presets with what each gives every document', async () => {
@@ -308,7 +321,25 @@ describe('print templates (HTTP)', () => {
     it('saves a pre-printed receipt and gives back exactly what was saved, with the real page size', async () => {
       const body = preprinted({ preset: null });
       body.layout.offset = { xMm: -2.5, yMm: 1.5 };
-      body.layout.headerText = '  Demo Clinic, Main Road  ';
+      body.layout.elements.push({
+        id: 'note',
+        type: 'RICH',
+        xMm: 5,
+        yMm: 5,
+        widthMm: 100,
+        heightMm: 6,
+        content: {
+          paragraphs: [
+            {
+              runs: [
+                { t: 'text', text: 'Demo Clinic, ', style: { bold: true } },
+                { t: 'text', text: 'Main Road' },
+                { t: 'field', field: 'patientName', style: { size: 14, underline: true } },
+              ],
+            },
+          ],
+        },
+      });
       const res = await put(A, 'admin', '/print-templates/RECEIPT', body);
       expect(res.status).toBe(200);
       expect(res.body).toMatchObject({
@@ -325,7 +356,12 @@ describe('print templates (HTTP)', () => {
         margins: { topMm: 0, rightMm: 0, bottomMm: 0, leftMm: 0 },
       });
       expect(res.body.layout.offset).toEqual({ xMm: -2.5, yMm: 1.5 });
-      expect(res.body.layout.headerText).toBe('Demo Clinic, Main Road');
+      // the words and styles come back exactly as typed (a run is never trimmed or merged)
+      expect(res.body.layout.elements.at(-1).content.paragraphs[0].runs).toEqual([
+        { t: 'text', text: 'Demo Clinic, ', style: { bold: true } },
+        { t: 'text', text: 'Main Road' },
+        { t: 'field', field: 'patientName', style: { size: 14, underline: true } },
+      ]);
       expect(res.body.updatedAt).not.toBeNull();
       // read back, other documents untouched
       const back = await get(A, 'reception', '/print-templates');
@@ -343,9 +379,11 @@ describe('print templates (HTTP)', () => {
     it('saving again replaces it: still ONE row, who changed it is recorded', async () => {
       const second = preprinted({ preset: null });
       second.layout.fontSizePt = 12;
+      second.layout.elements[0].content.paragraphs[0].runs[0].style = { size: 14 };
       const res = await put(A, 'admin', '/print-templates/RECEIPT', second);
       expect(res.status).toBe(200);
       expect(res.body.layout.fontSizePt).toBe(12);
+      expect(res.body.layout.elements[0].content.paragraphs[0].runs[0].style).toEqual({ size: 14 });
       expect(await rows(A, 'RECEIPT')).toHaveLength(1);
       const row = (await rows(A, 'RECEIPT'))[0]!;
       expect(row.updatedBy).toBe(A.users.admin);
@@ -383,6 +421,15 @@ describe('print templates (HTTP)', () => {
     it('bad templates are refused with the field and the reason, and nothing is stored', async () => {
       const before = (await rows(A)).length;
       const good = () => JSON.parse(JSON.stringify(presetInput('A5_FULL', 'PRESCRIPTION')));
+      const box = (run: Record<string, unknown> = { t: 'field', field: 'diagnosis' }) => ({
+        id: 'a',
+        type: 'RICH',
+        xMm: 10,
+        yMm: 10,
+        widthMm: 50,
+        heightMm: 6,
+        content: { paragraphs: [{ runs: [run] }] },
+      });
       const cases: Array<[Record<string, unknown>, string, string]> = [
         [{ ...good(), paper: 'A3' }, 'paper', 'UNKNOWN_PAPER'],
         [{ ...good(), tenantId: 'x' }, 'template.tenantId', 'UNKNOWN_FIELD'],
@@ -405,19 +452,57 @@ describe('print templates (HTTP)', () => {
           'OUT_OF_RANGE',
         ],
         [
-          { ...good(), layout: { ...good().layout, fields: { colour: true } } },
-          'layout.fields.colour',
+          {
+            ...good(),
+            layout: {
+              ...good().layout,
+              elements: [box({ t: 'field', field: 'colour' })],
+            },
+          },
+          'layout.elements.0.content.paragraphs.0.runs.0.field',
           'UNKNOWN_FIELD',
         ],
         [
-          { ...good(), layout: { ...good().layout, positions: { advice: { xMm: 1, yMm: 1 } } } },
-          'layout.positions',
-          'ONLY_FOR_PREPRINTED',
+          { ...good(), layout: { ...good().layout, elements: [{ ...box(), xMm: 140 }] } },
+          'layout.elements.0.widthMm',
+          'OUT_OF_PAGE',
         ],
         [
-          { ...good(), layout: { ...good().layout, footerText: 'x'.repeat(301) } },
-          'layout.footerText',
-          'TOO_LONG',
+          { ...good(), layout: { ...good().layout, elements: [{ ...box(), id: '<b>' }] } },
+          'layout.elements.0.id',
+          'BAD_ID',
+        ],
+        [
+          { ...good(), layout: { ...good().layout, elements: [box(), box()] } },
+          'layout.elements.1.id',
+          'DUPLICATE_ID',
+        ],
+        [
+          {
+            ...good(),
+            layout: { ...good().layout, elements: [box({ t: 'text', text: '' })] },
+          },
+          'layout.elements.0.content.paragraphs.0.runs.0.text',
+          'REQUIRED',
+        ],
+        [
+          {
+            ...good(),
+            layout: { ...good().layout, elements: [box({ t: 'text', text: 'a\nb' })] },
+          },
+          'layout.elements.0.content.paragraphs.0.runs.0.text',
+          'NOT_TEXT',
+        ],
+        [
+          {
+            ...good(),
+            layout: {
+              ...good().layout,
+              elements: [box({ t: 'text', text: 'x', style: { size: 99 } })],
+            },
+          },
+          'layout.elements.0.content.paragraphs.0.runs.0.style.size',
+          'OUT_OF_RANGE',
         ],
         [{ ...good(), preset: 'MY_OWN' }, 'preset', 'UNKNOWN_PRESET'],
       ];
@@ -436,6 +521,39 @@ describe('print templates (HTTP)', () => {
       }
       expect(await rows(A, 'PRESCRIPTION')).toHaveLength(0);
       expect((await rows(A)).length).toBe(before);
+    });
+
+    it('an older (version 1) template is accepted, stored as boxes and read back as boxes', async () => {
+      const old = {
+        ...JSON.parse(JSON.stringify(presetInput('A5_FULL', 'REGISTRATION_SLIP'))),
+        layout: {
+          version: 1,
+          fontSizePt: 10,
+          headerText: 'Old Clinic',
+          footerText: '',
+          showLogo: true,
+          fields: { hospitalName: true, uhid: true, patientName: true, phone: false },
+          offset: { xMm: 0, yMm: 0 },
+          positions: {},
+        },
+      };
+      const res = await put(A, 'admin', '/print-templates/REGISTRATION_SLIP', old);
+      expect(res.status).toBe(200);
+      expect(res.body.layout.version).toBe(3);
+      const fields = fieldsIn(res.body.layout);
+      // fields left out of the old template were shown, so they are boxes too; phone was switched off
+      expect(fields).not.toContain('phone');
+      expect(fields).toEqual(expect.arrayContaining(['uhid', 'patientName']));
+      const stored = (await rows(A, 'REGISTRATION_SLIP'))[0]!;
+      expect((stored.layout as Loose).version).toBe(3);
+      // a row an earlier version of the product wrote (version 1) is shown as boxes too
+      await owner.printTemplate.updateMany({
+        where: { id: stored.id },
+        data: { layout: old.layout },
+      });
+      const back = await get(A, 'reception', '/print-templates/REGISTRATION_SLIP');
+      expect(back.body.layout.version).toBe(3);
+      expect(JSON.stringify(back.body.layout)).toContain('Old Clinic');
     });
 
     it('two first saves at the same moment: both succeed, still one row', async () => {

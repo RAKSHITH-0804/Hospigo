@@ -2,14 +2,21 @@ import type { ReactNode } from 'react';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { SettingsShell } from '@/components/settings/settings-shell';
+import { PrintingSettings } from '@/components/print/printing-settings';
 import { UhidStartCard } from '@/components/patients/uhid-start-card';
 import { EmptyState } from '@/components/states/empty-state';
 import { sessionConfig } from '@/config/session';
 import { findSettingsSection, visibleSettingsSections } from '@/config/settings-sections';
 import { staffCopy } from '@/config/staff-copy';
 import { requirePermission } from '@/lib/auth/guards';
+import { errorMessageFor } from '@/lib/patients/client';
 import { API_UHID_START_NUMBER, fetchStaffOnServer, serverErrorCode } from '@/lib/patients/server';
 import type { UhidStartNumberResponse } from '@/lib/patients/types';
+import {
+  PRINT_API_PATH,
+  type PrintPresetsResponse,
+  type PrintTemplatesResponse,
+} from '@/lib/print/types';
 
 export const metadata: Metadata = { title: staffCopy.pageTitles.settings };
 
@@ -51,8 +58,36 @@ export default async function SettingsSectionPage({
       />
     );
   }
+  if (section.id === 'printing') {
+    const [templates, presets] = await Promise.all([
+      fetchStaffOnServer<PrintTemplatesResponse>(PRINT_API_PATH),
+      fetchStaffOnServer<PrintPresetsResponse>(`${PRINT_API_PATH}/presets`),
+    ]);
+    if (templates.status !== 'ok') {
+      content = (
+        <p role="alert" className="type-label text-destructive">
+          {errorMessageFor(serverErrorCode(templates))}
+        </p>
+      );
+    } else if (presets.status !== 'ok') {
+      content = (
+        <p role="alert" className="type-label text-destructive">
+          {errorMessageFor(serverErrorCode(presets))}
+        </p>
+      );
+    } else {
+      content = (
+        <PrintingSettings
+          templates={templates.data.items}
+          presets={presets.data.items}
+          canWrite={session.permissions?.includes('opd.settings.write') ?? false}
+          hospitalName={session.hospitalName?.trim() || staffCopy.brand}
+        />
+      );
+    }
+  }
   return (
-    <SettingsShell sections={sections} activeId={section.id}>
+    <SettingsShell sections={sections} activeId={section.id} wide={section.id === 'printing'}>
       {content}
     </SettingsShell>
   );

@@ -72,6 +72,34 @@ export class AccessService {
   }
 
   /**
+   * Every ACTIVE branch the caller holds a permission on (where the module, if given, is on), whatever
+   * branch the token is narrowed to. It answers "which branches may this person look at" (for a
+   * report that can be pointed at another branch). Default deny: empty for an inactive user or
+   * hospital, and only branches of the caller's own hospital can ever be in it.
+   */
+  async permittedBranches(permissionCode: string, moduleCode?: string): Promise<string[]> {
+    const snap = await this.loadSnapshot();
+    if (!snap.userActive || !snap.hospitalActive) {
+      return [];
+    }
+    const covered = snap.permissionBranches.get(permissionCode);
+    if (!covered) {
+      return [];
+    }
+    return [...snap.branches]
+      .filter(([id, isActive]) => isActive && covered.has(id))
+      .map(([id]) => id)
+      .filter((id) => {
+        if (!moduleCode) {
+          return true;
+        }
+        const mod = snap.branchModules.get(id)?.get(moduleCode);
+        return !!mod && mod.isActive && mod.enabledByIndigo && !mod.restrictedByHospital;
+      })
+      .sort();
+  }
+
+  /**
    * Permission codes the caller may use on the active branch.
    * Same rules as can(code, activeBranchId) with no module gate; sorted, unique.
    */
