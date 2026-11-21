@@ -1,4 +1,4 @@
-/** Shapes aligned with docs/api-opd.md (Visits and billing, Step 4a). Money is whole paise. */
+/** Shapes aligned with docs/reference/api-opd.md (Visits and billing, Step 4a). Money is whole paise. */
 
 export type VisitType = 'NEW' | 'FOLLOW_UP';
 

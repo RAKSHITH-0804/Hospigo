@@ -137,7 +137,7 @@ HQ access under FORCE RLS uses policies `TO hospigo_hq` / `TO hospigo_security` 
 
 ## Auth endpoints (Step 6a-2)
 
-- **HTTP:** `POST /auth/hospital/login`, `POST /auth/hq/login`, `POST /auth/refresh`, `POST /auth/logout`, `POST /auth/change-password`, `GET /auth/me`. See `docs/api-auth.md`.
+- **HTTP:** `POST /auth/hospital/login`, `POST /auth/hq/login`, `POST /auth/refresh`, `POST /auth/logout`, `POST /auth/change-password`, `GET /auth/me`. See `docs/reference/api-auth.md`.
 - **Public routes:** hospital/hq login, refresh, logout (refresh body), health. Swagger at `/docs` only when `NODE_ENV !== 'production'`.
 - **Generic 401:** unknown access code, inactive branch/hospital, unknown email, wrong password, disabled user, missing membership, and account lockout share one status and body. Dummy argon2 verify runs on paths that never check a real hash (timing).
 - **Lockout / rate limit:** Redis (`AuthRedisService`, key prefix `hospigo:auth:`). IP limit and per-account lockout (hashed code+email keys); change-password uses a separate `cpw:` sub-prefix keyed by user id. **Fail closed:** if Redis is unreachable, login, refresh, and change-password return 503 — never allowed through. Lockout responses stay generic 401.

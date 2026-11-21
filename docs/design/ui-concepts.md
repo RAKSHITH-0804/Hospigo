@@ -1,8 +1,8 @@
 # Hospigo UI concepts (Phase 1 Step 5b)
 
-> **History only.** This document holds the ORIGINAL Step 5b concept screens. The **current product look** (one global palette, IBM Plex Sans, application frame) is documented in [`docs/ui-design.md`](./ui-design.md).
+> **History only.** This document holds the ORIGINAL Step 5b concept screens. The **current product look** (one global palette, IBM Plex Sans, application frame) is documented in [`docs/design/ui-design.md`](./ui-design.md).
 
-Short description of the four concept screens. Taken from `docs/Hospigo_UI_concepts.pdf`, with the corrections below. **Sign-in is real (Step 6d)**; HQ/hospital/booking content pages still use mock data with a Sample data badge until later steps.
+Short description of the four concept screens. Taken from `docs/design/Hospigo_UI_concepts.pdf`, with the corrections below. **Sign-in is real (Step 6d)**; HQ/hospital/booking content pages still use mock data with a Sample data badge until later steps.
 
 ## Theming and fluid layout
 
@@ -56,7 +56,7 @@ Media queries cannot reliably read CSS variables, so the rem literals match the 
 
 ## 2. Indigo HQ (`/admin`) — **real staff look (Step 3b)**
 
-Uses scoped `.theme-staff` (dark sidebar, IBM Plex Sans, approved tokens — see `docs/ui-design.md`). Sidebar brand **Hospigo** with HQ subtitle. Items under Setup: Hospitals, Modules and plans, Master data imports, Staff and support, Platform health. Current route is highlighted (`aria-current="page"`). Desktop top bar shows the **page** label (e.g. Hospitals). Phones keep the menu button plus drawer pattern. Sidebar width uses `--size-sidebar`. Main content scrolls with the document.
+Uses scoped `.theme-staff` (dark sidebar, IBM Plex Sans, approved tokens — see `docs/design/ui-design.md`). Sidebar brand **Hospigo** with HQ subtitle. Items under Setup: Hospitals, Modules and plans, Master data imports, Staff and support, Platform health. Current route is highlighted (`aria-current="page"`). Desktop top bar shows the **page** label (e.g. Hospitals). Phones keep the menu button plus drawer pattern. Sidebar width uses `--size-sidebar`. Main content scrolls with the document.
 
 - **Hospitals** (built): “Onboard hospital” (disabled), fluid auto-fit stat cards, list of four fake hospitals (including access codes for HQ). Below table breakpoint: stacked cards. From table breakpoint up: table. Module chips use theme foreground for contrast. System health card text lists Database, Redis, Storage, WebSocket.
 - Other sidebar items open **Coming later**.

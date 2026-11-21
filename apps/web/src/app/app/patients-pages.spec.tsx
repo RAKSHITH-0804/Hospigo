@@ -91,6 +91,11 @@ jest.mock('@/components/doctors/my-profile-form', () => ({
     <div data-testid="my-profile" data-props={JSON.stringify(props)} />
   ),
 }));
+jest.mock('@/components/images/logo-card', () => ({
+  LogoCard: (props: Record<string, unknown>) => (
+    <div data-testid="logo-card" data-props={JSON.stringify(props)} />
+  ),
+}));
 jest.mock('@/components/staff/staff-admin', () => ({
   StaffAdmin: (props: Record<string, unknown>) => (
     <div data-testid="staff-admin" data-props={JSON.stringify(props)} />
@@ -585,6 +590,28 @@ describe('patients pages', () => {
       fetchMock.mockResolvedValue({ status: 'error', code: 'UNAVAILABLE' });
       render(await SettingsSectionPage(section('doctors')));
       expect(propsOf('doctors-list')).toEqual({ initial: null, initialErrorCode: 'UNAVAILABLE' });
+    });
+
+    it('the Logo section needs the settings permission and reads the logo and limits on the server', async () => {
+      const branding = { logo: { id: 'i1' }, canWrite: true, limits: { maxBytes: 1 } };
+      fetchMock.mockResolvedValue(ok(branding));
+      requireKindMock.mockResolvedValue(hospitalSession(['patients.registry.read']));
+      await expect(SettingsSectionPage(section('branding'))).rejects.toThrow(
+        'REDIRECT:/app?notice=no-permission',
+      );
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read']));
+      render(await SettingsSectionPage(section('branding')));
+      expect(fetchMock).toHaveBeenCalledWith('/settings/branding');
+      expect(propsOf('logo-card')).toEqual({ initial: branding, initialErrorCode: null });
+      const nav = screen.getByRole('navigation', { name: staffCopy.settings.navAria });
+      expect(nav.textContent).toContain(staffCopy.settings.sections.branding);
+    });
+
+    it('a failed read of the logo passes the error code to the card', async () => {
+      fetchMock.mockResolvedValue({ status: 'error', code: 'UNAVAILABLE' });
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read']));
+      render(await SettingsSectionPage(section('branding')));
+      expect(propsOf('logo-card')).toEqual({ initial: null, initialErrorCode: 'UNAVAILABLE' });
     });
 
     it('the Staff section needs user.read, reads the list and the options on the server, and passes the code format on', async () => {

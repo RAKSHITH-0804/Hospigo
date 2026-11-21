@@ -5,9 +5,11 @@ Hospigo is Indigo's multi-tenant hospital management SaaS. Monorepo with two wor
 
 ## Read first, every session
 
+(`docs/README.md` explains the folders: living files at the top, then `decisions/`, `reference/`, `guides/`, `design/`, `plans/`.)
+
 1. `docs/project-context.md` (what the project is and every decision behind it)
-2. `docs/handoff-phase2.md`, section **CURRENT STATE** at the top (what is done, what is next, open questions; do not redo finished steps), and the newest decisions files (`docs/decisions-7d.md`, `7c`, `7b` and `7`; earlier ones: `decisions-6b`, `6a`, `5b`, `5a`, `4a`, `3d`, `3c`)
-3. `docs/engineering-tracker.md` (step status) and the doc for the area you work on (`docs/api-opd.md`, `docs/ui-design.md`, `docs/schema-opd.md`, ...)
+2. `docs/handoff-phase2.md`, section **CURRENT STATE** at the top (what is done, what is next, open questions; do not redo finished steps), and the newest decisions files (`docs/decisions/decisions-7e.md`, `7d`, `7c`, `7b` and `7`; earlier ones: `decisions-6b`, `6a`, `5b`, `5a`, `4a`, `3d`, `3c`)
+3. `docs/engineering-tracker.md` (step status) and the doc for the area you work on (`docs/reference/api-opd.md`, `docs/design/ui-design.md`, `docs/reference/schema-opd.md`, ...)
 
 You do not have access to the planning chats. Anything not written in the repo docs does not exist for you: if you are unsure of a decision, ask Rakshith instead of guessing.
 
@@ -58,7 +60,7 @@ Self-review at every review gate: after your code and tests are done, do a separ
 
 ## Dev environment
 
-- Windows, Git Bash, npm workspaces. Commands and demo logins: `docs/dev-commands.md`, `docs/dev-accounts.md`.
+- Windows, Git Bash, npm workspaces. Commands and demo logins: `docs/guides/dev-commands.md`, `docs/guides/dev-accounts.md`.
 - Servers from the repo root: `npm run dev -w @hospigo/api` (port 3000), `npm run dev -w @hospigo/web` (port 3001). Open the web app at `http://127.0.0.1:3001` (never `localhost`).
 - Tests: `npm test -w @hospigo/api`, `npm test -w @hospigo/web`. Lint: `npm run lint`. Format: `npm run format:check`.
 - Never ask for or paste passwords or tokens; they live in `.env`. In a browser use only the demo accounts, and Rakshith logs in himself.

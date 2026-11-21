@@ -98,6 +98,15 @@ export function newLogoBox(elements: readonly PrintElement[], page: Page): Print
   };
 }
 
+export function newSignatureBox(elements: readonly PrintElement[], page: Page): PrintElement {
+  return {
+    id: nextId(elements),
+    type: 'IMAGE',
+    slot: 'SIGNATURE',
+    ...placed(elements, page, C.newSignatureWidthMm, C.newSignatureHeightMm, C.minBoxMm),
+  };
+}
+
 /** A copy a few millimetres away from the original. */
 export function duplicateBox(
   elements: readonly PrintElement[],

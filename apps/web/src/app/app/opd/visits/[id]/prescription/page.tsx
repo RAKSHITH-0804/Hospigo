@@ -9,7 +9,7 @@ import type { VisitTestsResponse } from '@/lib/opd/tests-types';
 import { errorMessageFor } from '@/lib/patients/client';
 import { fetchStaffOnServer, serverErrorCode } from '@/lib/patients/server';
 import { prescriptionItems } from '@/lib/print/documents';
-import { fetchTemplate, readTemplate } from '@/lib/print/server';
+import { fetchLogoImageId, fetchTemplate, readTemplate } from '@/lib/print/server';
 
 const copy = staffCopy.print.prescription;
 
@@ -30,7 +30,7 @@ export default async function PrescriptionPrintPage({
   const permissions = session.permissions ?? [];
   const hospitalName = session.hospitalName?.trim() || staffCopy.brand;
 
-  const [consult, vitals, tests, templateResult] = await Promise.all([
+  const [consult, vitals, tests, templateResult, logoImageId] = await Promise.all([
     fetchStaffOnServer<ConsultationResponse>(apiConsultationPath(id)),
     permissions.includes('opd.vitals.read')
       ? fetchStaffOnServer<VitalsResponse>(apiVisitVitalsPath(id))
@@ -39,6 +39,7 @@ export default async function PrescriptionPrintPage({
       ? fetchStaffOnServer<VisitTestsResponse>(apiVisitTestsPath(id))
       : Promise.resolve(null),
     fetchTemplate('PRESCRIPTION'),
+    fetchLogoImageId(),
   ]);
 
   if (consult.status === 'notFound') {
@@ -82,6 +83,11 @@ export default async function PrescriptionPrintPage({
         vitals: vitals?.status === 'ok' ? vitals.data : null,
         tests: tests?.status === 'ok' ? tests.data : null,
       })}
+      // the signature is the one the doctor had when the note was completed, never a newer one
+      images={{
+        LOGO: logoImageId,
+        SIGNATURE: consult.data.doctorDetails?.signatureImageId ?? null,
+      }}
       title={copy.pageTitle}
       description={`${consult.data.visit.patient.name} · ${consult.data.visit.patient.uhid}`}
       backHref={`/app/opd/visits/${encodeURIComponent(id)}/consult`}

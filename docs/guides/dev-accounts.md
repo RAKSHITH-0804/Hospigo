@@ -111,3 +111,7 @@ After Step 5b the dev Receptionist role also holds `opd.queue.read`: reception s
 
 - After `npm run prisma:migrate -w @hospigo/api` and the dev seed: the Branch Admin role no longer holds `role.write` (only the SuperAdmin makes roles). New people added on the Staff page get a random password and an activation email; the activation link sets their own password. Test people made by the Postman 7d collection use `pm7d.test@demo-north.example.test` (switched off at the end).
 - My profile is open to every demo login, including Receptionist and Nurse; Staff and Roles appear only for people with `user.read` or `role.read` (both Admin roles).
+
+## Step 7e additions
+
+- After `npm run prisma:migrate -w @hospigo/api` and a restart (no seed change): the SuperAdmin of a demo hospital uploads the logo (Settings, Logo); Doctors upload their own signature or stamp in My profile; Receptionist and Nurse can only see the logo through the printed documents. Test pictures made by the Postman 7e collection are removed at its end (they stay on record).

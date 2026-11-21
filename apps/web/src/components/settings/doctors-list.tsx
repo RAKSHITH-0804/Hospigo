@@ -1,17 +1,24 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { ImagePicker } from '@/components/images/image-picker';
 import { SettingBlock } from '@/components/settings/setting-block';
 import { Button } from '@/components/ui/button';
 import { InputField } from '@/components/ui/field';
 import { settingsScreenConfig } from '@/config/settings';
 import { staffCopy } from '@/config/staff-copy';
-import { saveDoctorProfile } from '@/lib/doctors/client';
+import {
+  removeDoctorSignature,
+  saveDoctorProfile,
+  uploadDoctorSignature,
+} from '@/lib/doctors/client';
+import { pictureErrorMessage } from '@/lib/images/errors';
 import type { DoctorProfile, DoctorsListResponse } from '@/lib/doctors/types';
 import { errorMessageFor } from '@/lib/patients/client';
 import { settingsErrorMessage } from '@/lib/settings/errors';
 
 const copy = staffCopy.settings.doctors;
+const pictures = staffCopy.pictures.signature;
 
 type Draft = {
   printedName: string;
@@ -65,7 +72,7 @@ export function DoctorsList({
       </SettingBlock>
     );
   }
-  const { limits, canWrite } = initial;
+  const { limits, canWrite, images } = initial;
 
   function open(doctor: DoctorProfile) {
     if (editingId === doctor.id) {
@@ -158,6 +165,12 @@ export function DoctorsList({
                   <dd className="type-label">{value(doctor.registrationNo)}</dd>
                 </div>
                 <div>
+                  <dt className="type-small text-muted-foreground">{copy.columnSignature}</dt>
+                  <dd className="type-label">
+                    {doctor.signature ? copy.signatureAdded : copy.notSet}
+                  </dd>
+                </div>
+                <div>
                   <dt className="type-small text-muted-foreground">{copy.columnWorksIn}</dt>
                   <dd className="type-label">{doctor.branches.join(', ') || copy.notSet}</dd>
                 </div>
@@ -219,6 +232,31 @@ export function DoctorsList({
                     <Button type="submit" disabled={saving} className="touch-target">
                       {saving ? copy.saving : copy.save}
                     </Button>
+                  </div>
+                  <div className="flex flex-col gap-[var(--space-1)]">
+                    <p className="type-label-strong">{pictures.title}</p>
+                    <ImagePicker
+                      image={doctor.signature}
+                      limits={images}
+                      canWrite
+                      alt={`${doctor.name}: ${pictures.alt}`}
+                      onUpload={async (file) => {
+                        const result = await uploadDoctorSignature(doctor.id, file);
+                        if (!result.ok) {
+                          return pictureErrorMessage(result, images);
+                        }
+                        setItems((rows) => rows.map((r) => (r.id === doctor.id ? result.data : r)));
+                        return null;
+                      }}
+                      onRemove={async () => {
+                        const result = await removeDoctorSignature(doctor.id);
+                        if (!result.ok) {
+                          return pictureErrorMessage(result, images);
+                        }
+                        setItems((rows) => rows.map((r) => (r.id === doctor.id ? result.data : r)));
+                        return null;
+                      }}
+                    />
                   </div>
                 </form>
               ) : null}

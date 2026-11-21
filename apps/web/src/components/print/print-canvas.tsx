@@ -39,7 +39,7 @@ export function boxName(element: PrintElement): string {
     return copy.boxLine;
   }
   if (element.type === 'IMAGE') {
-    return copy.boxLogo;
+    return element.slot === 'SIGNATURE' ? copy.boxSignature : copy.boxLogo;
   }
   const words = wordsOf(element.content).replace(/\s+/g, ' ').trim().replace(/:$/, '').trim();
   if (words) {
@@ -348,7 +348,9 @@ export function PrintCanvas({
                         byKey={byKey}
                         valuesOnly={false}
                         everything
-                        placeholder={copy.logoMarker}
+                        placeholder={
+                          element.slot === 'SIGNATURE' ? copy.signatureMarker : copy.logoMarker
+                        }
                       />
                     )}
                     {selected && !editing && !readOnly

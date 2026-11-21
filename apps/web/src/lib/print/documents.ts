@@ -144,7 +144,7 @@ export function prescriptionItems(input: {
     text('doctorQualifications', doctor.qualifications ?? ''),
     text('doctorSpeciality', doctor.speciality ?? ''),
     text('doctorRegistrationNo', doctor.registrationNo ?? ''),
-    // The signature or stamp picture waits for the image upload step.
+    // The signature or stamp is a picture box (slot SIGNATURE); this text value stays empty.
     text('doctorSignature', ''),
     lines(
       'vitals',

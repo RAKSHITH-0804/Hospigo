@@ -1,3 +1,5 @@
+import type { ImageLimits, ImageMeta } from '@/lib/images/types';
+
 /** What the doctor profile API answers (Step 7c). The API checks every value; these are only the shapes. */
 
 export type DoctorProfile = {
@@ -17,6 +19,8 @@ export type DoctorProfile = {
   branches: string[];
   /** Details a prescription needs that are still empty. */
   missing: Array<'qualifications' | 'speciality' | 'registrationNo'>;
+  /** The current signature or stamp picture (Step 7e), or null. */
+  signature: ImageMeta | null;
 };
 
 export type DoctorLimits = {
@@ -28,11 +32,12 @@ export type DoctorLimits = {
 };
 
 /** The answer of "my profile": the profile plus the limits of its fields. */
-export type MyProfileResponse = DoctorProfile & { limits: DoctorLimits };
+export type MyProfileResponse = DoctorProfile & { limits: DoctorLimits; images: ImageLimits };
 
 export type DoctorsListResponse = {
   items: DoctorProfile[];
   limits: DoctorLimits;
+  images: ImageLimits;
   canWrite: boolean;
 };
 
@@ -45,6 +50,8 @@ export type DoctorDetails = {
   qualifications: string | null;
   speciality: string | null;
   registrationNo: string | null;
+  /** The signature or stamp picture of the note (the one it was completed with), or null. */
+  signatureImageId: string | null;
   fromCompletedCopy: boolean;
 };
 

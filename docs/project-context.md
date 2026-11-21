@@ -1,7 +1,7 @@
 # Hospigo: project context
 
 Last updated 17 Nov 2026, after Phase 2 Step 3c (PR #41 merged, develop at 0866d73).
-This file explains what Hospigo is and why it is built the way it is. The working rules are in `CLAUDE.md`. Current step status and the step list are in `docs/engineering-tracker.md`, `docs/handoff-phase2.md` and `docs/decisions-3c.md`. Where files disagree, the newest decision wins.
+This file explains what Hospigo is and why it is built the way it is. The working rules are in `CLAUDE.md`. Current step status and the step list are in `docs/engineering-tracker.md`, `docs/handoff-phase2.md` and `docs/decisions/decisions-3c.md`. Where files disagree, the newest decision wins.
 
 ## 1. What Hospigo is
 
@@ -73,13 +73,13 @@ This file explains what Hospigo is and why it is built the way it is. The workin
 
 - Phase 1 (foundation) is done and released as `v0.1.0` on `main`: monorepo, API, Prisma + RLS, tenant context and leak tests, web shell, dual-path login (staff, HQ, patient OTP), email flows, hardening.
 - Phase 2 (OPD) steps: 1 design docs (done), 2 masters/settings/mock data (done), 3a counters + patient registry API (done), 3b reception web foundation (done), 3c reception patient screens, patient list API, UHID number setting (done, PR #41), 3d SuperAdmin branch switcher (done), 4a visits/billing/payments API (done, PR #45), 4b reception visit and billing web (done, in PR #45), 5a split payment and vitals/doctor queue/consultation/prescription API (done, PRs #46 and #47), 5b nurse and doctor web (built, PR in review), 6a investigations and refunds API (done, PR #52), 6b their web (done, PR #53), 7 print templates, reports, Word-style print designer (built and committed, one PR with 7b), 7b Settings screens: OPD rules, registration fields, patient number format, help block (built and committed), 7c doctor profile setup (built and committed), 7d staff and roles (next), 7e image and logo upload, 8a NestJS 12 upgrade, 8b Excel upload of masters, 9 OPD hardening and exit report. Current state and the next step: `docs/handoff-phase2.md`, section CURRENT STATE.
-- Steps 7 to 7d (reports and print designer, settings screens, doctor profiles, staff and roles with My profile for every role) are built and committed on one branch awaiting one pull request; next is 7e (image and logo upload), then 8a (NestJS 12), 8b, 9. Staff rules: only an Admin adds people; an Admin gives only powers they hold (daily-work powers excepted); nobody edits themselves; the last SuperAdmin stays; nothing is deleted; staff codes are per-hospital configurable. `docs/decisions-7d.md`.
+- Steps 7 to 7e (reports and print designer, settings screens, doctor profiles, staff and roles with My profile for every role, logo and signature pictures) are built and committed on one branch awaiting one pull request; next is 8a (NestJS 12) (NestJS 12), 8b, 9. Staff rules: only an Admin adds people; an Admin gives only powers they hold (daily-work powers excepted); nobody edits themselves; the last SuperAdmin stays; nothing is deleted; staff codes are per-hospital configurable. `docs/decisions/decisions-7d.md`.
 - Target for the first working OPD flow was Sat 21 Nov and is at risk; the plan is a thinner first flow. If time slips, cut screen polish, never tests or money rules.
 - Go-live track (outside Phase 2): logging and alerts, backup and restore drill (nightly backups can lose up to a day; 15 minutes needs continuous log archiving), threat model and DPDP checklist, staging, rollback and runbook, ADRs, vendoring the font files.
 
 ## 9. Open items with management (Harshad Sir)
 
-OPD release-1 scope; WhatsApp/SMS provider, DLT and who pays; tax/GST rules; who may approve part payments; Aadhaar storage, referral consent and data retention (DPDP); Windows or Linux and one or two servers; domain layout; S3 product; data-loss target; a paper downtime procedure; capacity numbers in `system-design.md` are assumptions; how real hospitals get the Receptionist, Nurse and Doctor roles; emergency approver branch; doctor pay across branches; insurance later.
+OPD release-1 scope; WhatsApp/SMS provider, DLT and who pays; tax/GST rules; who may approve part payments; Aadhaar storage, referral consent and data retention (DPDP); Windows or Linux and one or two servers; domain layout; S3 product; data-loss target; a paper downtime procedure; capacity numbers in `docs/reference/system-design.md` are assumptions; how real hospitals get the Receptionist, Nurse and Doctor roles; emergency approver branch; doctor pay across branches; insurance later.
 
 ## 10. Pipeline lessons (do not repeat)
 
@@ -93,4 +93,4 @@ OPD release-1 scope; WhatsApp/SMS provider, DLT and who pays; tax/GST rules; who
 
 - Windows only. Git Bash terminal. npm workspaces (not pnpm). No Docker.
 - Tools: pgAdmin, PostgreSQL 16, Postman (collection "Hospigo", environment "Hospigo Local"), Memurai, Mailpit at `D:\Indigo\Tools\mailpit` (run `mailpit.exe` from PowerShell or by double-click, not Git Bash; SMTP 1025, inbox http://127.0.0.1:8025).
-- Commands and demo logins: `docs/dev-commands.md`, `docs/dev-accounts.md`.
+- Commands and demo logins: `docs/guides/dev-commands.md`, `docs/guides/dev-accounts.md`.

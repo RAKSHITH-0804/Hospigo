@@ -1,6 +1,6 @@
 # Hospigo UI design (current look)
 
-Single visual identity for the whole product (Phase 2 Step 3b). Token values live only in `apps/web/src/app/globals.css` (`:root`). The original Step 5b concept screens in `docs/Hospigo_UI_concepts.pdf` and `docs/ui-concepts.md` are kept for history only. A screenshot guide will be added at Phase 2 Step 9.
+Single visual identity for the whole product (Phase 2 Step 3b). Token values live only in `apps/web/src/app/globals.css` (`:root`). The original Step 5b concept screens in `docs/design/Hospigo_UI_concepts.pdf` and `docs/design/ui-concepts.md` are kept for history only. A screenshot guide will be added at Phase 2 Step 9.
 
 ## Palette and font
 
@@ -127,9 +127,9 @@ Density tokens live in `globals.css` (control ~32px, body/label ~13/12px, card r
 
 - **Payment box** (Step 5a-1, New visit): one row pays the whole total with the default mode ("Take cash ₹600.00"). "Add payment mode" turns it into a split (UPI + cash ...): per row a mode, an amount in rupees and, for modes that need it, a reference no.; a line under the rows says "Still to collect: ₹300.00", "Entered ₹50.00 more than the total" or "Total covered". The button ("Take payment ₹600.00") stays disabled until the rows add up exactly. The receipt shows ONE receipt number and each mode with its amount.
 
-- **OPD queue, vitals and consultation** (Step 5b): `/app/opd` is the real queue (a doctor's own waiting patients or the whole branch for a nurse; auto-refresh every few seconds, a Refresh button, a failed refresh keeps the list). `/app/opd/visits/[id]/vitals` records and corrects vitals (a changed reading asks for a reason; history is shown). `/app/opd/visits/[id]/consult` is the doctor's screen: note, prescription rows (medicine list search or typed name flagged "unlisted"), explicit "Save draft" and "Complete consultation" plus **auto-save** a few seconds after the last keystroke (status line, warning when closing the tab with unsaved text). A completed consultation is read-only with addenda. Details and the click path: `docs/decisions-5b.md`.
+- **OPD queue, vitals and consultation** (Step 5b): `/app/opd` is the real queue (a doctor's own waiting patients or the whole branch for a nurse; auto-refresh every few seconds, a Refresh button, a failed refresh keeps the list). `/app/opd/visits/[id]/vitals` records and corrects vitals (a changed reading asks for a reason; history is shown). `/app/opd/visits/[id]/consult` is the doctor's screen: note, prescription rows (medicine list search or typed name flagged "unlisted"), explicit "Save draft" and "Complete consultation" plus **auto-save** a few seconds after the last keystroke (status line, warning when closing the tab with unsaved text). A completed consultation is read-only with addenda. Details and the click path: `docs/decisions/decisions-5b.md`.
 
-- **Consultation screen details** (Step 5b, after the first manual test): note boxes start small and grow as the doctor types; the prescription is one line per medicine with "Add medicine" under the lines (Enter in the last finished line adds the next); the follow-up date uses the calendar popover with quick picks; vitals sit on one page in a grid; the queue keeps patients from earlier days and tags them. See `docs/decisions-5b.md`.
+- **Consultation screen details** (Step 5b, after the first manual test): note boxes start small and grow as the doctor types; the prescription is one line per medicine with "Add medicine" under the lines (Enter in the last finished line adds the next); the follow-up date uses the calendar popover with quick picks; vitals sit on one page in a grid; the queue keeps patients from earlier days and tags them. See `docs/decisions/decisions-5b.md`.
 
 ## Tests, refunds and cancelling (Step 6b)
 
@@ -139,7 +139,7 @@ Density tokens live in `globals.css` (control ~32px, body/label ~13/12px, card r
 - **Tests of a visit** (`/app/opd/visits/[id]/tests`): tests with status, tests bills with Print receipt and Request refund.
 - **Request refund and Cancel visit:** a button that opens a small inline form (amount in rupees, filled with the most that can be returned; reason; Send request). Cancel visit only on a WAITING visit. After sending it says an Admin will decide.
 - **Refund requests** (`/app/opd/refunds`): filter links Open, Approved, Rejected, All; table (requested, patient, bill and type, amount and what can still be returned, reason, asked by, status, decision). Approve (optional note, asks for a UPI reference only when needed) and Reject (note required) for staff with `opd.refunds.approve`; read-only for reception. A decided row shows who, voucher number, each mode returned and the note.
-- Details, click path and follow-ups: `docs/decisions-6b.md`.
+- Details, click path and follow-ups: `docs/decisions/decisions-6b.md`.
 
 ## Settings pages (Step 7b)
 
@@ -155,6 +155,16 @@ Density tokens live in `globals.css` (control ~32px, body/label ~13/12px, card r
 - **My profile** (`/app/profile`): reached from the user menu (top right) for people with `opd.doctors.own`. Two blocks side by side: the form (name as printed, qualifications, speciality, registration number; login name, department and branches shown as text) and a preview of how it prints. A reminder box lists the empty details. Help block closed until "Show help".
 - **Doctors** (Settings, `/app/settings/doctors`, needs `opd.doctors.read`): one card per doctor with what prints, the department and the branches; "Details missing" tag; Edit opens the five fields (including the department). Cards, not a table, because a doctor has too many details for aligned columns.
 - The consultation screen shows a quiet note with a link to My profile when the registration number is empty; Complete is never blocked.
+
+## Settings menu (25 Nov 2026)
+
+The menu on the left of Settings is grouped under small headings so there is room for new areas: **Hospital** (Logo, Printing), **People** (Staff, Roles, Doctors), **Patients** (Registration fields, Patient numbers) and **OPD** (OPD rules). The headings are buttons: pressing one opens ITS sections and closes the others (the group of the current page starts open; pressing the open one closes it). A heading with nothing the person may open is not shown. Component: `components/settings/settings-nav.tsx`. A new section is one entry in `apps/web/src/config/settings-sections.ts` with its `group`; a new group is one entry in `SETTINGS_GROUPS` plus its heading in `staffCopy.settings.groups`.
+
+## Pictures (Step 7e)
+
+- **Logo** (Settings, `/app/settings/branding`, label "Logo"): one small block with the picture (a small box, never a tall page), its size facts, **Choose / Replace picture** and **Remove**, the rules in one line (from the API limits) and a quiet note. People who may not change it see the picture only.
+- **Signature or stamp**: the same picture box in My profile (beside the printing preview) and inside the open panel of a doctor on the Doctors page. A refused file shows the reason in plain words under the box.
+- **Printing designer**: **Add signature box** next to Add logo box (allowed on pre-printed paper too). The designer shows a "Logo" or "Signature" marker; the preview shows the real logo and a dashed marker for a picture that is not uploaded; the printout shows the real pictures and leaves an empty box empty. The signature picture belongs to a doctor, so it prints only on the prescription (the preview says so on the slip and the receipt).
 
 ## Staff, roles and My profile (Step 7d)
 

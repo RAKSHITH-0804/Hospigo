@@ -1,6 +1,6 @@
 # Hospigo: dev commands (Git Bash, repo root `D:\Indigo\Hospigo Code`)
 
-Keep this file somewhere handy. You can also save it in the repo as `docs/dev-commands.md`.
+Keep this file somewhere handy. You can also save it in the repo as `docs/guides/dev-commands.md`.
 Everything below comes from the Phase 2 handoff and what we used while building Step 3c.
 
 ## 1. Start order (each server in its own terminal)
@@ -101,7 +101,7 @@ The last number on a `LISTENING` line is the process id (PID). In Git Bash the d
 | Hospigo-patients-q-3c    | Free-text `q` search (34 checks)                                             | API, dev seed                              |
 | Hospigo-route-safety-3c  | The API refuses missing and wrong tokens and missing permissions             | API, `patientPhone` for the patient checks |
 
-More collections (git-ignored `postman/collections/`): `hospigo-3d-branch-switch`, `hospigo-4a-opd-visit-billing`, `hospigo-5a-doctor-queue`, `hospigo-5a1-split-payment`, `hospigo-6a-investigations-refunds`, `hospigo-7-reports-print-templates` (report, CSV, print templates) and `hospigo-7b-settings` (OPD rules, registration fields, patient number format; it restores what it changes and registers one patient) and `hospigo-7c-doctor-profile` (doctor profile, Admin corrections, the copy kept on a completed prescription; restores the profile; makes one paid visit) and `hospigo-7d-staff-roles` (staff list, add, change, switch off and on, roles, staff code format, My profile refusals; makes ONE test role and ONE test person that stay switched off, reused by later runs; puts the code format back). They need the `Hospigo Local` environment (`staffPassword`, `superadminPassword`).
+More collections (git-ignored `postman/collections/`): `hospigo-3d-branch-switch`, `hospigo-4a-opd-visit-billing`, `hospigo-5a-doctor-queue`, `hospigo-5a1-split-payment`, `hospigo-6a-investigations-refunds`, `hospigo-7-reports-print-templates` (report, CSV, print templates) and `hospigo-7b-settings` (OPD rules, registration fields, patient number format; it restores what it changes and registers one patient) and `hospigo-7c-doctor-profile` (doctor profile, Admin corrections, the copy kept on a completed prescription; restores the profile; makes one paid visit) and `hospigo-7e-pictures` (hospital logo and doctor signature: refusals, upload of a 30-byte WebP written as text, who may look, removal; expects a demo hospital with no logo and no signature yet and removes what it makes; pictures stay on record by design) and `hospigo-7d-staff-roles` (staff list, add, change, switch off and on, roles, staff code format, My profile refusals; makes ONE test role and ONE test person that stay switched off, reused by later runs; puts the code format back). They need the `Hospigo Local` environment (`staffPassword`, `superadminPassword`).
 
 After a pull or a seed change, run the dev seed again so roles get new permissions: `$env:NODE_ENV="development"; npm run prisma:seed -w @hospigo/api` (PowerShell), then restart both servers.
 
@@ -110,7 +110,7 @@ Access tokens last 15 minutes. Each collection logs in by itself.
 ## 12. Demo logins
 
 - Access codes: `demo-north-main`, `demo-north-east`, `demo-south-main`, `demo-south-west`.
-- Accounts and roles: `docs/dev-accounts.md`.
+- Accounts and roles: `docs/guides/dev-accounts.md`.
 - Passwords come from `.env` (`SEED_SUPERADMIN_PASSWORD`, `SEED_BRANCH_ADMIN_PASSWORD`, `SEED_STAFF_PASSWORD`). Never paste them into chats.
 
 ## 13. Before every commit

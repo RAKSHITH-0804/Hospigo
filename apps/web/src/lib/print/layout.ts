@@ -39,10 +39,15 @@ export function itemsByKey(items: PrintItem[]): Map<string, PrintItem> {
 
 /**
  * Whether a box is drawn when PRINTING. Plain paper prints every box. Pre-printed stationery prints
- * only the VALUES inside text boxes: its letterhead, words, rules and logo are already on the paper.
+ * only the VALUES inside text boxes and the doctor's signature or stamp picture: its letterhead,
+ * words, rules and logo are already on the paper, but the doctor's signature is not.
  */
 export function printsBox(template: Pick<PrintTemplate, 'mode'>, element: PrintElement): boolean {
-  return template.mode === 'FULL' || element.type === 'RICH';
+  return (
+    template.mode === 'FULL' ||
+    element.type === 'RICH' ||
+    (element.type === 'IMAGE' && element.slot === 'SIGNATURE')
+  );
 }
 
 /** The place and size of a box, moved by the whole-sheet nudge. */

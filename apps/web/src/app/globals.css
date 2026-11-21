@@ -214,6 +214,7 @@
   --size-column-min: 24rem;
   --size-choice-min: 13rem;
   --size-card-min: 19rem;
+  --size-picture-preview: 9rem;
   --size-slip-max: 24rem;
   --font-size-token: 2.5rem;
   --size-skeleton-line: 0.75rem;
@@ -1819,6 +1820,56 @@
     }
   }
 
+  .settings-nav {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .settings-nav-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .settings-nav-heading {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    border: 0;
+    border-radius: var(--radius-control);
+    background: transparent;
+    font-size: var(--font-size-small);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-align: start;
+    text-transform: uppercase;
+    color: var(--foreground);
+    cursor: pointer;
+  }
+
+  .settings-nav-heading:hover {
+    background: var(--muted);
+  }
+
+  .settings-nav-chevron {
+    width: 1rem;
+    height: 1rem;
+    transition: transform 0.15s;
+  }
+
+  .settings-nav-chevron[data-open='false'] {
+    transform: rotate(-90deg);
+  }
+
+  .settings-nav ul[hidden] {
+    display: none;
+  }
+
   .settings-nav ul {
     display: flex;
     margin: 0;
@@ -2132,6 +2183,38 @@
   .staff-cards .settings-doctor-details {
     gap: var(--space-1) var(--space-3);
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 7rem), 1fr));
+  }
+
+  /* Step 7e: one picture place (the logo, a signature or stamp). The box stays small so a page stays short. */
+  .picture-picker {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .picture-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 4rem;
+    max-height: var(--size-picture-preview);
+    padding: var(--space-2);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-control);
+    background: var(--muted);
+  }
+
+  .picture-preview[data-empty='true'] {
+    min-height: 3rem;
+  }
+
+  .picture-preview img {
+    display: block;
+    max-width: 100%;
+    max-height: calc(var(--size-picture-preview) - 2 * var(--space-2));
+    width: auto;
+    height: auto;
+    object-fit: contain;
   }
 
   .staff-strip {
@@ -2605,6 +2688,13 @@
 
 .print-box-line {
   line-height: 0;
+}
+
+.print-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .print-image-marker {

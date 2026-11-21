@@ -1358,6 +1358,7 @@ describe('OPD clinical endpoints: queue, note, prescription, vitals (HTTP)', () 
         qualifications: 'MBBS, MD',
         speciality: 'General Medicine',
         registrationNo: 'REG 12/2026',
+        signatureImageId: null,
       });
       // the doctor edits the profile afterwards
       await setProfile({
@@ -1388,6 +1389,51 @@ describe('OPD clinical endpoints: queue, note, prescription, vitals (HTTP)', () 
         printName: 'Dr. Changed',
         registrationNo: 'NEW 99',
       });
+    });
+
+    it('completing also keeps WHICH signature picture the doctor had; a new picture later does not change an old prescription', async () => {
+      const make = (isCurrent: boolean) =>
+        owner.storedImage.create({
+          data: {
+            tenantId: A.tenant,
+            purpose: 'DOCTOR_SIGNATURE',
+            doctorProfileId: A.doc1,
+            contentType: 'image/png',
+            byteSize: 100,
+            width: 100,
+            height: 50,
+            sha256: 'a'.repeat(64),
+            storageKey: `images/test-${Date.now()}-${Math.random()}`,
+            isCurrent,
+            createdBy: A.users.doc1,
+          },
+        });
+      await owner.storedImage.updateMany({
+        where: { doctorProfileId: A.doc1 },
+        data: { isCurrent: false },
+      });
+      const first = await make(true);
+      const draft = await started(A);
+      await saveNote(A, 'doc1', draft, { diagnosis: 'dx' });
+      // a draft shows the picture the doctor has now
+      expect((await readNote(draft)).body.doctorDetails.signatureImageId).toBe(first.id);
+      expect((await complete(A, 'doc1', draft)).body.doctorDetails.signatureImageId).toBe(first.id);
+      // the doctor uploads a new picture afterwards
+      await owner.storedImage.update({ where: { id: first.id }, data: { isCurrent: false } });
+      const second = await make(true);
+      const later = await readNote(draft);
+      expect(later.body.doctorDetails).toMatchObject({
+        fromCompletedCopy: true,
+        signatureImageId: first.id,
+      });
+      const row = await owner.consultation.findFirstOrThrow({ where: { visitId: draft } });
+      expect((row.doctorDetails as { signatureImageId: string }).signatureImageId).toBe(first.id);
+      // the next visit uses the new picture; a doctor with no picture gets null
+      const next = await started(A);
+      await saveNote(A, 'doc1', next, { diagnosis: 'dx' });
+      expect((await readNote(next)).body.doctorDetails.signatureImageId).toBe(second.id);
+      await owner.storedImage.update({ where: { id: second.id }, data: { isCurrent: false } });
+      expect((await readNote(next)).body.doctorDetails.signatureImageId).toBeNull();
     });
 
     it('notes completed before the copy existed show the profile as it is now', async () => {

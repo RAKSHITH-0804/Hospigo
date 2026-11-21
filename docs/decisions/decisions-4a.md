@@ -1,6 +1,6 @@
 # Hospigo Phase 2, Step 4a: visits, billing and cash payment (decisions)
 
-Written 18 Nov 2026 on branch `feature/phase2-step-4a-visit-billing`. Read with `docs/plan-opd-first-flow.md` and the "As built (Step 4a)" section of `docs/schema-opd.md`.
+Written 18 Nov 2026 on branch `feature/phase2-step-4a-visit-billing`. Read with `docs/plans/plan-opd-first-flow.md` and the "As built (Step 4a)" section of `docs/reference/schema-opd.md`.
 
 ## Decisions (Rakshith, 18 Nov)
 
@@ -26,7 +26,7 @@ Written 18 Nov 2026 on branch `feature/phase2-step-4a-visit-billing`. Read with 
 
 ## What the migration enforces
 
-See "As built (Step 4a)" in `docs/schema-opd.md`. In short: append-only bill lines, payments and ledger; bills immutable except ledger-maintained paid columns; no overpay (row lock plus check); bill equals lines at commit; registration fee once per patient; queue gate; visit state guard; counters only forward; RLS forced on all six tables; no grants for HQ and patient roles.
+See "As built (Step 4a)" in `docs/reference/schema-opd.md`. In short: append-only bill lines, payments and ledger; bills immutable except ledger-maintained paid columns; no overpay (row lock plus check); bill equals lines at commit; registration fee once per patient; queue gate; visit state guard; counters only forward; RLS forced on all six tables; no grants for HQ and patient roles.
 
 ## Tests
 

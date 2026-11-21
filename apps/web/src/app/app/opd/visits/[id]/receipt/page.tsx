@@ -10,7 +10,7 @@ import type { VisitView } from '@/lib/opd/types';
 import { errorMessageFor } from '@/lib/patients/client';
 import { slipPageRule } from '@/lib/patients/format';
 import { receiptItems } from '@/lib/print/documents';
-import { fetchTemplate, readTemplate } from '@/lib/print/server';
+import { fetchLogoImageId, fetchTemplate, readTemplate } from '@/lib/print/server';
 import { fetchStaffOnServer, serverErrorCode } from '@/lib/patients/server';
 
 export const metadata: Metadata = { title: staffCopy.opd.receipt.pageTitle };
@@ -19,9 +19,10 @@ export default async function VisitReceiptPage({ params }: { params: Promise<{ i
   const session = await requirePermission('opd.visits.read');
   const { id } = await params;
   const hospitalName = session.hospitalName?.trim() || staffCopy.brand;
-  const [visit, templateResult] = await Promise.all([
+  const [visit, templateResult, logoImageId] = await Promise.all([
     fetchStaffOnServer<VisitView>(apiVisitPath(id)),
     fetchTemplate('RECEIPT'),
+    fetchLogoImageId(),
   ]);
 
   if (visit.status === 'notFound') {
@@ -48,6 +49,7 @@ export default async function VisitReceiptPage({ params }: { params: Promise<{ i
       <PrintStage
         template={template}
         items={receiptItems(visit.data, hospitalName)}
+        images={{ LOGO: logoImageId }}
         title={staffCopy.opd.receipt.title}
         description={`${visit.data.patient.name} · ${visit.data.patient.uhid}`}
         backHref={`/app/patients/${encodeURIComponent(visit.data.patient.id)}`}

@@ -37,6 +37,7 @@ export function makeConsult(over: Partial<ConsultationResponse> = {}): Consultat
       qualifications: null,
       speciality: null,
       registrationNo: null,
+      signatureImageId: null,
       fromCompletedCopy: false,
     },
     consultation: null,

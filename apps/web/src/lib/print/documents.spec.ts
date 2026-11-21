@@ -276,6 +276,7 @@ const consultation: ConsultationResponse = {
     qualifications: 'MBBS, MD',
     speciality: 'General Medicine',
     registrationNo: 'KMC/12345',
+    signatureImageId: null,
     fromCompletedCopy: true,
   },
   consultation: {

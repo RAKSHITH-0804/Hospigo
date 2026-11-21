@@ -1,6 +1,6 @@
 import type { DoctorDetails } from '@/lib/doctors/types';
 
-/** Shapes aligned with docs/api-opd.md (Steps 5a-2 and 5a-3). No money anywhere in here. */
+/** Shapes aligned with docs/reference/api-opd.md (Steps 5a-2 and 5a-3). No money anywhere in here. */
 
 export type ClinicalVisitStatus =
   'AWAITING_PAYMENT' | 'WAITING' | 'IN_CONSULTATION' | 'COMPLETED' | 'CANCELLED';

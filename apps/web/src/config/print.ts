@@ -40,6 +40,8 @@ export const printDesignerConfig = {
   newLineHeightMm: 0.3,
   newLogoWidthMm: 30,
   newLogoHeightMm: 20,
+  newSignatureWidthMm: 40,
+  newSignatureHeightMm: 15,
   newFieldWidthMm: 80,
   /** A field box starts about this many text lines tall (a list needs more). */
   newFieldLines: 1,

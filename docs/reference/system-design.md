@@ -1,6 +1,6 @@
 # Hospigo system design (high level)
 
-Status: DRAFT v1 for review, 14 Nov 2026. Author: Rakshith. Covers the system as built in Phase 1 plus the OPD block (see `use-cases-opd.md` and `schema-opd.md`).
+Status: DRAFT v1 for review, 14 Nov 2026. Author: Rakshith. Covers the system as built in Phase 1 plus the OPD block (see `docs/plans/use-cases-opd.md` and `docs/reference/schema-opd.md`).
 
 **Everything marked ASSUMPTION or PROPOSED is a number or choice made by the developer for discussion. It becomes a target only after management confirms it.**
 
@@ -118,7 +118,7 @@ Conclusion for review: this size fits one PostgreSQL server and one API process 
 | Response time       | 95 percent of normal calls under 500 ms; patient search under 800 ms; a page ready in under 2 seconds on the hospital network | Indexes from the schema design, no slow queries                                                                                                                                                  |
 | Data loss (RPO)     | 15 minutes at most                                                                                                            | **Continuous log archiving of the database. The current plan, a scheduled upload, gives an RPO equal to the backup interval (for example 24 hours for nightly backups).** Management must choose |
 | Recovery time (RTO) | 4 hours at most                                                                                                               | A tested restore. The first restore drill sets the real number                                                                                                                                   |
-| Money correctness   | Zero duplicate numbers, zero lost or doubled payments                                                                         | The concurrency and idempotency tests in `schema-opd.md`                                                                                                                                         |
+| Money correctness   | Zero duplicate numbers, zero lost or doubled payments                                                                         | The concurrency and idempotency tests in `docs/reference/schema-opd.md`                                                                                                                          |
 | Security            | No cross-hospital data access, ever                                                                                           | The leak tests stay in CI                                                                                                                                                                        |
 
 ## 8. Failure modes

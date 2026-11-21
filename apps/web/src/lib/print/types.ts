@@ -38,8 +38,14 @@ export type PrintContent = { paragraphs: PrintParagraph[] };
 /**
  * One box on the page, like a text box in a word processor. RICH holds text typed by a person (each
  * stretch with its own style) with values of the document inside it; LINE is a rule; IMAGE is a
- * picture slot (the logo; the picture itself comes with the upload step). Places are millimetres.
+ * picture slot (the hospital logo, or the doctor signature or stamp). Places are millimetres.
  */
+/** A picture place on a page: the hospital logo, or the doctor's signature or stamp. */
+export type PrintSlot = 'LOGO' | 'SIGNATURE';
+
+/** The pictures a page prints: the id of the picture for each slot (none: the box stays empty). */
+export type PrintImages = Partial<Record<PrintSlot, string | null>>;
+
 export type PrintElement = {
   id: string;
   type: 'RICH' | 'LINE' | 'IMAGE';
@@ -48,7 +54,7 @@ export type PrintElement = {
   widthMm: number;
   heightMm: number;
   content?: PrintContent;
-  slot?: 'LOGO';
+  slot?: PrintSlot;
   /** LINE colour. */
   tone?: PrintTone;
 };

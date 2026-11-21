@@ -4,6 +4,12 @@ import { TenantDb, type TenantTx } from '../../database/tenant-db';
 import { AccessService } from '../access/access.service';
 import { clinicalError, ClinicalErrorCode } from '../opd-clinical/opd-clinical.errors';
 import { opdError, OpdErrorCode } from '../opd-visits/opd-visit.errors';
+import {
+  ImagesService,
+  imageLimitsView,
+  type ImageLimitsView,
+  type ImageMeta,
+} from '../images/images.service';
 import { DOCTOR_PROFILE_LIMITS, parseDoctorProfile } from './doctor-profile.rules';
 
 type Actor = { tenantId: string; userId: string };
@@ -39,9 +45,19 @@ export type DoctorProfileView = {
   branches: string[];
   /** The details a prescription needs that are still empty (the reminder). */
   missing: Array<'qualifications' | 'speciality' | 'registrationNo'>;
+  /** The current signature or stamp picture, or null. */
+  signature: ImageMeta | null;
 };
 
-export function toProfileView(row: ProfileRow): DoctorProfileView {
+type WithLimits = DoctorProfileView & {
+  limits: typeof DOCTOR_PROFILE_LIMITS;
+  images: ImageLimitsView;
+};
+
+export function toProfileView(
+  row: ProfileRow,
+  signature: ImageMeta | null = null,
+): DoctorProfileView {
   const missing: DoctorProfileView['missing'] = [];
   if (!row.qualifications) missing.push('qualifications');
   if (!row.speciality) missing.push('speciality');
@@ -59,6 +75,7 @@ export function toProfileView(row: ProfileRow): DoctorProfileView {
     active: row.active,
     branches: row.user.userBranches.map((b) => b.branch.name).sort(),
     missing,
+    signature,
   };
 }
 
@@ -75,34 +92,39 @@ export class DoctorProfilesService {
   constructor(
     private readonly tenantDb: TenantDb,
     private readonly access: AccessService,
+    private readonly images: ImagesService,
   ) {}
 
-  async me(actor: Actor): Promise<DoctorProfileView & { limits: typeof DOCTOR_PROFILE_LIMITS }> {
-    return this.tenantDb.withTenant(async (tx) => ({
-      ...toProfileView(await this.own(tx, actor)),
-      limits: DOCTOR_PROFILE_LIMITS,
-    }));
+  async me(actor: Actor): Promise<WithLimits> {
+    return this.tenantDb.withTenant((tx) => this.meView(tx, actor));
   }
 
-  async updateMe(
-    actor: Actor,
-    body: unknown,
-  ): Promise<DoctorProfileView & { limits: typeof DOCTOR_PROFILE_LIMITS }> {
+  private async meView(tx: TenantTx, actor: Actor): Promise<WithLimits> {
+    const own = await this.own(tx, actor);
+    return {
+      ...toProfileView(
+        own,
+        await this.images.current(tx, actor.tenantId, 'DOCTOR_SIGNATURE', own.id),
+      ),
+      limits: DOCTOR_PROFILE_LIMITS,
+      images: imageLimitsView(),
+    };
+  }
+
+  async updateMe(actor: Actor, body: unknown): Promise<WithLimits> {
     const input = parseDoctorProfile(body, { allowDepartment: false });
     return this.tenantDb.withTenant(async (tx) => {
       const own = await this.own(tx, actor);
       await tx.doctorProfile.update({ where: { id: own.id }, data: input });
       await this.audit(tx, actor, own.id, Object.keys(input), true);
-      return {
-        ...toProfileView(await this.byId(tx, actor, own.id)),
-        limits: DOCTOR_PROFILE_LIMITS,
-      };
+      return this.meView(tx, actor);
     });
   }
 
   async list(actor: Actor): Promise<{
     items: DoctorProfileView[];
     limits: typeof DOCTOR_PROFILE_LIMITS;
+    images: ImageLimitsView;
     canWrite: boolean;
   }> {
     const scope = await this.scope('opd.doctors.read');
@@ -114,7 +136,17 @@ export class DoctorProfilesService {
         include: PROFILE_INCLUDE,
         orderBy: [{ code: 'asc' }],
       });
-      return { items: rows.map(toProfileView), limits: DOCTOR_PROFILE_LIMITS, canWrite };
+      const pictures = await this.images.currentSignatures(
+        tx,
+        actor.tenantId,
+        rows.map((r) => r.id),
+      );
+      return {
+        items: rows.map((r) => toProfileView(r, pictures.get(r.id) ?? null)),
+        limits: DOCTOR_PROFILE_LIMITS,
+        images: imageLimitsView(),
+        canWrite,
+      };
     });
   }
 
@@ -131,8 +163,67 @@ export class DoctorProfilesService {
       }
       await tx.doctorProfile.update({ where: { id }, data: input });
       await this.audit(tx, actor, id, Object.keys(input), false);
-      return toProfileView(await this.byId(tx, actor, id));
+      return this.adminView(tx, actor, id);
     });
+  }
+
+  // ------------------------------------------------------------------ signature or stamp picture
+
+  /** A doctor uploads their own signature or stamp (the profile is found from the token). */
+  async replaceSignatureMe(actor: Actor, bytes: Buffer | undefined): Promise<WithLimits> {
+    const own = await this.tenantDb.withTenant((tx) => this.own(tx, actor));
+    await this.images.replace(
+      actor,
+      { purpose: 'DOCTOR_SIGNATURE', doctorProfileId: own.id },
+      bytes,
+    );
+    return this.me(actor);
+  }
+
+  async removeSignatureMe(actor: Actor): Promise<WithLimits> {
+    const own = await this.tenantDb.withTenant((tx) => this.own(tx, actor));
+    await this.images.removeCurrent(actor, {
+      purpose: 'DOCTOR_SIGNATURE',
+      doctorProfileId: own.id,
+    });
+    return this.me(actor);
+  }
+
+  /** An Admin uploads for a doctor in their scope (a doctor outside it is 404). */
+  async replaceSignatureByAdmin(
+    actor: Actor,
+    id: string,
+    bytes: Buffer | undefined,
+  ): Promise<DoctorProfileView> {
+    await this.requireInWriteScope(actor, id);
+    await this.images.replace(actor, { purpose: 'DOCTOR_SIGNATURE', doctorProfileId: id }, bytes);
+    return this.tenantDb.withTenant((tx) => this.adminView(tx, actor, id));
+  }
+
+  async removeSignatureByAdmin(actor: Actor, id: string): Promise<DoctorProfileView> {
+    await this.requireInWriteScope(actor, id);
+    await this.images.removeCurrent(actor, { purpose: 'DOCTOR_SIGNATURE', doctorProfileId: id });
+    return this.tenantDb.withTenant((tx) => this.adminView(tx, actor, id));
+  }
+
+  private async requireInWriteScope(actor: Actor, id: string): Promise<void> {
+    const scope = await this.scope('opd.doctors.write');
+    const found = await this.tenantDb.withTenant((tx) =>
+      tx.doctorProfile.findFirst({
+        where: { id, tenantId: actor.tenantId, ...this.inScope(scope) },
+        select: { id: true },
+      }),
+    );
+    if (!found) {
+      throw opdError(404, OpdErrorCode.SETTINGS_NOT_FOUND);
+    }
+  }
+
+  private async adminView(tx: TenantTx, actor: Actor, id: string): Promise<DoctorProfileView> {
+    return toProfileView(
+      await this.byId(tx, actor, id),
+      await this.images.current(tx, actor.tenantId, 'DOCTOR_SIGNATURE', id),
+    );
   }
 
   // ---------------------------------------------------------------------------- helpers

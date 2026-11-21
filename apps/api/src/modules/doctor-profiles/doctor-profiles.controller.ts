@@ -4,16 +4,22 @@ import {
   Get,
   HttpCode,
   Param,
+  Post,
   Put,
   Req,
   UnauthorizedException,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { RequirePermission } from '../access/permission.decorators';
 import { TokenKinds } from '../auth/token-kinds.decorator';
 import type { AccessClaims, HospitalAccessClaims } from '../auth/token.types';
 import { isHospitalTokenType } from '../auth/token.types';
+import { pictureUpload } from '../images/images.controller';
 import { DoctorProfilesService } from './doctor-profiles.service';
+
+type Upload = { buffer: Buffer } | undefined;
 
 type HttpReq = { auth?: AccessClaims };
 
@@ -52,6 +58,25 @@ export class DoctorProfilesController {
     return this.profiles.updateMe(actorOf(req), body);
   }
 
+  @Put('me/signature')
+  @HttpCode(200)
+  @RequirePermission('opd.doctors.own', { module: 'OPD' })
+  @UseInterceptors(pictureUpload())
+  @ApiOperation({ summary: 'A doctor uploads their own signature or stamp picture' })
+  async putMySignature(@Req() req: HttpReq, @UploadedFile() file: Upload) {
+    return this.profiles.replaceSignatureMe(actorOf(req), file?.buffer);
+  }
+
+  @Post('me/signature/remove')
+  @HttpCode(200)
+  @RequirePermission('opd.doctors.own', { module: 'OPD' })
+  @ApiOperation({
+    summary: 'A doctor stops using their signature picture (the old one stays on record)',
+  })
+  async removeMySignature(@Req() req: HttpReq) {
+    return this.profiles.removeSignatureMe(actorOf(req));
+  }
+
   @Get()
   @RequirePermission('opd.doctors.read', { module: 'OPD' })
   @ApiOperation({
@@ -71,5 +96,26 @@ export class DoctorProfilesController {
   })
   async save(@Req() req: HttpReq, @Param('id') id: string, @Body() body: unknown) {
     return this.profiles.updateByAdmin(actorOf(req), id, body);
+  }
+
+  @Put(':id/signature')
+  @HttpCode(200)
+  @RequirePermission('opd.doctors.write', { module: 'OPD' })
+  @UseInterceptors(pictureUpload())
+  @ApiOperation({
+    summary: 'An Admin uploads the signature or stamp picture of a doctor in their scope',
+  })
+  async putSignature(@Req() req: HttpReq, @Param('id') id: string, @UploadedFile() file: Upload) {
+    return this.profiles.replaceSignatureByAdmin(actorOf(req), id, file?.buffer);
+  }
+
+  @Post(':id/signature/remove')
+  @HttpCode(200)
+  @RequirePermission('opd.doctors.write', { module: 'OPD' })
+  @ApiOperation({
+    summary: 'An Admin stops using the signature picture of a doctor in their scope',
+  })
+  async removeSignature(@Req() req: HttpReq, @Param('id') id: string) {
+    return this.profiles.removeSignatureByAdmin(actorOf(req), id);
   }
 }

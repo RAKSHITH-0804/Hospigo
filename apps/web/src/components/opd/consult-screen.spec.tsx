@@ -574,6 +574,7 @@ describe('the registration number reminder', () => {
         qualifications: null,
         speciality: null,
         registrationNo,
+        signatureImageId: null,
         fromCompletedCopy: false,
       },
     });

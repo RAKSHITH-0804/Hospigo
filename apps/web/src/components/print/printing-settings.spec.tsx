@@ -145,13 +145,14 @@ const prePreset: PrintPreset = {
   },
 };
 
-function renderScreen(canWrite = true, items = templates()) {
+function renderScreen(canWrite = true, items = templates(), logoImageId: string | null = null) {
   return render(
     <PrintingSettings
       templates={items}
       presets={[labelPreset, prePreset]}
       canWrite={canWrite}
       hospitalName="Demo Hospital"
+      logoImageId={logoImageId}
     />,
   );
 }
@@ -701,6 +702,79 @@ describe('adding, removing and ordering boxes', () => {
     expect(boxes().at(-1)!.querySelector('.print-image-marker')?.textContent).toBe(copy.logoMarker);
   });
 
+  it('Add signature box adds a picture box for the doctor signature or stamp, named and marked as such', () => {
+    renderScreen();
+    goReceipt();
+    click(copy.addSignature);
+    const added = boxes().at(-1)!;
+    expect(added.querySelector('.print-image-marker')?.textContent).toBe(copy.signatureMarker);
+    expect(screen.getByText(copy.selectedBox.replace('{name}', copy.boxSignature))).toBeTruthy();
+    // a logo box and a signature box are different boxes
+    click(copy.addLogo);
+    expect(boxes().at(-1)!.querySelector('.print-image-marker')?.textContent).toBe(copy.logoMarker);
+  });
+
+  it('the signature box can be added on pre-printed stationery too (it is not part of the letterhead)', () => {
+    renderScreen();
+    goReceipt();
+    fireEvent.change(select(copy.modeLabel), { target: { value: 'PREPRINTED' } });
+    expect(isDisabled(copy.addLogo)).toBe(true);
+    expect(isDisabled(copy.addSignature)).toBe(false);
+    click(copy.addSignature);
+    expect(boxes().at(-1)!.querySelector('.print-image-marker')?.textContent).toBe(
+      copy.signatureMarker,
+    );
+  });
+
+  it('the preview marks an empty signature box and says it prints only on the prescription', () => {
+    const t = templates();
+    t.forEach((x) => {
+      x.layout.elements = [
+        ...x.layout.elements,
+        {
+          id: 'sig-x',
+          type: 'IMAGE',
+          slot: 'SIGNATURE',
+          xMm: 5,
+          yMm: 5,
+          widthMm: 40,
+          heightMm: 15,
+        },
+      ];
+    });
+    const { container } = renderScreen(true, t);
+    goReceipt();
+    click(copy.modePreview);
+    expect(container.querySelector('.print-sheet .print-image-marker')?.textContent).toBe(
+      copy.signatureMarker,
+    );
+    expect(screen.getByText(copy.signatureOnlyPrescription)).toBeTruthy();
+    expect(screen.queryByText(copy.pictureMarkerNote)).toBeNull();
+  });
+
+  it('without a signature box the preview only explains the dashed marker', () => {
+    renderScreen();
+    goReceipt();
+    click(copy.modePreview);
+    expect(screen.getByText(copy.pictureMarkerNote)).toBeTruthy();
+    expect(screen.queryByText(copy.signatureOnlyPrescription)).toBeNull();
+  });
+
+  it('the preview shows the current hospital logo in a logo box', () => {
+    const withLogo = templates();
+    withLogo.forEach((t) => {
+      t.layout.elements = [
+        ...t.layout.elements,
+        { id: 'logo-x', type: 'IMAGE', slot: 'LOGO', xMm: 5, yMm: 5, widthMm: 30, heightMm: 20 },
+      ];
+    });
+    const { container } = renderScreen(true, withLogo, 'logo-42');
+    goReceipt();
+    click(copy.modePreview);
+    const img = container.querySelector('.print-sheet img.print-image') as HTMLImageElement;
+    expect(img.getAttribute('src')).toBe('/api/staff/images/logo-42');
+  });
+
   it('the values list has a tick for each value; ticking adds a box, clearing removes it', () => {
     renderScreen();
     goReceipt();
@@ -1003,7 +1077,7 @@ describe('without the write permission', () => {
     expect(screen.getByText(copy.readOnly)).toBeTruthy();
     expect(isDisabled(copy.save)).toBe(true);
     expect(input(copy.fontLabel).matches(':disabled')).toBe(true);
-    for (const name of [copy.addText, copy.addLine, copy.addLogo, copy.undo]) {
+    for (const name of [copy.addText, copy.addLine, copy.addLogo, copy.addSignature, copy.undo]) {
       expect(isDisabled(name)).toBe(true);
     }
     pick('b2');

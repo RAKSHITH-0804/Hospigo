@@ -12,7 +12,7 @@ Rakshith approved this plan with the answers in section 7 (now decisions) and th
 - **Self-review at every review gate (new standing rule, also in `CLAUDE.md`):** after code and tests are done, a separate adversarial pass before showing Rakshith (how could it be attacked or break; which attacks the tests cover; tests added for the gaps; plain-words verdict: safe to approve, or needs a decision).
 - **Review gates stay:** permissions and tokens, tenant isolation and RLS, anything touching money, migrations, anything that removes a protection. Step 3d stops after the API part for review before the web part is built.
 
-> **Update 18 Nov 2026:** 4a-1 and 4a-2 are merged into one step **4a** (one branch, one PR, two commits). The migration commit comes first and is a mandatory review gate; the API part starts only after Rakshith approves it. Estimates 2.5 + 3.5 days stay as the total for 4a, less about half a day of PR overhead. Doctor also gets `opd.vitals.write` (5a seed). Admin roles get only read permissions for visits and billing (decided in `docs/decisions-4a.md`).
+> **Update 18 Nov 2026:** 4a-1 and 4a-2 are merged into one step **4a** (one branch, one PR, two commits). The migration commit comes first and is a mandatory review gate; the API part starts only after Rakshith approves it. Estimates 2.5 + 3.5 days stay as the total for 4a, less about half a day of PR overhead. Doctor also gets `opd.vitals.write` (5a seed). Admin roles get only read permissions for visits and billing (decided in `docs/decisions/decisions-4a.md`).
 
 ## 1. Goal in one paragraph
 
@@ -57,7 +57,7 @@ Estimates are working days for **me coding plus Rakshith testing and reviewing**
 
 ### Step 4a-1: money and visit tables (migration only) (about 2 days)
 
-**Contents.** One migration, plus Prisma models. Tables: `opd_visits`, `bills`, `bill_lines`, `payments`, `ledger_entries`, `consultations`, and (if Q4 is yes) `patient_registration_fees`. Design is the one already written in `schema-opd.md` sections 5 to 7, trimmed:
+**Contents.** One migration, plus Prisma models. Tables: `opd_visits`, `bills`, `bill_lines`, `payments`, `ledger_entries`, `consultations`, and (if Q4 is yes) `patient_registration_fees`. Design is the one already written in `docs/reference/schema-opd.md` sections 5 to 7, trimmed:
 
 - RLS plus FORCE RLS on all, grants to `hospigo_app` as INSERT and SELECT only on append-only tables; no grants for `hospigo_hq` or `hospigo_patient`.
 - Append-only triggers on `ledger_entries`, `payments`, `bill_lines`; `bills` may change only the three trigger-maintained columns.
@@ -84,7 +84,7 @@ Estimates are working days for **me coding plus Rakshith testing and reviewing**
 - `GET /opd/visits/:id` and `GET /patients/:id/visits` (fills the Visits and Bills tabs on the patient record).
 - Branch always comes from the token. A patient from another hospital cannot be used (RLS plus a test).
 - Audit entries for visit created and payment taken (ids and field names only).
-- `docs/api-opd.md` updated.
+- `docs/reference/api-opd.md` updated.
 
 **Tests.** Cross-hospital refusals; permission refusals per route (route-scan); fee picked correctly per visit type; price change does not alter an old bill; follow-up inside 7 days is free and outside is charged; double submit with the same idempotency key returns the same bill and payment; wrong amount refused; payment on an already paid bill refused; unavailable doctor refused; token resets per IST day and per branch; tokens are consecutive under parallel requests.
 
@@ -126,7 +126,7 @@ Estimates are working days for **me coding plus Rakshith testing and reviewing**
 
 ### Step E: docs and exit check (about 0.5 day, rolled into each PR where possible)
 
-Update `docs/engineering-tracker.md` (it is stale: it still says 3b in progress and 3c planned), `docs/decisions-4.md` (new), `docs/handoff-phase2.md`, `docs/dev-accounts.md` for any new demo permissions, the follow-ups list, and one end-to-end Postman run across all steps (reception to doctor). I will also fix the stale line counts and statuses I noticed in `project-context.md` only if you ask, since this plan was told to edit nothing else.
+Update `docs/engineering-tracker.md` (it is stale: it still says 3b in progress and 3c planned), `docs/decisions/decisions-4a.md` (new), `docs/handoff-phase2.md`, `docs/guides/dev-accounts.md` for any new demo permissions, the follow-ups list, and one end-to-end Postman run across all steps (reception to doctor). I will also fix the stale line counts and statuses I noticed in `project-context.md` only if you ask, since this plan was told to edit nothing else.
 
 ## 4. Order, size of pull requests, time summary
 
@@ -157,10 +157,10 @@ One feature branch and one PR into `develop` per step (4a-1 and 4a-2 may share o
 ## 6. Existing docs I noticed that disagree (not fixed here)
 
 - `docs/engineering-tracker.md` is out of date (3b "In progress", 3c "Planned"; header says 3b).
-- `docs/handoff-phase2.md` says `develop` is `6a05dca` and tests are 245/155; `docs/decisions-3c.md` says 281 API tests. `project-context.md` is newest.
-- `docs/decisions-3c.md` section 1 says "push and PR not yet done" but git shows PR #41 merged.
-- `schema-opd.md` lists `print_templates`; Step 2 did not build it (already noted in "As built").
-- I did not read `docs/ui-design.md`, `api-auth.md` or `system-design.md` in full, only the branch switcher part of the first two. I will read them before 3d.
+- `docs/handoff-phase2.md` says `develop` is `6a05dca` and tests are 245/155; `docs/decisions/decisions-3c.md` says 281 API tests. `project-context.md` is newest.
+- `docs/decisions/decisions-3c.md` section 1 says "push and PR not yet done" but git shows PR #41 merged.
+- `docs/reference/schema-opd.md` lists `print_templates`; Step 2 did not build it (already noted in "As built").
+- I did not read `docs/design/ui-design.md`, `docs/reference/api-auth.md` or `docs/reference/system-design.md` in full, only the branch switcher part of the first two. I will read them before 3d.
 
 ## 7. Decisions (answers of 17 Nov 2026; the original questions follow below for the record)
 

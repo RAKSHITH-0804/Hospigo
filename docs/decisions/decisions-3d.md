@@ -1,6 +1,6 @@
 # Hospigo Phase 2, Step 3d: SuperAdmin branch switcher (decisions)
 
-Written 18 Nov 2026 (branch `feature/phase2-step-3d-branch-switcher`). Read with `docs/api-auth.md` (branch switcher sections).
+Written 18 Nov 2026 (branch `feature/phase2-step-3d-branch-switcher`). Read with `docs/reference/api-auth.md` (branch switcher sections).
 
 ## Decisions
 

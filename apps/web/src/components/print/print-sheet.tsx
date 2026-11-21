@@ -12,7 +12,14 @@ import {
   runStyle,
 } from '@/lib/print/layout';
 import { shownParagraphs, type ShownParagraph } from '@/lib/print/rich';
-import type { PrintElement, PrintItem, PrintRun, PrintTemplate } from '@/lib/print/types';
+import { imageUrl } from '@/lib/images/types';
+import type {
+  PrintElement,
+  PrintImages,
+  PrintItem,
+  PrintRun,
+  PrintTemplate,
+} from '@/lib/print/types';
 
 /** The value of the document a field stands for: one line of text, a list of lines, or rows of two columns. */
 function Value({ item }: { item: PrintItem }) {
@@ -99,20 +106,27 @@ export function BoxContent({
   valuesOnly,
   everything,
   placeholder,
+  images,
 }: {
   element: PrintElement;
   byKey: ReadonlyMap<string, PrintItem>;
   valuesOnly: boolean;
   /** The designer shows all of a text box, even a line whose values are empty. */
   everything?: boolean;
-  /** The designer shows a marker for a picture box; printing shows nothing until there is a picture. */
+  /** The designer shows a marker for a picture box; printing shows the picture (or nothing). */
   placeholder?: string;
+  /** The pictures of this page, by slot. */
+  images?: PrintImages;
 }) {
   if (element.type === 'LINE') {
     return <span className="print-rule" />;
   }
   if (element.type === 'IMAGE') {
-    return placeholder ? <span className="print-image-marker">{placeholder}</span> : null;
+    if (placeholder) {
+      return <span className="print-image-marker">{placeholder}</span>;
+    }
+    const id = images?.[element.slot ?? 'LOGO'];
+    return id ? <img className="print-image" src={imageUrl(id)} alt="" /> : null;
   }
   const paragraphs = everything
     ? (element.content?.paragraphs ?? [])
@@ -137,7 +151,18 @@ export function BoxContent({
  * the letterhead and words are already on the paper. A line with values prints only when one of them
  * has something to say.
  */
-export function PrintSheet({ template, items }: { template: PrintTemplate; items: PrintItem[] }) {
+export function PrintSheet({
+  template,
+  items,
+  images,
+  markEmptyPictures,
+}: {
+  template: PrintTemplate;
+  items: PrintItem[];
+  images?: PrintImages;
+  /** The settings preview marks a picture box that has no picture (a printout leaves it empty). */
+  markEmptyPictures?: { LOGO: string; SIGNATURE: string };
+}) {
   const byKey = itemsByKey(items);
   const valuesOnly = template.mode === 'PREPRINTED';
   const sheetStyle: CSSProperties = {
@@ -164,7 +189,17 @@ export function PrintSheet({ template, items }: { template: PrintTemplate; items
             data-box={element.id}
             style={placeStyle(template, element)}
           >
-            <BoxContent element={element} byKey={byKey} valuesOnly={valuesOnly} />
+            <BoxContent
+              element={element}
+              byKey={byKey}
+              valuesOnly={valuesOnly}
+              images={images}
+              placeholder={
+                element.type === 'IMAGE' && !images?.[element.slot ?? 'LOGO']
+                  ? markEmptyPictures?.[element.slot ?? 'LOGO']
+                  : undefined
+              }
+            />
           </div>
         );
       })}
@@ -179,6 +214,7 @@ export function PrintSheet({ template, items }: { template: PrintTemplate; items
 export function PrintStage({
   template,
   items,
+  images,
   title,
   description,
   backHref,
@@ -186,6 +222,7 @@ export function PrintStage({
 }: {
   template: PrintTemplate;
   items: PrintItem[];
+  images?: PrintImages;
   title: string;
   description?: string;
   backHref?: string;
@@ -204,7 +241,7 @@ export function PrintStage({
         />
       </div>
       <div className="print-paper-wrap">
-        <PrintSheet template={template} items={items} />
+        <PrintSheet template={template} items={items} images={images} />
       </div>
     </div>
   );

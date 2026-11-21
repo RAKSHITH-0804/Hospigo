@@ -280,6 +280,7 @@ model Hospital {
 
   @@map("hospitals")
   staffCodeSettings StaffCodeSettings?
+  storedImages      StoredImage[]
 }
 
 model HospitalSetting {
@@ -399,6 +400,7 @@ model User {
   importBatchesApproved ImportBatch[] @relation("ImportBatchApprovedBy")
   importBatchesUndone ImportBatch[] @relation("ImportBatchUndoneBy")
   importExceptionsResolved ImportException[] @relation("ImportExceptionResolvedBy")
+  storedImagesMade StoredImage[] @relation("StoredImageCreator")
   doctorProfiles DoctorProfile[]
   chargeItemPricesCreated ChargeItemPrice[] @relation("ChargeItemPriceCreatedBy")
   doctorFeesCreated DoctorFee[] @relation("DoctorFeeCreatedBy")
@@ -1033,6 +1035,7 @@ model DoctorProfile {
   opdVisits OpdVisit[]
   consultations Consultation[]
   investigationOrders InvestigationOrder[]
+  storedImages StoredImage[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, userId])
@@ -1845,4 +1848,29 @@ model StaffCodeSettings {
   hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("staff_code_settings")
+}
+
+/// Step 7e: a picture kept in object storage (the hospital logo, a doctor's signature or stamp).
+/// Never edited (only `isCurrent` changes) and never deleted: a completed note keeps its signature.
+model StoredImage {
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  purpose         String
+  doctorProfileId String?  @map("doctor_profile_id")
+  contentType     String   @map("content_type")
+  byteSize        Int      @map("byte_size")
+  width           Int
+  height          Int
+  sha256          String
+  storageKey      String   @map("storage_key")
+  isCurrent       Boolean  @default(true) @map("is_current")
+  createdBy       String   @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  hospital      Hospital       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  doctorProfile DoctorProfile? @relation(fields: [tenantId, doctorProfileId], references: [tenantId, id], onDelete: Restrict)
+  creator       User           @relation("StoredImageCreator", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@map("stored_images")
 }

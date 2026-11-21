@@ -32,7 +32,14 @@ const profile = (over: Partial<MyProfileResponse> = {}): MyProfileResponse => ({
   active: true,
   branches: ['Main Branch', 'East Branch'],
   missing: ['qualifications', 'speciality', 'registrationNo'],
+  signature: null,
   limits,
+  images: {
+    maxBytes: 1048576,
+    maxSidePx: 4000,
+    minSidePx: 16,
+    types: ['image/png', 'image/jpeg', 'image/webp'],
+  },
   ...over,
 });
 const complete = (): MyProfileResponse =>

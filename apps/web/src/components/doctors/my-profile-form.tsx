@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { ImagePicker } from '@/components/images/image-picker';
 import { SettingBlock } from '@/components/settings/setting-block';
 import { SettingsHelp } from '@/components/settings/settings-help';
 import { Button } from '@/components/ui/button';
@@ -8,11 +9,13 @@ import { InputField } from '@/components/ui/field';
 import { settingsScreenConfig } from '@/config/settings';
 import { staffCopy } from '@/config/staff-copy';
 import { errorMessageFor } from '@/lib/patients/client';
-import { saveMyProfile } from '@/lib/doctors/client';
+import { removeMySignature, saveMyProfile, uploadMySignature } from '@/lib/doctors/client';
+import { pictureErrorMessage } from '@/lib/images/errors';
 import type { MyProfileResponse } from '@/lib/doctors/types';
 import { settingsErrorMessage } from '@/lib/settings/errors';
 
 const copy = staffCopy.doctorProfile;
+const pictures = staffCopy.pictures.signature;
 
 /** The lines a prescription prints for this profile (the same wording as the print screens). */
 export function previewLines(p: {
@@ -180,19 +183,46 @@ export function MyProfileForm({
           </form>
         </SettingBlock>
 
-        <SettingBlock title={copy.previewLabel} description="">
-          {lines.length > 1 || profile.printedName ? (
-            <p className="settings-sample-block" data-testid="profile-preview">
-              {lines.map((line) => (
-                <span key={line} className="type-body">
-                  {line}
-                </span>
-              ))}
-            </p>
-          ) : (
-            <p className="type-label text-muted-foreground">{copy.previewEmpty}</p>
-          )}
-        </SettingBlock>
+        <div className="section-stack">
+          <SettingBlock title={copy.previewLabel} description="">
+            {lines.length > 1 || profile.printedName ? (
+              <p className="settings-sample-block" data-testid="profile-preview">
+                {lines.map((line) => (
+                  <span key={line} className="type-body">
+                    {line}
+                  </span>
+                ))}
+              </p>
+            ) : (
+              <p className="type-label text-muted-foreground">{copy.previewEmpty}</p>
+            )}
+          </SettingBlock>
+          <SettingBlock title={pictures.title} description={pictures.description}>
+            <ImagePicker
+              image={profile.signature}
+              limits={profile.images}
+              canWrite
+              alt={pictures.alt}
+              onUpload={async (file) => {
+                const result = await uploadMySignature(file);
+                if (!result.ok) {
+                  return pictureErrorMessage(result, profile.images);
+                }
+                setProfile(result.data);
+                return null;
+              }}
+              onRemove={async () => {
+                const result = await removeMySignature();
+                if (!result.ok) {
+                  return pictureErrorMessage(result, profile.images);
+                }
+                setProfile(result.data);
+                return null;
+              }}
+            />
+            <p className="type-small text-muted-foreground">{pictures.note}</p>
+          </SettingBlock>
+        </div>
       </div>
     </div>
   );

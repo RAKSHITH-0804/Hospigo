@@ -1,6 +1,6 @@
-import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { SettingsHelp } from '@/components/settings/settings-help';
+import { SettingsNav } from '@/components/settings/settings-nav';
 import { PageHeader } from '@/components/ui/page-header';
 import type { SettingsSection } from '@/config/settings-sections';
 import { staffCopy } from '@/config/staff-copy';
@@ -25,21 +25,7 @@ export function SettingsShell({
     <div className="flex flex-col gap-[var(--space-3)]">
       <PageHeader title={staffCopy.settings.title} description={staffCopy.settings.description} />
       <div className="settings-layout">
-        <nav aria-label={staffCopy.settings.navAria} className="settings-nav">
-          <ul>
-            {sections.map((section) => (
-              <li key={section.id}>
-                <Link
-                  href={section.route}
-                  aria-current={section.id === activeId ? 'page' : undefined}
-                  className="settings-nav-link"
-                >
-                  {staffCopy.settings.sections[section.copyKey]}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <SettingsNav sections={sections} activeId={activeId} />
         <div className={wide ? 'settings-content settings-content-wide' : 'settings-content'}>
           {activeId ? <SettingsHelp pageId={activeId} /> : null}
           {children}

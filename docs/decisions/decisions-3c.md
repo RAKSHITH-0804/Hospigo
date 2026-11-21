@@ -1,6 +1,6 @@
 # Hospigo Phase 2, Step 3c: decisions and state (written 17 Nov 2026)
 
-Put this file in the repo as `docs/decisions-3c.md`. It records what was decided in the planning chat so any tool or person can continue from the repo alone. Read it together with `docs/handoff-phase2.md`.
+Put this file in the repo as `docs/decisions/decisions-3c.md`. It records what was decided in the planning chat so any tool or person can continue from the repo alone. Read it together with `docs/handoff-phase2.md`.
 
 ## 1. State
 
@@ -8,7 +8,7 @@ Put this file in the repo as `docs/decisions-3c.md`. It records what was decided
 - API part is built, reviewed and verified with three Postman collections (all green): UHID 3c (57 checks), Patients list 3c (101), Patients q search 3c (34). API tests: 281.
 - Web screens are built and polished. W1 render speed, W2 live search toolbar, W3 visual fixes are built (section 8); browser-tested 17 Nov (all checks passed).
 - **Merged:** PR #41 into `develop` (develop at c32185f after the docs PR #42). Tests at merge: API 281, web 314.
-- Later steps, new order (17 Nov): 3d, 4a-1, 4a-2, 4b, 5a, 5b, 6a, 6b, 7, 7b (Settings screens), 8a, 8b, 9. The Sat 21 Nov target was dropped; the new target is Fri 27 Nov, quality first (see `docs/plan-opd-first-flow.md`).
+- Later steps, new order (17 Nov): 3d, 4a-1, 4a-2, 4b, 5a, 5b, 6a, 6b, 7, 7b (Settings screens), 8a, 8b, 9. The Sat 21 Nov target was dropped; the new target is Fri 27 Nov, quality first (see `docs/plans/plan-opd-first-flow.md`).
 
 ## 2. API decisions
 

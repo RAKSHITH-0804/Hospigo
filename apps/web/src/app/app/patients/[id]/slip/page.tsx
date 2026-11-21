@@ -10,7 +10,7 @@ import { slipPageRule } from '@/lib/patients/format';
 import { API_PATIENTS, fetchStaffOnServer, serverErrorCode } from '@/lib/patients/server';
 import type { PatientDetail } from '@/lib/patients/types';
 import { slipItems } from '@/lib/print/documents';
-import { fetchTemplate, readTemplate } from '@/lib/print/server';
+import { fetchLogoImageId, fetchTemplate, readTemplate } from '@/lib/print/server';
 
 export const metadata: Metadata = { title: staffCopy.pageTitles.patientSlip };
 
@@ -18,9 +18,10 @@ export default async function PatientSlipPage({ params }: { params: Promise<{ id
   const session = await requirePermission('patients.registry.read');
   const { id } = await params;
   const hospitalName = session.hospitalName?.trim() || staffCopy.brand;
-  const [detail, templateResult] = await Promise.all([
+  const [detail, templateResult, logoImageId] = await Promise.all([
     fetchStaffOnServer<PatientDetail>(`${API_PATIENTS}/${encodeURIComponent(id)}`),
     fetchTemplate('REGISTRATION_SLIP'),
+    fetchLogoImageId(),
   ]);
 
   if (detail.status === 'notFound') {
@@ -47,6 +48,7 @@ export default async function PatientSlipPage({ params }: { params: Promise<{ id
       <PrintStage
         template={template}
         items={slipItems(detail.data, session.activeBranchName ?? null, hospitalName)}
+        images={{ LOGO: logoImageId }}
         title={staffCopy.patients.slip.title}
         backHref={`/app/patients/${encodeURIComponent(detail.data.id)}`}
         printLabel={staffCopy.patients.slip.print}

@@ -93,6 +93,7 @@ export function PrintToolbar({
   onAddText,
   onAddLine,
   onAddLogo,
+  onAddSignature,
   onDuplicate,
   onRemove,
   onForward,
@@ -124,6 +125,7 @@ export function PrintToolbar({
   onAddText: () => void;
   onAddLine: () => void;
   onAddLogo: () => void;
+  onAddSignature: () => void;
   onDuplicate: () => void;
   onRemove: () => void;
   onForward: () => void;
@@ -167,6 +169,10 @@ export function PrintToolbar({
           onClick={onAddLogo}
         >
           <ImageIcon aria-hidden="true" /> {copy.addLogo}
+        </Button>
+        {/* the doctor's signature or stamp is not part of the letterhead: it can go on pre-printed paper too */}
+        <Button type="button" variant="outline" disabled={off || atMax} onClick={onAddSignature}>
+          <ImageIcon aria-hidden="true" /> {copy.addSignature}
         </Button>
         {atMax ? (
           <span className="type-small text-muted-foreground">

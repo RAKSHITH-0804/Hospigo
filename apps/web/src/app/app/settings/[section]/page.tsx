@@ -8,6 +8,7 @@ import { DoctorsList } from '@/components/settings/doctors-list';
 import { OpdRulesForm } from '@/components/settings/opd-rules-form';
 import { RegistrationFields } from '@/components/settings/registration-fields';
 import { UhidFormatCard } from '@/components/settings/uhid-format-card';
+import { LogoCard } from '@/components/images/logo-card';
 import { CodeFormatCard } from '@/components/staff/code-format-card';
 import { RolesManager } from '@/components/staff/roles-manager';
 import { StaffAdmin } from '@/components/staff/staff-admin';
@@ -20,6 +21,7 @@ import { errorMessageFor } from '@/lib/patients/client';
 import { API_UHID_START_NUMBER, fetchStaffOnServer, serverErrorCode } from '@/lib/patients/server';
 import type { UhidStartNumberResponse } from '@/lib/patients/types';
 import { API_DOCTOR_PROFILES, type DoctorsListResponse } from '@/lib/doctors/types';
+import { API_BRANDING, type BrandingResponse } from '@/lib/images/types';
 import { API_OPD_RULES, API_PATIENT_FIELDS, API_UHID_FORMAT } from '@/lib/settings/paths';
 import {
   API_ROLES,
@@ -35,6 +37,7 @@ import {
   type StaffOptions,
 } from '@/lib/staff/types';
 import type { OpdRules, PatientFieldsResponse, UhidFormatResponse } from '@/lib/settings/types';
+import { fetchLogoImageId } from '@/lib/print/server';
 import {
   PRINT_API_PATH,
   type PrintPresetsResponse,
@@ -111,6 +114,15 @@ export default async function SettingsSectionPage({
       </div>
     );
   }
+  if (section.id === 'branding') {
+    const branding = await fetchStaffOnServer<BrandingResponse>(API_BRANDING);
+    content = (
+      <LogoCard
+        initial={branding.status === 'ok' ? branding.data : null}
+        initialErrorCode={branding.status === 'ok' ? null : serverErrorCode(branding)}
+      />
+    );
+  }
   if (section.id === 'staff') {
     const [list, options] = await Promise.all([
       fetchStaffOnServer<StaffListResponse>(API_STAFF),
@@ -173,9 +185,10 @@ export default async function SettingsSectionPage({
       );
   }
   if (section.id === 'printing') {
-    const [templates, presets] = await Promise.all([
+    const [templates, presets, logoImageId] = await Promise.all([
       fetchStaffOnServer<PrintTemplatesResponse>(PRINT_API_PATH),
       fetchStaffOnServer<PrintPresetsResponse>(`${PRINT_API_PATH}/presets`),
+      fetchLogoImageId(),
     ]);
     if (templates.status !== 'ok') {
       content = (
@@ -196,6 +209,7 @@ export default async function SettingsSectionPage({
           presets={presets.data.items}
           canWrite={session.permissions?.includes('opd.settings.write') ?? false}
           hospitalName={session.hospitalName?.trim() || staffCopy.brand}
+          logoImageId={logoImageId}
         />
       );
     }

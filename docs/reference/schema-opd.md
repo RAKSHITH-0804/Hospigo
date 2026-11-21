@@ -1,6 +1,6 @@
 # OPD schema design (release 1)
 
-Status: DRAFT v1 for review, 14 Nov 2026. Author: Rakshith. Input: `docs/use-cases-opd.md` (v2).
+Status: DRAFT v1 for review, 14 Nov 2026. Author: Rakshith. Input: `docs/plans/use-cases-opd.md` (v2).
 
 Scope: the database design for the OPD block. **Names of existing tables (hospitals, branches, users, patients, audit_logs) are taken from the Phase 1 inspection and must be checked against `schema.prisma` by a read-only inspection before the build.** All other names are proposals.
 
@@ -390,11 +390,11 @@ RLS isolates **hospitals**. Branch isolation (a user of one branch cannot read a
 
 ## As built (Step 5a-1): receipts
 
-`receipts` (id, tenant_id, branch_id, bill_id, receipt_number, total_paise, issued_by, idempotency_key, created_at) is append-only with forced row level security. `payments` has `receipt_id` (no more `receipt_number`). Rules: receipt total = sum of its payments (checked at commit on both tables), one payment mode at most once per receipt, payment and receipt share the bill (composite foreign keys), receipt number unique per hospital, strong bill lock taken before the receipt's foreign key (no deadlock between parallel payers). See `docs/decisions-5a.md`.
+`receipts` (id, tenant_id, branch_id, bill_id, receipt_number, total_paise, issued_by, idempotency_key, created_at) is append-only with forced row level security. `payments` has `receipt_id` (no more `receipt_number`). Rules: receipt total = sum of its payments (checked at commit on both tables), one payment mode at most once per receipt, payment and receipt share the bill (composite foreign keys), receipt number unique per hospital, strong bill lock taken before the receipt's foreign key (no deadlock between parallel payers). See `docs/decisions/decisions-5a.md`.
 
 ## As built (Step 5a-2 and 5a-3): clinical tables
 
-`consultations` (one per visit; `DRAFT` then `COMPLETED`, frozen once completed), `consultation_addenda` (append-only), `visit_vitals` (append-only, versioned, name/unit/kind copied from the master), `prescription_items` (rows of one draft note, deletable only while the note is a draft). All have forced row level security by hospital and no grants for `hospigo_hq` / `hospigo_patient`. The visit guard now also refuses `COMPLETED` before a completed note exists. Rules and decisions: `docs/decisions-5a.md` (PR 2 section).
+`consultations` (one per visit; `DRAFT` then `COMPLETED`, frozen once completed), `consultation_addenda` (append-only), `visit_vitals` (append-only, versioned, name/unit/kind copied from the master), `prescription_items` (rows of one draft note, deletable only while the note is a draft). All have forced row level security by hospital and no grants for `hospigo_hq` / `hospigo_patient`. The visit guard now also refuses `COMPLETED` before a completed note exists. Rules and decisions: `docs/decisions/decisions-5a.md` (PR 2 section).
 
 ## As built (Step 6a, migration `20261121090000_investigations_and_refunds`)
 
@@ -404,13 +404,13 @@ The design sections above planned `investigation_orders` and one `bill_reversals
 - `refund_requests` (instead of `bill_reversals`): `request_type` `REFUND` or `CANCEL_VISIT`, `amount_paise` (0 allowed only for a cancellation), `reason`, `status`, who and when asked and decided, `decision_note`, `refund_number` (only when money is returned), `idempotency_key`. The decider is never the asker.
 - `refunds` (append-only): one row per ORIGINAL payment returned, same payment mode, `reference_no` when the mode needs one. A row writes its `REFUND` ledger entry itself; `bills.refunded_paise` is recalculated by the ledger trigger.
 
-Rules enforced by the database: no refund of a consultation bill once `consultation_started_at` is set; refund never more than the bill's paid minus refunded and never more than that payment received; open requests count against the refundable amount; the bill is locked first; an approved request equals the sum of its refunds at commit; an approved cancellation leaves the visit `CANCELLED`; a WAITING visit becomes CANCELLED only through an approved cancellation request; an investigations bill needs a visit that is IN_CONSULTATION or COMPLETED and every line must be an ordered test. `CHARGE_REVERSAL` is not used yet. See `docs/decisions-6a.md`.
+Rules enforced by the database: no refund of a consultation bill once `consultation_started_at` is set; refund never more than the bill's paid minus refunded and never more than that payment received; open requests count against the refundable amount; the bill is locked first; an approved request equals the sum of its refunds at commit; an approved cancellation leaves the visit `CANCELLED`; a WAITING visit becomes CANCELLED only through an approved cancellation request; an investigations bill needs a visit that is IN_CONSULTATION or COMPLETED and every line must be an ordered test. `CHARGE_REVERSAL` is not used yet. See `docs/decisions/decisions-6a.md`.
 
 ## As built (Step 7, migrations `20261122090000_print_templates` and `20261122091000_report_indexes`)
 
 `print_templates` (one row per hospital or branch and document type; enums `print_doc_type`, `print_paper`, `print_orientation`, `print_mode`): paper, optional width and height (required for LABEL and CUSTOM, forbidden for A4, A5, A6, 20 to 1000 mm), orientation, four margins (0 to 100 mm), mode FULL or PREPRINTED, `preset`, `layout` JSON (object, at most 16 000 characters, fields validated in code), who created and last changed it. A unique index on `(tenant_id, coalesce(branch_id, ''), doc_type)`. The identity never changes (trigger, even for the owner); the app role can change only the setting columns and can delete a row (reset to the built-in default); forced row level security by hospital; no grants for `hospigo_hq` / `hospigo_patient`; truncate refused. Hospitals without a row use the code's default, so nothing is seeded.
 
-Four indexes for the collection report: `payments (tenant, branch, paid_at)`, `refunds (tenant, branch, refunded_at)`, `ledger_entries (tenant, branch, posted_at)`, `opd_visits (tenant, branch, visit_date)`. See `docs/decisions-7.md`.
+Four indexes for the collection report: `payments (tenant, branch, paid_at)`, `refunds (tenant, branch, refunded_at)`, `ledger_entries (tenant, branch, posted_at)`, `opd_visits (tenant, branch, visit_date)`. See `docs/decisions/decisions-7.md`.
 
 **Step 7-5:** `print_templates.layout` holds version 2 (boxes) from now on; rows saved earlier as version 1 are converted when read. The column and its checks are unchanged (object, at most 16 000 characters; the API keeps layouts under 15 000).
 
@@ -437,3 +437,19 @@ New permissions: `opd.doctors.own` (a doctor's own profile; kept off both Admin 
 | `staff_code_settings.last_number` | bigint, default 0   | Raised atomically for each new person; codes already used are skipped             |
 
 Row level security is enabled and forced on `staff_code_settings` (policy `staff_code_settings_app_all`); the isolation spec has a sample row for it.
+
+## Step 7e additions (pictures, migration `20261125090000_stored_images`)
+
+| Table / column                         | Type               | Rule                                                                                                             |
+| -------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `stored_images.id`                     | text, primary key  | Random id; the file is `images/<id>` under the hospital's storage folder                                         |
+| `stored_images.tenant_id`              | text               | The hospital; row level security enabled and forced (policy `stored_images_app_all`)                             |
+| `stored_images.purpose`                | text               | `HOSPITAL_LOGO` or `DOCTOR_SIGNATURE`                                                                            |
+| `stored_images.doctor_profile_id`      | text, optional     | Set for a signature (foreign key per hospital to the doctor profile), empty for the logo (check)                 |
+| `stored_images.content_type`           | text               | `image/png`, `image/jpeg` or `image/webp` only (check)                                                           |
+| `stored_images.byte_size/width/height` | int                | All above zero (check); real values read from the file                                                           |
+| `stored_images.sha256`                 | text               | 64 hex characters (check)                                                                                        |
+| `stored_images.is_current`             | boolean            | At most one `true` per place (partial unique index); the ONLY column the app may change (column grant + trigger) |
+| `stored_images.created_by/created_at`  | text / timestamptz | Who and when; no delete grant: pictures are never removed                                                        |
+
+`consultations.doctor_details` (the copy taken at completion) now also holds `signatureImageId` (the id of the doctor's current signature at that moment, or null); `consultations_guard` was replaced to write it. The isolation spec has a sample row for `stored_images`.

@@ -180,6 +180,100 @@ describe('PrintSheet on plain paper', () => {
     expect(boxOf(container, 'logo')!.textContent).toBe('');
   });
 
+  it('prints the logo and the signature pictures in their own boxes, from the picture route, with no words', () => {
+    const t = withBoxes(makeTemplate('RECEIPT'), [
+      { id: 'logo', type: 'IMAGE', slot: 'LOGO', xMm: 5, yMm: 5, widthMm: 30, heightMm: 20 },
+      {
+        id: 'sig',
+        type: 'IMAGE',
+        slot: 'SIGNATURE',
+        xMm: 100,
+        yMm: 200,
+        widthMm: 40,
+        heightMm: 15,
+      },
+    ]);
+    const { container } = render(
+      <PrintSheet template={t} items={items} images={{ LOGO: 'logo-1', SIGNATURE: 'sig-1' }} />,
+    );
+    const logo = boxOf(container, 'logo')!.querySelector('img')!;
+    const sig = boxOf(container, 'sig')!.querySelector('img')!;
+    expect(logo.getAttribute('src')).toBe('/api/staff/images/logo-1');
+    expect(sig.getAttribute('src')).toBe('/api/staff/images/sig-1');
+    expect(logo.className).toBe('print-image');
+    expect(logo.getAttribute('alt')).toBe('');
+    expect(boxOf(container, 'logo')!.textContent).toBe('');
+  });
+
+  it('a box with no picture for its slot stays empty; one slot never shows the other picture', () => {
+    const t = withBoxes(makeTemplate('RECEIPT'), [
+      { id: 'logo', type: 'IMAGE', slot: 'LOGO', xMm: 5, yMm: 5, widthMm: 30, heightMm: 20 },
+      {
+        id: 'sig',
+        type: 'IMAGE',
+        slot: 'SIGNATURE',
+        xMm: 100,
+        yMm: 200,
+        widthMm: 40,
+        heightMm: 15,
+      },
+    ]);
+    const onlySig = render(
+      <PrintSheet template={t} items={items} images={{ SIGNATURE: 'sig-1' }} />,
+    );
+    expect(boxOf(onlySig.container, 'logo')!.querySelector('img')).toBeNull();
+    expect(boxOf(onlySig.container, 'sig')!.querySelector('img')!.getAttribute('src')).toBe(
+      '/api/staff/images/sig-1',
+    );
+    const none = render(
+      <PrintSheet template={t} items={items} images={{ LOGO: null, SIGNATURE: null }} />,
+    );
+    expect(none.container.querySelector('img')).toBeNull();
+  });
+
+  it('the settings preview marks a picture box that has no picture; a printout leaves it empty', () => {
+    const t = withBoxes(makeTemplate('RECEIPT'), [
+      { id: 'logo', type: 'IMAGE', slot: 'LOGO', xMm: 5, yMm: 5, widthMm: 30, heightMm: 20 },
+      {
+        id: 'sig',
+        type: 'IMAGE',
+        slot: 'SIGNATURE',
+        xMm: 100,
+        yMm: 200,
+        widthMm: 40,
+        heightMm: 15,
+      },
+    ]);
+    const marks = { LOGO: 'Logo mark', SIGNATURE: 'Signature mark' };
+    const preview = render(
+      <PrintSheet
+        template={t}
+        items={items}
+        images={{ LOGO: 'logo-1' }}
+        markEmptyPictures={marks}
+      />,
+    );
+    // the logo has a picture: no marker; the signature has none: marked
+    expect(boxOf(preview.container, 'logo')!.querySelector('img')).toBeTruthy();
+    expect(boxOf(preview.container, 'logo')!.textContent).toBe('');
+    expect(boxOf(preview.container, 'sig')!.textContent).toBe('Signature mark');
+    const printed = render(<PrintSheet template={t} items={items} images={{ LOGO: 'logo-1' }} />);
+    expect(boxOf(printed.container, 'sig')!.textContent).toBe('');
+  });
+
+  it('a picture id cannot break out of its address', () => {
+    const t = withBoxes(makeTemplate('RECEIPT'), [
+      { id: 'logo', type: 'IMAGE', slot: 'LOGO', xMm: 5, yMm: 5, widthMm: 30, heightMm: 20 },
+    ]);
+    const { container } = render(
+      <PrintSheet template={t} items={items} images={{ LOGO: '"><script>' }} />,
+    );
+    expect(container.querySelector('script')).toBeNull();
+    expect(container.querySelector('img')!.getAttribute('src')).toBe(
+      '/api/staff/images/%22%3E%3Cscript%3E',
+    );
+  });
+
   it('text that only looks like markup stays text', () => {
     const t = withBoxes(makeTemplate('RECEIPT'), [textBox('x', '<img src=x onerror=alert(1)>')]);
     const { container } = render(<PrintSheet template={t} items={items} />);
@@ -217,6 +311,31 @@ describe('PrintSheet on pre-printed stationery', () => {
     expect(boxOf(container, 't')).toBeNull();
     expect(boxOf(container, 'rule')).toBeNull();
     expect(boxOf(container, 'logo')).toBeNull();
+  });
+
+  it('still prints the doctor signature or stamp picture (it is not on the stationery), but never the logo', () => {
+    const t = withBoxes(
+      makeTemplate('RECEIPT', { mode: 'PREPRINTED', pageWidthMm: 240, pageHeightMm: 140 }),
+      [
+        { id: 'logo', type: 'IMAGE', slot: 'LOGO', xMm: 5, yMm: 5, widthMm: 30, heightMm: 20 },
+        {
+          id: 'sig',
+          type: 'IMAGE',
+          slot: 'SIGNATURE',
+          xMm: 100,
+          yMm: 100,
+          widthMm: 40,
+          heightMm: 15,
+        },
+      ],
+    );
+    const { container } = render(
+      <PrintSheet template={t} items={items} images={{ LOGO: 'logo-1', SIGNATURE: 'sig-1' }} />,
+    );
+    expect(boxOf(container, 'logo')).toBeNull();
+    expect(boxOf(container, 'sig')!.querySelector('img')!.getAttribute('src')).toBe(
+      '/api/staff/images/sig-1',
+    );
   });
 
   it('puts each value at its position plus the nudge, on a page of exactly the stationery size', () => {

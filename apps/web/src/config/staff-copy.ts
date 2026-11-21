@@ -230,6 +230,13 @@ export const staffCopy = {
       opdRules: 'OPD rules',
       staff: 'Staff',
       roles: 'Roles',
+      branding: 'Logo',
+    },
+    groups: {
+      hospital: 'Hospital',
+      people: 'People',
+      patients: 'Patients',
+      opd: 'OPD',
     },
     help: {
       aboutTitle: 'About this page',
@@ -297,6 +304,7 @@ export const staffCopy = {
             'Find the doctor in the list. A tag shows when details are still empty.',
             'Press Edit next to the doctor.',
             'Fill Name as printed, Qualifications, Speciality, Registration number and Department, then press Save.',
+            'To add or change the signature or stamp picture of the doctor, use Choose picture in the same panel.',
           ],
           example:
             'Name as printed: Dr. A. Rao. Qualifications: MBBS, MD (General Medicine). Registration number: KMC/12345. The prescription then prints these lines under the doctor name.',
@@ -314,6 +322,7 @@ export const staffCopy = {
             'Name as printed: type your name the way it should print, for example Dr. A. Rao. Leave it empty to print your login name.',
             'Type your qualifications, speciality and medical council registration number.',
             'Press Save.',
+            'Under Signature or stamp, press Choose picture to add a picture of your signature or stamp.',
           ],
           example:
             'Qualifications: MBBS, MD (General Medicine). Speciality: General Medicine. Registration number: KMC/12345.',
@@ -321,6 +330,21 @@ export const staffCopy = {
             'A prescription keeps the details as they were when you completed it. Changing them later does not change old prescriptions.',
             'Your department is set by an Admin. Ask them to change it.',
             'An empty detail simply prints empty. A prescription is never blocked.',
+            'Your picture prints only where the prescription template has a signature box. Old prescriptions keep the picture they were signed with.',
+          ],
+        },
+        branding: {
+          what: 'The hospital logo is the picture that prints at the top of the registration slip, the receipt and the prescription.',
+          steps: [
+            'Press Choose picture and pick the logo file from your computer.',
+            'The new logo shows at once. Press Replace picture to change it later, or Remove to stop printing a logo.',
+            'In Settings, Printing, press Add logo box and place the box where the logo should print.',
+          ],
+          example: 'A square or wide PNG of the hospital emblem with a white or clear background.',
+          good: [
+            'Only a SuperAdmin changes the logo, because it is the same for every branch.',
+            'Pictures must be PNG, JPEG or WebP and small. The limits are shown under the picture.',
+            'An old logo is never deleted. Printing on pre-printed stationery does not print the logo.',
           ],
         },
         staff: {
@@ -435,6 +459,7 @@ export const staffCopy = {
       boxText: 'Text box',
       boxLine: 'Line',
       boxLogo: 'Logo box',
+      boxSignature: 'Signature box',
       textLabel: 'Text',
       textDefault: 'Your text',
       editorAria: 'Text of the box. Type, select words and use the ribbon to change them.',
@@ -447,6 +472,7 @@ export const staffCopy = {
       insertValueHint:
         'Puts a value of the document (for example the patient name) into the text, like a mail-merge field.',
       logoMarker: 'Logo',
+      signatureMarker: 'Signature',
       sizeLabel: 'Text size',
       fontFamilyLabel: 'Font',
       fontSans: 'Sans',
@@ -469,6 +495,7 @@ export const staffCopy = {
       addText: 'Add text',
       addLine: 'Add line',
       addLogo: 'Add logo box',
+      addSignature: 'Add signature box',
       duplicate: 'Duplicate',
       remove: 'Delete',
       forward: 'Bring forward',
@@ -500,6 +527,10 @@ export const staffCopy = {
       readOnly:
         'You can look at these settings. Only an Admin with the settings permission can change them.',
       previewNote: 'Sample data, not a real patient. The page is shown at its real size.',
+      pictureMarkerNote:
+        'A dashed box marks a picture that is not uploaded yet. When printing, an empty picture box stays empty.',
+      signatureOnlyPrescription:
+        'The signature picture prints only on the prescription, where there is a doctor. On this page the signature box stays empty.',
       invalid: 'Cannot save: {field} {reason}',
       boxNamed: 'box {number} ({field})',
       fieldNames: {
@@ -721,6 +752,8 @@ export const staffCopy = {
       columnQualifications: 'Qualifications',
       columnSpeciality: 'Speciality',
       columnRegistration: 'Registration no.',
+      columnSignature: 'Signature or stamp',
+      signatureAdded: 'Added',
       columnWorksIn: 'Works in',
       notSet: 'Not set',
       missingTag: 'Details missing',
@@ -864,6 +897,44 @@ export const staffCopy = {
     } as Record<string, string>,
     consultReminder: 'Your registration number is empty, so it prints empty on this prescription.',
     consultReminderLink: 'Open My profile',
+  },
+  pictures: {
+    logo: {
+      title: 'Hospital logo',
+      description: 'The picture that prints at the top of slips, receipts and prescriptions.',
+      alt: 'Hospital logo',
+      readOnly: 'You can see the logo but only a SuperAdmin changes it.',
+      note: 'Add a logo box in Settings, Printing, to place the logo on a page. An old logo is kept on record.',
+      loadError: 'Could not load the logo.',
+    },
+    signature: {
+      title: 'Signature or stamp',
+      description: 'Printed on the prescription where the template has a signature box.',
+      alt: 'Signature or stamp',
+      note: 'A completed prescription keeps the picture it was signed with.',
+    },
+    picker: {
+      none: 'No picture yet',
+      choose: 'Choose picture',
+      replace: 'Replace picture',
+      remove: 'Remove',
+      uploading: 'Uploading…',
+      chooseAria: 'Choose a picture file',
+      saved: 'Picture saved.',
+      removed: 'Picture removed.',
+      facts: '{width} × {height} pixels, {size}',
+    },
+    rules: 'PNG, JPEG or WebP, up to {size}, from {min} to {max} pixels on each side.',
+    errors: {
+      REQUIRED: 'Choose a picture file first.',
+      EMPTY: 'That file is empty.',
+      TOO_BIG: 'That file is too big. The most allowed is {size}.',
+      NOT_AN_IMAGE: 'That is not a PNG, JPEG or WebP picture.',
+      CORRUPT: 'That picture file looks damaged. Try saving it again.',
+      TOO_SMALL: 'That picture is too small. Each side needs at least {min} pixels.',
+      TOO_LARGE_PIXELS: 'That picture is too large. Each side can be at most {max} pixels.',
+      fallback: 'That picture could not be saved. Check the file and try again.',
+    } as Record<string, string>,
   },
   staffAdmin: {
     staff: {

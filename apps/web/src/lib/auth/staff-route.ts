@@ -14,6 +14,8 @@ export type StaffRouteOptions = {
   path: string;
   query?: CallStaffApiOptions['query'];
   body?: unknown;
+  /** A file upload (multipart form), sent instead of a JSON body. */
+  form?: FormData;
   /** A file download: the API's bytes are passed on with this type and file name. */
   download?: { contentType: string; fileName: string };
   /**
@@ -132,6 +134,7 @@ export async function staffRoute(options: StaffRouteOptions): Promise<NextRespon
     method,
     query: options.query,
     body: options.body,
+    form: options.form,
     ...(options.download ? { raw: true } : {}),
   });
 

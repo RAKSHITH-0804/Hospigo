@@ -1,12 +1,12 @@
 # Decisions, Step 6b (tests and refunds on the screens)
 
-Web only. No API change, no migration, no new permission code (all of that was 6a, see `docs/decisions-6a.md`). Branch `feature/phase2-step-6b-tests-refunds-web`, made from the committed 6a branch (commit c819fa6).
+Web only. No API change, no migration, no new permission code (all of that was 6a, see `docs/decisions/decisions-6a.md`). Branch `feature/phase2-step-6b-tests-refunds-web`, made from the committed 6a branch (commit c819fa6).
 
 ## Answers from Rakshith (planning, 20 Nov)
 
 - 6a is committed first, 6b branches from it (two reviews, two PRs).
 - Admin finds refund requests through a **tab strip on the OPD pages** (not a separate sidebar item).
-- The pharmacy receives a prescription **when the doctor completes the consultation**, not on every draft save. LAB and PHARMACY are Phase 3: `docs/future-lab-pharmacy.md`.
+- The pharmacy receives a prescription **when the doctor completes the consultation**, not on every draft save. LAB and PHARMACY are Phase 3: `docs/plans/future-lab-pharmacy.md`.
 
 ## What was built
 
@@ -49,7 +49,7 @@ Needs the 6a migration and the re-run dev seed (`NODE_ENV=development npm run pr
 
 ## Not in 6b
 
-A printed refund voucher (Step 7), any Settings screen (7b), lab results and the pharmacy (`docs/future-lab-pharmacy.md`), recording that a patient declines ALL tests (see follow-ups), editing a bill, adding a test after the note is completed.
+A printed refund voucher (Step 7), any Settings screen (7b), lab results and the pharmacy (`docs/plans/future-lab-pharmacy.md`), recording that a patient declines ALL tests (see follow-ups), editing a bill, adding a test after the note is completed.
 
 ## Follow-ups noticed, not fixed
 

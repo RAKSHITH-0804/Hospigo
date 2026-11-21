@@ -5,7 +5,7 @@ import VisitReceiptPage from '@/app/app/opd/visits/[id]/receipt/page';
 import PrescriptionPrintPage from '@/app/app/opd/visits/[id]/prescription/page';
 import SettingsSectionPage from '@/app/app/settings/[section]/page';
 import { staffCopy } from '@/config/staff-copy';
-import { makeTemplate, withFields } from '@/lib/print/print-test-fixtures';
+import { makeTemplate, withBoxes, withFields } from '@/lib/print/print-test-fixtures';
 
 const sessionMock = jest.fn();
 const routes = new Map<string, unknown>();
@@ -161,6 +161,30 @@ describe('receipt page with a template', () => {
     expect(screen.getByRole('button', { name: staffCopy.opd.receipt.print })).toBeTruthy();
   });
 
+  it('prints the hospital logo in a logo box, and still prints when the logo cannot be read', async () => {
+    const logoTemplate = withBoxes(withFields(makeTemplate('RECEIPT'), ['patientName']), [
+      ...withFields(makeTemplate('RECEIPT'), ['patientName']).layout.elements,
+      { id: 'logo', type: 'IMAGE', slot: 'LOGO', xMm: 5, yMm: 5, widthMm: 30, heightMm: 20 },
+    ]);
+    sessionMock.mockResolvedValue(session(['opd.visits.read', 'opd.billing.read']));
+    routes.set('/opd/visits/p1', ok(visit));
+    routes.set('/print-templates/RECEIPT', ok(logoTemplate));
+    routes.set('/settings/branding', ok({ logo: { id: 'logo-9' }, canWrite: false, limits: {} }));
+    const first = render(await VisitReceiptPage(idParams));
+    expect(first.container.querySelector('img.print-image')!.getAttribute('src')).toBe(
+      '/api/staff/images/logo-9',
+    );
+    first.unmount();
+    routes.set('/settings/branding', { status: 'error', code: 'UNAVAILABLE' });
+    const second = render(await VisitReceiptPage(idParams));
+    expect(second.container.querySelector('img')).toBeNull();
+    expect(screen.getByText('Asha Rao')).toBeTruthy(); // the receipt itself still prints
+    second.unmount();
+    routes.set('/settings/branding', ok({ logo: null, canWrite: false, limits: {} }));
+    const third = render(await VisitReceiptPage(idParams));
+    expect(third.container.querySelector('img')).toBeNull();
+  });
+
   it('falls back to the older receipt when the template is switched off', async () => {
     sessionMock.mockResolvedValue(session(['opd.visits.read', 'opd.billing.read']));
     routes.set('/opd/visits/p1', ok(visit));
@@ -206,6 +230,22 @@ describe('registration slip page with a template', () => {
     expect(screen.getByText('HSP-0001')).toBeTruthy();
     expect(screen.getByText('Main Branch')).toBeTruthy();
     expect(screen.queryByText('9876543210')).toBeNull(); // phone is off
+  });
+
+  it('prints the logo on the registration slip', async () => {
+    const base2 = withFields(makeTemplate('REGISTRATION_SLIP'), ['patientName']);
+    const t = withBoxes(base2, [
+      ...base2.layout.elements,
+      { id: 'logo', type: 'IMAGE', slot: 'LOGO', xMm: 5, yMm: 5, widthMm: 30, heightMm: 20 },
+    ]);
+    sessionMock.mockResolvedValue(session(['patients.registry.read']));
+    routes.set('/patients/p1', ok(patient));
+    routes.set('/print-templates/REGISTRATION_SLIP', ok(t));
+    routes.set('/settings/branding', ok({ logo: { id: 'logo-5' }, canWrite: false, limits: {} }));
+    const { container } = render(await PatientSlipPage(idParams));
+    expect(container.querySelector('img.print-image')!.getAttribute('src')).toBe(
+      '/api/staff/images/logo-5',
+    );
   });
 
   it('falls back to the older slip without a usable template', async () => {
@@ -264,6 +304,59 @@ describe('prescription print page', () => {
     expect(screen.getByText(/MBBS, MD/)).toBeTruthy();
     expect(screen.getByText(/General Medicine/)).toBeTruthy();
     expect(screen.getByText(/KMC\/12345/)).toBeTruthy();
+  });
+
+  it('prints the logo, and the signature the note was completed with (never a newer one)', async () => {
+    const base2 = withFields(
+      makeTemplate('PRESCRIPTION', { paper: 'A4', pageWidthMm: 210, pageHeightMm: 297 }),
+      ['patientName'],
+    );
+    const withPictures = withBoxes(base2, [
+      ...base2.layout.elements,
+      { id: 'logo', type: 'IMAGE', slot: 'LOGO', xMm: 5, yMm: 5, widthMm: 30, heightMm: 20 },
+      {
+        id: 'sig',
+        type: 'IMAGE',
+        slot: 'SIGNATURE',
+        xMm: 130,
+        yMm: 250,
+        widthMm: 50,
+        heightMm: 20,
+      },
+    ]);
+    const consult = completedConsult() as { doctorDetails: Record<string, unknown> };
+    consult.doctorDetails = { ...consult.doctorDetails, signatureImageId: 'sig-old' };
+    sessionMock.mockResolvedValue(session(['opd.notes.read']));
+    routes.set('/opd/visits/p1/consultation', ok(consult));
+    routes.set('/print-templates/PRESCRIPTION', ok(withPictures));
+    routes.set('/settings/branding', ok({ logo: { id: 'logo-3' }, canWrite: false, limits: {} }));
+    const { container } = render(await PrescriptionPrintPage(idParams));
+    const srcs = [...container.querySelectorAll('img.print-image')].map((i) =>
+      i.getAttribute('src'),
+    );
+    expect(srcs).toEqual(['/api/staff/images/logo-3', '/api/staff/images/sig-old']);
+  });
+
+  it('a note completed before signatures existed prints no signature picture', async () => {
+    const base2 = withFields(makeTemplate('PRESCRIPTION'), ['patientName']);
+    const withSig = withBoxes(base2, [
+      ...base2.layout.elements,
+      {
+        id: 'sig',
+        type: 'IMAGE',
+        slot: 'SIGNATURE',
+        xMm: 130,
+        yMm: 250,
+        widthMm: 50,
+        heightMm: 20,
+      },
+    ]);
+    sessionMock.mockResolvedValue(session(['opd.notes.read']));
+    routes.set('/opd/visits/p1/consultation', ok(completedConsult()));
+    routes.set('/print-templates/PRESCRIPTION', ok(withSig));
+    routes.delete('/settings/branding');
+    const { container } = render(await PrescriptionPrintPage(idParams));
+    expect(container.querySelector('img')).toBeNull();
   });
 
   it('does not print a consultation that is not completed', async () => {
@@ -326,6 +419,19 @@ describe('printing settings section', () => {
     render(await SettingsSectionPage(section));
     expect(screen.queryByText(copy.readOnly)).toBeNull();
     expect(screen.getByRole('button', { name: copy.save }).matches(':disabled')).toBe(false);
+  });
+
+  it('reads the current logo for the preview, and a failed read just means no logo', async () => {
+    routes.set('/print-templates', ok(list));
+    routes.set('/print-templates/presets', ok(presets));
+    sessionMock.mockResolvedValue(session(['hospital.settings.read']));
+    routes.set('/settings/branding', ok({ logo: { id: 'logo-7' }, canWrite: true, limits: {} }));
+    const first = render(await SettingsSectionPage(section));
+    expect(screen.getByRole('option', { name: 'A4, full letterhead' })).toBeTruthy();
+    first.unmount();
+    routes.set('/settings/branding', { status: 'error', code: 'UNAVAILABLE' });
+    render(await SettingsSectionPage(section));
+    expect(screen.getByRole('option', { name: 'A4, full letterhead' })).toBeTruthy();
   });
 
   it('shows a calm error when the templates or the presets cannot be loaded', async () => {

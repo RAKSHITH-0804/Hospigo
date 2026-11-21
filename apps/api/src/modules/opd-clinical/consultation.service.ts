@@ -47,6 +47,8 @@ export type DoctorDetails = {
   qualifications: string | null;
   speciality: string | null;
   registrationNo: string | null;
+  /** The signature or stamp picture: the one the doctor had when the note was completed (or has now, for a draft). */
+  signatureImageId: string | null;
   /** true: the copy taken when the note was completed; false: the profile as it is now. */
   fromCompletedCopy: boolean;
 };
@@ -77,6 +79,7 @@ async function loadDoctorDetails(
       qualifications: textOrNull(copy.qualifications),
       speciality: textOrNull(copy.speciality),
       registrationNo: textOrNull(copy.registrationNo),
+      signatureImageId: textOrNull(copy.signatureImageId),
       fromCompletedCopy: true,
     };
   }
@@ -91,6 +94,15 @@ async function loadDoctorDetails(
       user: { select: { displayName: true } },
     },
   });
+  const signature = await tx.storedImage.findFirst({
+    where: {
+      tenantId: actor.tenantId,
+      doctorProfileId,
+      purpose: 'DOCTOR_SIGNATURE',
+      isCurrent: true,
+    },
+    select: { id: true },
+  });
   return {
     name: profile.user.displayName,
     printedName: profile.printedName,
@@ -99,6 +111,7 @@ async function loadDoctorDetails(
     qualifications: profile.qualifications,
     speciality: profile.speciality,
     registrationNo: profile.registrationNo,
+    signatureImageId: signature?.id ?? null,
     fromCompletedCopy: false,
   };
 }

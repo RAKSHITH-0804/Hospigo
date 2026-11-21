@@ -14,8 +14,8 @@ export type ElementFont = (typeof ELEMENT_FONTS)[number];
 /** Black and grey only: many printers print one colour. */
 export const ELEMENT_TONES = ['BLACK', 'GREY'] as const;
 export type ElementTone = (typeof ELEMENT_TONES)[number];
-/** The only picture slot for now; the picture itself comes with the upload step. */
-export const IMAGE_SLOTS = ['LOGO'] as const;
+/** Picture slots: the hospital logo and the doctor's signature or stamp. */
+export const IMAGE_SLOTS = ['LOGO', 'SIGNATURE'] as const;
 export type ImageSlot = (typeof IMAGE_SLOTS)[number];
 
 export type PrintElement = {

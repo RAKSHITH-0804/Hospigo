@@ -1,3 +1,4 @@
+import { API_BRANDING, type BrandingResponse } from '@/lib/images/types';
 import { fetchStaffOnServer, type ServerFetch } from '@/lib/patients/server';
 import { PRINT_API_PATH, type PrintDocType, type PrintTemplate } from './types';
 
@@ -40,4 +41,13 @@ export function readTemplate(result: ServerFetch<unknown>): PrintTemplate | null
 /** The template a document prints with (the hospital's own, or the built-in default). */
 export async function fetchTemplate(docType: PrintDocType): Promise<ServerFetch<unknown>> {
   return fetchStaffOnServer<unknown>(`${PRINT_API_PATH}/${docType}`);
+}
+
+/**
+ * The id of the current hospital logo, or null. A print page must still print when the logo cannot
+ * be read, so every failure means "no logo" and never an error.
+ */
+export async function fetchLogoImageId(): Promise<string | null> {
+  const result = await fetchStaffOnServer<BrandingResponse>(API_BRANDING);
+  return result.status === 'ok' ? (result.data.logo?.id ?? null) : null;
 }

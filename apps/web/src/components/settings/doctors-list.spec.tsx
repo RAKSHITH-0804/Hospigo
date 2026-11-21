@@ -32,6 +32,7 @@ const doctor = (over: Partial<DoctorProfile> = {}): DoctorProfile => ({
   active: true,
   branches: ['Main Branch'],
   missing: ['qualifications', 'speciality', 'registrationNo'],
+  signature: null,
   ...over,
 });
 const full = (over: Partial<DoctorProfile> = {}): DoctorProfile =>
@@ -51,6 +52,12 @@ const full = (over: Partial<DoctorProfile> = {}): DoctorProfile =>
 const data = (over: Partial<DoctorsListResponse> = {}): DoctorsListResponse => ({
   items: [doctor(), full()],
   limits,
+  images: {
+    maxBytes: 1048576,
+    maxSidePx: 4000,
+    minSidePx: 16,
+    types: ['image/png', 'image/jpeg', 'image/webp'],
+  },
   canWrite: true,
   ...over,
 });

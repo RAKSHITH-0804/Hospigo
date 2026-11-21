@@ -26,6 +26,7 @@ import {
   newFieldBox,
   newLineBox,
   newLogoBox,
+  newSignatureBox,
   newTextBox,
   removeBox,
   removeField,
@@ -92,11 +93,14 @@ export function PrintingSettings({
   presets,
   canWrite,
   hospitalName,
+  logoImageId,
 }: {
   templates: PrintTemplate[];
   presets: PrintPreset[];
   canWrite: boolean;
   hospitalName: string;
+  /** The current hospital logo (shown in the preview), or none. */
+  logoImageId?: string | null;
 }) {
   const [saved, setSaved] = useState<Record<string, PrintTemplate>>(() =>
     Object.fromEntries(templates.map((t) => [t.docType, t])),
@@ -643,6 +647,10 @@ export function PrintingSettings({
                   stopEditing();
                   add((all, p) => newLogoBox(all, p));
                 }}
+                onAddSignature={() => {
+                  stopEditing();
+                  add((all, p) => newSignatureBox(all, p));
+                }}
                 onDuplicate={() =>
                   selected && page && add((all, p) => duplicateBox(all, selected, p))
                 }
@@ -699,8 +707,19 @@ export function PrintingSettings({
           ) : template ? (
             <section aria-label={copy.modePreview} className="printing-preview">
               <p className="type-label text-muted-foreground">{copy.previewNote}</p>
+              {docType !== 'PRESCRIPTION' &&
+              template.layout.elements.some((e) => e.type === 'IMAGE' && e.slot === 'SIGNATURE') ? (
+                <p className="type-label text-muted-foreground">{copy.signatureOnlyPrescription}</p>
+              ) : (
+                <p className="type-label text-muted-foreground">{copy.pictureMarkerNote}</p>
+              )}
               <div className="print-paper-wrap">
-                <PrintSheet template={template} items={items} />
+                <PrintSheet
+                  template={template}
+                  items={items}
+                  images={{ LOGO: logoImageId ?? null }}
+                  markEmptyPictures={{ LOGO: copy.logoMarker, SIGNATURE: copy.signatureMarker }}
+                />
               </div>
             </section>
           ) : null}

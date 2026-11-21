@@ -1,3 +1,5 @@
+import { removePicture, uploadPicture } from '@/lib/images/client';
+import { IMAGE_ROUTES, doctorSignatureRoute } from '@/lib/images/types';
 import { patientsApi, type PatientsApiResult } from '@/lib/patients/client';
 import {
   DOCTOR_ROUTES,
@@ -21,3 +23,19 @@ export const saveDoctorProfile = (
     method: 'PUT',
     body,
   });
+
+/** The signature or stamp picture: a doctor changes their own, an Admin one of their doctors. */
+export const uploadMySignature = (file: File): Promise<PatientsApiResult<MyProfileResponse>> =>
+  uploadPicture<MyProfileResponse>(IMAGE_ROUTES.mySignature, file);
+
+export const removeMySignature = (): Promise<PatientsApiResult<MyProfileResponse>> =>
+  removePicture<MyProfileResponse>(IMAGE_ROUTES.mySignatureRemove);
+
+export const uploadDoctorSignature = (
+  id: string,
+  file: File,
+): Promise<PatientsApiResult<DoctorProfile>> =>
+  uploadPicture<DoctorProfile>(doctorSignatureRoute(id), file);
+
+export const removeDoctorSignature = (id: string): Promise<PatientsApiResult<DoctorProfile>> =>
+  removePicture<DoctorProfile>(`${doctorSignatureRoute(id)}/remove`);

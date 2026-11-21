@@ -97,6 +97,21 @@ describe('staffErrorMessage', () => {
   });
 });
 
+describe('the picture help texts', () => {
+  it('the Logo page has help with the real button names, and the doctor help mentions the picture', () => {
+    const pages = staffCopy.settings.help.pages;
+    const logo = pages.branding!;
+    expect(logo.steps.length).toBeGreaterThanOrEqual(2);
+    expect(logo.steps.join(' ')).toContain(staffCopy.pictures.picker.choose);
+    expect(logo.steps.join(' ')).toContain(staffCopy.pictures.picker.replace);
+    expect(logo.steps.join(' ')).toContain(staffCopy.pictures.picker.remove);
+    expect(logo.steps.join(' ')).toContain(staffCopy.settings.printing.addLogo.replace(' box', ''));
+    expect(pages['doctor-profile']!.steps.join(' ')).toContain(staffCopy.pictures.picker.choose);
+    expect(pages['doctor-profile']!.steps.join(' ')).toContain(staffCopy.pictures.signature.title);
+    expect(pages.doctors!.steps.join(' ')).toContain(staffCopy.pictures.picker.choose);
+  });
+});
+
 describe('the staff help texts', () => {
   const pages = staffCopy.settings.help.pages;
   it('Staff, Roles and My profile have help with the real button names', () => {
