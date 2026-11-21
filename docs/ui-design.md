@@ -156,6 +156,12 @@ Density tokens live in `globals.css` (control ~32px, body/label ~13/12px, card r
 - **Doctors** (Settings, `/app/settings/doctors`, needs `opd.doctors.read`): one card per doctor with what prints, the department and the branches; "Details missing" tag; Edit opens the five fields (including the department). Cards, not a table, because a doctor has too many details for aligned columns.
 - The consultation screen shows a quiet note with a link to My profile when the registration number is empty; Complete is never blocked.
 
+## Staff, roles and My profile (Step 7d)
+
+- **Staff** (Settings, `/app/settings/staff`, needs `user.read`): a toolbar (search, status filter, Add staff), then one card per person (name and code, status tag, email, phone, branches, roles, last sign-in), side by side on wide screens and stacked on a phone. Edit and the Add form open inside the page; Switch off asks "Yes / Cancel" first. The **Staff code format** card sits beside the list (wide screens) or below it. Blocked roles are shown greyed with the reason in words. The help block is closed until "Show help" is pressed.
+- **Roles** (Settings, `/app/settings/roles`, needs `role.read`): one card per role (ready-made roles tagged and fixed). The editor has name, description, a "Start from" list of ready-made roles and the permissions ticked by area in side-by-side groups with plain descriptions.
+- **My profile** (`/app/profile`, every signed-in person; the user menu always shows it): "Your details" beside "Email address" and "Password" (each a small step-by-step: type, get a code, confirm). The doctor part appears below for doctors. After a password change the page signs this browser out and goes to sign-in with the "password updated" note.
+
 ## Use of space (standing rule, 21 Nov 2026)
 
 Rakshith's rule for every page: no big empty areas and no scrolling that is not needed. Wide screens use blocks side by side (`settings-columns`, `settings-doctors`: `auto-fit` grids with a minimum width token); narrow screens stack them. Page and block titles are not repeated; an empty description renders nothing; a confirmation line takes no room until it has something to say (`settings-flash-lazy`) unless a jump would hurt (tables). Detail goes in a hover tip or the help block. Check phone, tablet and wide widths before calling a page done. Pages built before this rule have not been checked against it yet (see the handoff).

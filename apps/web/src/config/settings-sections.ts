@@ -10,7 +10,14 @@ export type SettingsSection = {
   /** URL segment: /app/settings/<id>. */
   id: string;
   /** Key of staffCopy.settings.sections for the nav label. */
-  copyKey: 'patientRegistration' | 'patientNumbers' | 'doctors' | 'printing' | 'opdRules';
+  copyKey:
+    | 'patientRegistration'
+    | 'patientNumbers'
+    | 'doctors'
+    | 'printing'
+    | 'opdRules'
+    | 'staff'
+    | 'roles';
   route: string;
   /** Permission needed to view the section (changing needs the matching write permission). */
   permission: string;
@@ -28,6 +35,18 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     copyKey: 'patientNumbers',
     route: `${SETTINGS_BASE_ROUTE}/patient-numbers`,
     permission: 'hospital.settings.read',
+  },
+  {
+    id: 'staff',
+    copyKey: 'staff',
+    route: `${SETTINGS_BASE_ROUTE}/staff`,
+    permission: 'user.read',
+  },
+  {
+    id: 'roles',
+    copyKey: 'roles',
+    route: `${SETTINGS_BASE_ROUTE}/roles`,
+    permission: 'role.read',
   },
   {
     id: 'doctors',

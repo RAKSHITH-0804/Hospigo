@@ -212,6 +212,8 @@
   --size-col-check: 6.5rem;
   --size-col-action: 4.75rem;
   --size-column-min: 24rem;
+  --size-choice-min: 13rem;
+  --size-card-min: 19rem;
   --size-slip-max: 24rem;
   --font-size-token: 2.5rem;
   --size-skeleton-line: 0.75rem;
@@ -2070,6 +2072,94 @@
     margin: 0;
     gap: var(--space-2) var(--space-4);
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
+  }
+
+  /* Step 7d staff and roles: toolbar, tags and tick lists that fill the width. */
+  .staff-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-2);
+  }
+
+  .staff-toolbar-grow {
+    flex: 1 1 14rem;
+    min-width: 0;
+  }
+
+  .staff-tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .staff-choices {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    gap: var(--space-1) var(--space-3);
+    list-style: none;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--size-choice-min)), 1fr));
+  }
+
+  .staff-choice {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  /* Cards in as many columns as fit; an open editor takes the whole row so the page stays short. */
+  .staff-cards {
+    display: grid;
+    align-items: start;
+    margin: 0;
+    padding: 0;
+    gap: var(--space-2);
+    list-style: none;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--size-card-min)), 1fr));
+  }
+
+  .staff-cards > .staff-open {
+    grid-column: 1 / -1;
+  }
+
+  .staff-cards .settings-doctor {
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .staff-cards .settings-doctor-details {
+    gap: var(--space-1) var(--space-3);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 7rem), 1fr));
+  }
+
+  .staff-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-3);
+  }
+
+  .staff-groups .settings-check,
+  .staff-group .settings-check {
+    min-height: 1.75rem;
+  }
+
+  .staff-groups {
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  }
+
+  .staff-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin: 0;
+    padding: var(--space-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
   }
 
   .settings-sample-block {

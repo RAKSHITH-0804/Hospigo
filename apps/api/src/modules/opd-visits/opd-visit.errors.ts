@@ -49,6 +49,10 @@ export const OpdErrorCode = {
   // ---- Step 7b: settings screens
   SETTINGS_INVALID: 'SETTINGS_INVALID',
   SETTINGS_NOT_FOUND: 'SETTINGS_NOT_FOUND',
+  // ---- Step 7d: staff, roles and the account page
+  STAFF_CONFLICT: 'STAFF_CONFLICT',
+  OTP_INVALID: 'OTP_INVALID',
+  RATE_LIMITED: 'RATE_LIMITED',
 } as const;
 
 export type OpdErrorCode = (typeof OpdErrorCode)[keyof typeof OpdErrorCode];

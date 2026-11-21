@@ -929,6 +929,10 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
       },
     });
     sampleB.print_templates = printTemplate.id;
+
+    // Step 7d: the staff code settings of hospital B (one row per hospital, the hospital id is the key).
+    await prisma.staffCodeSettings.create({ data: { tenantId: tenantB } });
+    sampleB.staff_code_settings = tenantB;
   });
 
   afterAll(async () => {

@@ -48,6 +48,8 @@ export type UpstreamErrorPayload = {
   refundablePaise?: number;
   pendingPaise?: number;
   max?: number;
+  /** Seconds to wait before another code may be asked for. */
+  retryAfterSec?: number;
 };
 
 const SAFE_TEXT_KEYS = [
@@ -59,7 +61,14 @@ const SAFE_TEXT_KEYS = [
   'status',
   'series',
 ] as const;
-const SAFE_NUMBER_KEYS = ['totalPaise', 'index', 'refundablePaise', 'pendingPaise', 'max'] as const;
+const SAFE_NUMBER_KEYS = [
+  'totalPaise',
+  'index',
+  'refundablePaise',
+  'pendingPaise',
+  'max',
+  'retryAfterSec',
+] as const;
 
 /** Pick only known upstream error fields for the browser. Never forwards tokens. */
 function safeUpstreamErrorPayload(body: Record<string, unknown> | undefined): UpstreamErrorPayload {

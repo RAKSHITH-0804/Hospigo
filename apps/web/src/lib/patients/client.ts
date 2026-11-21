@@ -44,6 +44,8 @@ export type PatientsApiError = {
   refundablePaise?: number;
   pendingPaise?: number;
   max?: number;
+  /** Seconds to wait before asking for another code (a refusal of too many requests). */
+  retryAfterSec?: number;
 };
 export type PatientsApiResult<T> = PatientsApiOk<T> | PatientsApiError;
 
@@ -141,6 +143,7 @@ async function fetchPatientsOnce<T>(
         typeof record.refundablePaise === 'number' ? record.refundablePaise : undefined,
       pendingPaise: typeof record.pendingPaise === 'number' ? record.pendingPaise : undefined,
       max: typeof record.max === 'number' ? record.max : undefined,
+      retryAfterSec: typeof record.retryAfterSec === 'number' ? record.retryAfterSec : undefined,
     };
   } catch (error) {
     if (init.signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {

@@ -425,3 +425,15 @@ Four indexes for the collection report: `payments (tenant, branch, paid_at)`, `r
 | `consultations.doctor_details`    | jsonb, optional | Copy of `name, printedName, department, qualifications, speciality, registrationNo`, written by the `consultations_guard` trigger when the note becomes COMPLETED. The app role has no UPDATE right on it and the insert trigger clears it. Notes completed before this step have none |
 
 New permissions: `opd.doctors.own` (a doctor's own profile; kept off both Admin roles), `opd.doctors.read`, `opd.doctors.write` (Admin roles).
+
+## Step 7d additions (staff and roles, migration `20261124090000_staff_and_roles`)
+
+| Table / column                    | Type                | Rule                                                                              |
+| --------------------------------- | ------------------- | --------------------------------------------------------------------------------- |
+| `users.phone`                     | text, optional      | `^[0-9+ ()-]{7,20}$` (check `users_phone_chk`); changed by the person or an Admin |
+| `staff_code_settings.tenant_id`   | uuid, primary key   | One row per hospital (made on first use); foreign key to the hospital, cascade    |
+| `staff_code_settings.prefix`      | text, default `STF` | Letters and digits, 1 to 6 (stored in capitals)                                   |
+| `staff_code_settings.min_width`   | int, default 3      | 1 to 8; the code is the prefix plus the number padded with zeros                  |
+| `staff_code_settings.last_number` | bigint, default 0   | Raised atomically for each new person; codes already used are skipped             |
+
+Row level security is enabled and forced on `staff_code_settings` (policy `staff_code_settings_app_all`); the isolation spec has a sample row for it.

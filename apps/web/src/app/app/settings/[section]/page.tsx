@@ -8,6 +8,9 @@ import { DoctorsList } from '@/components/settings/doctors-list';
 import { OpdRulesForm } from '@/components/settings/opd-rules-form';
 import { RegistrationFields } from '@/components/settings/registration-fields';
 import { UhidFormatCard } from '@/components/settings/uhid-format-card';
+import { CodeFormatCard } from '@/components/staff/code-format-card';
+import { RolesManager } from '@/components/staff/roles-manager';
+import { StaffAdmin } from '@/components/staff/staff-admin';
 import { EmptyState } from '@/components/states/empty-state';
 import { sessionConfig } from '@/config/session';
 import { findSettingsSection, visibleSettingsSections } from '@/config/settings-sections';
@@ -18,6 +21,19 @@ import { API_UHID_START_NUMBER, fetchStaffOnServer, serverErrorCode } from '@/li
 import type { UhidStartNumberResponse } from '@/lib/patients/types';
 import { API_DOCTOR_PROFILES, type DoctorsListResponse } from '@/lib/doctors/types';
 import { API_OPD_RULES, API_PATIENT_FIELDS, API_UHID_FORMAT } from '@/lib/settings/paths';
+import {
+  API_ROLES,
+  API_ROLES_CATALOG,
+  API_ROLES_TEMPLATES,
+  API_STAFF,
+  API_STAFF_OPTIONS,
+  type PermissionCatalog,
+  type RolesListResponse,
+  type RoleTemplates,
+  type StaffCodeFormat,
+  type StaffListResponse,
+  type StaffOptions,
+} from '@/lib/staff/types';
 import type { OpdRules, PatientFieldsResponse, UhidFormatResponse } from '@/lib/settings/types';
 import {
   PRINT_API_PATH,
@@ -26,7 +42,14 @@ import {
 } from '@/lib/print/types';
 
 /** Sections that use the whole width of the screen (two blocks side by side). */
-const WIDE_SECTIONS = ['printing', 'patient-registration', 'patient-numbers', 'doctors'];
+const WIDE_SECTIONS = [
+  'printing',
+  'patient-registration',
+  'patient-numbers',
+  'doctors',
+  'staff',
+  'roles',
+];
 
 export const metadata: Metadata = { title: staffCopy.pageTitles.settings };
 
@@ -86,6 +109,44 @@ export default async function SettingsSectionPage({
           initialErrorCode={info.status === 'ok' ? null : serverErrorCode(info)}
         />
       </div>
+    );
+  }
+  if (section.id === 'staff') {
+    const [list, options] = await Promise.all([
+      fetchStaffOnServer<StaffListResponse>(API_STAFF),
+      fetchStaffOnServer<StaffOptions>(API_STAFF_OPTIONS),
+    ]);
+    const firstError = list.status !== 'ok' ? list : options.status !== 'ok' ? options : null;
+    const format = options.status === 'ok' ? options.data.codeFormat : null;
+    content = (
+      <div className="section-stack">
+        <CodeFormatCard
+          initial={format as StaffCodeFormat | null}
+          initialErrorCode={null}
+          canWrite={session.permissions?.includes('hospital.settings.write') ?? false}
+        />
+        <StaffAdmin
+          initial={list.status === 'ok' ? list.data : null}
+          options={options.status === 'ok' ? options.data : null}
+          initialErrorCode={firstError ? serverErrorCode(firstError) : null}
+        />
+      </div>
+    );
+  }
+  if (section.id === 'roles') {
+    const [list, catalog, templates] = await Promise.all([
+      fetchStaffOnServer<RolesListResponse>(API_ROLES),
+      fetchStaffOnServer<PermissionCatalog>(API_ROLES_CATALOG),
+      fetchStaffOnServer<RoleTemplates>(API_ROLES_TEMPLATES),
+    ]);
+    const firstError = list.status !== 'ok' ? list : catalog.status !== 'ok' ? catalog : null;
+    content = (
+      <RolesManager
+        initial={list.status === 'ok' ? list.data : null}
+        catalog={catalog.status === 'ok' ? catalog.data.items : null}
+        templates={templates.status === 'ok' ? templates.data.items : []}
+        initialErrorCode={firstError ? serverErrorCode(firstError) : null}
+      />
     );
   }
   if (section.id === 'doctors') {

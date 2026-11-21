@@ -46,7 +46,7 @@ export default async function StaffLayout({ children }: { children: ReactNode })
         userEmail={session.email}
         roleCodes={session.roleCodes ?? []}
         hospitalName={hospitalTitle}
-        profileHref={session.permissions?.includes('opd.doctors.own') ? '/app/profile' : null}
+        profileHref="/app/profile"
       >
         {children}
       </AppShell>

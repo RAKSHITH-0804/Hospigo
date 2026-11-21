@@ -77,6 +77,8 @@ export const ADMIN_EXCLUDED_PERMISSION_CODES: readonly string[] = [
   'opd.investigations.bill',
   'opd.refunds.request',
   'opd.doctors.own',
+  // Step 7d: roles are made by the SuperAdmin only (a Branch Admin gives existing roles to staff)
+  'role.write',
 ];
 
 /**

@@ -106,3 +106,8 @@ After Step 5b the dev Receptionist role also holds `opd.queue.read`: reception s
 
 - After re-running the dev seed: the Doctor role also gets `opd.doctors.own` (My profile); SuperAdmin and Branch Admin get `opd.doctors.read` and `opd.doctors.write` (the Doctors settings page). SuperAdmin and Branch Admin never get `opd.doctors.own` (they have no doctor profile).
 - Demo doctors have FAKE profile details (qualifications, speciality, `DEMO-REG-000n`) so the prescription has something to print, except **doctor 2** of each hospital, which stays empty to show the reminder. The seed fills details only while empty, so it never overwrites what you typed.
+
+## Step 7d additions
+
+- After `npm run prisma:migrate -w @hospigo/api` and the dev seed: the Branch Admin role no longer holds `role.write` (only the SuperAdmin makes roles). New people added on the Staff page get a random password and an activation email; the activation link sets their own password. Test people made by the Postman 7d collection use `pm7d.test@demo-north.example.test` (switched off at the end).
+- My profile is open to every demo login, including Receptionist and Nurse; Staff and Roles appear only for people with `user.read` or `role.read` (both Admin roles).

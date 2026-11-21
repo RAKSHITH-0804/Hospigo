@@ -47,6 +47,7 @@ jest.mock('@/lib/patients/server', () => ({
 }));
 
 jest.mock('@/lib/auth/guards', () => ({
+  requireKind: async () => requireKindMock('HOSPITAL'),
   requirePermission: async (code: string) => {
     const session = await requireKindMock('HOSPITAL');
     if (!session.permissions?.includes(code)) {
@@ -88,6 +89,21 @@ jest.mock('@/components/patients/uhid-start-card', () => ({
 jest.mock('@/components/doctors/my-profile-form', () => ({
   MyProfileForm: (props: Record<string, unknown>) => (
     <div data-testid="my-profile" data-props={JSON.stringify(props)} />
+  ),
+}));
+jest.mock('@/components/staff/staff-admin', () => ({
+  StaffAdmin: (props: Record<string, unknown>) => (
+    <div data-testid="staff-admin" data-props={JSON.stringify(props)} />
+  ),
+}));
+jest.mock('@/components/staff/code-format-card', () => ({
+  CodeFormatCard: (props: Record<string, unknown>) => (
+    <div data-testid="code-format" data-props={JSON.stringify(props)} />
+  ),
+}));
+jest.mock('@/components/staff/roles-manager', () => ({
+  RolesManager: (props: Record<string, unknown>) => (
+    <div data-testid="roles-manager" data-props={JSON.stringify(props)} />
   ),
 }));
 jest.mock('@/components/settings/doctors-list', () => ({
@@ -571,6 +587,92 @@ describe('patients pages', () => {
       expect(propsOf('doctors-list')).toEqual({ initial: null, initialErrorCode: 'UNAVAILABLE' });
     });
 
+    it('the Staff section needs user.read, reads the list and the options on the server, and passes the code format on', async () => {
+      const staffList = { items: [], total: 0, page: 1, pageSize: 25 };
+      const staffOptions = {
+        roles: [],
+        branches: [],
+        canWrite: true,
+        codeFormat: { prefix: 'STF' },
+      };
+      fetchMock.mockImplementation(async (path: string) =>
+        ok(path === '/staff' ? staffList : staffOptions),
+      );
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read']));
+      await expect(SettingsSectionPage(section('staff'))).rejects.toThrow(
+        'REDIRECT:/app?notice=no-permission',
+      );
+      requireKindMock.mockResolvedValue(
+        hospitalSession(['hospital.settings.read', 'user.read', 'hospital.settings.write']),
+      );
+      render(await SettingsSectionPage(section('staff')));
+      expect(fetchMock).toHaveBeenCalledWith('/staff');
+      expect(fetchMock).toHaveBeenCalledWith('/staff/options');
+      expect(propsOf('staff-admin')).toEqual({
+        initial: staffList,
+        options: staffOptions,
+        initialErrorCode: null,
+      });
+      expect(propsOf('code-format')).toEqual({
+        initial: { prefix: 'STF' },
+        initialErrorCode: null,
+        canWrite: true,
+      });
+      const nav = screen.getByRole('navigation', { name: staffCopy.settings.navAria });
+      expect(nav.textContent).toContain(staffCopy.settings.sections.staff);
+    });
+
+    it('the code format can only be changed with the settings write permission', async () => {
+      fetchMock.mockResolvedValue(ok({ items: [], roles: [], branches: [], codeFormat: {} }));
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read', 'user.read']));
+      render(await SettingsSectionPage(section('staff')));
+      expect(propsOf('code-format').canWrite).toBe(false);
+    });
+
+    it('a failed read of the staff passes an error code, not a blank page', async () => {
+      fetchMock.mockResolvedValue({ status: 'error', code: 'UNAVAILABLE' });
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read', 'user.read']));
+      render(await SettingsSectionPage(section('staff')));
+      expect(propsOf('staff-admin')).toEqual({
+        initial: null,
+        options: null,
+        initialErrorCode: 'UNAVAILABLE',
+      });
+    });
+
+    it('the Roles section needs role.read and reads the roles, the catalog and the templates', async () => {
+      const roles = { items: [], canWrite: true };
+      const catalog = { items: [{ code: 'a.b', description: 'A', group: 'a' }] };
+      const templates = { items: [{ key: 'NURSE' }] };
+      fetchMock.mockImplementation(async (path: string) =>
+        ok(path === '/roles' ? roles : path === '/roles/catalog' ? catalog : templates),
+      );
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read', 'user.read']));
+      await expect(SettingsSectionPage(section('roles'))).rejects.toThrow(
+        'REDIRECT:/app?notice=no-permission',
+      );
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read', 'role.read']));
+      render(await SettingsSectionPage(section('roles')));
+      expect(propsOf('roles-manager')).toEqual({
+        initial: roles,
+        catalog: catalog.items,
+        templates: templates.items,
+        initialErrorCode: null,
+      });
+    });
+
+    it('a failed read of the roles passes the error code', async () => {
+      fetchMock.mockResolvedValue({ status: 'forbidden' });
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read', 'role.read']));
+      render(await SettingsSectionPage(section('roles')));
+      expect(propsOf('roles-manager')).toEqual({
+        initial: null,
+        catalog: null,
+        templates: [],
+        initialErrorCode: 'FORBIDDEN',
+      });
+    });
+
     it('an unknown section shows the not-found state inside the frame', async () => {
       requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read']));
       render(await SettingsSectionPage(section('nope')));
@@ -583,11 +685,13 @@ describe('patients pages', () => {
       for (const entry of SETTINGS_SECTIONS) {
         expect(entry.route).toBe(`/app/settings/${entry.id}`);
         expect(staffCopy.settings.sections[entry.copyKey]).toBeTruthy();
-        // every page needs settings read; the Doctors list also needs its own permission
-        expect(['hospital.settings.read', 'opd.doctors.read']).toContain(entry.permission);
-        expect(entry.permission).toBe(
-          entry.id === 'doctors' ? 'opd.doctors.read' : 'hospital.settings.read',
-        );
+        // every page needs settings read; Doctors, Staff and Roles also need their own permission
+        const own: Record<string, string> = {
+          doctors: 'opd.doctors.read',
+          staff: 'user.read',
+          roles: 'role.read',
+        };
+        expect(entry.permission).toBe(own[entry.id] ?? 'hospital.settings.read');
       }
     });
   });
@@ -607,34 +711,69 @@ describe('loading skeletons', () => {
 
 describe('My profile page', () => {
   const profile = { id: 'dp1', name: 'Dr Meena', missing: [], limits: {} };
+  const me = {
+    id: 'u1',
+    code: 'STF001',
+    name: 'Anita',
+    email: 'a@example.test',
+    phone: null,
+    branches: ['Main Branch'],
+    roles: ['Nurse'],
+    isDoctor: false,
+    limits: { nameMax: 100, phoneMax: 20 },
+  };
+  const byPath = (map: Record<string, unknown>) => (path: string) =>
+    Promise.resolve(map[path] ?? { status: 'error', code: 'UNKNOWN' });
 
-  it('needs the own-profile permission', async () => {
+  it('is open to every signed-in role: no doctor permission needed, only the account is read', async () => {
     requireKindMock.mockResolvedValue(hospitalSession(['patients.registry.read']));
-    await expect(MyProfilePage()).rejects.toThrow('REDIRECT:/app?notice=no-permission');
-    expect(fetchMock).not.toHaveBeenCalled();
+    fetchMock.mockImplementation(byPath({ '/account/me': ok(me) }));
+    render(await MyProfilePage());
+    expect(fetchMock).toHaveBeenCalledWith('/account/me');
+    expect(fetchMock).not.toHaveBeenCalledWith('/doctor-profiles/me');
+    expect(screen.getByRole('heading', { name: staffCopy.account.title })).toBeTruthy();
+    expect(screen.queryByTestId('my-profile')).toBeNull();
   });
 
-  it('fetches the profile of the signed-in doctor on the server and shows the form', async () => {
+  it('a doctor also gets the doctor part, read on the server', async () => {
     requireKindMock.mockResolvedValue(hospitalSession(['opd.doctors.own']));
-    fetchMock.mockResolvedValue(ok(profile));
+    fetchMock.mockImplementation(
+      byPath({ '/account/me': ok(me), '/doctor-profiles/me': ok(profile) }),
+    );
     render(await MyProfilePage());
+    expect(fetchMock).toHaveBeenCalledWith('/account/me');
     expect(fetchMock).toHaveBeenCalledWith('/doctor-profiles/me');
     expect(propsOf('my-profile')).toEqual({ initial: profile, initialErrorCode: null });
-    expect(screen.getByRole('heading', { name: staffCopy.doctorProfile.title })).toBeTruthy();
   });
 
-  it('a login without a doctor profile gets a calm message, not a form', async () => {
+  it('a login with the doctor permission but no doctor profile gets a calm message, not a form', async () => {
     requireKindMock.mockResolvedValue(hospitalSession(['opd.doctors.own']));
-    fetchMock.mockResolvedValue({ status: 'forbidden' });
+    fetchMock.mockImplementation(
+      byPath({ '/account/me': ok(me), '/doctor-profiles/me': { status: 'forbidden' } }),
+    );
     render(await MyProfilePage());
     expect(screen.getByText(staffCopy.doctorProfile.noProfileTitle)).toBeTruthy();
     expect(screen.queryByTestId('my-profile')).toBeNull();
   });
 
-  it('passes a failed read to the form as an error code', async () => {
+  it('passes a failed doctor read to the form as an error code', async () => {
     requireKindMock.mockResolvedValue(hospitalSession(['opd.doctors.own']));
-    fetchMock.mockResolvedValue({ status: 'error', code: 'UNAVAILABLE' });
+    fetchMock.mockImplementation(
+      byPath({
+        '/account/me': ok(me),
+        '/doctor-profiles/me': { status: 'error', code: 'UNAVAILABLE' },
+      }),
+    );
     render(await MyProfilePage());
     expect(propsOf('my-profile')).toEqual({ initial: null, initialErrorCode: 'UNAVAILABLE' });
+  });
+
+  it('a failed account read shows the error, not a blank page', async () => {
+    requireKindMock.mockResolvedValue(hospitalSession(['patients.registry.read']));
+    fetchMock.mockImplementation(
+      byPath({ '/account/me': { status: 'error', code: 'UNAVAILABLE' } }),
+    );
+    render(await MyProfilePage());
+    expect(screen.getByRole('alert')).toBeTruthy();
   });
 });

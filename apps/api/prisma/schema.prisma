@@ -279,6 +279,7 @@ model Hospital {
   printTemplates PrintTemplate[]
 
   @@map("hospitals")
+  staffCodeSettings StaffCodeSettings?
 }
 
 model HospitalSetting {
@@ -380,6 +381,8 @@ model User {
   passwordChangedAt  DateTime? @map("password_changed_at") @db.Timestamptz(3)
   lastLoginAt        DateTime? @map("last_login_at") @db.Timestamptz(3)
   isActive           Boolean   @default(true) @map("is_active")
+  /// Optional phone number the person keeps in My profile.
+  phone              String?
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -1829,4 +1832,17 @@ model PrintTemplate {
 
   @@unique([tenantId, id])
   @@map("print_templates")
+}
+
+/// Step 7d: how the staff code of a user is made (prefix + running number). One row per hospital.
+model StaffCodeSettings {
+  tenantId   String   @id @map("tenant_id")
+  prefix     String   @default("STF")
+  minWidth   Int      @default(3) @map("min_width")
+  lastNumber BigInt   @default(0) @map("last_number")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("staff_code_settings")
 }

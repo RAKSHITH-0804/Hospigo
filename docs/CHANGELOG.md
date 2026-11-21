@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-24 — Phase 2 — Step 7d, staff and roles, My profile for every role
+
+- **Commit hash(es):** see `git log` (commit "Step 7d").
+- **Added:** API modules `staff` (`/staff`, `/staff/options`, `/staff/code-format`, add, change, switch off and on, resend activation) and `account` (`/account/me`, email and password change with a code); `/roles` (list, catalog, templates, make, change, switch off and on); Settings pages Staff and Roles with help; My profile for every role (name, phone, email, password); staff code format card; Postman collection `hospigo-7d-staff-roles` (git-ignored).
+- **Changed:** My profile moved from doctors only to every signed-in person (the doctor part stays inside it); the user menu shows it for everyone; the Branch Admin role no longer gets `role.write`; the web route filter forwards `retryAfterSec`.
+- **Removed:** nothing.
+- **Fixed:** a SuperAdmin whose token was narrowed to one branch looked as if they lacked a permission on other branches when giving roles (grant check now uses `permittedBranches`); switched-off people are refused on the account routes.
+- **Database (migrations, roles, RLS):** `20261124090000_staff_and_roles`: `users.phone`, table `staff_code_settings` (row level security enabled and forced). Re-run the dev seed (roles and permissions).
+- **New .env keys (names only):** none.
+- **Tests:** API 798 (was 740), web 1481 (was 1322); lint, format and TypeScript green.
+- **Decisions:** `docs/decisions-7d.md` (delegation rule, last SuperAdmin, codes for My profile, adversarial self-review: safe to approve).
+- **Follow-ups and open items:** Doctor setup screens; HQ creates a hospital; 7e image and logo upload; medical council name (manager); Postman 7d not run by the assistant; a full audit-log screen.
+
 ## 2026-11-22 — Phase 2 — space review of the older pages
 
 - **Commit hash(es):** see `git log` (commit "Space review").

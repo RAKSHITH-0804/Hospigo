@@ -1,6 +1,6 @@
 # Engineering tracker (Phase 1 + Phase 2)
 
-Status as of 21 Nov 2026: Phase 2 steps 1 to 6b are merged; Steps 7, 7b and 7c are built and committed on `feature/phase2-step-7-reports-print-api` (one pull request for all three, not pushed yet). API 740 tests, web 1322 tests. Next: 7d (staff and roles). Start from `docs/handoff-phase2.md`, section CURRENT STATE. Evidence is repo-local unless noted.
+Status as of 21 Nov 2026: Phase 2 steps 1 to 6b are merged; Steps 7, 7b, 7c and 7d are built and committed on `feature/phase2-step-7-reports-print-api` (one pull request for all four, not pushed yet). API 798 tests, web 1481 tests. Next: 7e (image and logo upload). Start from `docs/handoff-phase2.md`, section CURRENT STATE. Evidence is repo-local unless noted.
 
 Planned order: 3d, 4a (migration part, then API part), 4b, 5a, 5b, 6a, 6b, 7, 7b, 7c, 7d (staff and roles), 7e (image and logo upload), 8a, 8b, 9 (see `docs/plan-opd-first-flow.md`). Target for the first working OPD flow: Fri 27 Nov 2026 (quality first; tests and review gates are never shortened).
 
@@ -23,8 +23,8 @@ Planned order: 3d, 4a (migration part, then API part), 4b, 5a, 5b, 6a, 6b, 7, 7b
 | 7    | Print templates and reports                       | Built, committed | `88a955c`, `6531210`, `3cf1b5b`: daily collection report (filters, branch names, Excel, CSV, print), print templates and Word-style designer, print views, SuperAdmin reads the OPD queue. `docs/decisions-7.md`. Pull request with 7b, not pushed |
 | 7b   | Settings screens                                  | Built, committed | OPD rules, registration fields (own fields, choices), patient number format, help block on every settings page; SuperAdmin and Branch Admin. `docs/decisions-7b.md`. Postman 7b written, not run                                                   |
 | 7c   | Doctor profile setup                              | Built, committed | Printed name, qualifications, speciality, registration number; My profile, Doctors settings page, consult reminder, prescription print; copy kept on completed notes. `docs/decisions-7c.md`. Postman 7c written, not run                          |
-| 7d   | Staff and roles                                   | **Next**         | Add users and roles for every department (Admin and SuperAdmin only); custom roles; activation by email; review gate. Needs a plan and questions                                                                                                   |
-| 7e   | Image and logo upload                             | Planned          | Hospital logo, doctor signature or stamp, picture boxes in the print designer                                                                                                                                                                      |
+| 7d   | Staff and roles, My profile for everyone          | Built, committed | Staff and Roles settings pages, staff code format, My profile (details, email and password with a code); migration `20261124090000_staff_and_roles`. `docs/decisions-7d.md`. Postman 7d written, not run                                           |
+| 7e   | Image and logo upload                             | **Next**         | Hospital logo, doctor signature or stamp, picture boxes in the print designer                                                                                                                                                                      |
 | 8a   | NestJS 12 upgrade                                 | Planned          | Confirmed 21 Nov: 8a is the upgrade; image and logo upload is 7e                                                                                                                                                                                   |
 | 8b   | Excel upload of masters                           | Planned          |                                                                                                                                                                                                                                                    |
 | 9    | OPD hardening and exit                            | Planned          |                                                                                                                                                                                                                                                    |
@@ -115,7 +115,19 @@ Planned order: 3d, 4a (migration part, then API part), 4b, 5a, 5b, 6a, 6b, 7, 7b
 
 ## Where to resume (21 Nov 2026)
 
-Done: everything up to and including Step 7c. Next: 7d (staff and roles), then 7e, 8a, 8b, 9. Do not repeat finished steps. Resume notes: `docs/handoff-phase2.md` (CURRENT STATE section).
+Done: everything up to and including Step 7d. Next: 7e (image and logo upload), then 8a, 8b, 9. Do not repeat finished steps. Resume notes: `docs/handoff-phase2.md` (CURRENT STATE section).
+
+## Step 7d (24 Nov)
+
+| Item                                                         | Status         | Notes                                                                                     |
+| ------------------------------------------------------------ | -------------- | ----------------------------------------------------------------------------------------- |
+| Staff API (`/staff`): list, add, change, switch off and on   | Built          | Delegation rule, last SuperAdmin guard, nobody edits themselves, nothing deleted          |
+| Staff code format (dynamic per hospital)                     | Built          | `staff_code_settings`; hospital-wide Admin changes it                                     |
+| Roles API (`/roles`): list, catalog, templates, make, change | Built          | SuperAdmin only makes roles; system roles fixed                                           |
+| Account API (`/account`): details, email and password codes  | Built          | Code kept as an HMAC, sent straight by the mail provider; sessions end on password change |
+| Staff and Roles settings pages, My profile for every role    | Built          | Help blocks; side-by-side cards; doctor part inside My profile                            |
+| Postman collection 7d                                        | Built, not run | `postman/collections/hospigo-7d-staff-roles.postman_collection.json` (git-ignored)        |
+| Doctor setup (fees, timings, leave), HQ creates a hospital   | Not scheduled  | Separate steps agreed with Rakshith                                                       |
 
 ## Step 7c (21 Nov)
 

@@ -9,6 +9,8 @@ import { ImportsModule } from './modules/imports/imports.module';
 import { PatientAuthModule } from './modules/patient-auth/patient-auth.module';
 import { NumberingModule } from './modules/numbering/numbering.module';
 import { DoctorProfilesModule } from './modules/doctor-profiles/doctor-profiles.module';
+import { AccountModule } from './modules/account/account.module';
+import { StaffModule } from './modules/staff/staff.module';
 import { HospitalSettingsModule } from './modules/hospital-settings/hospital-settings.module';
 import { OpdMastersModule } from './modules/opd-masters/opd-masters.module';
 import { OpdClinicalModule } from './modules/opd-clinical/opd-clinical.module';
@@ -39,6 +41,8 @@ import { StorageModule } from './modules/storage/storage.module';
     OpdMastersModule,
     HospitalSettingsModule,
     DoctorProfilesModule,
+    StaffModule,
+    AccountModule,
     NumberingModule,
     OpdVisitsModule,
     OpdClinicalModule,

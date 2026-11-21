@@ -261,6 +261,54 @@ export class AuthRedisService implements OnModuleDestroy {
     }
   }
 
+  // ---- one-time codes of signed-in staff (password and email change): a hash per person and purpose
+
+  private staffOtpKey(key: string): string {
+    return `${this.keyPrefix}staffotp:${key}`;
+  }
+
+  /** Stores a fresh code record (replacing an older one) that lives `ttlSec` seconds. */
+  async putStaffOtp(key: string, fields: Record<string, string>, ttlSec: number): Promise<void> {
+    const redisKey = this.staffOtpKey(key);
+    try {
+      await this.redis
+        .multi()
+        .del(redisKey)
+        .hset(redisKey, { ...fields, attempts: '0' })
+        .expire(redisKey, ttlSec)
+        .exec();
+    } catch (error) {
+      this.failClosed(error);
+    }
+  }
+
+  async getStaffOtp(key: string): Promise<Record<string, string> | null> {
+    try {
+      const row = await this.redis.hgetall(this.staffOtpKey(key));
+      return Object.keys(row).length === 0 ? null : row;
+    } catch (error) {
+      this.failClosed(error);
+    }
+  }
+
+  /** One more try, counted atomically so parallel guesses cannot beat the limit. */
+  async bumpStaffOtpAttempts(key: string): Promise<number> {
+    try {
+      return await this.redis.hincrby(this.staffOtpKey(key), 'attempts', 1);
+    } catch (error) {
+      this.failClosed(error);
+    }
+  }
+
+  /** Removes the code. true only for the one caller that removed it (a code works once). */
+  async dropStaffOtp(key: string): Promise<boolean> {
+    try {
+      return (await this.redis.del(this.staffOtpKey(key))) > 0;
+    } catch (error) {
+      this.failClosed(error);
+    }
+  }
+
   /** Delete only keys under the current prefix (tests). */
   async clearPrefixKeys(): Promise<void> {
     const pattern = `${this.keyPrefix}*`;
