@@ -1,4 +1,4 @@
-/** Shapes aligned with docs/api-opd.md and the patients API DTOs. */
+/** Shapes aligned with docs/reference/api-opd.md and the patients API DTOs. */
 
 export type PatientSearchItem = {
   id: string;
@@ -104,5 +104,5 @@ export type RegisterPatientBody = {
   confirmDuplicate?: boolean;
 };
 
-/** API fieldErrors codes (docs/api-opd.md). */
+/** API fieldErrors codes (docs/reference/api-opd.md). */
 export type PatientFieldErrorCode = 'REQUIRED' | 'INVALID' | 'AGE_AND_DOB_BOTH';

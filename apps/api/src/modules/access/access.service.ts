@@ -44,6 +44,62 @@ export class AccessService {
   }
 
   /**
+   * Branches the caller holds a permission on through ALL active branches of the hospital (a
+   * hospital-wide grant such as SuperAdmin). Unlike can(), this deliberately IGNORES the token's
+   * active-branch narrowing, because it answers "may this person look across branches" (for
+   * example a combined report). It is empty unless the permission covers EVERY active branch; with
+   * a module code, branches where that module is not active are left out. Default deny.
+   */
+  async hospitalWideBranches(permissionCode: string, moduleCode?: string): Promise<string[]> {
+    const snap = await this.loadSnapshot();
+    if (!snap.userActive || !snap.hospitalActive) {
+      return [];
+    }
+    const active = [...snap.branches].filter(([, isActive]) => isActive).map(([id]) => id);
+    const covered = snap.permissionBranches.get(permissionCode);
+    if (active.length === 0 || !covered || !active.every((id) => covered.has(id))) {
+      return [];
+    }
+    return active
+      .filter((id) => {
+        if (!moduleCode) {
+          return true;
+        }
+        const mod = snap.branchModules.get(id)?.get(moduleCode);
+        return !!mod && mod.isActive && mod.enabledByIndigo && !mod.restrictedByHospital;
+      })
+      .sort();
+  }
+
+  /**
+   * Every ACTIVE branch the caller holds a permission on (where the module, if given, is on), whatever
+   * branch the token is narrowed to. It answers "which branches may this person look at" (for a
+   * report that can be pointed at another branch). Default deny: empty for an inactive user or
+   * hospital, and only branches of the caller's own hospital can ever be in it.
+   */
+  async permittedBranches(permissionCode: string, moduleCode?: string): Promise<string[]> {
+    const snap = await this.loadSnapshot();
+    if (!snap.userActive || !snap.hospitalActive) {
+      return [];
+    }
+    const covered = snap.permissionBranches.get(permissionCode);
+    if (!covered) {
+      return [];
+    }
+    return [...snap.branches]
+      .filter(([id, isActive]) => isActive && covered.has(id))
+      .map(([id]) => id)
+      .filter((id) => {
+        if (!moduleCode) {
+          return true;
+        }
+        const mod = snap.branchModules.get(id)?.get(moduleCode);
+        return !!mod && mod.isActive && mod.enabledByIndigo && !mod.restrictedByHospital;
+      })
+      .sort();
+  }
+
+  /**
    * Permission codes the caller may use on the active branch.
    * Same rules as can(code, activeBranchId) with no module gate; sorted, unique.
    */

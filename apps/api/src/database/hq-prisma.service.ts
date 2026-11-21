@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../generated/prisma';
 import type { ApiEnv } from '../config/env';
+import { appPoolConfig } from './pg-session';
 
 /**
  * Prisma client bound to DATABASE_URL_HQ (hospigo_hq).
@@ -12,7 +13,7 @@ import type { ApiEnv } from '../config/env';
 export class HqPrismaService extends PrismaClient implements OnModuleDestroy {
   constructor(config: ConfigService<ApiEnv, true>) {
     const connectionString = config.getOrThrow('DATABASE_URL_HQ', { infer: true });
-    const adapter = new PrismaPg({ connectionString });
+    const adapter = new PrismaPg(appPoolConfig(connectionString));
     super({ adapter });
   }
 

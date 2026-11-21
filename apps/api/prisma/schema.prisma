@@ -276,8 +276,11 @@ model Hospital {
   investigationOrders InvestigationOrder[]
   refundRequests RefundRequest[]
   refunds Refund[]
+  printTemplates PrintTemplate[]
 
   @@map("hospitals")
+  staffCodeSettings StaffCodeSettings?
+  storedImages      StoredImage[]
 }
 
 model HospitalSetting {
@@ -313,6 +316,7 @@ model Branch {
   branchModules BranchModule[]
   userBranches  UserBranch[]
   roleAssignmentBranches RoleAssignmentBranch[]
+  printTemplates PrintTemplate[]
   auditLogs     AuditLog[]
   authSessions  AuthSession[]
   registeredPatients Patient[]
@@ -378,6 +382,8 @@ model User {
   passwordChangedAt  DateTime? @map("password_changed_at") @db.Timestamptz(3)
   lastLoginAt        DateTime? @map("last_login_at") @db.Timestamptz(3)
   isActive           Boolean   @default(true) @map("is_active")
+  /// Optional phone number the person keeps in My profile.
+  phone              String?
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -394,6 +400,7 @@ model User {
   importBatchesApproved ImportBatch[] @relation("ImportBatchApprovedBy")
   importBatchesUndone ImportBatch[] @relation("ImportBatchUndoneBy")
   importExceptionsResolved ImportException[] @relation("ImportExceptionResolvedBy")
+  storedImagesMade StoredImage[] @relation("StoredImageCreator")
   doctorProfiles DoctorProfile[]
   chargeItemPricesCreated ChargeItemPrice[] @relation("ChargeItemPriceCreatedBy")
   doctorFeesCreated DoctorFee[] @relation("DoctorFeeCreatedBy")
@@ -408,6 +415,8 @@ model User {
   refundsRequested RefundRequest[] @relation("RefundRequestedBy")
   refundsDecided RefundRequest[] @relation("RefundDecidedBy")
   refundsRecorded Refund[] @relation("RefundRecordedBy")
+  printTemplatesCreated PrintTemplate[] @relation("PrintTemplateCreatedBy")
+  printTemplatesUpdated PrintTemplate[] @relation("PrintTemplateUpdatedBy")
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -1007,6 +1016,12 @@ model DoctorProfile {
   userId          String   @map("user_id")
   code            String
   department      String?
+  /// How the name prints on a prescription (for example Dr. A. Rao); the login name when empty.
+  printedName     String?  @map("printed_name")
+  qualifications  String?
+  speciality      String?
+  /// Medical council registration number, typed by the doctor (not verified).
+  registrationNo  String?  @map("registration_no")
   availabilityOn  Boolean  @default(true) @map("availability_on")
   active          Boolean  @default(true)
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1020,6 +1035,7 @@ model DoctorProfile {
   opdVisits OpdVisit[]
   consultations Consultation[]
   investigationOrders InvestigationOrder[]
+  storedImages StoredImage[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, userId])
@@ -1337,6 +1353,7 @@ model OpdVisit {
   @@index([tenantId, branchId, doctorProfileId, status, queuedAt], map: "opd_visits_doctor_queue_idx")
   @@index([tenantId, patientId, doctorProfileId, visitDate(sort: Desc)], map: "opd_visits_followup_idx")
   @@index([tenantId, patientId, createdAt(sort: Desc)], map: "opd_visits_patient_history_idx")
+  @@index([tenantId, branchId, visitDate], map: "opd_visits_branch_date_idx")
   @@map("opd_visits")
 }
 
@@ -1434,6 +1451,7 @@ model Payment {
   @@unique([tenantId, receiptId, paymentModeId], map: "payments_receipt_mode_key")
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId, billId], map: "payments_bill_idx")
+  @@index([tenantId, branchId, paidAt], map: "payments_branch_paid_at_idx")
   @@index([tenantId, receiptId], map: "payments_receipt_idx")
   @@map("payments")
 }
@@ -1488,6 +1506,8 @@ model Consultation {
   advice          String?
   followUpDate    DateTime?          @map("follow_up_date") @db.Date
   completedAt     DateTime?          @map("completed_at") @db.Timestamptz(3)
+  /// Copy of the doctor's details, taken by the database when the note is completed.
+  doctorDetails   Json?              @map("doctor_details")
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -1599,6 +1619,7 @@ model LedgerEntry {
 
   @@unique([tenantId, id])
   @@index([tenantId, billId], map: "ledger_entries_bill_idx")
+  @@index([tenantId, branchId, postedAt], map: "ledger_entries_branch_posted_idx")
   @@map("ledger_entries")
 }
 
@@ -1742,5 +1763,114 @@ model Refund {
   @@unique([tenantId, requestId, paymentId], map: "refunds_request_payment_key")
   @@index([tenantId, billId], map: "refunds_bill_idx")
   @@index([tenantId, paymentId], map: "refunds_payment_idx")
+  @@index([tenantId, branchId, refundedAt], map: "refunds_branch_refunded_at_idx")
   @@map("refunds")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Step 7-3: print templates (paper, margins, layout) per hospital and document type
+// ---------------------------------------------------------------------------------------------
+
+enum PrintDocType {
+  REGISTRATION_SLIP
+  RECEIPT
+  PRESCRIPTION
+
+  @@map("print_doc_type")
+}
+
+enum PrintPaper {
+  A4
+  A5
+  A6
+  LABEL
+  CUSTOM
+
+  @@map("print_paper")
+}
+
+enum PrintOrientation {
+  PORTRAIT
+  LANDSCAPE
+
+  @@map("print_orientation")
+}
+
+enum PrintMode {
+  FULL
+  PREPRINTED
+
+  @@map("print_mode")
+}
+
+/// One template per hospital (or branch) and document type. A hospital without a row uses the
+/// built-in default of the code. The layout is JSON validated in code; the database checks sizes.
+/// One row per (tenant, coalesce(branch, ''), doc type): enforced by a unique index on that expression.
+model PrintTemplate {
+  id             String           @id @default(cuid())
+  tenantId       String           @map("tenant_id")
+  branchId       String?          @map("branch_id")
+  docType        PrintDocType     @map("doc_type")
+  enabled        Boolean          @default(true)
+  paper          PrintPaper
+  widthMm        Decimal?         @map("width_mm") @db.Decimal(6, 1)
+  heightMm       Decimal?         @map("height_mm") @db.Decimal(6, 1)
+  orientation    PrintOrientation @default(PORTRAIT)
+  marginTopMm    Decimal          @default(0) @map("margin_top_mm") @db.Decimal(5, 1)
+  marginRightMm  Decimal          @default(0) @map("margin_right_mm") @db.Decimal(5, 1)
+  marginBottomMm Decimal          @default(0) @map("margin_bottom_mm") @db.Decimal(5, 1)
+  marginLeftMm   Decimal          @default(0) @map("margin_left_mm") @db.Decimal(5, 1)
+  mode           PrintMode        @default(FULL)
+  preset         String?
+  layout         Json             @default("{}")
+  createdBy      String           @map("created_by")
+  updatedBy      String           @map("updated_by")
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  branch   Branch?  @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict)
+  creator  User     @relation("PrintTemplateCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
+  updater  User     @relation("PrintTemplateUpdatedBy", fields: [tenantId, updatedBy], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@map("print_templates")
+}
+
+/// Step 7d: how the staff code of a user is made (prefix + running number). One row per hospital.
+model StaffCodeSettings {
+  tenantId   String   @id @map("tenant_id")
+  prefix     String   @default("STF")
+  minWidth   Int      @default(3) @map("min_width")
+  lastNumber BigInt   @default(0) @map("last_number")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("staff_code_settings")
+}
+
+/// Step 7e: a picture kept in object storage (the hospital logo, a doctor's signature or stamp).
+/// Never edited (only `isCurrent` changes) and never deleted: a completed note keeps its signature.
+model StoredImage {
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  purpose         String
+  doctorProfileId String?  @map("doctor_profile_id")
+  contentType     String   @map("content_type")
+  byteSize        Int      @map("byte_size")
+  width           Int
+  height          Int
+  sha256          String
+  storageKey      String   @map("storage_key")
+  isCurrent       Boolean  @default(true) @map("is_current")
+  createdBy       String   @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  hospital      Hospital       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  doctorProfile DoctorProfile? @relation(fields: [tenantId, doctorProfileId], references: [tenantId, id], onDelete: Restrict)
+  creator       User           @relation("StoredImageCreator", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@map("stored_images")
 }

@@ -29,6 +29,92 @@
 
 ## Unreleased
 
+## 2026-11-25 — Phase 2 — Step 7e, image and logo upload
+
+- **Commit hash(es):** see `git log` (commit "Step 7e").
+- **Added:** table `stored_images` and module `images` (`GET /images/:id`, `GET /settings/branding`, `PUT|POST /settings/branding/logo`, doctor signature routes under `/doctor-profiles`); Settings page Logo; signature or stamp box in My profile and the Doctors page; print slot `SIGNATURE` and "Add signature box" in the designer; pictures on the registration slip, receipt and prescription; Postman collection `hospigo-7e-pictures` (git-ignored).
+- **Changed:** the doctor profile answers carry `signature` and `images`; the consultation `doctorDetails` carries `signatureImageId`; the copy kept on a completed note includes it; the web route layer can send a form (file) and pass on a file with its type; a signature box prints on pre-printed stationery.
+- **Removed:** nothing.
+- **Fixed:** none.
+- **Database (migrations, roles, RLS):** `20261125090000_stored_images` (new table with row level security, edit and delete refused, one current picture per place; `consultations_guard` replaced to keep the signature id). No seed change. `STORAGE_ROOT_PATH` must point to a writable folder (already required).
+- **New .env keys (names only):** none.
+- **Tests:** API 833 (was 798), web 1562 (was 1481); lint, format, TypeScript and the production build green.
+- **Decisions:** `docs/decisions/decisions-7e.md` (picture rules, who may look and change, frozen signature, adversarial self-review: safe to approve).
+- **After the first click-test (25 Nov):** the settings menu is grouped under Hospital, People, Patients and OPD; the settings print preview marks an empty picture box and says the signature prints only on the prescription; the docs were moved into folders (`decisions/`, `reference/`, `guides/`, `design/`, `plans/`) with an index in `docs/README.md` and every reference updated; the 7e migration was applied to the dev database.
+- **Follow-ups and open items:** clean-up of old pictures and orphan files, server-side resize, Postman 7e not run by the assistant, 8a NestJS 12 upgrade next.
+
+## 2026-11-24 — Phase 2 — Step 7d, staff and roles, My profile for every role
+
+- **Commit hash(es):** see `git log` (commit "Step 7d").
+- **Added:** API modules `staff` (`/staff`, `/staff/options`, `/staff/code-format`, add, change, switch off and on, resend activation) and `account` (`/account/me`, email and password change with a code); `/roles` (list, catalog, templates, make, change, switch off and on); Settings pages Staff and Roles with help; My profile for every role (name, phone, email, password); staff code format card; Postman collection `hospigo-7d-staff-roles` (git-ignored).
+- **Changed:** My profile moved from doctors only to every signed-in person (the doctor part stays inside it); the user menu shows it for everyone; the Branch Admin role no longer gets `role.write`; the web route filter forwards `retryAfterSec`.
+- **Removed:** nothing.
+- **Fixed:** a SuperAdmin whose token was narrowed to one branch looked as if they lacked a permission on other branches when giving roles (grant check now uses `permittedBranches`); switched-off people are refused on the account routes.
+- **Database (migrations, roles, RLS):** `20261124090000_staff_and_roles`: `users.phone`, table `staff_code_settings` (row level security enabled and forced). Re-run the dev seed (roles and permissions).
+- **New .env keys (names only):** none.
+- **Tests:** API 798 (was 740), web 1481 (was 1322); lint, format and TypeScript green.
+- **Decisions:** `docs/decisions/decisions-7d.md` (delegation rule, last SuperAdmin, codes for My profile, adversarial self-review: safe to approve).
+- **Follow-ups and open items:** Doctor setup screens; HQ creates a hospital; 7e image and logo upload; medical council name (manager); Postman 7d not run by the assistant; a full audit-log screen.
+
+## 2026-11-22 — Phase 2 — space review of the older pages
+
+- **Commit hash(es):** see `git log` (commit "Space review").
+- **Added:** `DataTable` options `hideOnPhone`, `nowrap`, `stackOnPhone`; `ReportActions`; `QuickLinks` (dashboard); styles `report-sections`, `patient-record-grid`, `dashboard-links`.
+- **Changed:** OPD queue (one row for filters and status, cards on a phone), collection report (Print in the header, filters in one row, tables side by side), patients list on a phone, patient record (blocks side by side), dashboard (quick links instead of "Coming later"), doctors cards on a phone, PageHeader actions stay beside the title.
+- **Removed:** nothing. **Fixed:** nothing.
+- **Database:** none. **New .env keys:** none.
+- **Tests:** web 1327 -> see the next entry for the final count; new tests for the table options, the dashboard links and the report actions.
+- **Decisions:** `docs/design/ui-design.md` ("Space review of the older pages").
+- **Follow-ups and open items:** review the screens that need other roles (consultation, vitals, reception, tests billing, login, portal, HQ).
+
+## 2026-11-21 — Phase 2 Step 7c — doctor profile details
+
+- **Commit hash(es):** the commit right after `31b73d0` on `feature/phase2-step-7-reports-print-api` (see `git log`).
+- **Added:** doctor profile fields (printed name, qualifications, speciality, registration number); API module `doctor-profiles` (`/doctor-profiles/me`, list, correct); pages My profile and Doctors (settings); a reminder on the consultation screen; `doctorDetails` on the consultation and complete answers; the prescription print fills the doctor lines; permissions `opd.doctors.own`, `opd.doctors.read`, `opd.doctors.write`; demo details in the dev seed.
+- **Changed:** `consultations_guard` and `consultations_before_insert` triggers (the database takes a copy of the doctor details when a note is completed); the list of person-only actions kept off both Admin roles now includes `opd.doctors.own`.
+- **Removed:** nothing.
+- **Fixed:** nothing.
+- **Database (migrations, roles, RLS):** `20261123090000_doctor_profile_details` (4 columns on `doctor_profiles` with a length check, `consultations.doctor_details`, two triggers replaced). No grant change on `consultations` (the app cannot write the copy).
+- **New .env keys (names only):** none.
+- **Tests:** API 714 -> 740 (22 doctor profile endpoint tests, 4 copy tests, one list updated), web 1275 -> 1322. Lint, format, TypeScript and production build clean. Postman 7c written (34 requests), not run by the assistant.
+- **Decisions:** `docs/decisions/decisions-7c.md` (Branch Admin only for doctors of their branch; department Admin-only; the database takes the copy; medical council name on hold; signature waits for image upload).
+- **Follow-ups and open items:** medical council name (manager), signature or stamp image (7e), adding doctors (7d staff and roles), run the seed on existing hospitals after deploy.
+
+## 2026-11-21 — Phase 2 Step 7b — settings screens (OPD rules, registration fields, patient number format, help)
+
+- **Commit hash(es):** the commit right after `3cf1b5b` on `feature/phase2-step-7-reports-print-api` (see `git log`).
+- **Added:** API module `hospital-settings` (`/settings/opd-rules`, `/settings/patient-fields` with built-in and custom fields and dropdown choices, `/settings/uhid-format`); web pages Registration fields, Patient numbers, OPD rules; an "About this page" help block on every settings page; six Next route handlers under `/api/staff/settings/`.
+- **Changed:** the settings menu is now Registration fields, Patient numbers, OPD rules, Printing; the UHID format service can read and start a new format (`getFormat`, `changeFormat`), and the effective format is picked deterministically when two are saved at the same moment.
+- **Removed:** nothing.
+- **Fixed:** two administrators adding the same own field at once get "name already used" instead of a server error.
+- **Database (migrations, roles, RLS):** none (tables existed). The running number counter never goes back when a new format counts in another period.
+- **New .env keys (names only):** none.
+- **Tests:** API 684 -> 714 (settings endpoints incl. isolation, validation, audit, counter carry-forward, concurrency), web 1182 -> 1275. Lint, format, TypeScript and production build clean. Postman 7b written (45 requests), not run by the assistant.
+- **Decisions:** `docs/decisions/decisions-7b.md` (SuperAdmin and Branch Admin may both change these settings; nothing is ever deleted; a Branch Admin changes the number format for the whole hospital; help block closed by default).
+- **Follow-ups and open items:** reordering own fields, number format history screen, tax and token prefix screens, per-branch number formats; Rakshith to confirm what 8a is.
+
+## 2026-11-21 — Phase 2 Step 7 — reports, Excel, print templates, Word-style designer, SuperAdmin read access
+
+- **Commit hash(es):** `88a955c` (times stored as UTC), `6531210` (API), `3cf1b5b` (web, designer, filters, SuperAdmin).
+- **Added:** daily collection report (JSON, CSV, Excel; filters doctor, payment mode, department, bill type, test, branch; sections), print templates (registration slip, receipt, prescription) with presets and pre-printed mode, the Word-style designer (TipTap rich text boxes, layout version 3), the report screen with calendar, Print menu, branch names; `GET /opd/reports/filters`; SuperAdmin now reads the OPD queue, vitals and notes.
+- **Changed:** database connections use a UTC session (times are shown in the hospital time zone); `AccessService.permittedBranches`.
+- **Removed:** nothing.
+- **Fixed:** the ledger check found bills stored in local time (repair script in `postman/`); report print no longer shows the OPD tabs.
+- **Database (migrations, roles, RLS):** `20261122090000_print_templates`, `20261122091000_report_indexes`.
+- **New .env keys (names only):** `WEB_REPORT_TIME_ZONE`, `WEB_REPORT_PAPER_SIZE`, `WEB_REPORT_PAGE_MARGIN` (optional). New packages: `exceljs` (api), TipTap (web).
+- **Tests:** API 556 -> 684, web 927 -> 1182 (lint, format, TypeScript, build clean).
+- **Decisions:** `docs/decisions/decisions-7.md`.
+- **Follow-ups and open items:** 7c doctor profile, logo upload, per-doctor prescription layout, test pre-printed mode on the real printer, management questions in `docs/handoff-phase2.md`.
+
+## 2026-11-20 — Phase 2 Step 6 — investigations, refunds and cancellations
+
+- **Commit hash(es):** 6a `c819fa6` (merged `f182860`, PR #52); 6b `45e40cd` (merged `4cc9575`, PR #53).
+- **Added:** doctor test orders, investigations bill, refunds and visit cancellations (API) and their screens for doctor, reception and Admin.
+- **Database (migrations, roles, RLS):** `20261121090000_investigations_and_refunds`.
+- **Tests:** API 556 after 6a, web 927 after 6b.
+- **Decisions:** `docs/decisions/decisions-6a.md`, `docs/decisions/decisions-6b.md`.
+- **Follow-ups and open items:** see those files. Other fields: unverified here (see the decisions files).
+
 ## 2026-11-19 — Phase 2 Step 5 — split payment, doctor queue, consultation, vitals, prescription and the nurse and doctor screens
 
 - **Commit hash(es):** 5a-1: d428b5b (migration), f75a5b4 (API and web), merged as f16e677 (PR #46). 5a-2 and 5a-3: 796c9eb, merged as 66ed5cd (PR #47). 5b: a9bff8e, merged as 378e4cf (PR #51).
@@ -37,9 +123,9 @@
 - **Removed:** `payments.receipt_number` (moved to `receipts`); the sample `OpdQueueScreen`.
 - **Fixed:** parallel identical requests could answer 400 or 409 instead of the first visit (replay); two-click guards on Start, Complete, vitals and addendum now use a ref (state was too weak); a queue that went empty after midnight; a medicine that is not in the list could not be saved (now "use as typed" and a clear message).
 - **Database (migrations, roles, RLS):** `20261119090000_split_payment_receipts` (receipts, receipt equals the sum of its payments, one mode once per receipt) and `20261120090000_clinical_notes_vitals_prescription` (consultations, addenda, visit_vitals, prescription_items; forced RLS, append-only and freeze triggers, extended visit guard). No grants for hospigo_hq or hospigo_patient.
-- **New .env keys (names only):** `WEB_OPD_QUEUE_REFRESH_SECONDS`, `WEB_OPD_AUTOSAVE_SECONDS`, `WEB_OPD_PREVIOUS_VISITS_LIMIT`, `WEB_CALENDAR_WEEK_START` (all optional, defaults in `docs/env-reference.md`).
-- **Tests:** API 399 -> 488, web 501 -> 758 (lint, format and TypeScript clean). Postman 5a-1 36/36 and 5a doctor queue 60/60. Every new rule was removed one at a time and a test failed each time (a few equivalent cases are listed in `docs/decisions-5a.md` and `docs/decisions-5b.md`).
-- **Decisions:** `docs/decisions-5a.md` and `docs/decisions-5b.md` (doctor sees own visits only; one row lock per visit; notes read audited; reception reads the queue; no patient phone on the doctor screen).
+- **New .env keys (names only):** `WEB_OPD_QUEUE_REFRESH_SECONDS`, `WEB_OPD_AUTOSAVE_SECONDS`, `WEB_OPD_PREVIOUS_VISITS_LIMIT`, `WEB_CALENDAR_WEEK_START` (all optional, defaults in `docs/reference/env-reference.md`).
+- **Tests:** API 399 -> 488, web 501 -> 758 (lint, format and TypeScript clean). Postman 5a-1 36/36 and 5a doctor queue 60/60. Every new rule was removed one at a time and a test failed each time (a few equivalent cases are listed in `docs/decisions/decisions-5a.md` and `docs/decisions/decisions-5b.md`).
+- **Decisions:** `docs/decisions/decisions-5a.md` and `docs/decisions/decisions-5b.md` (doctor sees own visits only; one row lock per visit; notes read audited; reception reads the queue; no patient phone on the doctor screen).
 - **Follow-ups and open items:** cancel or no-show a visit; true part payment (pay later); reception queue sign-off by the manager; printable prescription (Step 7); vitals reads not audited; same note in two tabs (last save wins). See the Open items table in `docs/engineering-tracker.md`.
 
 ## 2026-11-17 — Phase 2 Step 3c — UHID sort, sidebar tooltips, settings structure, polish (F1–F4)
@@ -176,7 +262,7 @@
 
 - **Commit hash(es):** (uncommitted)
 - **Added:** expanded sidebar hospital name on its own full-width ellipsis row with Tooltip; user-menu email Tooltip
-- **Changed:** role badges share one flex-wrap row; frame sketch in `docs/ui-design.md`
+- **Changed:** role badges share one flex-wrap row; frame sketch in `docs/design/ui-design.md`
 - **Removed:** none
 - **Fixed:** hospital name no longer truncated beside brand/wordmark/collapse on one row
 - **Database (migrations, roles, RLS):** none
@@ -214,7 +300,7 @@
 ## 2026-11-16 — Phase 2 Step 3b — reception web foundation
 
 - **Commit hash(es):** (uncommitted)
-- **Added:** `/auth/me` `permissions[]`; web `callStaffApi` + `requirePermission`; scoped `.theme-staff` + IBM Plex Sans; UI kit; Patients placeholder page; `staff-copy.ts` + copy scan; `docs/ui-design.md`
+- **Added:** `/auth/me` `permissions[]`; web `callStaffApi` + `requirePermission`; scoped `.theme-staff` + IBM Plex Sans; UI kit; Patients placeholder page; `staff-copy.ts` + copy scan; `docs/design/ui-design.md`
 - **Changed:** staff/HQ shell restyle (dark sidebar, nav groups); dashboard shows `no-permission` notice; postman folders untracked + gitignored
 - **Removed:** tracked `.postman/` and `postman/` (left on disk)
 - **Fixed:** none
@@ -227,7 +313,7 @@
 ## 2026-11-16 — Phase 2 Step 3a — counters, patient registry API, permission guard
 
 - **Commit hash(es):** (uncommitted)
-- **Added:** `number_series` + `token_counters`; `NumberSeriesService` / `TokenCounterService`; `@RequirePermission` / `@AuthenticatedOnly` + `PermissionGuard` (deny-by-default); patients HTTP API (form-config, search, detail, register, update, UHID start-number); `patients.registry.read/write`; DEMO_NORTH custom patient fields; `docs/api-opd.md`
+- **Added:** `number_series` + `token_counters`; `NumberSeriesService` / `TokenCounterService`; `@RequirePermission` / `@AuthenticatedOnly` + `PermissionGuard` (deny-by-default); patients HTTP API (form-config, search, detail, register, update, UHID start-number); `patients.registry.read/write`; DEMO_NORTH custom patient fields; `docs/reference/api-opd.md`
 - **Changed:** `normalizePhoneIN` lives in `apps/api/src/common/phone.normalize.ts` (patient-auth re-exports); AuthenticatedOnly on `/auth/me`, `/auth/change-password`, `/patient/me`; isolation samples for new tables; seed role grants for registry permissions
 - **Removed:** none
 - **Fixed:** none
@@ -279,7 +365,7 @@
 ## 2026-11-12 — Phase 1 Step 7 — hardening and exit demo
 
 - **Commit hash(es):** (uncommitted)
-- **Added:** `/auth/me` `branches` + `enabledModules` (hospital); web module mapping + `requireModule`; distinct DEMO_NORTH/SOUTH module sets; first-live seed guard + production `isTest` refuse; `docs/env-reference.md`, `docs/engineering-tracker.md`, `docs/staging-checklist.md`; auth/me shell HTTP tests; web modules/module-guard tests
+- **Added:** `/auth/me` `branches` + `enabledModules` (hospital); web module mapping + `requireModule`; distinct DEMO_NORTH/SOUTH module sets; first-live seed guard + production `isTest` refuse; `docs/reference/env-reference.md`, `docs/engineering-tracker.md`, `docs/guides/staging-checklist.md`; auth/me shell HTTP tests; web modules/module-guard tests
 - **Changed:** hospital shell reads real session (no mock branch label); CI `APP_URL` → throwaway `http://127.0.0.1:3001`; web production instrumentation also requires `API_INTERNAL_URL`
 - **Removed:** none
 - **Fixed:** none
@@ -396,7 +482,7 @@
 ## 2026-11-11 — Phase 1 Step 6a-2 — auth endpoints
 
 - **Commit hash(es):** (uncommitted)
-- **Added:** `AuthController` / `AuthService` / DTOs; `AuthRedisService` (IP rate limit + account lockout, fail-closed); global `APP_GUARD` AuthGuard; helmet; `docs/api-auth.md`; HTTP endpoint tests (login failures, lockout, rate limit, refresh reuse, forced change, guard, validation, audits)
+- **Added:** `AuthController` / `AuthService` / DTOs; `AuthRedisService` (IP rate limit + account lockout, fail-closed); global `APP_GUARD` AuthGuard; helmet; `docs/reference/api-auth.md`; HTTP endpoint tests (login failures, lockout, rate limit, refresh reuse, forced change, guard, validation, audits)
 - **Changed:** `AuthGuard` is global (deny by default); `@Public` on health + login/refresh/logout; ValidationPipe whitelist/forbidNonWhitelisted/transform; body size + trust-proxy from `auth.config.ts`; Swagger mounted only when `NODE_ENV !== 'production'`; dev seed adds one `must_change_password=true` user (`MC001`); architecture / folder-guide / ci docs
 - **Removed:** none
 - **Fixed:** change-password brute-force lockout (separate Redis `cpw:` keys); seed emails use hyphenated domains so `@IsEmail` accepts them; refresh/session coverage expanded
@@ -422,7 +508,7 @@
 ## 2026-11-11 — Phase 1 Step 5b — four concept screens with fake data
 
 - **Commit hash(es):** (uncommitted)
-- **Added:** concept screens on `/login`, `/admin` (Hospitals), `/app/opd` (OPD queue), `/book/[code]`; Coming later stubs for other HQ and hospital nav items; `apps/web/src/mock` fake data; async mock loader + loading/empty/error states; `docs/ui-concepts.md`; fluid theme tokens (type, spacing, controls, containers) plus login/surface/status colour tokens
+- **Added:** concept screens on `/login`, `/admin` (Hospitals), `/app/opd` (OPD queue), `/book/[code]`; Coming later stubs for other HQ and hospital nav items; `apps/web/src/mock` fake data; async mock loader + loading/empty/error states; `docs/design/ui-concepts.md`; fluid theme tokens (type, spacing, controls, containers) plus login/surface/status colour tokens
 - **Changed:** HQ and hospital sidebars use Step 5b nav; staff/booking shells take brand colour from mock hospital config; folder guide lists mock and ui-concepts paths; login phone layout (slim brand bar, no scroll goal) and full-height split from layout breakpoint (~700px); booking full-viewport fluid card with two columns from the same breakpoint; sidebar current-page highlight and desktop page-context top bar; HQ hospitals stacked cards under table breakpoint; auto-fit stat grids; branch label Main Branch (sample); primary colour teal for concept screens; booking/page wrappers use min-height only with document scroll and top-aligned sections
 - **Removed:** admin page dependency on the live `/health` Storage status card for this concept step; duplicate Sample data badge on the login brand panel; fixed-device Tailwind size classes from concept screens in favour of theme utility classes; patient-visible access code on `/book/[code]`
 - **Fixed:** UI revision rounds 2–4 (contrast, Send OTP gating, fluid layout, clipped non-scrolling pages, stretch gaps between booking sections)
@@ -436,7 +522,7 @@
 
 - **Commit hash(es):** (uncommitted)
 - **Added:** CI step that starts `node apps/api/dist/main.js`, waits up to 30 seconds for `GET /health` to return `{"status":"ok"}`, then stops the process
-- **Changed:** README and `docs/ci.md` describe that check
+- **Changed:** README and `docs/reference/ci.md` describe that check
 - **Removed:** nothing
 - **Fixed:** nothing
 - **Database (migrations, roles, RLS):** none
@@ -475,7 +561,7 @@
 
 - **Commit hash(es):** (uncommitted)
 - **Added:** nothing
-- **Changed:** `audit` job install → `npm ci --ignore-scripts` (lockfile-only; skips prisma generate); `docs/ci.md` notes why
+- **Changed:** `audit` job install → `npm ci --ignore-scripts` (lockfile-only; skips prisma generate); `docs/reference/ci.md` notes why
 - **Removed:** nothing
 - **Fixed:** nothing
 - **Database (migrations, roles, RLS):** none
@@ -487,8 +573,8 @@
 ## 2026-11-04 — Phase 1 — CI (GitHub Actions) + PR template + Dependabot
 
 - **Commit hash(es):** (uncommitted)
-- **Added:** `.github/workflows/ci.yml` (lint, format:check, API build, create-roles against Postgres 16 + Redis 7 services, API tests; report-only audit job); `.github/dependabot.yml` (weekly npm + github-actions); `.github/pull_request_template.md`; `docs/ci.md`
-- **Changed:** README CI section + docs index; folder-guide entries for `docs/ci.md` and `.github/`
+- **Added:** `.github/workflows/ci.yml` (lint, format:check, API build, create-roles against Postgres 16 + Redis 7 services, API tests; report-only audit job); `.github/dependabot.yml` (weekly npm + github-actions); `.github/pull_request_template.md`; `docs/reference/ci.md`
+- **Changed:** README CI section + docs index; folder-guide entries for `docs/reference/ci.md` and `.github/`
 - **Removed:** nothing
 - **Fixed:** nothing
 - **Database (migrations, roles, RLS):** none (CI bootstraps ephemeral roles/DBs on the runner only)
@@ -593,7 +679,7 @@
 ## 2026-11-04 — Phase 1 Step 3a — Prisma schema, roles, RLS
 
 - **Commit hash(es):** `4588800`, `a575da7`, `0f03692`, `02fd360`, `fb9bec9`, `4e0cba9`, plus this docs commit
-- **Added:** Prisma 7 schema + init RLS migration; `scripts/db/create-roles.mjs`; reference + dev-only tenant seeds; `PrismaModule`/`PrismaService`; RLS/security Jest suite; `.gitattributes` (LF); `docs/architecture.md`, `docs/folder-guide.md`
+- **Added:** Prisma 7 schema + init RLS migration; `scripts/db/create-roles.mjs`; reference + dev-only tenant seeds; `PrismaModule`/`PrismaService`; RLS/security Jest suite; `.gitattributes` (LF); `docs/reference/architecture.md`, `docs/reference/folder-guide.md`
 - **Changed:** API env validation for owner DB URL; health e2e uses app URL against `hospigo_test` only; eslint/gitignore/prettier ignore generated client; `postinstall`/`prebuild`/`pretest` run `prisma generate`
 - **Removed:** `docs/.gitkeep` (replaced by real docs)
 - **Fixed:** SECURITY DEFINER ACL — `REVOKE`/`GRANT` after `OWNER TO` must run as `hospigo_security` (`SET ROLE`); global `ALTER DEFAULT PRIVILEGES … REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC` for owner/security; `hq_create_first_superadmin` locks the hospital row (`FOR UPDATE`), refuses missing/non-ACTIVE hospitals, and is race-safe for concurrent first-SuperAdmin calls

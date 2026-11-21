@@ -289,9 +289,17 @@ export function ConsultScreen({
         <section className="flex flex-col gap-[var(--space-4)]" aria-label={copy.notesHeading}>
           <h2 className="section-heading">{copy.notesHeading}</h2>
           {completed ? (
-            <p role="status" className="type-label text-muted-foreground">
-              {copy.completedBanner}
-            </p>
+            <>
+              <p role="status" className="type-label text-muted-foreground">
+                {copy.completedBanner}
+              </p>
+              <Link
+                href={`/app/opd/visits/${encodeURIComponent(visit.id)}/prescription`}
+                className={cn(buttonVariants({ variant: 'outline' }), 'touch-target w-fit')}
+              >
+                {staffCopy.print.prescription.print}
+              </Link>
+            </>
           ) : null}
           {!canWrite && !completed ? (
             <p className="type-label text-muted-foreground">{copy.readOnlyNote}</p>
@@ -333,6 +341,15 @@ export function ConsultScreen({
       {actionError ? (
         <p role="alert" className="type-label text-destructive">
           {actionError}
+        </p>
+      ) : null}
+
+      {editable && !initial.doctorDetails.registrationNo ? (
+        <p role="note" className="settings-reminder type-label">
+          {staffCopy.doctorProfile.consultReminder}{' '}
+          <Link href="/app/profile" className="underline">
+            {staffCopy.doctorProfile.consultReminderLink}
+          </Link>
         </p>
       ) : null}
 

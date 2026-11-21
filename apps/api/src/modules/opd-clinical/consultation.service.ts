@@ -38,6 +38,84 @@ const NOTE_INCLUDE = {
 
 type NoteRow = Prisma.ConsultationGetPayload<{ include: typeof NOTE_INCLUDE }>;
 
+export type DoctorDetails = {
+  name: string;
+  printedName: string | null;
+  /** What prints: the printed name, or the login name when that is empty. */
+  printName: string;
+  department: string | null;
+  qualifications: string | null;
+  speciality: string | null;
+  registrationNo: string | null;
+  /** The signature or stamp picture: the one the doctor had when the note was completed (or has now, for a draft). */
+  signatureImageId: string | null;
+  /** true: the copy taken when the note was completed; false: the profile as it is now. */
+  fromCompletedCopy: boolean;
+};
+
+const textOrNull = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null);
+
+/**
+ * The doctor details for a prescription. A completed note shows the copy the database took when it
+ * was completed, so an old prescription never changes. A draft, and notes completed before the copy
+ * existed, show the doctor's profile as it is now.
+ */
+async function loadDoctorDetails(
+  tx: TenantTx,
+  actor: Actor,
+  doctorProfileId: string,
+  note: NoteRow | null,
+): Promise<DoctorDetails> {
+  const raw = note?.status === 'COMPLETED' ? note.doctorDetails : null;
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    const copy = raw as Record<string, unknown>;
+    const name = textOrNull(copy.name) ?? '';
+    const printedName = textOrNull(copy.printedName);
+    return {
+      name,
+      printedName,
+      printName: printedName ?? name,
+      department: textOrNull(copy.department),
+      qualifications: textOrNull(copy.qualifications),
+      speciality: textOrNull(copy.speciality),
+      registrationNo: textOrNull(copy.registrationNo),
+      signatureImageId: textOrNull(copy.signatureImageId),
+      fromCompletedCopy: true,
+    };
+  }
+  const profile = await tx.doctorProfile.findFirstOrThrow({
+    where: { id: doctorProfileId, tenantId: actor.tenantId },
+    select: {
+      printedName: true,
+      department: true,
+      qualifications: true,
+      speciality: true,
+      registrationNo: true,
+      user: { select: { displayName: true } },
+    },
+  });
+  const signature = await tx.storedImage.findFirst({
+    where: {
+      tenantId: actor.tenantId,
+      doctorProfileId,
+      purpose: 'DOCTOR_SIGNATURE',
+      isCurrent: true,
+    },
+    select: { id: true },
+  });
+  return {
+    name: profile.user.displayName,
+    printedName: profile.printedName,
+    printName: profile.printedName ?? profile.user.displayName,
+    department: profile.department,
+    qualifications: profile.qualifications,
+    speciality: profile.speciality,
+    registrationNo: profile.registrationNo,
+    signatureImageId: signature?.id ?? null,
+    fromCompletedCopy: false,
+  };
+}
+
 function toNoteView(note: NoteRow | null) {
   if (!note) {
     return { consultation: null, prescription: [], addenda: [] };
@@ -301,6 +379,7 @@ export class ConsultationService {
         return {
           replayed: true,
           visit: toVisitSummary(visit, prefix, today),
+          doctorDetails: await loadDoctorDetails(tx, actor, visit.doctorProfileId, note),
           ...toNoteView(note),
         };
       }
@@ -329,10 +408,12 @@ export class ConsultationService {
         prescriptionItems: note.prescriptionItems.length,
       });
       const fresh = await findClinicalVisit(tx, actor, visit.id, visit.doctorProfileId);
+      const closed = await this.findNote(tx, actor, visit.id);
       return {
         replayed: false,
         visit: toVisitSummary(fresh, prefix, today),
-        ...toNoteView(await this.findNote(tx, actor, visit.id)),
+        doctorDetails: await loadDoctorDetails(tx, actor, visit.doctorProfileId, closed),
+        ...toNoteView(closed),
       };
     });
   }
@@ -388,7 +469,11 @@ export class ConsultationService {
         consultationStatus: note?.status ?? null,
         addenda: note?.addenda.length ?? 0,
       });
-      return { visit: toVisitSummary(visit, prefix, today), ...toNoteView(note) };
+      return {
+        visit: toVisitSummary(visit, prefix, today),
+        doctorDetails: await loadDoctorDetails(tx, actor, visit.doctorProfileId, note),
+        ...toNoteView(note),
+      };
     });
   }
 

@@ -917,6 +917,39 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
     });
     sampleB.refund_requests = refundSample.request.id;
     sampleB.refunds = refundSample.refund.id;
+
+    // Step 7-3: a print template of hospital B (the app role may change only its setting columns).
+    const printTemplate = await prisma.printTemplate.create({
+      data: {
+        tenantId: tenantB,
+        docType: 'RECEIPT',
+        paper: 'A5',
+        createdBy: sampleB.users!,
+        updatedBy: sampleB.users!,
+      },
+    });
+    sampleB.print_templates = printTemplate.id;
+
+    // Step 7d: the staff code settings of hospital B (one row per hospital, the hospital id is the key).
+    await prisma.staffCodeSettings.create({ data: { tenantId: tenantB } });
+    sampleB.staff_code_settings = tenantB;
+
+    // Step 7e: a stored picture (the signature of the sample doctor of hospital B).
+    const storedImage = await prisma.storedImage.create({
+      data: {
+        tenantId: tenantB,
+        purpose: 'DOCTOR_SIGNATURE',
+        doctorProfileId: sampleB.doctor_profiles!,
+        contentType: 'image/png',
+        byteSize: 10,
+        width: 20,
+        height: 20,
+        sha256: 'd'.repeat(64),
+        storageKey: 'images/rls-sample',
+        createdBy: sampleB.users!,
+      },
+    });
+    sampleB.stored_images = storedImage.id;
   });
 
   afterAll(async () => {

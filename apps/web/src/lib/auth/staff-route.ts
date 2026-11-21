@@ -14,6 +14,10 @@ export type StaffRouteOptions = {
   path: string;
   query?: CallStaffApiOptions['query'];
   body?: unknown;
+  /** A file upload (multipart form), sent instead of a JSON body. */
+  form?: FormData;
+  /** A file download: the API's bytes are passed on with this type and file name. */
+  download?: { contentType: string; fileName: string };
   /**
    * The incoming browser request. REQUIRED for every write (POST/PUT/PATCH/DELETE): it carries
    * the stale-tab branch header checked by the branch guard. A write without it is refused.
@@ -35,6 +39,8 @@ export type UpstreamErrorPayload = {
   what?: string;
   totalPaise?: number;
   fieldCode?: string;
+  /** A print template that was refused: which field, and why (`reason`). */
+  field?: string;
   index?: number;
   /** Step 6b: facts that explain a refusal about tests, refunds and cancellations. */
   paymentModeCode?: string;
@@ -44,9 +50,12 @@ export type UpstreamErrorPayload = {
   refundablePaise?: number;
   pendingPaise?: number;
   max?: number;
+  /** Seconds to wait before another code may be asked for. */
+  retryAfterSec?: number;
 };
 
 const SAFE_TEXT_KEYS = [
+  'field',
   'reason',
   'what',
   'fieldCode',
@@ -54,7 +63,14 @@ const SAFE_TEXT_KEYS = [
   'status',
   'series',
 ] as const;
-const SAFE_NUMBER_KEYS = ['totalPaise', 'index', 'refundablePaise', 'pendingPaise', 'max'] as const;
+const SAFE_NUMBER_KEYS = [
+  'totalPaise',
+  'index',
+  'refundablePaise',
+  'pendingPaise',
+  'max',
+  'retryAfterSec',
+] as const;
 
 /** Pick only known upstream error fields for the browser. Never forwards tokens. */
 function safeUpstreamErrorPayload(body: Record<string, unknown> | undefined): UpstreamErrorPayload {
@@ -118,8 +134,20 @@ export async function staffRoute(options: StaffRouteOptions): Promise<NextRespon
     method,
     query: options.query,
     body: options.body,
+    form: options.form,
+    ...(options.download ? { raw: true } : {}),
   });
 
+  if (result.ok && options.download) {
+    return new NextResponse(result.data as ArrayBuffer, {
+      status: 200,
+      headers: {
+        'Content-Type': options.download.contentType,
+        'Content-Disposition': `attachment; filename="${options.download.fileName}"`,
+        ...NO_STORE,
+      },
+    });
+  }
   if (result.ok) {
     return jsonResponse(result.data ?? null, 200);
   }

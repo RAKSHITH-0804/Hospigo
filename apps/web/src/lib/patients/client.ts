@@ -28,6 +28,8 @@ export type PatientsApiError = {
   fieldErrors?: Record<string, string>;
   /** Extra facts for explaining a refusal (for example the new total after PRICE_CHANGED). */
   reason?: string;
+  /** Which field of a print template a refusal is about. */
+  field?: string;
   what?: string;
   totalPaise?: number;
   /** Which vitals field a refusal is about. */
@@ -42,11 +44,13 @@ export type PatientsApiError = {
   refundablePaise?: number;
   pendingPaise?: number;
   max?: number;
+  /** Seconds to wait before asking for another code (a refusal of too many requests). */
+  retryAfterSec?: number;
 };
 export type PatientsApiResult<T> = PatientsApiOk<T> | PatientsApiError;
 
 export type PatientsApiInit = {
-  method?: 'GET' | 'POST' | 'PATCH' | 'PUT';
+  method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   body?: unknown;
   /** Lets a caller cancel an in-flight request (live search). */
   signal?: AbortSignal;
@@ -126,6 +130,7 @@ async function fetchPatientsOnce<T>(
       matches: readMatches(record.matches),
       fieldErrors: readFieldErrors(record.fieldErrors),
       reason: typeof record.reason === 'string' ? record.reason : undefined,
+      field: typeof record.field === 'string' ? record.field : undefined,
       what: typeof record.what === 'string' ? record.what : undefined,
       totalPaise: typeof record.totalPaise === 'number' ? record.totalPaise : undefined,
       fieldCode: typeof record.fieldCode === 'string' ? record.fieldCode : undefined,
@@ -138,6 +143,7 @@ async function fetchPatientsOnce<T>(
         typeof record.refundablePaise === 'number' ? record.refundablePaise : undefined,
       pendingPaise: typeof record.pendingPaise === 'number' ? record.pendingPaise : undefined,
       max: typeof record.max === 'number' ? record.max : undefined,
+      retryAfterSec: typeof record.retryAfterSec === 'number' ? record.retryAfterSec : undefined,
     };
   } catch (error) {
     if (init.signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {

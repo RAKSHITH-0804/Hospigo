@@ -11,6 +11,7 @@ import {
   type UhidConfigInput,
 } from './uhid.util';
 import type { UhidFyStyle, UhidResetRule } from '../../generated/prisma';
+import { UHID_FORMAT_LIMITS } from './uhid-format.rules';
 
 export type UhidStartNumberPreview = {
   nextNumber: bigint;
@@ -20,7 +21,28 @@ export type UhidStartNumberPreview = {
   periodLabel: string | null;
 };
 
+export type UhidFormatView = {
+  configured: boolean;
+  effectiveFrom: string | null;
+  format: {
+    resetRule: UhidResetRule;
+    fyStartMonth: number;
+    blocks: Array<{
+      blockType: UhidBlockInput['blockType'];
+      textValue: string | null;
+      fyStyle: UhidFyStyle | null;
+      minWidth: number | null;
+    }>;
+  } | null;
+  example: string | null;
+  next: string | null;
+  /** The branch code a BRANCH_CODE block prints for the caller's branch (for the sample). */
+  branchCode: string;
+  limits: typeof UHID_FORMAT_LIMITS;
+};
+
 type EffectiveUhidConfig = {
+  effectiveFrom: Date;
   configInput: UhidConfigInput;
   periodYear: number;
   resetRule: UhidResetRule;
@@ -85,6 +107,145 @@ export class UhidService {
       return created.id;
     });
     return { configId };
+  }
+
+  /**
+   * The patient number format in use now, with a sample and the next real number. Read only: no
+   * counter row is created and nothing is written.
+   */
+  async getFormat(input: { tenantId: string; branchId: string }): Promise<UhidFormatView> {
+    const now = this.clock.now();
+    return this.tenantDb.withTenant(async (tx) => {
+      const effective = await this.loadEffectiveConfigOrNull(tx, input.tenantId, now);
+      const branch = await tx.branch.findUnique({
+        where: { tenantId_id: { tenantId: input.tenantId, id: input.branchId } },
+      });
+      const branchCode = branch?.code ?? '';
+      if (!effective) {
+        return {
+          configured: false,
+          format: null,
+          effectiveFrom: null,
+          example: null,
+          next: null,
+          branchCode,
+          limits: UHID_FORMAT_LIMITS,
+        };
+      }
+      const counter = await tx.uhidCounter.findUnique({
+        where: {
+          tenantId_periodYear: { tenantId: input.tenantId, periodYear: effective.periodYear },
+        },
+      });
+      const next = (counter?.lastNumber ?? 0n) + 1n;
+      return {
+        configured: true,
+        effectiveFrom: effective.effectiveFrom.toISOString(),
+        format: {
+          resetRule: effective.configInput.resetRule,
+          fyStartMonth: effective.configInput.fyStartMonth,
+          blocks: effective.configInput.blocks.map((b) => ({
+            blockType: b.blockType,
+            textValue: b.textValue,
+            fyStyle: b.fyStyle,
+            minWidth: b.minWidth,
+          })),
+        },
+        example: buildUhid({
+          config: effective.configInput,
+          now,
+          periodYear: effective.periodYear,
+          runningNumber: 1n,
+          branchCode,
+        }),
+        next: buildUhid({
+          config: effective.configInput,
+          now,
+          periodYear: effective.periodYear,
+          runningNumber: next,
+          branchCode,
+        }),
+        branchCode,
+        limits: UHID_FORMAT_LIMITS,
+      };
+    });
+  }
+
+  /**
+   * Starts a new patient number format from now on. Old formats stay (history, immutable) and
+   * numbers already issued never change. The running number never goes back: when the new format
+   * counts in another period (for example "never restart" to "restart each financial year"), its
+   * counter starts at the old counter, so a number is never issued twice. Audited by field names.
+   */
+  async changeFormat(input: {
+    tenantId: string;
+    userId: string;
+    format: Pick<UhidConfigInput, 'resetRule' | 'fyStartMonth' | 'blocks'>;
+  }): Promise<{ configId: string }> {
+    const now = this.clock.now();
+    return this.tenantDb.withTenant(async (tx) => {
+      const old = await this.loadEffectiveConfigOrNull(tx, input.tenantId, now);
+      const timezone = old?.configInput.timezone ?? 'Asia/Kolkata';
+      const config: UhidConfigInput = { ...input.format, timezone };
+      assertUhidConfigValid(config);
+
+      const created = await tx.uhidFormatConfig.create({
+        data: {
+          tenantId: input.tenantId,
+          effectiveFrom: now,
+          resetRule: config.resetRule,
+          fyStartMonth: config.fyStartMonth,
+          timezone,
+          createdBy: input.userId,
+          blocks: {
+            create: config.blocks.map((b) => ({
+              position: b.position,
+              blockType: b.blockType,
+              textValue: b.textValue,
+              fyStyle: b.fyStyle,
+              minWidth: b.minWidth,
+            })),
+          },
+        },
+      });
+
+      const newPeriod = resolvePeriodYear(now, config.resetRule, config.fyStartMonth, timezone);
+      let carried = false;
+      if (old && old.periodYear !== newPeriod) {
+        const oldCounter = await tx.uhidCounter.findUnique({
+          where: {
+            tenantId_periodYear: { tenantId: input.tenantId, periodYear: old.periodYear },
+          },
+        });
+        const last = oldCounter?.lastNumber ?? 0n;
+        if (last > 0n) {
+          await tx.$executeRaw`
+            INSERT INTO uhid_counters (tenant_id, period_year, last_number)
+            VALUES (${input.tenantId}, ${newPeriod}, ${last})
+            ON CONFLICT (tenant_id, period_year)
+            DO UPDATE SET last_number = GREATEST(uhid_counters.last_number, EXCLUDED.last_number)
+          `;
+          carried = true;
+        }
+      }
+
+      await tx.auditLog.create({
+        data: {
+          tenantId: input.tenantId,
+          actorUserId: input.userId,
+          action: 'UHID_FORMAT_CHANGE',
+          entityType: 'uhid_format_configs',
+          entityId: created.id,
+          reason: 'Patient number format changed',
+          metadata: {
+            resetRule: config.resetRule,
+            blockTypes: config.blocks.map((b) => b.blockType),
+            counterCarriedForward: carried,
+          },
+        },
+      });
+      return { configId: created.id };
+    });
   }
 
   /**
@@ -265,15 +426,28 @@ export class UhidService {
     tenantId: string,
     now: Date,
   ): Promise<EffectiveUhidConfig> {
+    const effective = await this.loadEffectiveConfigOrNull(tx, tenantId, now);
+    if (!effective) {
+      throw new Error('No UHID format config effective for this hospital; registration refused');
+    }
+    return effective;
+  }
+
+  private async loadEffectiveConfigOrNull(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    now: Date,
+  ): Promise<EffectiveUhidConfig | null> {
     const configs = await tx.uhidFormatConfig.findMany({
       where: { tenantId, effectiveFrom: { lte: now } },
-      orderBy: { effectiveFrom: 'desc' },
+      // two formats saved in the same moment: the newer row wins, the same way for every reader
+      orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
       take: 1,
       include: { blocks: { orderBy: { position: 'asc' } } },
     });
     const cfg = configs[0];
     if (!cfg) {
-      throw new Error('No UHID format config effective for this hospital; registration refused');
+      return null;
     }
 
     const configInput: UhidConfigInput = {
@@ -294,6 +468,7 @@ export class UhidService {
     const periodLabel = periodLabelForConfig(configInput, periodYear);
 
     return {
+      effectiveFrom: cfg.effectiveFrom,
       configInput,
       periodYear,
       resetRule: cfg.resetRule,

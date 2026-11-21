@@ -13,7 +13,7 @@ export function SettingBlock({
   return (
     <section className="settings-block" aria-label={title}>
       <h2 className="section-heading">{title}</h2>
-      <p className="type-label text-muted-foreground">{description}</p>
+      {description ? <p className="type-label text-muted-foreground">{description}</p> : null}
       {children}
     </section>
   );

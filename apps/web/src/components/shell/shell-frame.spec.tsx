@@ -38,7 +38,7 @@ jest.mock('next/link', () => {
 });
 
 const requireKindMock = jest.fn();
-const sectionParams = { params: Promise.resolve({ section: 'patient-registration' }) };
+const sectionParams = { params: Promise.resolve({ section: 'patient-numbers' }) };
 const serverFetchMock = jest.fn();
 
 jest.mock('@/lib/patients/server', () => ({
@@ -364,16 +364,21 @@ describe('shell frame', () => {
         roleCodes: ['BRANCH_ADMIN'],
       }),
     );
-    serverFetchMock.mockResolvedValue({
-      status: 'ok',
-      data: {
-        nextNumber: 1,
-        nextUhidPreview: 'TESTA0001',
-        resetRule: 'NEVER',
-        periodYear: 0,
-        periodLabel: null,
-      },
-    });
+    // each card has its own API path: the number card is answered, the others are not available
+    serverFetchMock.mockImplementation(async (path: string) =>
+      path === '/patients/uhid/start-number'
+        ? {
+            status: 'ok',
+            data: {
+              nextNumber: 1,
+              nextUhidPreview: 'TESTA0001',
+              resetRule: 'NEVER',
+              periodYear: 0,
+              periodLabel: null,
+            },
+          }
+        : { status: 'error', code: 'UNAVAILABLE' },
+    );
     const page = await SettingsSectionPage(sectionParams);
     render(page);
     expect(screen.getByRole('heading', { name: staffCopy.settings.title })).toBeTruthy();
@@ -417,6 +422,31 @@ describe('shell frame', () => {
     expect(within(menu).getByText('Demo Hospital One')).toBeTruthy();
     expect(screen.getByRole('menuitem', { name: staffCopy.signOut })).toBeTruthy();
     fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('user menu offers My profile only when a profile link is given', () => {
+    const without = render(
+      <UserMenu displayName="Ada Lovelace" email="ada@example.test" roleCodes={['RECEPTIONIST']} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: staffCopy.shell.userMenuAria }));
+    expect(screen.queryByRole('menuitem', { name: staffCopy.shell.myProfile })).toBeNull();
+    without.unmount();
+    render(
+      <UserMenu
+        displayName="Dr Meena"
+        email="meena@example.test"
+        roleCodes={['DOCTOR']}
+        profileHref="/app/profile"
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: staffCopy.shell.userMenuAria }));
+    const link = screen.getByRole('menuitem', { name: staffCopy.shell.myProfile });
+    expect(link.getAttribute('href')).toBe('/app/profile');
+    // Sign out stays the last item
+    const items = screen.getAllByRole('menuitem');
+    expect(items.at(-1)?.textContent).toContain(staffCopy.signOut);
+    fireEvent.click(link);
     expect(screen.queryByRole('menu')).toBeNull();
   });
 

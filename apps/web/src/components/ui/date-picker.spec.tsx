@@ -183,3 +183,49 @@ describe('DatePicker', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
+
+describe('DatePicker with its own quick picks and the hospital today', () => {
+  function Report({ onValue }: { onValue: (v: string) => void }) {
+    const [value, setValue] = useState('2026-11-10');
+    return (
+      <DatePicker
+        label="Date"
+        value={value}
+        max="2026-11-20"
+        todayIso="2026-11-20"
+        weekStart={1}
+        quickDays={[]}
+        quickPicks={[
+          { label: 'Today', days: 0 },
+          { label: 'Yesterday', days: -1 },
+        ]}
+        onChange={(v) => {
+          setValue(v);
+          onValue(v);
+        }}
+      />
+    );
+  }
+
+  it('shows the given quick picks instead of the usual ones, and they count from the hospital today', () => {
+    // the browser says 19 Nov (fake clock) but the hospital day is 20 Nov
+    const picked = jest.fn();
+    render(<Report onValue={picked} />);
+    fireEvent.click(screen.getByLabelText('Date'));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByRole('button', { name: 'Today' })).toBeTruthy();
+    expect(within(dialog).queryByRole('button', { name: copy.quickTomorrow })).toBeNull();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Yesterday' }));
+    expect(picked).toHaveBeenCalledWith('2026-11-19');
+    fireEvent.click(screen.getByLabelText('Date'));
+    fireEvent.click(screen.getByRole('button', { name: 'Today' }));
+    expect(picked).toHaveBeenLastCalledWith('2026-11-20');
+  });
+
+  it('marks the hospital today in the month, not the browser one', () => {
+    render(<Report onValue={() => {}} />);
+    fireEvent.click(screen.getByLabelText('Date'));
+    const todayCell = screen.getByRole('button', { name: /Friday, 20 November 2026/ });
+    expect(todayCell.className).toContain('calendar-day-today');
+  });
+});

@@ -471,6 +471,15 @@ describe('after completion', () => {
     expect(screen.getByText(/Dr Meena on/)).toBeTruthy();
   });
 
+  it('offers to print the prescription of a completed consultation, and not before', () => {
+    const done = renderScreen({ initial: completedConsult() });
+    const link = screen.getByRole('link', { name: staffCopy.print.prescription.print });
+    expect(link.getAttribute('href')).toMatch(/^\/app\/opd\/visits\/[^/]+\/prescription$/);
+    done.unmount();
+    renderScreen();
+    expect(screen.queryByRole('link', { name: staffCopy.print.prescription.print })).toBeNull();
+  });
+
   it('the doctor can add an addendum; it needs both text and reason', async () => {
     api({
       [`POST ${url('/consultation/addenda')}`]: (body) =>
@@ -548,5 +557,44 @@ describe('vitals and the rest of the page', () => {
     expect(screen.getByText('T7')).toBeTruthy();
     expect(screen.getByText('previous-section')).toBeTruthy();
     expect(screen.getAllByRole('link', { name: copy.backToQueue }).length).toBeGreaterThan(0);
+  });
+});
+
+describe('the registration number reminder', () => {
+  const copy2 = staffCopy.doctorProfile;
+  const withDetails = (registrationNo: string | null) =>
+    makeConsult({
+      visit: started(),
+      consultation: makeNote(),
+      doctorDetails: {
+        name: 'Dr Meena',
+        printedName: null,
+        printName: 'Dr Meena',
+        department: null,
+        qualifications: null,
+        speciality: null,
+        registrationNo,
+        signatureImageId: null,
+        fromCompletedCopy: false,
+      },
+    });
+
+  it('reminds the doctor, with a link to My profile, when the registration number is empty', () => {
+    renderScreen({ initial: withDetails(null) });
+    const note = screen.getByRole('note');
+    expect(note.textContent).toContain(copy2.consultReminder);
+    expect(screen.getByRole('link', { name: copy2.consultReminderLink }).getAttribute('href')).toBe(
+      '/app/profile',
+    );
+    // it never blocks: Complete is still there
+    expect(screen.getByRole('button', { name: copy.complete })).toBeTruthy();
+  });
+
+  it('says nothing when the registration number is set, or when the screen is only for reading', () => {
+    const set = renderScreen({ initial: withDetails('KMC/1') });
+    expect(screen.queryByRole('note')).toBeNull();
+    set.unmount();
+    renderScreen({ initial: withDetails(null), canWrite: false });
+    expect(screen.queryByRole('note')).toBeNull();
   });
 });

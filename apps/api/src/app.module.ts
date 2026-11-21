@@ -8,10 +8,17 @@ import { HealthModule } from './modules/health/health.module';
 import { ImportsModule } from './modules/imports/imports.module';
 import { PatientAuthModule } from './modules/patient-auth/patient-auth.module';
 import { NumberingModule } from './modules/numbering/numbering.module';
+import { DoctorProfilesModule } from './modules/doctor-profiles/doctor-profiles.module';
+import { ImagesModule } from './modules/images/images.module';
+import { AccountModule } from './modules/account/account.module';
+import { StaffModule } from './modules/staff/staff.module';
+import { HospitalSettingsModule } from './modules/hospital-settings/hospital-settings.module';
 import { OpdMastersModule } from './modules/opd-masters/opd-masters.module';
 import { OpdClinicalModule } from './modules/opd-clinical/opd-clinical.module';
 import { OpdInvestigationsModule } from './modules/opd-investigations/opd-investigations.module';
 import { OpdRefundsModule } from './modules/opd-refunds/opd-refunds.module';
+import { OpdReportsModule } from './modules/opd-reports/opd-reports.module';
+import { PrintTemplatesModule } from './modules/print-templates/print-templates.module';
 import { OpdVisitsModule } from './modules/opd-visits/opd-visits.module';
 import { PatientsModule } from './modules/patients/patients.module';
 import { StorageModule } from './modules/storage/storage.module';
@@ -33,11 +40,18 @@ import { StorageModule } from './modules/storage/storage.module';
     PatientsModule,
     ImportsModule,
     OpdMastersModule,
+    HospitalSettingsModule,
+    DoctorProfilesModule,
+    ImagesModule,
+    StaffModule,
+    AccountModule,
     NumberingModule,
     OpdVisitsModule,
     OpdClinicalModule,
     OpdInvestigationsModule,
     OpdRefundsModule,
+    OpdReportsModule,
+    PrintTemplatesModule,
   ],
 })
 export class AppModule {}

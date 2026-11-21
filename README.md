@@ -20,7 +20,7 @@ This repository is the npm workspaces monorepo for the API, web app, and shared 
 | `apps/api`        | NestJS API (`@hospigo/api`)                      |
 | `apps/web`        | Web workspace placeholder                        |
 | `packages/shared` | Shared package placeholder                       |
-| `docs/`           | Architecture, folder guide, changelog            |
+| `docs/`           | All project docs, see `docs/README.md`           |
 | `scripts/`        | Labelled operational scripts (e.g. DB bootstrap) |
 | `.cursor/`        | Cursor project rules                             |
 | `.husky/`         | Git hooks (pre-commit runs `npm run lint`)       |
@@ -154,7 +154,7 @@ Auth, rate limiting, and Mailpit wiring: Not available yet (planned in later ste
 
 `apps/web` is a Next.js app. Copy `apps/web/.env.example` to `apps/web/.env.local` and set server-only `API_INTERNAL_URL` (API origin, default port 3000) and `APP_URL` (web origin used for auth Origin checks). The browser never receives the API URL — route handlers call the API server-to-server. The dev server listens on port 3001.
 
-Optional reception overrides (see `apps/web/.env.example` and `docs/env-reference.md`): `WEB_STAFF_UPSTREAM_TIMEOUT_MS`, `WEB_STAFF_UPSTREAM_ERROR_BODY_MAX_BYTES`, `WEB_PATIENT_SEARCH_MIN_NAME_LENGTH`, `WEB_PATIENT_SEARCH_PAGE_SIZE`, `WEB_PATIENT_SEARCH_MAX_PAGE_SIZE`, `WEB_PATIENT_SLIP_PAPER_SIZE`, `WEB_PATIENT_LIST_SORT_DEFAULT`, `WEB_PATIENT_PHONE_COUNTRY_PREFIX`, `WEB_PATIENT_PHONE_NATIONAL_LENGTH`, `WEB_PATIENT_PINCODE_LENGTH`, `WEB_PATIENT_AGE_MIN`, `WEB_PATIENT_AGE_MAX`, `WEB_PATIENT_AGE_MAX_DIGITS`, `WEB_PATIENT_DATE_LOCALE`.
+Optional reception overrides (see `apps/web/.env.example` and `docs/reference/env-reference.md`): `WEB_STAFF_UPSTREAM_TIMEOUT_MS`, `WEB_STAFF_UPSTREAM_ERROR_BODY_MAX_BYTES`, `WEB_PATIENT_SEARCH_MIN_NAME_LENGTH`, `WEB_PATIENT_SEARCH_PAGE_SIZE`, `WEB_PATIENT_SEARCH_MAX_PAGE_SIZE`, `WEB_PATIENT_SLIP_PAPER_SIZE`, `WEB_PATIENT_LIST_SORT_DEFAULT`, `WEB_PATIENT_PHONE_COUNTRY_PREFIX`, `WEB_PATIENT_PHONE_NATIONAL_LENGTH`, `WEB_PATIENT_PINCODE_LENGTH`, `WEB_PATIENT_AGE_MIN`, `WEB_PATIENT_AGE_MAX`, `WEB_PATIENT_AGE_MAX_DIGITS`, `WEB_PATIENT_DATE_LOCALE`.
 
 ## Health checks
 
@@ -184,11 +184,11 @@ With the API running (default port from `API_PORT`):
 
 ## CI
 
-GitHub Actions runs lint, format check, API build, DB role bootstrap, API tests, a compiled-API `/health` check, then the web build and web tests on pushes to `develop` / `feature/**` and on PRs into `develop` / `main`. An `audit` job reports `npm audit` findings without blocking. Details: [docs/ci.md](docs/ci.md).
+GitHub Actions runs lint, format check, API build, DB role bootstrap, API tests, a compiled-API `/health` check, then the web build and web tests on pushes to `develop` / `feature/**` and on PRs into `develop` / `main`. An `audit` job reports `npm audit` findings without blocking. Details: [docs/reference/ci.md](docs/reference/ci.md).
 
 ## Docs index
 
-- [Architecture](docs/architecture.md) — tenancy, DB roles, RLS, Prisma, ledger rules for later
-- [Folder guide](docs/folder-guide.md) — where code and scripts live
-- [CI](docs/ci.md) — GitHub Actions, PR flow, reading failures
+- [Architecture](docs/reference/architecture.md) — tenancy, DB roles, RLS, Prisma, ledger rules for later
+- [Folder guide](docs/reference/folder-guide.md) — where code and scripts live
+- [CI](docs/reference/ci.md) — GitHub Actions, PR flow, reading failures
 - [Changelog](docs/CHANGELOG.md) — step-by-step project history

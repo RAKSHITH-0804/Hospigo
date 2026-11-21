@@ -27,7 +27,24 @@ export function makeQueueItem(over: Partial<QueueItem> = {}): QueueItem {
 }
 
 export function makeConsult(over: Partial<ConsultationResponse> = {}): ConsultationResponse {
-  return { visit: makeVisit(), consultation: null, prescription: [], addenda: [], ...over };
+  return {
+    visit: makeVisit(),
+    doctorDetails: {
+      name: 'Dr Meena',
+      printedName: null,
+      printName: 'Dr Meena',
+      department: null,
+      qualifications: null,
+      speciality: null,
+      registrationNo: null,
+      signatureImageId: null,
+      fromCompletedCopy: false,
+    },
+    consultation: null,
+    prescription: [],
+    addenda: [],
+    ...over,
+  };
 }
 
 export function makeNote(over: Partial<NonNullable<ConsultationResponse['consultation']>> = {}) {

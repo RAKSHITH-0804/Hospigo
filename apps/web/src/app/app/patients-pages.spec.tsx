@@ -7,6 +7,7 @@ import NewPatientPage from '@/app/app/patients/new/page';
 import PatientRecordPage from '@/app/app/patients/[id]/page';
 import EditPatientPage from '@/app/app/patients/[id]/edit/page';
 import PatientSlipPage from '@/app/app/patients/[id]/slip/page';
+import MyProfilePage from '@/app/app/profile/page';
 import SettingsIndexPage from '@/app/app/settings/page';
 import SettingsSectionPage from '@/app/app/settings/[section]/page';
 import { SETTINGS_SECTIONS } from '@/config/settings-sections';
@@ -46,6 +47,7 @@ jest.mock('@/lib/patients/server', () => ({
 }));
 
 jest.mock('@/lib/auth/guards', () => ({
+  requireKind: async () => requireKindMock('HOSPITAL'),
   requirePermission: async (code: string) => {
     const session = await requireKindMock('HOSPITAL');
     if (!session.permissions?.includes(code)) {
@@ -81,6 +83,52 @@ jest.mock('@/components/patients/patient-slip', () => ({
 jest.mock('@/components/patients/uhid-start-card', () => ({
   UhidStartCard: (props: Record<string, unknown>) => (
     <div data-testid="uhid-card" data-props={JSON.stringify(props)} />
+  ),
+}));
+
+jest.mock('@/components/doctors/my-profile-form', () => ({
+  MyProfileForm: (props: Record<string, unknown>) => (
+    <div data-testid="my-profile" data-props={JSON.stringify(props)} />
+  ),
+}));
+jest.mock('@/components/images/logo-card', () => ({
+  LogoCard: (props: Record<string, unknown>) => (
+    <div data-testid="logo-card" data-props={JSON.stringify(props)} />
+  ),
+}));
+jest.mock('@/components/staff/staff-admin', () => ({
+  StaffAdmin: (props: Record<string, unknown>) => (
+    <div data-testid="staff-admin" data-props={JSON.stringify(props)} />
+  ),
+}));
+jest.mock('@/components/staff/code-format-card', () => ({
+  CodeFormatCard: (props: Record<string, unknown>) => (
+    <div data-testid="code-format" data-props={JSON.stringify(props)} />
+  ),
+}));
+jest.mock('@/components/staff/roles-manager', () => ({
+  RolesManager: (props: Record<string, unknown>) => (
+    <div data-testid="roles-manager" data-props={JSON.stringify(props)} />
+  ),
+}));
+jest.mock('@/components/settings/doctors-list', () => ({
+  DoctorsList: (props: Record<string, unknown>) => (
+    <div data-testid="doctors-list" data-props={JSON.stringify(props)} />
+  ),
+}));
+jest.mock('@/components/settings/opd-rules-form', () => ({
+  OpdRulesForm: (props: Record<string, unknown>) => (
+    <div data-testid="opd-rules" data-props={JSON.stringify(props)} />
+  ),
+}));
+jest.mock('@/components/settings/registration-fields', () => ({
+  RegistrationFields: (props: Record<string, unknown>) => (
+    <div data-testid="registration-fields" data-props={JSON.stringify(props)} />
+  ),
+}));
+jest.mock('@/components/settings/uhid-format-card', () => ({
+  UhidFormatCard: (props: Record<string, unknown>) => (
+    <div data-testid="uhid-format" data-props={JSON.stringify(props)} />
   ),
 }));
 
@@ -432,7 +480,7 @@ describe('patients pages', () => {
       await expect(SettingsIndexPage()).rejects.toThrow(`REDIRECT:${SETTINGS_SECTIONS[0]!.route}`);
     });
 
-    it('a section renders the frame, the nav with aria-current and the server-fetched number', async () => {
+    it('the registration fields section renders the frame, the nav with aria-current and the server-fetched fields', async () => {
       requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read']));
       fetchMock.mockResolvedValue(ok(info));
       const { unmount } = render(await SettingsSectionPage(section('patient-registration')));
@@ -442,19 +490,214 @@ describe('patients pages', () => {
       const current = nav.querySelector('[aria-current="page"]');
       expect(current?.textContent).toBe(staffCopy.settings.sections.patientRegistration);
       expect(current?.getAttribute('href')).toBe('/app/settings/patient-registration');
-      expect(fetchMock).toHaveBeenCalledWith('/patients/uhid/start-number');
-      expect(propsOf('uhid-card')).toEqual({
+      expect(fetchMock).toHaveBeenCalledWith('/settings/patient-fields');
+      // only this section's data is fetched: the number screens have their own page
+      expect(fetchMock).not.toHaveBeenCalledWith('/patients/uhid/start-number');
+      expect(fetchMock).not.toHaveBeenCalledWith('/settings/uhid-format');
+      expect(propsOf('registration-fields')).toEqual({
         canWrite: false,
-        initialInfo: info,
+        initial: info,
         initialErrorCode: null,
       });
+      expect(screen.queryByTestId('uhid-card')).toBeNull();
       unmount();
 
       requireKindMock.mockResolvedValue(
         hospitalSession(['hospital.settings.read', 'hospital.settings.write']),
       );
       render(await SettingsSectionPage(section('patient-registration')));
+      expect(propsOf('registration-fields')).toMatchObject({ canWrite: true });
+    });
+
+    it('the patient numbers section shows the format and the next number, writable with hospital.settings.write', async () => {
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read']));
+      fetchMock.mockResolvedValue(ok(info));
+      const { unmount } = render(await SettingsSectionPage(section('patient-numbers')));
+      const nav = screen.getByRole('navigation', { name: staffCopy.settings.navAria });
+      expect(nav.querySelector('[aria-current="page"]')?.textContent).toBe(
+        staffCopy.settings.sections.patientNumbers,
+      );
+      expect(fetchMock).toHaveBeenCalledWith('/patients/uhid/start-number');
+      expect(fetchMock).toHaveBeenCalledWith('/settings/uhid-format');
+      expect(fetchMock).not.toHaveBeenCalledWith('/settings/patient-fields');
+      expect(propsOf('uhid-format')).toMatchObject({ canWrite: false, initial: info });
+      expect(propsOf('uhid-card')).toEqual({
+        canWrite: false,
+        initialInfo: info,
+        initialErrorCode: null,
+      });
+      unmount();
+      requireKindMock.mockResolvedValue(
+        hospitalSession(['hospital.settings.read', 'hospital.settings.write']),
+      );
+      render(await SettingsSectionPage(section('patient-numbers')));
       expect(propsOf('uhid-card')).toMatchObject({ canWrite: true });
+      expect(propsOf('uhid-format')).toMatchObject({ canWrite: true });
+    });
+
+    it('the OPD rules section is fetched on the server and writable only with opd.settings.write', async () => {
+      const rules = { followUpFreeDays: 7, repeatVisitFreeHours: 0, persisted: false, limits: {} };
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read']));
+      fetchMock.mockResolvedValue(ok(rules));
+      const first = render(await SettingsSectionPage(section('opd-rules')));
+      expect(fetchMock).toHaveBeenCalledWith('/settings/opd-rules');
+      expect(propsOf('opd-rules')).toEqual({ initial: rules, canWrite: false });
+      first.unmount();
+      requireKindMock.mockResolvedValue(
+        hospitalSession(['hospital.settings.read', 'opd.settings.write']),
+      );
+      render(await SettingsSectionPage(section('opd-rules')));
+      expect(propsOf('opd-rules')).toMatchObject({ canWrite: true });
+    });
+
+    it('a failed read of the OPD rules shows the calm message, not the form', async () => {
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read']));
+      fetchMock.mockResolvedValue({ status: 'error', code: 'UNAVAILABLE' });
+      render(await SettingsSectionPage(section('opd-rules')));
+      expect(screen.getByRole('alert').textContent).toBe(staffCopy.errors.unreachable);
+      expect(screen.queryByTestId('opd-rules')).toBeNull();
+    });
+
+    it('the Doctors section needs its own permission and is fetched on the server', async () => {
+      const list = { items: [], limits: {}, canWrite: true };
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read']));
+      fetchMock.mockResolvedValue(ok(list));
+      // settings read alone is not enough for this page, and the menu does not offer it
+      await expect(SettingsSectionPage(section('doctors'))).rejects.toThrow(
+        'REDIRECT:/app?notice=no-permission',
+      );
+      requireKindMock.mockResolvedValue(
+        hospitalSession(['hospital.settings.read', 'opd.doctors.read']),
+      );
+      const { unmount } = render(await SettingsSectionPage(section('doctors')));
+      expect(fetchMock).toHaveBeenCalledWith('/doctor-profiles');
+      expect(propsOf('doctors-list')).toEqual({ initial: list, initialErrorCode: null });
+      const nav = screen.getByRole('navigation', { name: staffCopy.settings.navAria });
+      expect(nav.textContent).toContain(staffCopy.settings.sections.doctors);
+      unmount();
+      // without the doctors permission the menu does not list it
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read']));
+      fetchMock.mockResolvedValue(ok({ followUpFreeDays: 7, repeatVisitFreeHours: 0, limits: {} }));
+      render(await SettingsSectionPage(section('opd-rules')));
+      const plain = screen.getByRole('navigation', { name: staffCopy.settings.navAria });
+      expect(plain.textContent).not.toContain(staffCopy.settings.sections.doctors);
+    });
+
+    it('a failed read of the doctors passes the error code to the list', async () => {
+      requireKindMock.mockResolvedValue(
+        hospitalSession(['hospital.settings.read', 'opd.doctors.read']),
+      );
+      fetchMock.mockResolvedValue({ status: 'error', code: 'UNAVAILABLE' });
+      render(await SettingsSectionPage(section('doctors')));
+      expect(propsOf('doctors-list')).toEqual({ initial: null, initialErrorCode: 'UNAVAILABLE' });
+    });
+
+    it('the Logo section needs the settings permission and reads the logo and limits on the server', async () => {
+      const branding = { logo: { id: 'i1' }, canWrite: true, limits: { maxBytes: 1 } };
+      fetchMock.mockResolvedValue(ok(branding));
+      requireKindMock.mockResolvedValue(hospitalSession(['patients.registry.read']));
+      await expect(SettingsSectionPage(section('branding'))).rejects.toThrow(
+        'REDIRECT:/app?notice=no-permission',
+      );
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read']));
+      render(await SettingsSectionPage(section('branding')));
+      expect(fetchMock).toHaveBeenCalledWith('/settings/branding');
+      expect(propsOf('logo-card')).toEqual({ initial: branding, initialErrorCode: null });
+      const nav = screen.getByRole('navigation', { name: staffCopy.settings.navAria });
+      expect(nav.textContent).toContain(staffCopy.settings.sections.branding);
+    });
+
+    it('a failed read of the logo passes the error code to the card', async () => {
+      fetchMock.mockResolvedValue({ status: 'error', code: 'UNAVAILABLE' });
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read']));
+      render(await SettingsSectionPage(section('branding')));
+      expect(propsOf('logo-card')).toEqual({ initial: null, initialErrorCode: 'UNAVAILABLE' });
+    });
+
+    it('the Staff section needs user.read, reads the list and the options on the server, and passes the code format on', async () => {
+      const staffList = { items: [], total: 0, page: 1, pageSize: 25 };
+      const staffOptions = {
+        roles: [],
+        branches: [],
+        canWrite: true,
+        codeFormat: { prefix: 'STF' },
+      };
+      fetchMock.mockImplementation(async (path: string) =>
+        ok(path === '/staff' ? staffList : staffOptions),
+      );
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read']));
+      await expect(SettingsSectionPage(section('staff'))).rejects.toThrow(
+        'REDIRECT:/app?notice=no-permission',
+      );
+      requireKindMock.mockResolvedValue(
+        hospitalSession(['hospital.settings.read', 'user.read', 'hospital.settings.write']),
+      );
+      render(await SettingsSectionPage(section('staff')));
+      expect(fetchMock).toHaveBeenCalledWith('/staff');
+      expect(fetchMock).toHaveBeenCalledWith('/staff/options');
+      expect(propsOf('staff-admin')).toEqual({
+        initial: staffList,
+        options: staffOptions,
+        initialErrorCode: null,
+      });
+      expect(propsOf('code-format')).toEqual({
+        initial: { prefix: 'STF' },
+        initialErrorCode: null,
+        canWrite: true,
+      });
+      const nav = screen.getByRole('navigation', { name: staffCopy.settings.navAria });
+      expect(nav.textContent).toContain(staffCopy.settings.sections.staff);
+    });
+
+    it('the code format can only be changed with the settings write permission', async () => {
+      fetchMock.mockResolvedValue(ok({ items: [], roles: [], branches: [], codeFormat: {} }));
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read', 'user.read']));
+      render(await SettingsSectionPage(section('staff')));
+      expect(propsOf('code-format').canWrite).toBe(false);
+    });
+
+    it('a failed read of the staff passes an error code, not a blank page', async () => {
+      fetchMock.mockResolvedValue({ status: 'error', code: 'UNAVAILABLE' });
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read', 'user.read']));
+      render(await SettingsSectionPage(section('staff')));
+      expect(propsOf('staff-admin')).toEqual({
+        initial: null,
+        options: null,
+        initialErrorCode: 'UNAVAILABLE',
+      });
+    });
+
+    it('the Roles section needs role.read and reads the roles, the catalog and the templates', async () => {
+      const roles = { items: [], canWrite: true };
+      const catalog = { items: [{ code: 'a.b', description: 'A', group: 'a' }] };
+      const templates = { items: [{ key: 'NURSE' }] };
+      fetchMock.mockImplementation(async (path: string) =>
+        ok(path === '/roles' ? roles : path === '/roles/catalog' ? catalog : templates),
+      );
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read', 'user.read']));
+      await expect(SettingsSectionPage(section('roles'))).rejects.toThrow(
+        'REDIRECT:/app?notice=no-permission',
+      );
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read', 'role.read']));
+      render(await SettingsSectionPage(section('roles')));
+      expect(propsOf('roles-manager')).toEqual({
+        initial: roles,
+        catalog: catalog.items,
+        templates: templates.items,
+        initialErrorCode: null,
+      });
+    });
+
+    it('a failed read of the roles passes the error code', async () => {
+      fetchMock.mockResolvedValue({ status: 'forbidden' });
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read', 'role.read']));
+      render(await SettingsSectionPage(section('roles')));
+      expect(propsOf('roles-manager')).toEqual({
+        initial: null,
+        catalog: null,
+        templates: [],
+        initialErrorCode: 'FORBIDDEN',
+      });
     });
 
     it('an unknown section shows the not-found state inside the frame', async () => {
@@ -469,7 +712,13 @@ describe('patients pages', () => {
       for (const entry of SETTINGS_SECTIONS) {
         expect(entry.route).toBe(`/app/settings/${entry.id}`);
         expect(staffCopy.settings.sections[entry.copyKey]).toBeTruthy();
-        expect(entry.permission).toBe('hospital.settings.read');
+        // every page needs settings read; Doctors, Staff and Roles also need their own permission
+        const own: Record<string, string> = {
+          doctors: 'opd.doctors.read',
+          staff: 'user.read',
+          roles: 'role.read',
+        };
+        expect(entry.permission).toBe(own[entry.id] ?? 'hospital.settings.read');
       }
     });
   });
@@ -484,5 +733,74 @@ describe('loading skeletons', () => {
     'settings/loading.tsx',
   ])('has %s', (file) => {
     expect(fs.existsSync(path.join(__dirname, file))).toBe(true);
+  });
+});
+
+describe('My profile page', () => {
+  const profile = { id: 'dp1', name: 'Dr Meena', missing: [], limits: {} };
+  const me = {
+    id: 'u1',
+    code: 'STF001',
+    name: 'Anita',
+    email: 'a@example.test',
+    phone: null,
+    branches: ['Main Branch'],
+    roles: ['Nurse'],
+    isDoctor: false,
+    limits: { nameMax: 100, phoneMax: 20 },
+  };
+  const byPath = (map: Record<string, unknown>) => (path: string) =>
+    Promise.resolve(map[path] ?? { status: 'error', code: 'UNKNOWN' });
+
+  it('is open to every signed-in role: no doctor permission needed, only the account is read', async () => {
+    requireKindMock.mockResolvedValue(hospitalSession(['patients.registry.read']));
+    fetchMock.mockImplementation(byPath({ '/account/me': ok(me) }));
+    render(await MyProfilePage());
+    expect(fetchMock).toHaveBeenCalledWith('/account/me');
+    expect(fetchMock).not.toHaveBeenCalledWith('/doctor-profiles/me');
+    expect(screen.getByRole('heading', { name: staffCopy.account.title })).toBeTruthy();
+    expect(screen.queryByTestId('my-profile')).toBeNull();
+  });
+
+  it('a doctor also gets the doctor part, read on the server', async () => {
+    requireKindMock.mockResolvedValue(hospitalSession(['opd.doctors.own']));
+    fetchMock.mockImplementation(
+      byPath({ '/account/me': ok(me), '/doctor-profiles/me': ok(profile) }),
+    );
+    render(await MyProfilePage());
+    expect(fetchMock).toHaveBeenCalledWith('/account/me');
+    expect(fetchMock).toHaveBeenCalledWith('/doctor-profiles/me');
+    expect(propsOf('my-profile')).toEqual({ initial: profile, initialErrorCode: null });
+  });
+
+  it('a login with the doctor permission but no doctor profile gets a calm message, not a form', async () => {
+    requireKindMock.mockResolvedValue(hospitalSession(['opd.doctors.own']));
+    fetchMock.mockImplementation(
+      byPath({ '/account/me': ok(me), '/doctor-profiles/me': { status: 'forbidden' } }),
+    );
+    render(await MyProfilePage());
+    expect(screen.getByText(staffCopy.doctorProfile.noProfileTitle)).toBeTruthy();
+    expect(screen.queryByTestId('my-profile')).toBeNull();
+  });
+
+  it('passes a failed doctor read to the form as an error code', async () => {
+    requireKindMock.mockResolvedValue(hospitalSession(['opd.doctors.own']));
+    fetchMock.mockImplementation(
+      byPath({
+        '/account/me': ok(me),
+        '/doctor-profiles/me': { status: 'error', code: 'UNAVAILABLE' },
+      }),
+    );
+    render(await MyProfilePage());
+    expect(propsOf('my-profile')).toEqual({ initial: null, initialErrorCode: 'UNAVAILABLE' });
+  });
+
+  it('a failed account read shows the error, not a blank page', async () => {
+    requireKindMock.mockResolvedValue(hospitalSession(['patients.registry.read']));
+    fetchMock.mockImplementation(
+      byPath({ '/account/me': { status: 'error', code: 'UNAVAILABLE' } }),
+    );
+    render(await MyProfilePage());
+    expect(screen.getByRole('alert')).toBeTruthy();
   });
 });

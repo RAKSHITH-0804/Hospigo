@@ -11,6 +11,12 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
+    "@tiptap/core": "^3.35.0",
+    "@tiptap/extension-text-align": "^3.35.0",
+    "@tiptap/extension-text-style": "^3.35.0",
+    "@tiptap/pm": "^3.35.0",
+    "@tiptap/react": "^3.35.0",
+    "@tiptap/starter-kit": "^3.35.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.70.0",

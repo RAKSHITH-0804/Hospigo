@@ -25,6 +25,9 @@ export default async function OpdLayout({ children }: { children: ReactNode }) {
   if (permissions.includes('opd.billing.read')) {
     items.push({ href: '/app/opd/refunds', label: nav.refunds });
   }
+  if (permissions.includes('opd.reports.read')) {
+    items.push({ href: '/app/opd/reports', label: nav.reports });
+  }
 
   return (
     <>

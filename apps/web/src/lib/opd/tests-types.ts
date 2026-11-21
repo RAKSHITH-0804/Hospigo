@@ -1,4 +1,4 @@
-/** Shapes aligned with docs/api-opd.md ("Step 6a"). Money is whole paise. */
+/** Shapes aligned with docs/reference/api-opd.md ("Step 6a"). Money is whole paise. */
 import type { BillView, PaymentLinePayload } from './types';
 
 export type TestItem = { id: string; code: string; name: string };

@@ -46,6 +46,7 @@ export default async function StaffLayout({ children }: { children: ReactNode })
         userEmail={session.email}
         roleCodes={session.roleCodes ?? []}
         hospitalName={hospitalTitle}
+        profileHref="/app/profile"
       >
         {children}
       </AppShell>

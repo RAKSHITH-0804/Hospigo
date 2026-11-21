@@ -5,7 +5,11 @@ import { callApi, type UpstreamResult } from './api-client';
 export type CallStaffApiOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
+  /** A file upload (multipart form). Sent instead of a JSON body. */
+  form?: FormData;
   query?: Record<string, string | number | boolean | undefined | null>;
+  /** The answer is a file: its bytes are returned as an ArrayBuffer instead of JSON. */
+  raw?: boolean;
 };
 
 function buildPath(path: string, query?: CallStaffApiOptions['query']): string {
@@ -51,7 +55,9 @@ export async function callStaffApi<T>(
   return callApi<T>(synthetic, buildPath(path, options.query), {
     method,
     json: options.body,
+    ...(options.form ? { body: options.form } : {}),
     timeoutMs: sessionConfig.staffUpstreamTimeoutMs,
+    raw: options.raw,
     headers: { Authorization: `Bearer ${access}` },
   });
 }

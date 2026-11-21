@@ -1,4 +1,6 @@
-/** Shapes aligned with docs/api-opd.md (Steps 5a-2 and 5a-3). No money anywhere in here. */
+import type { DoctorDetails } from '@/lib/doctors/types';
+
+/** Shapes aligned with docs/reference/api-opd.md (Steps 5a-2 and 5a-3). No money anywhere in here. */
 
 export type ClinicalVisitStatus =
   'AWAITING_PAYMENT' | 'WAITING' | 'IN_CONSULTATION' | 'COMPLETED' | 'CANCELLED';
@@ -68,6 +70,8 @@ export type AddendumView = {
 
 export type ConsultationResponse = {
   visit: ClinicalVisit;
+  /** The doctor details for the prescription (a completed note: the copy taken at completion). */
+  doctorDetails: DoctorDetails;
   consultation: NoteView | null;
   prescription: PrescriptionRowView[];
   addenda: AddendumView[];

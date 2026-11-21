@@ -20,6 +20,18 @@ export function passwordResetEmail(link: string): {
   return { subject, text, html };
 }
 
+/** The one-time code of a signed-in person (password or email change). The code is the only secret. */
+export function otpEmail(
+  code: string,
+  minutes: number,
+  what: string,
+): { subject: string; text: string; html: string } {
+  const subject = `Your Hospigo code: ${code}`;
+  const text = `Your Hospigo code to ${what} is ${code}.\n\nIt works once and expires in ${minutes} minutes. If you did not ask for it, ignore this email and tell your administrator.`;
+  const html = `<p>Your Hospigo code to ${escapeHtml(what)} is:</p><p style="font-size:24px;letter-spacing:4px"><strong>${escapeHtml(code)}</strong></p><p>It works once and expires in ${minutes} minutes. If you did not ask for it, ignore this email and tell your administrator.</p>`;
+  return { subject, text, html };
+}
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')

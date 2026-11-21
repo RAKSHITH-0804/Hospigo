@@ -115,4 +115,13 @@ describe('OPD layout', () => {
     expect(await sectionsFor(['opd.queue.read', 'opd.investigations.bill'])).toEqual([]);
     expect(await sectionsFor([])).toEqual([]);
   });
+
+  it('shows the collection report only to those who may read it', async () => {
+    expect(await sectionsFor(['opd.billing.read', 'opd.reports.read'])).toEqual([
+      nav.refunds,
+      nav.reports,
+    ]);
+    expect(await sectionsFor(['opd.reports.read'])).toEqual([nav.reports]);
+    expect(await sectionsFor(['opd.billing.read'])).toEqual([nav.refunds]);
+  });
 });

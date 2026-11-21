@@ -1,6 +1,7 @@
 'use client';
 
-import { LogOut } from 'lucide-react';
+import { LogOut, UserRound } from 'lucide-react';
+import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -26,12 +27,14 @@ export function UserMenu({
   roleCodes,
   branchName,
   hospitalName,
+  profileHref,
 }: {
   displayName: string;
   email: string;
   roleCodes: string[];
   branchName?: string | null;
   hospitalName?: string | null;
+  profileHref?: string | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -148,6 +151,18 @@ export function UserMenu({
               </div>
             ) : null}
           </dl>
+          {profileHref ? (
+            <Link
+              href={profileHref}
+              role="menuitem"
+              data-menu-item
+              className={cn('shell-user-menu-item')}
+              onClick={() => setOpen(false)}
+            >
+              <UserRound aria-hidden="true" className="shell-menu-icon" />
+              {staffCopy.shell.myProfile}
+            </Link>
+          ) : null}
           <button
             type="button"
             role="menuitem"

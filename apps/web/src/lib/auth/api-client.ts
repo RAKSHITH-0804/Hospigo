@@ -9,7 +9,7 @@ import type {
 } from './types';
 
 export type UpstreamResult<T> =
-  | { ok: true; data: T; retryAfter?: string }
+  | { ok: true; data: T; retryAfter?: string; contentType?: string }
   | {
       ok: false;
       status: number;
@@ -70,12 +70,12 @@ function extractUpstreamMessage(body: unknown): string | undefined {
 export async function callApi<T>(
   request: Request,
   path: string,
-  init: RequestInit & { json?: unknown; timeoutMs?: number } = {},
+  init: RequestInit & { json?: unknown; timeoutMs?: number; raw?: boolean } = {},
 ): Promise<UpstreamResult<T>> {
   const base = requireApiInternalUrl();
   // Fresh headers only — never copy Cookie / Authorization from the browser Request.
   const headers = new Headers(init.headers);
-  headers.set('Accept', 'application/json');
+  headers.set('Accept', init.raw ? '*/*' : 'application/json');
   const ip = resolveClientIp(request);
   if (ip) {
     headers.set('X-Forwarded-For', ip);
@@ -86,7 +86,7 @@ export async function callApi<T>(
     body = JSON.stringify(init.json);
   }
 
-  const { timeoutMs, json: _json, ...fetchInit } = init;
+  const { timeoutMs, json: _json, raw, ...fetchInit } = init;
   let abortController: AbortController | undefined;
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   let signal = fetchInit.signal;
@@ -138,8 +138,17 @@ export async function callApi<T>(
     return { ok: true, data: undefined as T, retryAfter };
   }
   try {
-    const data = (await response.json()) as T;
-    return { ok: true, data, retryAfter };
+    // A file (the CSV report) is passed on byte for byte: text decoding would drop its Excel mark.
+    const data = (raw ? await response.arrayBuffer() : await response.json()) as T;
+    // a file also tells its type (the picture route passes only known picture types on)
+    return raw
+      ? {
+          ok: true,
+          data,
+          retryAfter,
+          contentType: response.headers.get('content-type') ?? undefined,
+        }
+      : { ok: true, data, retryAfter };
   } catch (error) {
     logBffError({
       route: `upstream ${path}`,
