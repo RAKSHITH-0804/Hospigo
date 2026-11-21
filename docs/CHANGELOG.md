@@ -29,6 +29,13 @@
 
 ## Unreleased
 
+## 2026-11-25 — Phase 2 — PR #54 merged (Steps 7 to 7e)
+
+- **Commit hash(es):** merge commit `0762601` on `develop` (commits `88a955c` to `40faa56`).
+- **Added / Changed / Fixed:** see the entries for Step 7e, Step 7d and the earlier Step 7 entries below.
+- **Tests:** API 833, web 1576; `ci` green (the `audit` job is red by design).
+- **Follow-ups and open items:** Step 8a (NestJS 12 upgrade) is next, planned for Monday; the unscheduled steps (Doctor setup, HQ creates a hospital) and the parked items are in `docs/handoff-phase2.md`.
+
 ## 2026-11-25 — Phase 2 — Step 7e, image and logo upload
 
 - **Commit hash(es):** see `git log` (commit "Step 7e").
