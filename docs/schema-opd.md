@@ -413,3 +413,15 @@ Rules enforced by the database: no refund of a consultation bill once `consultat
 Four indexes for the collection report: `payments (tenant, branch, paid_at)`, `refunds (tenant, branch, refunded_at)`, `ledger_entries (tenant, branch, posted_at)`, `opd_visits (tenant, branch, visit_date)`. See `docs/decisions-7.md`.
 
 **Step 7-5:** `print_templates.layout` holds version 2 (boxes) from now on; rows saved earlier as version 1 are converted when read. The column and its checks are unchanged (object, at most 16 000 characters; the API keeps layouts under 15 000).
+
+## Step 7c additions (doctor profile details)
+
+| Table / column                    | Type            | Rule                                                                                                                                                                                                                                                                                   |
+| --------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `doctor_profiles.printed_name`    | text, optional  | 1 to 80 characters; how the name prints (the login name when empty)                                                                                                                                                                                                                    |
+| `doctor_profiles.qualifications`  | text, optional  | 1 to 150                                                                                                                                                                                                                                                                               |
+| `doctor_profiles.speciality`      | text, optional  | 1 to 80                                                                                                                                                                                                                                                                                |
+| `doctor_profiles.registration_no` | text, optional  | 1 to 40; typed by the doctor, not verified                                                                                                                                                                                                                                             |
+| `consultations.doctor_details`    | jsonb, optional | Copy of `name, printedName, department, qualifications, speciality, registrationNo`, written by the `consultations_guard` trigger when the note becomes COMPLETED. The app role has no UPDATE right on it and the insert trigger clears it. Notes completed before this step have none |
+
+New permissions: `opd.doctors.own` (a doctor's own profile; kept off both Admin roles), `opd.doctors.read`, `opd.doctors.write` (Admin roles).

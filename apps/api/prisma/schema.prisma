@@ -1011,6 +1011,12 @@ model DoctorProfile {
   userId          String   @map("user_id")
   code            String
   department      String?
+  /// How the name prints on a prescription (for example Dr. A. Rao); the login name when empty.
+  printedName     String?  @map("printed_name")
+  qualifications  String?
+  speciality      String?
+  /// Medical council registration number, typed by the doctor (not verified).
+  registrationNo  String?  @map("registration_no")
   availabilityOn  Boolean  @default(true) @map("availability_on")
   active          Boolean  @default(true)
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1494,6 +1500,8 @@ model Consultation {
   advice          String?
   followUpDate    DateTime?          @map("follow_up_date") @db.Date
   completedAt     DateTime?          @map("completed_at") @db.Timestamptz(3)
+  /// Copy of the doctor's details, taken by the database when the note is completed.
+  doctorDetails   Json?              @map("doctor_details")
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 

@@ -65,6 +65,22 @@ describe('the help text', () => {
   });
 });
 
+describe('the doctor help texts', () => {
+  it('the Doctors page and My profile have help, with the real button names', () => {
+    const doctors = copy.pages.doctors!;
+    const mine = copy.pages['doctor-profile']!;
+    for (const page of [doctors, mine]) {
+      expect(page.steps.length).toBeGreaterThanOrEqual(2);
+      expect(page.good.length).toBeGreaterThanOrEqual(2);
+    }
+    expect(doctors.steps.join(' ')).toContain(staffCopy.settings.doctors.edit);
+    expect(doctors.steps.join(' ')).toContain(staffCopy.settings.doctors.save);
+    expect(doctors.steps.join(' ')).toContain(staffCopy.settings.doctors.printedName);
+    expect(mine.steps.join(' ')).toContain(staffCopy.doctorProfile.printedName);
+    expect(mine.steps.join(' ')).toContain(staffCopy.doctorProfile.save);
+  });
+});
+
 describe('SettingsHelp', () => {
   const region = () => screen.queryByRole('region', { name: copy.aboutTitle });
   const showButton = () => screen.getByRole('button', { name: new RegExp(copy.show) });

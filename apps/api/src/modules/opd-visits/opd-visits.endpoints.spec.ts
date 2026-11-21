@@ -1948,6 +1948,8 @@ describe('OPD visits and billing endpoints (HTTP)', () => {
       'opd.refunds.request',
       'opd.investigations.order',
       'opd.investigations.bill',
+      // Step 7c: an admin has no doctor profile of their own (they correct others with opd.doctors.write)
+      'opd.doctors.own',
     ];
     const FLOOR_READS = ['opd.queue.read', 'opd.vitals.read', 'opd.notes.read'];
 

@@ -6,7 +6,7 @@ Hospigo is Indigo's multi-tenant hospital management SaaS. Monorepo with two wor
 ## Read first, every session
 
 1. `docs/project-context.md` (what the project is and every decision behind it)
-2. `docs/handoff-phase2.md`, section **CURRENT STATE** at the top (what is done, what is next, open questions; do not redo finished steps), and the newest decisions files (`docs/decisions-7b.md` and `docs/decisions-7.md`; earlier ones: `decisions-6b`, `6a`, `5b`, `5a`, `4a`, `3d`, `3c`)
+2. `docs/handoff-phase2.md`, section **CURRENT STATE** at the top (what is done, what is next, open questions; do not redo finished steps), and the newest decisions files (`docs/decisions-7c.md`, `7b` and `7`; earlier ones: `decisions-6b`, `6a`, `5b`, `5a`, `4a`, `3d`, `3c`)
 3. `docs/engineering-tracker.md` (step status) and the doc for the area you work on (`docs/api-opd.md`, `docs/ui-design.md`, `docs/schema-opd.md`, ...)
 
 You do not have access to the planning chats. Anything not written in the repo docs does not exist for you: if you are unsure of a decision, ask Rakshith instead of guessing.

@@ -344,6 +344,15 @@ export function ConsultScreen({
         </p>
       ) : null}
 
+      {editable && !initial.doctorDetails.registrationNo ? (
+        <p role="note" className="settings-reminder type-label">
+          {staffCopy.doctorProfile.consultReminder}{' '}
+          <Link href="/app/profile" className="underline">
+            {staffCopy.doctorProfile.consultReminderLink}
+          </Link>
+        </p>
+      ) : null}
+
       {editable ? (
         <div className="flex flex-wrap items-center gap-[var(--space-3)]">
           <Button

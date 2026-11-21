@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-21 — Phase 2 Step 7c — doctor profile details
+
+- **Commit hash(es):** the commit right after `31b73d0` on `feature/phase2-step-7-reports-print-api` (see `git log`).
+- **Added:** doctor profile fields (printed name, qualifications, speciality, registration number); API module `doctor-profiles` (`/doctor-profiles/me`, list, correct); pages My profile and Doctors (settings); a reminder on the consultation screen; `doctorDetails` on the consultation and complete answers; the prescription print fills the doctor lines; permissions `opd.doctors.own`, `opd.doctors.read`, `opd.doctors.write`; demo details in the dev seed.
+- **Changed:** `consultations_guard` and `consultations_before_insert` triggers (the database takes a copy of the doctor details when a note is completed); the list of person-only actions kept off both Admin roles now includes `opd.doctors.own`.
+- **Removed:** nothing.
+- **Fixed:** nothing.
+- **Database (migrations, roles, RLS):** `20261123090000_doctor_profile_details` (4 columns on `doctor_profiles` with a length check, `consultations.doctor_details`, two triggers replaced). No grant change on `consultations` (the app cannot write the copy).
+- **New .env keys (names only):** none.
+- **Tests:** API 714 -> 740 (22 doctor profile endpoint tests, 4 copy tests, one list updated), web 1275 -> 1322. Lint, format, TypeScript and production build clean. Postman 7c written (34 requests), not run by the assistant.
+- **Decisions:** `docs/decisions-7c.md` (Branch Admin only for doctors of their branch; department Admin-only; the database takes the copy; medical council name on hold; signature waits for image upload).
+- **Follow-ups and open items:** medical council name (manager), signature or stamp image (7e), adding doctors (7d staff and roles), run the seed on existing hospitals after deploy.
+
 ## 2026-11-21 — Phase 2 Step 7b — settings screens (OPD rules, registration fields, patient number format, help)
 
 - **Commit hash(es):** the commit right after `3cf1b5b` on `feature/phase2-step-7-reports-print-api` (see `git log`).

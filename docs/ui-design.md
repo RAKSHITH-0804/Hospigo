@@ -149,3 +149,9 @@ Density tokens live in `globals.css` (control ~32px, body/label ~13/12px, card r
 - "Saved." appears next to the change and fades after `settingsScreenConfig.savedMessageMs` (`config/settings.ts`); an error stays until the next action. The line keeps its height, so nothing jumps.
 - Every settings page has an **About this page** help block (`components/settings/settings-help.tsx`, text in `staffCopy.settings.help.pages`, keyed by section id). It is closed until the user clicks "Show help"; nothing is stored. A new settings page must add its help text (a test fails otherwise).
 - Rows with several inputs keep every input the same height: hints go in a note or a hover title, never as a line under one input of a row.
+
+## Doctor pages (Step 7c)
+
+- **My profile** (`/app/profile`): reached from the user menu (top right) for people with `opd.doctors.own`. Two blocks side by side: the form (name as printed, qualifications, speciality, registration number; login name, department and branches shown as text) and a preview of how it prints. A reminder box lists the empty details. Help block closed until "Show help".
+- **Doctors** (Settings, `/app/settings/doctors`, needs `opd.doctors.read`): one card per doctor with what prints, the department and the branches; "Details missing" tag; Edit opens the five fields (including the department). Cards, not a table, because a doctor has too many details for aligned columns.
+- The consultation screen shows a quiet note with a link to My profile when the registration number is empty; Complete is never blocked.

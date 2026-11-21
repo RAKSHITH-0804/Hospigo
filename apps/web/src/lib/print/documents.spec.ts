@@ -268,6 +268,16 @@ const consultation: ConsultationResponse = {
     patient: { id: 'p1', uhid: 'HSP-0001', name: 'Asha Rao', gender: 'F', ageYears: 34 },
     doctor: { id: 'd1', code: 'DR1', name: 'Dr Meena' },
   },
+  doctorDetails: {
+    name: 'Dr Meena',
+    printedName: 'Dr. M. Rao',
+    printName: 'Dr. M. Rao',
+    department: 'Medicine',
+    qualifications: 'MBBS, MD',
+    speciality: 'General Medicine',
+    registrationNo: 'KMC/12345',
+    fromCompletedCopy: true,
+  },
   consultation: {
     id: 'n1',
     status: 'COMPLETED',
@@ -322,13 +332,41 @@ describe('prescriptionItems', () => {
     ]);
   });
 
-  it('prints the note, the patient, the follow-up date and nothing for the doctor profile yet', () => {
+  it('prints the note, the patient and the follow-up date', () => {
     const items = prescriptionItems({ consultation, hospitalName: 'Demo Hospital' });
     expect(textOf(items, 'complaints')).toBe('Fever 3 days');
     expect(textOf(items, 'diagnosis')).toBe('Viral fever');
     expect(textOf(items, 'advice')).toBe('Rest and fluids');
     expect(textOf(items, 'followUpDate')).not.toBe('');
     expect(textOf(items, 'age')).toBe('34');
+  });
+
+  it('prints the doctor details of the consultation: the printed name, then qualifications, speciality and registration number', () => {
+    const items = prescriptionItems({ consultation, hospitalName: 'Demo Hospital' });
+    expect(textOf(items, 'doctorName')).toBe('Dr. M. Rao');
+    expect(textOf(items, 'doctorDepartment')).toBe('Medicine');
+    expect(textOf(items, 'doctorQualifications')).toBe('MBBS, MD');
+    expect(textOf(items, 'doctorSpeciality')).toBe('General Medicine');
+    expect(textOf(items, 'doctorRegistrationNo')).toBe('KMC/12345');
+    // the signature or stamp picture waits for the image upload step
+    expect(textOf(items, 'doctorSignature')).toBe('');
+  });
+
+  it('prints empty details as empty, and the login name when there is no printed name', () => {
+    const bare: ConsultationResponse = {
+      ...consultation,
+      doctorDetails: {
+        ...consultation.doctorDetails,
+        printedName: null,
+        printName: 'Dr Meena',
+        department: null,
+        qualifications: null,
+        speciality: null,
+        registrationNo: null,
+      },
+    };
+    const items = prescriptionItems({ consultation: bare, hospitalName: 'Demo Hospital' });
+    expect(textOf(items, 'doctorName')).toBe('Dr Meena');
     for (const key of [
       'doctorDepartment',
       'doctorQualifications',

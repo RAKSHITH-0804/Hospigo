@@ -128,7 +128,7 @@ export function prescriptionItems(input: {
   tests?: VisitTestsResponse | null;
   hospitalName: string;
 }): PrintItem[] {
-  const { visit, consultation, prescription } = input.consultation;
+  const { visit, consultation, prescription, doctorDetails: doctor } = input.consultation;
   const note = consultation;
   const medicineCopy = staffCopy.print.prescription;
   return [
@@ -139,13 +139,12 @@ export function prescriptionItems(input: {
     text('gender', visit.patient.gender ? genderLabel(visit.patient.gender) : ''),
     text('visitDate', formatDateOnly(visit.visitDate)),
     text('token', visit.token?.label),
-    text('doctorName', visit.doctor.name),
-    // The doctor profile details (department, qualifications, registration number, signature)
-    // come with the doctor profile step; until then they have nothing to print.
-    text('doctorDepartment', ''),
-    text('doctorQualifications', ''),
-    text('doctorSpeciality', ''),
-    text('doctorRegistrationNo', ''),
+    text('doctorName', doctor.printName || visit.doctor.name),
+    text('doctorDepartment', doctor.department ?? ''),
+    text('doctorQualifications', doctor.qualifications ?? ''),
+    text('doctorSpeciality', doctor.speciality ?? ''),
+    text('doctorRegistrationNo', doctor.registrationNo ?? ''),
+    // The signature or stamp picture waits for the image upload step.
     text('doctorSignature', ''),
     lines(
       'vitals',

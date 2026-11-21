@@ -300,6 +300,7 @@ async function seedOpdMasters(
       'opd.notes.read',
       'opd.notes.write',
       'opd.investigations.order',
+      'opd.doctors.own',
     ],
   };
 
@@ -390,6 +391,19 @@ async function seedOpdMasters(
       },
     });
     doctorProfileIds.push(profile.id);
+    // FAKE demo details so the prescription has something to print. Only filled while empty, so a
+    // reseed never overwrites what someone typed on the screen. Doctor 2 stays empty on purpose
+    // (to see the reminder about a missing registration number).
+    if (i !== 2) {
+      await prisma.doctorProfile.updateMany({
+        where: { id: profile.id, qualifications: null, speciality: null, registrationNo: null },
+        data: {
+          qualifications: 'MBBS, MD (General Medicine)',
+          speciality: 'General Medicine',
+          registrationNo: `DEMO-REG-${String(i).padStart(4, '0')}`,
+        },
+      });
+    }
 
     for (const visitType of ['NEW', 'FOLLOW_UP'] as const) {
       const amountPaise =

@@ -36,6 +36,15 @@ describe('settingsErrorMessage', () => {
     expect(settingsErrorMessage(refusal({}))).toBe(copy.fallback);
   });
 
+  it('names a doctor profile field and says only an Admin can change the department', () => {
+    expect(settingsErrorMessage(refusal({ field: 'registrationNo', reason: 'INVALID' }))).toBe(
+      `${copy.prefix} ${copy.fields.registrationNo} ${copy.reasons.INVALID}`,
+    );
+    expect(settingsErrorMessage(refusal({ field: 'department', reason: 'NOT_ALLOWED' }))).toBe(
+      `${copy.prefix} ${copy.fields.department} ${copy.reasons.NOT_ALLOWED}`,
+    );
+  });
+
   it('uses the usual messages for other failures', () => {
     expect(settingsErrorMessage(refusal({ status: 403, code: 'FORBIDDEN' }))).toBe(
       staffCopy.errors.forbidden,

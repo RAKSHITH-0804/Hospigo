@@ -132,6 +132,7 @@ export function AppShell({
   userEmail,
   roleCodes,
   hospitalName,
+  profileHref,
   children,
 }: {
   title: ReactNode;
@@ -147,6 +148,8 @@ export function AppShell({
   userEmail?: string;
   roleCodes?: string[];
   hospitalName?: string | null;
+  /** Link to the doctor's own profile page (only given to people who have a doctor profile). */
+  profileHref?: string | null;
   children: ReactNode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -375,6 +378,7 @@ export function AppShell({
                   roleCodes={roleCodes ?? []}
                   branchName={branchName}
                   hospitalName={hospitalName}
+                  profileHref={profileHref}
                 />
               ) : null}
             </div>

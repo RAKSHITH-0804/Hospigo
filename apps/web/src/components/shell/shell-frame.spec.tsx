@@ -425,6 +425,31 @@ describe('shell frame', () => {
     expect(screen.queryByRole('menu')).toBeNull();
   });
 
+  it('user menu offers My profile only when a profile link is given', () => {
+    const without = render(
+      <UserMenu displayName="Ada Lovelace" email="ada@example.test" roleCodes={['RECEPTIONIST']} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: staffCopy.shell.userMenuAria }));
+    expect(screen.queryByRole('menuitem', { name: staffCopy.shell.myProfile })).toBeNull();
+    without.unmount();
+    render(
+      <UserMenu
+        displayName="Dr Meena"
+        email="meena@example.test"
+        roleCodes={['DOCTOR']}
+        profileHref="/app/profile"
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: staffCopy.shell.userMenuAria }));
+    const link = screen.getByRole('menuitem', { name: staffCopy.shell.myProfile });
+    expect(link.getAttribute('href')).toBe('/app/profile');
+    // Sign out stays the last item
+    const items = screen.getAllByRole('menuitem');
+    expect(items.at(-1)?.textContent).toContain(staffCopy.signOut);
+    fireEvent.click(link);
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
   it('user menu email exposes full address via tooltip and roles wrap in one row', async () => {
     const longEmail = 'ada.lovelace.very.long.address@example.test';
     render(

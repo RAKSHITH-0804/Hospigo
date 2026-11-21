@@ -47,6 +47,15 @@ const PERMISSIONS = [
     description: 'Approve or reject refund and cancellation requests',
   },
   { code: 'opd.reports.read', description: 'Read the OPD collection reports' },
+  {
+    code: 'opd.doctors.read',
+    description: 'Read the doctors of the hospital with their profile details',
+  },
+  {
+    code: 'opd.doctors.write',
+    description: 'Correct the profile details and department of a doctor',
+  },
+  { code: 'opd.doctors.own', description: 'Read and edit your own doctor profile' },
 ] as const;
 
 /**
@@ -67,6 +76,7 @@ export const ADMIN_EXCLUDED_PERMISSION_CODES: readonly string[] = [
   'opd.investigations.order',
   'opd.investigations.bill',
   'opd.refunds.request',
+  'opd.doctors.own',
 ];
 
 /**
@@ -86,6 +96,7 @@ export const SUPER_ADMIN_EXCLUDED_PERMISSION_CODES: readonly string[] = [
   'opd.investigations.order',
   'opd.investigations.bill',
   'opd.refunds.request',
+  'opd.doctors.own',
 ];
 
 /** Idempotent prod-safe catalog seed (modules, permissions). System role templates are per-tenant. */

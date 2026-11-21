@@ -1,8 +1,8 @@
 # Engineering tracker (Phase 1 + Phase 2)
 
-Status as of 21 Nov 2026: Phase 2 steps 1 to 6b are merged; Step 7 and Step 7b are built and committed on `feature/phase2-step-7-reports-print-api` (one pull request for both, not pushed yet). API 714 tests, web 1275 tests. Next: 7c (doctor profile setup). Start from `docs/handoff-phase2.md`, section CURRENT STATE. Evidence is repo-local unless noted.
+Status as of 21 Nov 2026: Phase 2 steps 1 to 6b are merged; Steps 7, 7b and 7c are built and committed on `feature/phase2-step-7-reports-print-api` (one pull request for all three, not pushed yet). API 740 tests, web 1322 tests. Next: 7d (staff and roles). Start from `docs/handoff-phase2.md`, section CURRENT STATE. Evidence is repo-local unless noted.
 
-Planned order: 3d, 4a (migration part, then API part), 4b, 5a, 5b, 6a, 6b, 7, 7b, 7c, 8a, 8b, 9 (see `docs/plan-opd-first-flow.md`). Target for the first working OPD flow: Fri 27 Nov 2026 (quality first; tests and review gates are never shortened).
+Planned order: 3d, 4a (migration part, then API part), 4b, 5a, 5b, 6a, 6b, 7, 7b, 7c, 7d (staff and roles), 7e (image and logo upload), 8a, 8b, 9 (see `docs/plan-opd-first-flow.md`). Target for the first working OPD flow: Fri 27 Nov 2026 (quality first; tests and review gates are never shortened).
 
 ## Phase 2 (OPD)
 
@@ -22,8 +22,10 @@ Planned order: 3d, 4a (migration part, then API part), 4b, 5a, 5b, 6a, 6b, 7, 7b
 | 6b   | Investigations and refunds web                    | Done             | PR #53 merged (`docs/decisions-6b.md`). Web 927 tests                                                                                                                                                                                              |
 | 7    | Print templates and reports                       | Built, committed | `88a955c`, `6531210`, `3cf1b5b`: daily collection report (filters, branch names, Excel, CSV, print), print templates and Word-style designer, print views, SuperAdmin reads the OPD queue. `docs/decisions-7.md`. Pull request with 7b, not pushed |
 | 7b   | Settings screens                                  | Built, committed | OPD rules, registration fields (own fields, choices), patient number format, help block on every settings page; SuperAdmin and Branch Admin. `docs/decisions-7b.md`. Postman 7b written, not run                                                   |
-| 7c   | Doctor profile setup                              | **Next**         | Qualifications, speciality, registration number, signature or stamp for the prescription; migration, API, web. Management questions in the handoff                                                                                                 |
-| 8a   | NestJS 12 upgrade (or logo upload: to confirm)    | Planned          | Rakshith to say which: the tracker says NestJS 12 upgrade, an older handoff note said logo upload                                                                                                                                                  |
+| 7c   | Doctor profile setup                              | Built, committed | Printed name, qualifications, speciality, registration number; My profile, Doctors settings page, consult reminder, prescription print; copy kept on completed notes. `docs/decisions-7c.md`. Postman 7c written, not run                          |
+| 7d   | Staff and roles                                   | **Next**         | Add users and roles for every department (Admin and SuperAdmin only); custom roles; activation by email; review gate. Needs a plan and questions                                                                                                   |
+| 7e   | Image and logo upload                             | Planned          | Hospital logo, doctor signature or stamp, picture boxes in the print designer                                                                                                                                                                      |
+| 8a   | NestJS 12 upgrade                                 | Planned          | Confirmed 21 Nov: 8a is the upgrade; image and logo upload is 7e                                                                                                                                                                                   |
 | 8b   | Excel upload of masters                           | Planned          |                                                                                                                                                                                                                                                    |
 | 9    | OPD hardening and exit                            | Planned          |                                                                                                                                                                                                                                                    |
 
@@ -113,4 +115,14 @@ Planned order: 3d, 4a (migration part, then API part), 4b, 5a, 5b, 6a, 6b, 7, 7b
 
 ## Where to resume (21 Nov 2026)
 
-Done: everything up to and including Step 7b. Next: 7c (doctor profile setup), then 8a, 8b, 9. Do not repeat finished steps. Resume notes: `docs/handoff-phase2.md` (CURRENT STATE section).
+Done: everything up to and including Step 7c. Next: 7d (staff and roles), then 7e, 8a, 8b, 9. Do not repeat finished steps. Resume notes: `docs/handoff-phase2.md` (CURRENT STATE section).
+
+## Step 7c (21 Nov)
+
+| Item                                                    | Status       | Notes                                                                      |
+| ------------------------------------------------------- | ------------ | -------------------------------------------------------------------------- |
+| Doctor profile fields and API (`/doctor-profiles`)      | Built        | Doctor edits own; Admin corrects (SuperAdmin all, Branch Admin own branch) |
+| Copy of doctor details on a completed note              | Built        | Taken by a database trigger; cannot be forged or changed                   |
+| My profile page, Doctors settings page, reminder, print | Built        | Help block on both pages                                                   |
+| Medical council name                                    | On hold      | Question for the manager                                                   |
+| Signature or stamp image                                | Waits for 7e | Needs image upload                                                         |

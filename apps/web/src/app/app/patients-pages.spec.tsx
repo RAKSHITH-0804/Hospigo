@@ -7,6 +7,7 @@ import NewPatientPage from '@/app/app/patients/new/page';
 import PatientRecordPage from '@/app/app/patients/[id]/page';
 import EditPatientPage from '@/app/app/patients/[id]/edit/page';
 import PatientSlipPage from '@/app/app/patients/[id]/slip/page';
+import MyProfilePage from '@/app/app/profile/page';
 import SettingsIndexPage from '@/app/app/settings/page';
 import SettingsSectionPage from '@/app/app/settings/[section]/page';
 import { SETTINGS_SECTIONS } from '@/config/settings-sections';
@@ -84,6 +85,16 @@ jest.mock('@/components/patients/uhid-start-card', () => ({
   ),
 }));
 
+jest.mock('@/components/doctors/my-profile-form', () => ({
+  MyProfileForm: (props: Record<string, unknown>) => (
+    <div data-testid="my-profile" data-props={JSON.stringify(props)} />
+  ),
+}));
+jest.mock('@/components/settings/doctors-list', () => ({
+  DoctorsList: (props: Record<string, unknown>) => (
+    <div data-testid="doctors-list" data-props={JSON.stringify(props)} />
+  ),
+}));
 jest.mock('@/components/settings/opd-rules-form', () => ({
   OpdRulesForm: (props: Record<string, unknown>) => (
     <div data-testid="opd-rules" data-props={JSON.stringify(props)} />
@@ -526,6 +537,40 @@ describe('patients pages', () => {
       expect(screen.queryByTestId('opd-rules')).toBeNull();
     });
 
+    it('the Doctors section needs its own permission and is fetched on the server', async () => {
+      const list = { items: [], limits: {}, canWrite: true };
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read']));
+      fetchMock.mockResolvedValue(ok(list));
+      // settings read alone is not enough for this page, and the menu does not offer it
+      await expect(SettingsSectionPage(section('doctors'))).rejects.toThrow(
+        'REDIRECT:/app?notice=no-permission',
+      );
+      requireKindMock.mockResolvedValue(
+        hospitalSession(['hospital.settings.read', 'opd.doctors.read']),
+      );
+      const { unmount } = render(await SettingsSectionPage(section('doctors')));
+      expect(fetchMock).toHaveBeenCalledWith('/doctor-profiles');
+      expect(propsOf('doctors-list')).toEqual({ initial: list, initialErrorCode: null });
+      const nav = screen.getByRole('navigation', { name: staffCopy.settings.navAria });
+      expect(nav.textContent).toContain(staffCopy.settings.sections.doctors);
+      unmount();
+      // without the doctors permission the menu does not list it
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read']));
+      fetchMock.mockResolvedValue(ok({ followUpFreeDays: 7, repeatVisitFreeHours: 0, limits: {} }));
+      render(await SettingsSectionPage(section('opd-rules')));
+      const plain = screen.getByRole('navigation', { name: staffCopy.settings.navAria });
+      expect(plain.textContent).not.toContain(staffCopy.settings.sections.doctors);
+    });
+
+    it('a failed read of the doctors passes the error code to the list', async () => {
+      requireKindMock.mockResolvedValue(
+        hospitalSession(['hospital.settings.read', 'opd.doctors.read']),
+      );
+      fetchMock.mockResolvedValue({ status: 'error', code: 'UNAVAILABLE' });
+      render(await SettingsSectionPage(section('doctors')));
+      expect(propsOf('doctors-list')).toEqual({ initial: null, initialErrorCode: 'UNAVAILABLE' });
+    });
+
     it('an unknown section shows the not-found state inside the frame', async () => {
       requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read']));
       render(await SettingsSectionPage(section('nope')));
@@ -538,7 +583,11 @@ describe('patients pages', () => {
       for (const entry of SETTINGS_SECTIONS) {
         expect(entry.route).toBe(`/app/settings/${entry.id}`);
         expect(staffCopy.settings.sections[entry.copyKey]).toBeTruthy();
-        expect(entry.permission).toBe('hospital.settings.read');
+        // every page needs settings read; the Doctors list also needs its own permission
+        expect(['hospital.settings.read', 'opd.doctors.read']).toContain(entry.permission);
+        expect(entry.permission).toBe(
+          entry.id === 'doctors' ? 'opd.doctors.read' : 'hospital.settings.read',
+        );
       }
     });
   });
@@ -553,5 +602,39 @@ describe('loading skeletons', () => {
     'settings/loading.tsx',
   ])('has %s', (file) => {
     expect(fs.existsSync(path.join(__dirname, file))).toBe(true);
+  });
+});
+
+describe('My profile page', () => {
+  const profile = { id: 'dp1', name: 'Dr Meena', missing: [], limits: {} };
+
+  it('needs the own-profile permission', async () => {
+    requireKindMock.mockResolvedValue(hospitalSession(['patients.registry.read']));
+    await expect(MyProfilePage()).rejects.toThrow('REDIRECT:/app?notice=no-permission');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('fetches the profile of the signed-in doctor on the server and shows the form', async () => {
+    requireKindMock.mockResolvedValue(hospitalSession(['opd.doctors.own']));
+    fetchMock.mockResolvedValue(ok(profile));
+    render(await MyProfilePage());
+    expect(fetchMock).toHaveBeenCalledWith('/doctor-profiles/me');
+    expect(propsOf('my-profile')).toEqual({ initial: profile, initialErrorCode: null });
+    expect(screen.getByRole('heading', { name: staffCopy.doctorProfile.title })).toBeTruthy();
+  });
+
+  it('a login without a doctor profile gets a calm message, not a form', async () => {
+    requireKindMock.mockResolvedValue(hospitalSession(['opd.doctors.own']));
+    fetchMock.mockResolvedValue({ status: 'forbidden' });
+    render(await MyProfilePage());
+    expect(screen.getByText(staffCopy.doctorProfile.noProfileTitle)).toBeTruthy();
+    expect(screen.queryByTestId('my-profile')).toBeNull();
+  });
+
+  it('passes a failed read to the form as an error code', async () => {
+    requireKindMock.mockResolvedValue(hospitalSession(['opd.doctors.own']));
+    fetchMock.mockResolvedValue({ status: 'error', code: 'UNAVAILABLE' });
+    render(await MyProfilePage());
+    expect(propsOf('my-profile')).toEqual({ initial: null, initialErrorCode: 'UNAVAILABLE' });
   });
 });

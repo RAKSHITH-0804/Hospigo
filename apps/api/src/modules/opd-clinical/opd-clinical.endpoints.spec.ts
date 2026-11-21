@@ -7,7 +7,7 @@ import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
 import { CLOCK, FakeClock } from '../../common/clock';
-import { createOwnerPrisma } from '../../database/db-test.util';
+import { createOwnerPrisma, createPgClient, withTenant } from '../../database/db-test.util';
 
 loadEnv({ path: path.resolve(process.cwd(), '../../.env') });
 loadEnv({ path: path.resolve(process.cwd(), '.env') });
@@ -1281,6 +1281,184 @@ describe('OPD clinical endpoints: queue, note, prescription, vitals (HTTP)', () 
   });
 
   // --------------------------------------------------------------------------- hospital walls
+
+  // ------------------------------------------------------------- doctor details (Step 7c)
+
+  describe('doctor details on the prescription', () => {
+    const details = {
+      printedName: 'Dr. One',
+      qualifications: 'MBBS, MD',
+      speciality: 'General Medicine',
+      registrationNo: 'REG 12/2026',
+      department: 'Medicine',
+    };
+    const empty = {
+      printedName: null,
+      qualifications: null,
+      speciality: null,
+      registrationNo: null,
+      department: null,
+    };
+    const setProfile = (data: object) =>
+      owner.doctorProfile.update({ where: { id: A.doc1 }, data });
+    const readNote = (id: string) => get(A, 'doc1', `/opd/visits/${id}/consultation`);
+    const completedVisit = async (): Promise<string> => {
+      const id = await started(A);
+      await saveNote(A, 'doc1', id, { diagnosis: 'dx' });
+      expect((await complete(A, 'doc1', id)).status).toBe(200);
+      return id;
+    };
+    afterEach(async () => {
+      await setProfile(empty);
+    });
+
+    it('a draft shows the doctor profile as it is now, and the login name when there is no printed name', async () => {
+      await setProfile(empty);
+      const id = await started(A);
+      await saveNote(A, 'doc1', id, { diagnosis: 'dx' });
+      const first = await readNote(id);
+      expect(first.status).toBe(200);
+      expect(first.body.doctorDetails).toMatchObject({
+        fromCompletedCopy: false,
+        printedName: null,
+        printName: first.body.visit.doctor.name,
+        name: first.body.visit.doctor.name,
+        qualifications: null,
+        speciality: null,
+        registrationNo: null,
+      });
+      await setProfile(details);
+      const second = await readNote(id);
+      expect(second.body.doctorDetails).toMatchObject({
+        fromCompletedCopy: false,
+        printName: 'Dr. One',
+        qualifications: 'MBBS, MD',
+        speciality: 'General Medicine',
+        registrationNo: 'REG 12/2026',
+        department: 'Medicine',
+      });
+    });
+
+    it('completing keeps a copy: an old prescription never changes when the profile changes later', async () => {
+      await setProfile(details);
+      const id = await started(A);
+      await saveNote(A, 'doc1', id, { diagnosis: 'dx' });
+      const done = await complete(A, 'doc1', id);
+      expect(done.body.doctorDetails).toMatchObject({
+        fromCompletedCopy: true,
+        printName: 'Dr. One',
+        qualifications: 'MBBS, MD',
+        registrationNo: 'REG 12/2026',
+      });
+      const row = await owner.consultation.findFirstOrThrow({ where: { visitId: id } });
+      expect(row.doctorDetails).toEqual({
+        name: done.body.doctorDetails.name,
+        printedName: 'Dr. One',
+        department: 'Medicine',
+        qualifications: 'MBBS, MD',
+        speciality: 'General Medicine',
+        registrationNo: 'REG 12/2026',
+      });
+      // the doctor edits the profile afterwards
+      await setProfile({
+        printedName: 'Dr. Changed',
+        registrationNo: 'NEW 99',
+        qualifications: null,
+      });
+      const later = await readNote(id);
+      expect(later.body.doctorDetails).toMatchObject({
+        fromCompletedCopy: true,
+        printName: 'Dr. One',
+        qualifications: 'MBBS, MD',
+        registrationNo: 'REG 12/2026',
+      });
+      // a second click on Complete answers with the same old copy
+      const replay = await complete(A, 'doc1', id);
+      expect(replay.body.replayed).toBe(true);
+      expect(replay.body.doctorDetails).toMatchObject({
+        fromCompletedCopy: true,
+        printName: 'Dr. One',
+        registrationNo: 'REG 12/2026',
+      });
+      // a new visit uses the new details
+      const next = await started(A);
+      await saveNote(A, 'doc1', next, { diagnosis: 'dx' });
+      expect((await readNote(next)).body.doctorDetails).toMatchObject({
+        fromCompletedCopy: false,
+        printName: 'Dr. Changed',
+        registrationNo: 'NEW 99',
+      });
+    });
+
+    it('notes completed before the copy existed show the profile as it is now', async () => {
+      const id = await completedVisit();
+      const note = await owner.consultation.findFirstOrThrow({ where: { visitId: id } });
+      // the only way to give a note no copy is to switch the rule off for a moment (what old rows look like)
+      await owner.$executeRawUnsafe(
+        'ALTER TABLE consultations DISABLE TRIGGER consultations_guard',
+      );
+      try {
+        await owner.$executeRaw`UPDATE consultations SET doctor_details = NULL WHERE id = ${note.id}`;
+      } finally {
+        await owner.$executeRawUnsafe(
+          'ALTER TABLE consultations ENABLE TRIGGER consultations_guard',
+        );
+      }
+      await setProfile(details);
+      const res = await readNote(id);
+      expect(res.body.doctorDetails).toMatchObject({
+        fromCompletedCopy: false,
+        printName: 'Dr. One',
+        registrationNo: 'REG 12/2026',
+      });
+    });
+
+    it('the database takes the copy: the app cannot write it, an insert cannot bring one, and a completion overwrites a forged one', async () => {
+      await setProfile(details);
+      // 1. the app role has no right to write the column
+      const id = await started(A);
+      await saveNote(A, 'doc1', id, { diagnosis: 'dx' });
+      const client = createPgClient('app');
+      await client.connect();
+      try {
+        await expect(
+          withTenant(client, A.tenant, () =>
+            client.query(
+              `UPDATE consultations SET doctor_details = '{"forged":true}'::jsonb WHERE visit_id = $1`,
+              [id],
+            ),
+          ),
+        ).rejects.toThrow(/permission denied/i);
+      } finally {
+        await client.end();
+      }
+      // 2. a forged copy handed in at completion is replaced by the real one
+      const note = await owner.consultation.findFirstOrThrow({ where: { visitId: id } });
+      const closed = await owner.consultation.update({
+        where: { id: note.id },
+        data: { status: 'COMPLETED', completedAt: new Date(), doctorDetails: { forged: true } },
+      });
+      expect(closed.doctorDetails).toMatchObject({
+        printedName: 'Dr. One',
+        registrationNo: 'REG 12/2026',
+      });
+      expect(closed.doctorDetails).not.toHaveProperty('forged');
+      // 3. a note cannot be inserted with a copy
+      const other = await started(A);
+      const inserted = await owner.consultation.create({
+        data: {
+          tenantId: A.tenant,
+          branchId: A.main,
+          visitId: other,
+          doctorProfileId: A.doc1,
+          status: 'DRAFT',
+          diagnosis: 'dx',
+          doctorDetails: { forged: true },
+        },
+      });
+      expect(inserted.doctorDetails).toBeNull();
+    });
+  });
 
   describe('other hospitals', () => {
     it('hospital B cannot reach any visit of hospital A through any route', async () => {

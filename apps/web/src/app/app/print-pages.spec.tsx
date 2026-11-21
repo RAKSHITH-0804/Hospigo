@@ -101,6 +101,16 @@ function completedConsult(status: 'COMPLETED' | 'IN_CONSULTATION' = 'COMPLETED')
       patient: { id: 'pt1', uhid: 'HSP-0001', name: 'Asha Rao', gender: null, ageYears: 34 },
       doctor: { id: 'd1', code: 'DR1', name: 'Dr Meena' },
     },
+    doctorDetails: {
+      name: 'Dr Meena',
+      printedName: 'Dr. M. Rao',
+      printName: 'Dr. M. Rao',
+      department: 'Medicine',
+      qualifications: 'MBBS, MD',
+      speciality: 'General Medicine',
+      registrationNo: 'KMC/12345',
+      fromCompletedCopy: true,
+    },
     consultation: {
       status,
       complaints: 'Fever 3 days',
@@ -234,6 +244,26 @@ describe('prescription print page', () => {
     expect(screen.getByText(/1\. Paracetamol 500/)).toBeTruthy();
     expect(screen.queryByText('Rest')).toBeNull(); // advice is off in this template
     expect(screen.getByRole('button', { name: copy.print })).toBeTruthy();
+  });
+
+  it('prints the doctor details of the consultation: printed name, qualifications and registration number', async () => {
+    sessionMock.mockResolvedValue(session(['opd.notes.read']));
+    routes.set('/opd/visits/p1/consultation', ok(completedConsult()));
+    routes.set(
+      '/print-templates/PRESCRIPTION',
+      ok(
+        withFields(
+          makeTemplate('PRESCRIPTION', { paper: 'A4', pageWidthMm: 210, pageHeightMm: 297 }),
+          ['doctorName', 'doctorQualifications', 'doctorSpeciality', 'doctorRegistrationNo'],
+        ),
+      ),
+    );
+    render(await PrescriptionPrintPage(idParams));
+    expect(screen.getByText(/Dr\. M\. Rao/)).toBeTruthy();
+    expect(screen.queryByText(/Dr Meena/)).toBeNull(); // the login name is not printed
+    expect(screen.getByText(/MBBS, MD/)).toBeTruthy();
+    expect(screen.getByText(/General Medicine/)).toBeTruthy();
+    expect(screen.getByText(/KMC\/12345/)).toBeTruthy();
   });
 
   it('does not print a consultation that is not completed', async () => {

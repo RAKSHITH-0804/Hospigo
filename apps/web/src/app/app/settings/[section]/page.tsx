@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { SettingsShell } from '@/components/settings/settings-shell';
 import { PrintingSettings } from '@/components/print/printing-settings';
 import { UhidStartCard } from '@/components/patients/uhid-start-card';
+import { DoctorsList } from '@/components/settings/doctors-list';
 import { OpdRulesForm } from '@/components/settings/opd-rules-form';
 import { RegistrationFields } from '@/components/settings/registration-fields';
 import { UhidFormatCard } from '@/components/settings/uhid-format-card';
@@ -15,6 +16,7 @@ import { requirePermission } from '@/lib/auth/guards';
 import { errorMessageFor } from '@/lib/patients/client';
 import { API_UHID_START_NUMBER, fetchStaffOnServer, serverErrorCode } from '@/lib/patients/server';
 import type { UhidStartNumberResponse } from '@/lib/patients/types';
+import { API_DOCTOR_PROFILES, type DoctorsListResponse } from '@/lib/doctors/types';
 import { API_OPD_RULES, API_PATIENT_FIELDS, API_UHID_FORMAT } from '@/lib/settings/paths';
 import type { OpdRules, PatientFieldsResponse, UhidFormatResponse } from '@/lib/settings/types';
 import {
@@ -84,6 +86,15 @@ export default async function SettingsSectionPage({
           initialErrorCode={info.status === 'ok' ? null : serverErrorCode(info)}
         />
       </div>
+    );
+  }
+  if (section.id === 'doctors') {
+    const doctors = await fetchStaffOnServer<DoctorsListResponse>(API_DOCTOR_PROFILES);
+    content = (
+      <DoctorsList
+        initial={doctors.status === 'ok' ? doctors.data : null}
+        initialErrorCode={doctors.status === 'ok' ? null : serverErrorCode(doctors)}
+      />
     );
   }
   if (section.id === 'opd-rules') {
