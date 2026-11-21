@@ -9,7 +9,7 @@ import { staffRoute } from '@/lib/auth/staff-route';
  */
 export async function proxyOpdWrite(
   request: Request,
-  method: 'POST' | 'PUT',
+  method: 'POST' | 'PUT' | 'PATCH',
   path: string,
 ): Promise<NextResponse> {
   const originError = assertOrigin(request);

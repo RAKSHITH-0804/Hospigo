@@ -84,6 +84,22 @@ jest.mock('@/components/patients/uhid-start-card', () => ({
   ),
 }));
 
+jest.mock('@/components/settings/opd-rules-form', () => ({
+  OpdRulesForm: (props: Record<string, unknown>) => (
+    <div data-testid="opd-rules" data-props={JSON.stringify(props)} />
+  ),
+}));
+jest.mock('@/components/settings/registration-fields', () => ({
+  RegistrationFields: (props: Record<string, unknown>) => (
+    <div data-testid="registration-fields" data-props={JSON.stringify(props)} />
+  ),
+}));
+jest.mock('@/components/settings/uhid-format-card', () => ({
+  UhidFormatCard: (props: Record<string, unknown>) => (
+    <div data-testid="uhid-format" data-props={JSON.stringify(props)} />
+  ),
+}));
+
 function hospitalSession(permissions: string[], overrides: Record<string, unknown> = {}) {
   return {
     id: 'u1',
@@ -432,7 +448,7 @@ describe('patients pages', () => {
       await expect(SettingsIndexPage()).rejects.toThrow(`REDIRECT:${SETTINGS_SECTIONS[0]!.route}`);
     });
 
-    it('a section renders the frame, the nav with aria-current and the server-fetched number', async () => {
+    it('the registration fields section renders the frame, the nav with aria-current and the server-fetched fields', async () => {
       requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read']));
       fetchMock.mockResolvedValue(ok(info));
       const { unmount } = render(await SettingsSectionPage(section('patient-registration')));
@@ -442,19 +458,72 @@ describe('patients pages', () => {
       const current = nav.querySelector('[aria-current="page"]');
       expect(current?.textContent).toBe(staffCopy.settings.sections.patientRegistration);
       expect(current?.getAttribute('href')).toBe('/app/settings/patient-registration');
-      expect(fetchMock).toHaveBeenCalledWith('/patients/uhid/start-number');
-      expect(propsOf('uhid-card')).toEqual({
+      expect(fetchMock).toHaveBeenCalledWith('/settings/patient-fields');
+      // only this section's data is fetched: the number screens have their own page
+      expect(fetchMock).not.toHaveBeenCalledWith('/patients/uhid/start-number');
+      expect(fetchMock).not.toHaveBeenCalledWith('/settings/uhid-format');
+      expect(propsOf('registration-fields')).toEqual({
         canWrite: false,
-        initialInfo: info,
+        initial: info,
         initialErrorCode: null,
       });
+      expect(screen.queryByTestId('uhid-card')).toBeNull();
       unmount();
 
       requireKindMock.mockResolvedValue(
         hospitalSession(['hospital.settings.read', 'hospital.settings.write']),
       );
       render(await SettingsSectionPage(section('patient-registration')));
+      expect(propsOf('registration-fields')).toMatchObject({ canWrite: true });
+    });
+
+    it('the patient numbers section shows the format and the next number, writable with hospital.settings.write', async () => {
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read']));
+      fetchMock.mockResolvedValue(ok(info));
+      const { unmount } = render(await SettingsSectionPage(section('patient-numbers')));
+      const nav = screen.getByRole('navigation', { name: staffCopy.settings.navAria });
+      expect(nav.querySelector('[aria-current="page"]')?.textContent).toBe(
+        staffCopy.settings.sections.patientNumbers,
+      );
+      expect(fetchMock).toHaveBeenCalledWith('/patients/uhid/start-number');
+      expect(fetchMock).toHaveBeenCalledWith('/settings/uhid-format');
+      expect(fetchMock).not.toHaveBeenCalledWith('/settings/patient-fields');
+      expect(propsOf('uhid-format')).toMatchObject({ canWrite: false, initial: info });
+      expect(propsOf('uhid-card')).toEqual({
+        canWrite: false,
+        initialInfo: info,
+        initialErrorCode: null,
+      });
+      unmount();
+      requireKindMock.mockResolvedValue(
+        hospitalSession(['hospital.settings.read', 'hospital.settings.write']),
+      );
+      render(await SettingsSectionPage(section('patient-numbers')));
       expect(propsOf('uhid-card')).toMatchObject({ canWrite: true });
+      expect(propsOf('uhid-format')).toMatchObject({ canWrite: true });
+    });
+
+    it('the OPD rules section is fetched on the server and writable only with opd.settings.write', async () => {
+      const rules = { followUpFreeDays: 7, repeatVisitFreeHours: 0, persisted: false, limits: {} };
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read']));
+      fetchMock.mockResolvedValue(ok(rules));
+      const first = render(await SettingsSectionPage(section('opd-rules')));
+      expect(fetchMock).toHaveBeenCalledWith('/settings/opd-rules');
+      expect(propsOf('opd-rules')).toEqual({ initial: rules, canWrite: false });
+      first.unmount();
+      requireKindMock.mockResolvedValue(
+        hospitalSession(['hospital.settings.read', 'opd.settings.write']),
+      );
+      render(await SettingsSectionPage(section('opd-rules')));
+      expect(propsOf('opd-rules')).toMatchObject({ canWrite: true });
+    });
+
+    it('a failed read of the OPD rules shows the calm message, not the form', async () => {
+      requireKindMock.mockResolvedValue(hospitalSession(['hospital.settings.read']));
+      fetchMock.mockResolvedValue({ status: 'error', code: 'UNAVAILABLE' });
+      render(await SettingsSectionPage(section('opd-rules')));
+      expect(screen.getByRole('alert').textContent).toBe(staffCopy.errors.unreachable);
+      expect(screen.queryByTestId('opd-rules')).toBeNull();
     });
 
     it('an unknown section shows the not-found state inside the frame', async () => {

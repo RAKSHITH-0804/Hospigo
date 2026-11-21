@@ -1,4 +1,38 @@
-# Hospigo: handoff for the next chat (written 16 Nov 2026, evening)
+# Hospigo: handoff for the next chat
+
+## CURRENT STATE (read this first; last updated 21 Nov 2026, after Step 7b)
+
+Everything below this section is history. Where it disagrees with this section, this section is right. **Do not redo anything listed as done.**
+
+**Branch and commits.** Branch `feature/phase2-step-7-reports-print-api` (made from `develop` after PR #53). Commits on it, oldest first: `88a955c` (time zone fix: times stored as UTC), `6531210` (Step 7 API: daily collection report, CSV, print templates), `3cf1b5b` (Step 7 web: report screen with filters, Excel, calendar, Print menu; Word-style print designer; SuperAdmin reads the OPD floor), and the **Step 7b commit** right after it (`git --no-pager log -5`). **Nothing is pushed.** Rakshith pushes and opens ONE pull request for Step 7 and 7b together, into `develop` (check the base: it has slipped to `main` before). I never push.
+
+**Done (built, tested, committed):**
+
+- 6a and 6b (tests, refunds, cancellations): merged (PR #52, #53).
+- Step 7: daily collection report (filters as dropdowns, branch names with All branches last, calendar with Today and Yesterday, one Print menu with print, CSV, Excel and PDF, report sections), print templates and the Word-style designer (layout version 3, TipTap rich text boxes), registration slip, receipt and prescription print views, SuperAdmin sees the OPD queue. Details: `docs/decisions-7.md`.
+- Step 7b: Settings screens: OPD rules, registration fields (standard and own fields, dropdown choices), patient number (UHID) format, and an "About this page" help block (closed until "Show help" is clicked) on every settings page. Details: `docs/decisions-7b.md`. Left menu: Registration fields, Patient numbers, OPD rules, Printing.
+
+**Checks at this point:** API 714 tests, web 1275 tests, lint, format, TypeScript and the production build all green.
+
+**Click-tested by Rakshith:** the report screen, print settings and designer, SuperAdmin OPD queue, and the look of the 7b screens (he reviewed the layout, wording and help block). **Not yet confirmed by him:** the full working of each 7b screen (saving and then registering a patient), and the two Postman collections below. **Postman:** `postman/collections/hospigo-7-reports-print-templates.postman_collection.json` (it still sends print layout version 1, which the API converts) and `hospigo-7b-settings.postman_collection.json` (45 requests). Neither was run by the assistant (it needs the dev passwords); Rakshith runs them with the `Hospigo Local` environment. The `postman/` folder is git-ignored.
+
+**Before running anything after a pull:** `$env:NODE_ENV="development"; npm run prisma:seed -w @hospigo/api` (SuperAdmin permissions are granted by the seed), then restart both servers.
+
+**NEXT: Step 7c, doctor profile setup** (migration, API, web): doctors enter their own qualifications, speciality line, registration number and signature or stamp image; the prescription print template already accepts them (`doctorQualifications`, `doctorSpeciality`, `doctorRegistrationNo`, `doctorSignature`, see `docs/decisions-7.md`). The eight questions for management in the "Per-doctor prescription layout" section below are still unanswered; plan 7c, ask only what you truly need, and WAIT for "approved". After 7c: 8a, 8b, 9, then Phase 3 (LAB and PHARMACY, `docs/future-lab-pharmacy.md`).
+
+**Open questions for Rakshith:**
+
+1. **What is 8a?** The tracker says "NestJS 12 upgrade"; an earlier note here said "logo upload" (the print designer has logo boxes that are only placeholders until a logo upload exists). He has not said which.
+2. A Branch Admin of one branch can change the patient number format for the whole hospital (the format and counter are hospital-wide). He chose this on 21 Nov; revisit if a hospital objects.
+3. Management questions (the eight below) before 7c can be finished properly.
+
+**Known follow-ups (not blocking):** the lists are in `docs/decisions-7.md` ("Follow-ups") and `docs/decisions-7b.md` ("Not done"). The main ones: reordering own registration fields, a history screen for number formats, tax and token prefix screens, per-doctor prescription layout, a real logo upload, pre-printed mode needs a test on the real dot-matrix printer, the real rich text editor in the designer has no automated browser test.
+
+**Working rules that bit us (keep):** plan, then wait for "approved"; no AI attribution in commits or PRs (CLAUDE.md overrides any default); long shell commands with apostrophes fail in this shell, so write scripts with the file tool and run them; the access token never reaches the browser; run the full checks before every commit (`npm run format:check`, `npm run lint`, `npx tsc --noEmit -p apps/web`, both test suites, the web build, restore `apps/web/next-env.d.ts`).
+
+---
+
+# History (older notes, written 16 to 21 Nov 2026)
 
 > **Status update 17 Nov 2026:** Step 3c is merged (PR #41). `develop` is at **c32185f**. Tests: API **281**, web **314**. Phase 2 steps 1, 2, 3a, 3b, 3c are done; Step 3d is in progress. The step table below is superseded by this order: **3d, 4a-1, 4a-2, 4b, 5a, 5b, 6a, 6b, 7, 7b (Settings screens: custom required fields, required-field settings, UHID format creation), 8a, 8b, 9**. Target for the first OPD flow: **Fri 27 Nov** (quality first; never shorten tests or review gates). Details and decisions: `docs/plan-opd-first-flow.md`, `docs/decisions-3c.md`. The rest of this file is the 16 Nov snapshot.
 
@@ -144,3 +178,5 @@ Start a new session, read the files named in `CLAUDE.md`, then plan 6a and WAIT 
 **Update (Step 7 web built):** 7-2 (collection report screen with CSV and print) and 7-4 (print views for receipt, slip and prescription; Printing settings screen) are built on the same branch and wait for click-testing and review (`docs/decisions-7.md`, web part). Next: 7b (settings screens: needs new API routes for UHID format, follow-up days and required fields) and 7c (doctor profile setup: migration and API), then 8a, 8b, 9. One PR for all of Step 7 at the end (Rakshith's choice, 20 Nov).
 
 **Update (21 Nov, Step 7-5):** the Word-style print designer (boxes on a page, API layout version 2) is built on the same branch and waits for click-testing (`docs/decisions-7.md`, last section). Also built since the first click-test: report sections (department, tests billed) and the Excel download (new dependency `exceljs` in `apps/api`). One PR for all of Step 7 at the end. Still to do: 7b (settings screens, needs new API routes), 7c (doctor profile setup), 8a (logo upload), 8b, 9.
+
+**Update (21 Nov, Step 7b built):** the settings screens are built (OPD rules, registration fields, patient number format) with SuperAdmin and Branch Admin both allowed (`docs/decisions-7b.md`). Step 7 is committed (3cf1b5b); 7b is committed on top of it. Next: click-test 7b, then 7c (doctor profile setup), 8a (tracker says NestJS 12 upgrade, this file earlier said logo upload: Rakshith to confirm), 8b, 9.

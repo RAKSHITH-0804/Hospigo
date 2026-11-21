@@ -46,6 +46,9 @@ export const OpdErrorCode = {
   REPORT_FILTER_INVALID: 'REPORT_FILTER_INVALID',
   PRINT_TEMPLATE_INVALID: 'PRINT_TEMPLATE_INVALID',
   PRINT_DOC_TYPE_INVALID: 'PRINT_DOC_TYPE_INVALID',
+  // ---- Step 7b: settings screens
+  SETTINGS_INVALID: 'SETTINGS_INVALID',
+  SETTINGS_NOT_FOUND: 'SETTINGS_NOT_FOUND',
 } as const;
 
 export type OpdErrorCode = (typeof OpdErrorCode)[keyof typeof OpdErrorCode];

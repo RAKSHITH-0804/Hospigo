@@ -29,6 +29,41 @@
 
 ## Unreleased
 
+## 2026-11-21 — Phase 2 Step 7b — settings screens (OPD rules, registration fields, patient number format, help)
+
+- **Commit hash(es):** the commit right after `3cf1b5b` on `feature/phase2-step-7-reports-print-api` (see `git log`).
+- **Added:** API module `hospital-settings` (`/settings/opd-rules`, `/settings/patient-fields` with built-in and custom fields and dropdown choices, `/settings/uhid-format`); web pages Registration fields, Patient numbers, OPD rules; an "About this page" help block on every settings page; six Next route handlers under `/api/staff/settings/`.
+- **Changed:** the settings menu is now Registration fields, Patient numbers, OPD rules, Printing; the UHID format service can read and start a new format (`getFormat`, `changeFormat`), and the effective format is picked deterministically when two are saved at the same moment.
+- **Removed:** nothing.
+- **Fixed:** two administrators adding the same own field at once get "name already used" instead of a server error.
+- **Database (migrations, roles, RLS):** none (tables existed). The running number counter never goes back when a new format counts in another period.
+- **New .env keys (names only):** none.
+- **Tests:** API 684 -> 714 (settings endpoints incl. isolation, validation, audit, counter carry-forward, concurrency), web 1182 -> 1275. Lint, format, TypeScript and production build clean. Postman 7b written (45 requests), not run by the assistant.
+- **Decisions:** `docs/decisions-7b.md` (SuperAdmin and Branch Admin may both change these settings; nothing is ever deleted; a Branch Admin changes the number format for the whole hospital; help block closed by default).
+- **Follow-ups and open items:** reordering own fields, number format history screen, tax and token prefix screens, per-branch number formats; Rakshith to confirm what 8a is.
+
+## 2026-11-21 — Phase 2 Step 7 — reports, Excel, print templates, Word-style designer, SuperAdmin read access
+
+- **Commit hash(es):** `88a955c` (times stored as UTC), `6531210` (API), `3cf1b5b` (web, designer, filters, SuperAdmin).
+- **Added:** daily collection report (JSON, CSV, Excel; filters doctor, payment mode, department, bill type, test, branch; sections), print templates (registration slip, receipt, prescription) with presets and pre-printed mode, the Word-style designer (TipTap rich text boxes, layout version 3), the report screen with calendar, Print menu, branch names; `GET /opd/reports/filters`; SuperAdmin now reads the OPD queue, vitals and notes.
+- **Changed:** database connections use a UTC session (times are shown in the hospital time zone); `AccessService.permittedBranches`.
+- **Removed:** nothing.
+- **Fixed:** the ledger check found bills stored in local time (repair script in `postman/`); report print no longer shows the OPD tabs.
+- **Database (migrations, roles, RLS):** `20261122090000_print_templates`, `20261122091000_report_indexes`.
+- **New .env keys (names only):** `WEB_REPORT_TIME_ZONE`, `WEB_REPORT_PAPER_SIZE`, `WEB_REPORT_PAGE_MARGIN` (optional). New packages: `exceljs` (api), TipTap (web).
+- **Tests:** API 556 -> 684, web 927 -> 1182 (lint, format, TypeScript, build clean).
+- **Decisions:** `docs/decisions-7.md`.
+- **Follow-ups and open items:** 7c doctor profile, logo upload, per-doctor prescription layout, test pre-printed mode on the real printer, management questions in `docs/handoff-phase2.md`.
+
+## 2026-11-20 — Phase 2 Step 6 — investigations, refunds and cancellations
+
+- **Commit hash(es):** 6a `c819fa6` (merged `f182860`, PR #52); 6b `45e40cd` (merged `4cc9575`, PR #53).
+- **Added:** doctor test orders, investigations bill, refunds and visit cancellations (API) and their screens for doctor, reception and Admin.
+- **Database (migrations, roles, RLS):** `20261121090000_investigations_and_refunds`.
+- **Tests:** API 556 after 6a, web 927 after 6b.
+- **Decisions:** `docs/decisions-6a.md`, `docs/decisions-6b.md`.
+- **Follow-ups and open items:** see those files. Other fields: unverified here (see the decisions files).
+
 ## 2026-11-19 — Phase 2 Step 5 — split payment, doctor queue, consultation, vitals, prescription and the nurse and doctor screens
 
 - **Commit hash(es):** 5a-1: d428b5b (migration), f75a5b4 (API and web), merged as f16e677 (PR #46). 5a-2 and 5a-3: 796c9eb, merged as 66ed5cd (PR #47). 5b: a9bff8e, merged as 378e4cf (PR #51).

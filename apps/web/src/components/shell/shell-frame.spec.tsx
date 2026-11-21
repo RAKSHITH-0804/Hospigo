@@ -38,7 +38,7 @@ jest.mock('next/link', () => {
 });
 
 const requireKindMock = jest.fn();
-const sectionParams = { params: Promise.resolve({ section: 'patient-registration' }) };
+const sectionParams = { params: Promise.resolve({ section: 'patient-numbers' }) };
 const serverFetchMock = jest.fn();
 
 jest.mock('@/lib/patients/server', () => ({
@@ -364,16 +364,21 @@ describe('shell frame', () => {
         roleCodes: ['BRANCH_ADMIN'],
       }),
     );
-    serverFetchMock.mockResolvedValue({
-      status: 'ok',
-      data: {
-        nextNumber: 1,
-        nextUhidPreview: 'TESTA0001',
-        resetRule: 'NEVER',
-        periodYear: 0,
-        periodLabel: null,
-      },
-    });
+    // each card has its own API path: the number card is answered, the others are not available
+    serverFetchMock.mockImplementation(async (path: string) =>
+      path === '/patients/uhid/start-number'
+        ? {
+            status: 'ok',
+            data: {
+              nextNumber: 1,
+              nextUhidPreview: 'TESTA0001',
+              resetRule: 'NEVER',
+              periodYear: 0,
+              periodLabel: null,
+            },
+          }
+        : { status: 'error', code: 'UNAVAILABLE' },
+    );
     const page = await SettingsSectionPage(sectionParams);
     render(page);
     expect(screen.getByRole('heading', { name: staffCopy.settings.title })).toBeTruthy();

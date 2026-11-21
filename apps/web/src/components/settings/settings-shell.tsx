@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { SettingsHelp } from '@/components/settings/settings-help';
 import { PageHeader } from '@/components/ui/page-header';
 import type { SettingsSection } from '@/config/settings-sections';
 import { staffCopy } from '@/config/staff-copy';
@@ -40,6 +41,7 @@ export function SettingsShell({
           </ul>
         </nav>
         <div className={wide ? 'settings-content settings-content-wide' : 'settings-content'}>
+          {activeId ? <SettingsHelp pageId={activeId} /> : null}
           {children}
         </div>
       </div>

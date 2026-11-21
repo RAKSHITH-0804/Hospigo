@@ -6,7 +6,7 @@ Hospigo is Indigo's multi-tenant hospital management SaaS. Monorepo with two wor
 ## Read first, every session
 
 1. `docs/project-context.md` (what the project is and every decision behind it)
-2. `docs/handoff-phase2.md` (current phase, step list, where to start) and the newest decisions file (`docs/decisions-5b.md`; earlier ones: `docs/decisions-5a.md`, `4a`, `3d`, `3c`)
+2. `docs/handoff-phase2.md`, section **CURRENT STATE** at the top (what is done, what is next, open questions; do not redo finished steps), and the newest decisions files (`docs/decisions-7b.md` and `docs/decisions-7.md`; earlier ones: `decisions-6b`, `6a`, `5b`, `5a`, `4a`, `3d`, `3c`)
 3. `docs/engineering-tracker.md` (step status) and the doc for the area you work on (`docs/api-opd.md`, `docs/ui-design.md`, `docs/schema-opd.md`, ...)
 
 You do not have access to the planning chats. Anything not written in the repo docs does not exist for you: if you are unsure of a decision, ask Rakshith instead of guessing.
@@ -26,7 +26,7 @@ You are Rakshith's lead, guide AND the coder. Rakshith is a junior developer (ab
 3. PROVE: API work ships with a ready-made Postman collection file (import and "Run collection", with checks) in the git-ignored `postman/` folder. He tests by running it, not by hand-typing requests. For UI work, say exactly what to click and what he should see.
 4. REVIEW: report files changed (one line each), test counts before and after, what you decided that was not in the task, what you did not do.
 5. COMMIT: when a chunk is approved and green, propose the commit message. Commit only when he says so. Never push: he pushes. One small PR per step or sub-step.
-6. DOCS: at the end of each step update `docs/engineering-tracker.md` and the decisions file, and add to the follow-ups list anything you noticed but did not fix.
+6. DOCS: at the end of each step update `docs/engineering-tracker.md`, the decisions file, the CURRENT STATE section of `docs/handoff-phase2.md` (done, next, open questions) and `docs/CHANGELOG.md`, and add to the follow-ups list anything you noticed but did not fix. A new chat must be able to resume from the docs alone.
 
 Review gates (stop and ask, even if he is in a hurry): permissions and token handling, tenant isolation and RLS, anything touching money, migrations, anything that removes a protection.
 

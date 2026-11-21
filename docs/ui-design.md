@@ -140,3 +140,12 @@ Density tokens live in `globals.css` (control ~32px, body/label ~13/12px, card r
 - **Request refund and Cancel visit:** a button that opens a small inline form (amount in rupees, filled with the most that can be returned; reason; Send request). Cancel visit only on a WAITING visit. After sending it says an Admin will decide.
 - **Refund requests** (`/app/opd/refunds`): filter links Open, Approved, Rejected, All; table (requested, patient, bill and type, amount and what can still be returned, reason, asked by, status, decision). Approve (optional note, asks for a UPI reference only when needed) and Reject (note required) for staff with `opd.refunds.approve`; read-only for reception. A decided row shows who, voucher number, each mode returned and the note.
 - Details, click path and follow-ups: `docs/decisions-6b.md`.
+
+## Settings pages (Step 7b)
+
+- Left menu: Registration fields, Patient numbers, OPD rules, Printing (`apps/web/src/config/settings-sections.ts`; one entry per page).
+- Registration fields and Patient numbers use the full width: two blocks side by side (`.settings-columns`), stacked on narrow screens. Column and field widths are tokens in `globals.css` (`--size-col-check`, `--size-col-action`, `--size-column-min`).
+- Field tables (standard and own fields) share one header row and four columns (field, Ask on form, Must be filled, action) so the checkboxes line up. Section and type are small text under the field name.
+- "Saved." appears next to the change and fades after `settingsScreenConfig.savedMessageMs` (`config/settings.ts`); an error stays until the next action. The line keeps its height, so nothing jumps.
+- Every settings page has an **About this page** help block (`components/settings/settings-help.tsx`, text in `staffCopy.settings.help.pages`, keyed by section id). It is closed until the user clicks "Show help"; nothing is stored. A new settings page must add its help text (a test fails otherwise).
+- Rows with several inputs keep every input the same height: hints go in a note or a hover title, never as a line under one input of a row.

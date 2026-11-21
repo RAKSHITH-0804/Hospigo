@@ -101,6 +101,10 @@ The last number on a `LISTENING` line is the process id (PID). In Git Bash the d
 | Hospigo-patients-q-3c    | Free-text `q` search (34 checks)                                             | API, dev seed                              |
 | Hospigo-route-safety-3c  | The API refuses missing and wrong tokens and missing permissions             | API, `patientPhone` for the patient checks |
 
+More collections (git-ignored `postman/collections/`): `hospigo-3d-branch-switch`, `hospigo-4a-opd-visit-billing`, `hospigo-5a-doctor-queue`, `hospigo-5a1-split-payment`, `hospigo-6a-investigations-refunds`, `hospigo-7-reports-print-templates` (report, CSV, print templates) and `hospigo-7b-settings` (OPD rules, registration fields, patient number format; it restores what it changes and registers one patient). They need the `Hospigo Local` environment (`staffPassword`, `superadminPassword`).
+
+After a pull or a seed change, run the dev seed again so roles get new permissions: `$env:NODE_ENV="development"; npm run prisma:seed -w @hospigo/api` (PowerShell), then restart both servers.
+
 Access tokens last 15 minutes. Each collection logs in by itself.
 
 ## 12. Demo logins
