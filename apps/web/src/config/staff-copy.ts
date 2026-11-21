@@ -732,10 +732,38 @@ export const staffCopy = {
       readOnly: 'You can see this format but not change it.',
     },
   },
+  dashboard: {
+    title: 'Dashboard',
+    welcome: 'Welcome, {name}',
+    nothingYet: 'Nothing to start from yet. Ask an Admin for access.',
+    links: {
+      register: { title: 'Register a patient', description: 'Add a new patient to this hospital.' },
+      patients: { title: 'Find a patient', description: 'Search patients and open their record.' },
+      queue: { title: 'Open the OPD queue', description: 'Who is waiting and who has been seen.' },
+      refunds: {
+        title: 'Decide refund requests',
+        description: 'Approve or reject requests from reception.',
+      },
+      tests: {
+        title: 'Bill ordered tests',
+        description: 'Tests the doctors ordered, waiting for payment.',
+      },
+      report: {
+        title: 'See the collection report',
+        description: 'Money collected and refunded on one day.',
+      },
+      settings: {
+        title: 'Hospital settings',
+        description: 'Fields, numbers, rules, doctors and printing.',
+      },
+      profile: { title: 'My profile', description: 'The details that print under your name.' },
+    },
+  },
   doctorProfile: {
     title: 'My profile',
     description: 'The details that print under your name on a prescription.',
     pageTitle: 'My profile',
+    detailsTitle: 'Your details',
     noProfileTitle: 'No doctor profile',
     noProfileDescription: 'Your login has no doctor profile. Ask an Admin.',
     loadError: 'Could not load your profile.',

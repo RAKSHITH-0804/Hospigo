@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
-import { ComingLater } from '@/components/coming-later';
+import { QuickLinks } from '@/components/dashboard/quick-links';
 import { sessionConfig } from '@/config/session';
 import { staffCopy } from '@/config/staff-copy';
+import { requireKind } from '@/lib/auth/guards';
 
 export const metadata: Metadata = { title: staffCopy.pageTitles.dashboard };
 
@@ -10,6 +11,7 @@ export default async function StaffDashboardPage({
 }: {
   searchParams?: Promise<{ notice?: string }>;
 }) {
+  const session = await requireKind('HOSPITAL');
   const params = searchParams ? await searchParams : undefined;
   const unavailable = params?.notice === 'module-unavailable';
   const noPermission = params?.notice === 'no-permission';
@@ -26,7 +28,12 @@ export default async function StaffDashboardPage({
           {sessionConfig.errorNoPermission}
         </p>
       ) : null}
-      <ComingLater title={staffCopy.pageTitles.dashboard} />
+      <QuickLinks
+        displayName={session.displayName}
+        branchName={session.activeBranchName?.trim() || '—'}
+        hospitalName={session.hospitalName?.trim() || staffCopy.brand}
+        permissions={session.permissions}
+      />
     </div>
   );
 }

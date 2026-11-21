@@ -101,7 +101,7 @@ export function MyProfileForm({
     <div className="section-stack">
       <SettingsHelp pageId="doctor-profile" />
       <div className="settings-columns">
-        <SettingBlock title={copy.title} description={copy.description}>
+        <SettingBlock title={copy.detailsTitle} description="">
           {profile.missing.length > 0 ? (
             <div role="note" className="settings-reminder">
               <p className="type-label-strong">{copy.reminderTitle}</p>

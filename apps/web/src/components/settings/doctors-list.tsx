@@ -106,7 +106,7 @@ export function DoctorsList({
       {!canWrite ? <p className="type-label text-muted-foreground">{copy.readOnly}</p> : null}
       <p
         role={message?.kind === 'error' ? 'alert' : 'status'}
-        className={`settings-flash type-label ${message?.kind === 'error' ? 'text-destructive' : 'text-foreground'}`}
+        className={`settings-flash settings-flash-lazy type-label ${message?.kind === 'error' ? 'text-destructive' : 'text-foreground'}`}
       >
         {message?.text ?? ''}
       </p>

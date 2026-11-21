@@ -50,6 +50,7 @@ Self-review at every review gate: after your code and tests are done, do a separ
 - Audit stores field names, not personal values.
 - The access token never reaches the browser: not in URLs, bodies, logs, `NEXT_PUBLIC` vars. No patient data in browser storage.
 - Web forms are client components calling Next route handlers (no server actions). Route handlers return JSON 401/403 and never redirect. The API enforces permissions (deny by default); never rely on the web side for security.
+- Use the screen well (Rakshith, 21 Nov): no big empty areas and no long scrolling that is not needed. Wide screens get blocks side by side (auto-fit grids), narrow screens stack them; headings, hints and messages stay compact (no reserved blank lines unless a jump would hurt); detail goes in a hover tip or the help block. Check phone, tablet and wide widths. This applies to every page, new and old.
 - No fake numbers, mock tiles or placeholder data on real screens.
 - Sukshema Hospital is only a reference example. Never bend the product to it. Do not touch MedicoERP.
 - Do not delete or weaken existing tests. Update them only when behaviour deliberately changes.

@@ -26,7 +26,7 @@ import {
 } from '@/lib/print/types';
 
 /** Sections that use the whole width of the screen (two blocks side by side). */
-const WIDE_SECTIONS = ['printing', 'patient-registration', 'patient-numbers'];
+const WIDE_SECTIONS = ['printing', 'patient-registration', 'patient-numbers', 'doctors'];
 
 export const metadata: Metadata = { title: staffCopy.pageTitles.settings };
 

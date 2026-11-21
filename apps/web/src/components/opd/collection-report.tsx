@@ -1,5 +1,5 @@
 import { EmptyState } from '@/components/states/empty-state';
-import { ReportToolbar } from '@/components/opd/report-toolbar';
+import { ReportActions, ReportToolbar } from '@/components/opd/report-toolbar';
 import { PageHeader } from '@/components/ui/page-header';
 import { formatPaise } from '@/config/money';
 import { staffCopy } from '@/config/staff-copy';
@@ -165,7 +165,11 @@ export function CollectionReport({
   return (
     <div className="section-stack content-container-inner report-root">
       <div className="no-print">
-        <PageHeader title={copy.title} description={copy.description} />
+        <PageHeader
+          title={copy.title}
+          description={copy.description}
+          actions={<ReportActions query={query} />}
+        />
       </div>
 
       <ReportToolbar query={query} options={options} today={today} weekStart={weekStart} />
@@ -231,14 +235,20 @@ export function CollectionReport({
             </p>
           )}
 
-          <RowsTable title={copy.byMode} rows={report.byMode} />
-          <RowsTable title={copy.byDoctor} rows={report.byDoctor} showVisits />
-          <RowsTable title={copy.byDepartment} rows={report.byDepartment} nameOf={departmentName} />
-          <RowsTable title={copy.byBillType} rows={report.byBillType} nameOf={billTypeName} />
-          <TestsTable rows={report.byTest} />
-          {report.combined ? (
-            <RowsTable title={copy.byBranch} rows={report.byBranch} showVisits />
-          ) : null}
+          <div className="report-sections">
+            <RowsTable title={copy.byMode} rows={report.byMode} />
+            <RowsTable title={copy.byDoctor} rows={report.byDoctor} showVisits />
+            <RowsTable
+              title={copy.byDepartment}
+              rows={report.byDepartment}
+              nameOf={departmentName}
+            />
+            <RowsTable title={copy.byBillType} rows={report.byBillType} nameOf={billTypeName} />
+            {report.combined ? (
+              <RowsTable title={copy.byBranch} rows={report.byBranch} showVisits />
+            ) : null}
+            <TestsTable rows={report.byTest} />
+          </div>
         </>
       )}
     </div>

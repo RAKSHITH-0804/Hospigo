@@ -105,7 +105,13 @@ describe('PatientRecord', () => {
     const header = heading.closest('[data-slot="card-header"]');
     expect(header?.className).toContain('px-[var(--space-card-padding)]');
     const css = fs.readFileSync(path.join(__dirname, '../../app/globals.css'), 'utf8');
-    expect(css).toMatch(/\.record-cols[\s\S]*repeat\(3, minmax\(0, 1fr\)\)/);
+    // as many columns as the block is wide enough for, and the blocks side by side on a wide screen
+    expect(css).toMatch(
+      /\.record-cols[\s\S]*repeat\(auto-fit, minmax\(min\(100%, 9\.5rem\), 1fr\)\)/,
+    );
+    expect(css).toMatch(
+      /\.patient-record-grid[\s\S]*repeat\(auto-fit, minmax\(min\(100%, 22rem\), 1fr\)\)/,
+    );
   });
 
   it('links to edit (write only) and slip', () => {

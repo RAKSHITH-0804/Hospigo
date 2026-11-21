@@ -228,27 +228,29 @@ export function OpdQueue({
           </Button>
         }
       />
-      <p className="type-small text-muted-foreground" role="status">
-        {fill(copy.summary, { waiting, inConsultation, completed })} ·{' '}
-        {fill(copy.updatedAt, { time: formatClock(updatedAt) })}
-      </p>
-      <div
-        role="group"
-        aria-label={copy.filterLabel}
-        className="flex flex-wrap gap-[var(--space-2)]"
-      >
-        {tabs.map((tab) => (
-          <Button
-            key={tab.id}
-            type="button"
-            variant={filter === tab.id ? 'default' : 'outline'}
-            aria-pressed={filter === tab.id}
-            className="touch-target"
-            onClick={() => setFilter(tab.id)}
-          >
-            {tab.label} ({tab.count})
-          </Button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-x-[var(--space-4)] gap-y-[var(--space-2)]">
+        <div
+          role="group"
+          aria-label={copy.filterLabel}
+          className="flex flex-wrap gap-[var(--space-2)]"
+        >
+          {tabs.map((tab) => (
+            <Button
+              key={tab.id}
+              type="button"
+              variant={filter === tab.id ? 'default' : 'outline'}
+              aria-pressed={filter === tab.id}
+              className="touch-target"
+              onClick={() => setFilter(tab.id)}
+            >
+              {tab.label} ({tab.count})
+            </Button>
+          ))}
+        </div>
+        <p className="type-small text-muted-foreground" role="status">
+          {fill(copy.summary, { waiting, inConsultation, completed })} ·{' '}
+          {fill(copy.updatedAt, { time: formatClock(updatedAt) })}
+        </p>
       </div>
       {refreshFailed ? (
         <p role="alert" className="type-label text-destructive">
@@ -265,7 +267,7 @@ export function OpdQueue({
           <EmptyState title={copy.emptyTitle} description={copy.emptyDescription} />
         )
       ) : (
-        <DataTable columns={columns} rows={shown} ariaLabel={copy.title} />
+        <DataTable columns={columns} rows={shown} ariaLabel={copy.title} stackOnPhone />
       )}
     </div>
   );

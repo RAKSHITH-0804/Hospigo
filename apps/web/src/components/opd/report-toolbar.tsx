@@ -22,8 +22,8 @@ const copy = staffCopy.opd.reports;
 /**
  * The controls above the report: the day (a calendar with Today and Yesterday inside it), the
  * branch (branch names, "All branches" last), one dropdown for each of doctor, payment mode,
- * department, bill type and test, and ONE Print menu (print, save as PDF, CSV, Excel). Every
- * choice opens the report again at once. The lists are the hospital's own, from the API: nothing
+ * department, bill type and test. Every choice opens the report again at once (the Print menu is
+ * `ReportActions`, beside the title). The lists are the hospital's own, from the API: nothing
  * here is a fixed list of names.
  */
 export function ReportToolbar({
@@ -95,13 +95,6 @@ export function ReportToolbar({
     },
   ];
 
-  const actions: MenuAction[] = [
-    { id: 'print', label: copy.menuPrint, onSelect: () => window.print() },
-    { id: 'pdf', label: copy.menuPdf, onSelect: () => window.print() },
-    { id: 'csv', label: copy.menuCsv, href: reportFileHref('csv', query) },
-    { id: 'xlsx', label: copy.menuExcel, href: reportFileHref('xlsx', query) },
-  ];
-
   return (
     <div className="report-toolbar no-print" role="group" aria-label={copy.filtersAria}>
       <DatePicker
@@ -147,18 +140,35 @@ export function ReportToolbar({
           ))}
         </SelectField>
       ))}
-      <div className="report-toolbar-actions">
-        {activeFilterCount(query) > 0 ? (
-          <Button type="button" variant="outline" onClick={() => go({ ...query, filters: {} })}>
-            {copy.clearFilters}
-          </Button>
-        ) : null}
-        <ActionMenu
-          label={copy.printMenu}
-          icon={<Printer aria-hidden="true" />}
-          actions={actions}
-        />
-      </div>
+    </div>
+  );
+}
+
+/**
+ * The buttons that go beside the report title: clear the filters, and the ONE Print menu (print, save
+ * as PDF, CSV, Excel). They live in the page header so the filters need one row less.
+ */
+export function ReportActions({ query }: { query: ReportQuery }) {
+  const router = useRouter();
+  const actions: MenuAction[] = [
+    { id: 'print', label: copy.menuPrint, onSelect: () => window.print() },
+    { id: 'pdf', label: copy.menuPdf, onSelect: () => window.print() },
+    { id: 'csv', label: copy.menuCsv, href: reportFileHref('csv', query) },
+    { id: 'xlsx', label: copy.menuExcel, href: reportFileHref('xlsx', query) },
+  ];
+
+  return (
+    <div className="report-toolbar-actions no-print">
+      {activeFilterCount(query) > 0 ? (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => router.push(reportHref({ ...query, filters: {} }))}
+        >
+          {copy.clearFilters}
+        </Button>
+      ) : null}
+      <ActionMenu label={copy.printMenu} icon={<Printer aria-hidden="true" />} actions={actions} />
     </div>
   );
 }

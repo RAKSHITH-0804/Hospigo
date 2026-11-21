@@ -112,7 +112,11 @@ describe('web shell smoke', () => {
       .map((el) => el.textContent ?? '')
       .filter((t) => ['Dashboard', 'Patients', 'OPD queue'].includes(t));
     expect(navOrder.slice(0, 3)).toEqual(['Dashboard', 'Patients', 'OPD queue']);
-    expect(screen.getByText('Coming later.')).toBeTruthy();
+    // the dashboard offers only what this person may do (reception here: no settings)
+    expect(screen.getByRole('link', { name: /Register a patient/ })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Find a patient/ })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /Hospital settings/ })).toBeNull();
+    expect(screen.queryByText('Coming later.')).toBeNull();
     expect(screen.getByRole('button', { name: 'Account menu' })).toBeTruthy();
     expect(screen.queryByRole('search')).toBeNull();
     expect(screen.getByText('Powered by Indigo')).toBeTruthy();

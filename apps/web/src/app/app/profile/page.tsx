@@ -28,7 +28,7 @@ export default async function MyProfilePage() {
   }
   return (
     <div className="section-stack content-container-inner">
-      <PageHeader title={copy.title} description={copy.description} />
+      <PageHeader title={copy.title} description={copy.description} backToPrevious="/app" />
       <MyProfileForm
         initial={result.status === 'ok' ? result.data : null}
         initialErrorCode={result.status === 'ok' ? null : serverErrorCode(result)}

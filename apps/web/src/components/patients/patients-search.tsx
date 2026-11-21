@@ -248,22 +248,30 @@ export function PatientsSearch({
       ),
       ...sortColumn(PatientListSortColumn.NAME, copy.search.columns.name),
     },
-    { id: 'gender', header: copy.search.columns.gender, cell: (row) => genderLabel(row.gender) },
+    {
+      id: 'gender',
+      header: copy.search.columns.gender,
+      cell: (row) => genderLabel(row.gender),
+      hideOnPhone: true,
+    },
     { id: 'age', header: copy.search.columns.age, cell: (row) => ageLabel(row.ageYears) },
     {
       id: 'phone',
       header: copy.search.columns.phone,
       cell: (row) => formatPhoneDisplay(row.phone),
+      nowrap: true,
     },
     {
       id: 'branch',
       header: copy.search.columns.branch,
       cell: (row) => textOrEmpty(row.registeredBranchName),
+      hideOnPhone: true,
     },
     {
       id: 'registeredOn',
       header: copy.search.columns.registeredOn,
       cell: (row) => formatRegisteredOn(row.createdAt, dateLocale),
+      hideOnPhone: true,
       ...sortColumn(PatientListSortColumn.REGISTERED, copy.search.columns.registeredOn),
     },
   ];

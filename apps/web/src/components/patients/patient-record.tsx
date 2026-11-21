@@ -129,7 +129,7 @@ export function PatientRecord({
   const customValues = patient.customFieldValues ?? [];
 
   const overview = (
-    <div className="flex flex-col gap-[var(--space-3)]">
+    <div className="patient-record-grid">
       <Section title={copy.record.sectionDemographics}>
         <Row label={copy.form.uhidReadOnly}>
           <Badge variant="info">{patient.uhid}</Badge>

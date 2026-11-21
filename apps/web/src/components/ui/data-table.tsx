@@ -13,6 +13,10 @@ export type DataTableColumn<T> = {
   sortDirection?: DataTableSortDirection | null;
   sortAriaLabel?: string;
   onSort?: () => void;
+  /** Not shown on a phone (small screens keep only the columns that matter). */
+  hideOnPhone?: boolean;
+  /** Never wraps (a phone number, a number with a prefix). */
+  nowrap?: boolean;
 };
 
 export function DataTable<T extends { id: string }>({
@@ -22,6 +26,7 @@ export function DataTable<T extends { id: string }>({
   ariaLabel,
   selectedId,
   onRowSelect,
+  stackOnPhone,
 }: {
   columns: DataTableColumn<T>[];
   rows: T[];
@@ -29,10 +34,18 @@ export function DataTable<T extends { id: string }>({
   ariaLabel?: string;
   selectedId?: string;
   onRowSelect?: (id: string) => void;
+  /** On a phone each row becomes a small card (for tables that are not sorted by header). */
+  stackOnPhone?: boolean;
 }) {
   return (
     <div className="w-full overflow-x-auto">
-      <table className="w-full border-collapse text-left" aria-label={ariaLabel}>
+      <table
+        className={cn(
+          'w-full border-collapse text-left',
+          stackOnPhone ? 'data-table-stack' : undefined,
+        )}
+        aria-label={ariaLabel}
+      >
         {caption ? <caption className="sr-only">{caption}</caption> : null}
         <thead className="bg-[var(--table-header)]">
           <tr>
@@ -50,7 +63,10 @@ export function DataTable<T extends { id: string }>({
                   key={col.id}
                   scope="col"
                   aria-sort={ariaSort}
-                  className="border-b border-[var(--row-divider)] px-[var(--space-table-x)] py-[var(--space-table-y)] type-label font-semibold text-foreground"
+                  className={cn(
+                    'border-b border-[var(--row-divider)] px-[var(--space-table-x)] py-[var(--space-table-y)] type-label font-semibold text-foreground',
+                    col.hideOnPhone ? 'data-table-hide-phone' : undefined,
+                  )}
                 >
                   {col.sortable ? (
                     <button
@@ -93,7 +109,12 @@ export function DataTable<T extends { id: string }>({
                 {columns.map((col) => (
                   <td
                     key={col.id}
-                    className="px-[var(--space-table-x)] py-[var(--space-table-y)] type-label text-foreground"
+                    data-label={col.header || undefined}
+                    className={cn(
+                      'px-[var(--space-table-x)] py-[var(--space-table-y)] type-label text-foreground',
+                      col.hideOnPhone ? 'data-table-hide-phone' : undefined,
+                      col.nowrap ? 'data-table-nowrap' : undefined,
+                    )}
                   >
                     {col.cell(row)}
                   </td>

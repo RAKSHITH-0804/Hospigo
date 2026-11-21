@@ -155,3 +155,21 @@ Density tokens live in `globals.css` (control ~32px, body/label ~13/12px, card r
 - **My profile** (`/app/profile`): reached from the user menu (top right) for people with `opd.doctors.own`. Two blocks side by side: the form (name as printed, qualifications, speciality, registration number; login name, department and branches shown as text) and a preview of how it prints. A reminder box lists the empty details. Help block closed until "Show help".
 - **Doctors** (Settings, `/app/settings/doctors`, needs `opd.doctors.read`): one card per doctor with what prints, the department and the branches; "Details missing" tag; Edit opens the five fields (including the department). Cards, not a table, because a doctor has too many details for aligned columns.
 - The consultation screen shows a quiet note with a link to My profile when the registration number is empty; Complete is never blocked.
+
+## Use of space (standing rule, 21 Nov 2026)
+
+Rakshith's rule for every page: no big empty areas and no scrolling that is not needed. Wide screens use blocks side by side (`settings-columns`, `settings-doctors`: `auto-fit` grids with a minimum width token); narrow screens stack them. Page and block titles are not repeated; an empty description renders nothing; a confirmation line takes no room until it has something to say (`settings-flash-lazy`) unless a jump would hurt (tables). Detail goes in a hover tip or the help block. Check phone, tablet and wide widths before calling a page done. Pages built before this rule have not been checked against it yet (see the handoff).
+
+## Space review of the older pages (22 Nov 2026)
+
+Reviewed as SuperAdmin at wide (1440), about 800 and phone (390) widths in the built-in browser; every change was approved by Rakshith first. Done:
+
+- **Tables** (`DataTable`): `hideOnPhone` drops a column on a phone, `nowrap` keeps a phone number on one line, `stackOnPhone` turns each row into a small card (for tables not sorted by their header). Every cell carries `data-label` with its column name. Patients list: gender, branch and registered date are hidden on a phone. OPD queue: cards on a phone.
+- **PageHeader**: the title block takes the free width (`basis-48`), so an action button (Refresh, Print) stays beside the title instead of dropping below the description.
+- **OPD queue**: the filter tabs and the status line share one row.
+- **Collection report**: the Print menu and Clear filters are in the page header (`ReportActions`), the seven filters fit one row on a wide screen (`minmax(9.25rem, 1fr)`), and the report tables sit two side by side (`report-sections`; the tests table takes the whole row).
+- **Patient record**: the blocks sit side by side (`patient-record-grid`) and the fields in a block use as many columns as the block is wide (`record-cols`, `auto-fit`).
+- **Dashboard**: no longer an empty "Coming later" page. It shows quick links for what the person may do (`QuickLinks`, one permission per link), with no numbers.
+- **Doctors settings**: two details per row on a phone.
+- **Left as it is**: the receipt, slip and prescription preview shows the sheet at its real paper size, so empty space beside it is part of showing real paper. Register patient already fits one screen. Refund requests is fine.
+- **Not reviewed yet** (needs a login of that role): the editable consultation screen, vitals, reception visit and billing screens, tests billing, the login and patient portal pages and the HQ admin pages.

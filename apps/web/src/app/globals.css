@@ -600,6 +600,56 @@
     border-top: 1px solid var(--border);
   }
 
+  /* Tables on a phone: less important columns are dropped, numbers never wrap, and a table that is
+     not sorted by its header becomes a list of small cards. */
+  @media (width < 40rem) {
+    .data-table-hide-phone {
+      display: none;
+    }
+
+    .data-table-nowrap {
+      white-space: nowrap;
+    }
+
+    .data-table-stack thead {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+    }
+
+    .data-table-stack,
+    .data-table-stack tbody {
+      display: block;
+    }
+
+    .data-table-stack tr {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-1) var(--space-3);
+      padding: var(--space-2) var(--space-3);
+    }
+
+    .data-table-stack td {
+      display: block;
+      padding: 0;
+    }
+
+    .data-table-stack td:first-child {
+      min-width: 3rem;
+    }
+
+    .data-table-stack td:nth-child(2) {
+      flex: 1 1 8rem;
+    }
+
+    .data-table-stack td:last-child {
+      flex: 1 1 100%;
+    }
+  }
+
   .table-panel {
     overflow-x: auto;
     border-radius: var(--radius-card);
@@ -1990,12 +2040,13 @@
   }
 
   .settings-doctors {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
+    display: grid;
+    align-items: start;
     margin: 0;
     padding: 0;
+    gap: var(--space-3);
     list-style: none;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--size-column-min)), 1fr));
   }
 
   .settings-doctor {
@@ -2018,7 +2069,7 @@
     display: grid;
     margin: 0;
     gap: var(--space-2) var(--space-4);
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
   }
 
   .settings-sample-block {
@@ -2033,6 +2084,11 @@
 
   .settings-flash {
     min-height: 1.5rem;
+  }
+
+  /* A confirmation line that takes no room until there is something to say. */
+  .settings-flash-lazy:empty {
+    display: none;
   }
 
   .settings-sample {
@@ -2189,22 +2245,43 @@
   }
 
   /* Record page: 1 column phone, 2 medium, 3 wide. */
+  /* The fields of one record block: as many columns as the block is wide enough for. */
   .record-cols {
     display: grid;
     gap: var(--space-3) var(--space-5);
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr));
   }
 
-  @media (width >= 43.75rem) {
-    .record-cols {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
+  /* The record blocks (demographics, contact, address) sit side by side on a wide screen. */
+  .patient-record-grid {
+    display: grid;
+    align-items: start;
+    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
   }
 
-  @media (width >= 64rem) {
-    .record-cols {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
+  .dashboard-links {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    gap: var(--space-3);
+    list-style: none;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  }
+
+  .dashboard-link {
+    display: flex;
+    height: 100%;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-card);
+    background: var(--card);
+    box-shadow: 0 0 0 1px color-mix(in oklch, var(--foreground) 10%, transparent);
+  }
+
+  .dashboard-link:hover {
+    box-shadow: 0 0 0 2px var(--primary);
   }
 }
 
@@ -2736,7 +2813,7 @@
 /* The report toolbar: day, branch, filters, and the Print menu. It wraps on any width. */
 .report-toolbar {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(9.25rem, 1fr));
   align-items: end;
   gap: var(--space-3);
 }
@@ -2747,6 +2824,18 @@
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-2);
+}
+
+/* The report tables: two side by side on a wide screen, one under the other on a narrow one. The
+   tests table (long names) takes the whole row. */
+.report-sections {
+  display: grid;
+  align-items: start;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr));
+}
+
+.report-sections > .report-section:last-child:nth-child(odd) {
   grid-column: 1 / -1;
 }
 

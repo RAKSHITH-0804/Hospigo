@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { ReportToolbar } from '@/components/opd/report-toolbar';
+import { ReportActions, ReportToolbar } from '@/components/opd/report-toolbar';
 import { staffCopy } from '@/config/staff-copy';
 import type { ReportQuery } from '@/lib/opd/reports';
 import type { ReportFilterOptions } from '@/lib/opd/reports-types';
@@ -36,7 +36,13 @@ const options: ReportFilterOptions = {
 const base: ReportQuery = { date: '2026-11-20', branch: null, filters: {} };
 
 function setup(query: ReportQuery = base, opts: ReportFilterOptions = options) {
-  return render(<ReportToolbar query={query} options={opts} today="2026-11-20" weekStart={1} />);
+  // the page shows the actions beside the title and the filters under it
+  return render(
+    <>
+      <ReportActions query={query} />
+      <ReportToolbar query={query} options={opts} today="2026-11-20" weekStart={1} />
+    </>,
+  );
 }
 const select = (label: string) => screen.getByLabelText(label) as HTMLSelectElement;
 const optionsOf = (label: string) => [...select(label).options].map((o) => o.textContent);

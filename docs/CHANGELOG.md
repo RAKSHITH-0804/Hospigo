@@ -29,6 +29,17 @@
 
 ## Unreleased
 
+## 2026-11-22 — Phase 2 — space review of the older pages
+
+- **Commit hash(es):** see `git log` (commit "Space review").
+- **Added:** `DataTable` options `hideOnPhone`, `nowrap`, `stackOnPhone`; `ReportActions`; `QuickLinks` (dashboard); styles `report-sections`, `patient-record-grid`, `dashboard-links`.
+- **Changed:** OPD queue (one row for filters and status, cards on a phone), collection report (Print in the header, filters in one row, tables side by side), patients list on a phone, patient record (blocks side by side), dashboard (quick links instead of "Coming later"), doctors cards on a phone, PageHeader actions stay beside the title.
+- **Removed:** nothing. **Fixed:** nothing.
+- **Database:** none. **New .env keys:** none.
+- **Tests:** web 1327 -> see the next entry for the final count; new tests for the table options, the dashboard links and the report actions.
+- **Decisions:** `docs/ui-design.md` ("Space review of the older pages").
+- **Follow-ups and open items:** review the screens that need other roles (consultation, vitals, reception, tests billing, login, portal, HQ).
+
 ## 2026-11-21 — Phase 2 Step 7c — doctor profile details
 
 - **Commit hash(es):** the commit right after `31b73d0` on `feature/phase2-step-7-reports-print-api` (see `git log`).
