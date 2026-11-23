@@ -34,14 +34,14 @@
 - **Added:** `docs/audit/phase2-audit.md`: plan vs built table (294 rows), automated proof, security and money checks, top 10 problems, 15 decisions for Rakshith.
 - **Changed / Fixed:** nothing in code. Docs only: the tracker rows "Prescription print" and "Doctor profile setup (7c)" were stale and now say Done; the handoff and README point to the audit.
 - **Tests:** API 833 and web 1576 re-run, all pass; lint, format, API build and web build pass; migrations apply from zero on `hospigo_test`.
-- **Follow-ups and open items:** the audit's findings (see the audit file and the handoff). Step 8a stays planned for Monday.
+- **Follow-ups and open items:** the audit's findings (see the audit file and the handoff). Next is Step 7f (the audit gaps), then 8a.
 
 ## 2026-11-25 — Phase 2 — PR #54 merged (Steps 7 to 7e)
 
 - **Commit hash(es):** merge commit `0762601` on `develop` (commits `88a955c` to `40faa56`).
 - **Added / Changed / Fixed:** see the entries for Step 7e, Step 7d and the earlier Step 7 entries below.
 - **Tests:** API 833, web 1576; `ci` green (the `audit` job is red by design).
-- **Follow-ups and open items:** Step 8a (NestJS 12 upgrade) is next, planned for Monday; the unscheduled steps (Doctor setup, HQ creates a hospital) and the parked items are in `docs/handoff-phase2.md`.
+- **Follow-ups and open items:** Next: Step 7f (gaps from the audit), then 8a (NestJS 12 upgrade); the unscheduled steps (Doctor setup, HQ creates a hospital) and the parked items are in `docs/handoff-phase2.md`.
 
 ## 2026-11-25 — Phase 2 — Step 7e, image and logo upload
 

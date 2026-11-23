@@ -1,6 +1,6 @@
 # Engineering tracker (Phase 1 + Phase 2)
 
-Status: Phase 2 steps 1 to 7e are merged (Steps 7 to 7e together in PR #54, merge commit `0762601` on `develop`). API 833 tests, web 1576 tests. Next: 8a (NestJS 12 upgrade), planned for Monday; not planned in detail yet. Start from `docs/handoff-phase2.md`, section CURRENT STATE. Evidence is repo-local unless noted.
+Status: Phase 2 steps 1 to 7e are merged (Steps 7 to 7e together in PR #54, merge commit `0762601` on `develop`). API 833 tests, web 1576 tests. Next: 7f (gaps found by the audit), then 8a (NestJS 12 upgrade); neither planned in detail yet. Start from `docs/handoff-phase2.md`, section CURRENT STATE. Evidence is repo-local unless noted.
 
 Planned order: 3d, 4a (migration part, then API part), 4b, 5a, 5b, 6a, 6b, 7, 7b, 7c, 7d (staff and roles), 7e (image and logo upload), 8a, 8b, 9 (see `docs/plans/plan-opd-first-flow.md`). Target for the first working OPD flow: Fri 27 Nov 2026 (quality first; tests and review gates are never shortened).
 
@@ -27,7 +27,8 @@ Planned order: 3d, 4a (migration part, then API part), 4b, 5a, 5b, 6a, 6b, 7, 7b
 | 7c   | Doctor profile setup                              | Done (PR #54) | Printed name, qualifications, speciality, registration number; My profile, Doctors settings page, consult reminder, prescription print; copy kept on completed notes. `docs/decisions/decisions-7c.md`. Postman 7c written, not run                          |
 | 7d   | Staff and roles, My profile for everyone          | Done (PR #54) | Staff and Roles settings pages, staff code format, My profile (details, email and password with a code); migration `20261124090000_staff_and_roles`. `docs/decisions/decisions-7d.md`. Postman 7d written, not run                                           |
 | 7e   | Image and logo upload                             | Done (PR #54) | Hospital logo, doctor signature or stamp, signature box in the designer, pictures on the slip, receipt and prescription; migration `20261125090000_stored_images`. `docs/decisions/decisions-7e.md`. Postman 7e written, not run                             |
-| 8a   | NestJS 12 upgrade                                 | **Next**      | Confirmed 21 Nov: 8a is the upgrade; image and logo upload is 7e                                                                                                                                                                                             |
+| 7f   | Gaps from the audit                               | **Next**      | `docs/audit/phase2-audit.md`: part payment and dues, Emergency flag, masters write screens, mock screens, UI text, decisions list. Needs a plan and "approved"                                                                                               |
+| 8a   | NestJS 12 upgrade                                 | After 7f      | Confirmed 21 Nov: 8a is the upgrade; image and logo upload is 7e                                                                                                                                                                                             |
 | 8b   | Excel upload of masters                           | Planned       |                                                                                                                                                                                                                                                              |
 | 9    | OPD hardening and exit                            | Planned       |                                                                                                                                                                                                                                                              |
 
@@ -117,7 +118,7 @@ Planned order: 3d, 4a (migration part, then API part), 4b, 5a, 5b, 6a, 6b, 7, 7b
 
 ## Where to resume (21 Nov 2026)
 
-Done and merged: everything up to and including Step 7e (PR #54). Next: 8a (NestJS 12 upgrade) on Monday, then 8b, 9. Do not repeat finished steps. Resume notes: `docs/handoff-phase2.md` (CURRENT STATE section).
+Done and merged: everything up to and including Step 7e (PR #54). Next: 7f (gaps from the audit), then 8a (NestJS 12 upgrade), 8b, 9. Do not repeat finished steps. Resume notes: `docs/handoff-phase2.md` (CURRENT STATE section).
 
 ## Step 7e (25 Nov)
 
