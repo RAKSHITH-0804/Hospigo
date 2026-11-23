@@ -29,6 +29,18 @@
 
 ## Unreleased
 
+## 2026-11-23 — Phase 2 — Step 8a: NestJS 12 and the 5 high npm findings (branch `feature/step-8a-nestjs-12`, not pushed)
+
+- **Commit hash(es):** see `git log` on the branch (5 commits: docs; `@nestjs/*` 11.2.11; `effect` override; NestJS 12; docs).
+- **Added:** `overrides: { "effect": "3.22.5" }` in the root `package.json`; `apps/api/jest.esm-transform.cjs` and a `node_modules` transform in `apps/api/jest.config.js` so Jest on Node 22 can load the ES-module-only Nest 12 packages; `docs/decisions/decisions-8a.md`.
+- **Changed:** `@nestjs/common`, `core`, `platform-express`, `platform-socket.io`, `websockets`, `testing` to 12.6.0, `@nestjs/config` 12.1.1, `@nestjs/swagger` 12.1.2, `@nestjs/cli` 12.0.15 (multer 2.5.0, express 5.3.0 inside platform-express); `package-lock.json`.
+- **Fixed:** `npm audit`: 5 high findings gone (multer and platform-express by the patch line; effect, @prisma/config and prisma by the override). 36 findings before, 28 after (0 high, 28 moderate, all listed with reasons in decisions-8a).
+- **Database (migrations, roles, RLS):** none. Prisma generate, migrate deploy on `hospigo_test` and the dev seed (on `hospigo_test` only) were run with the override and passed.
+- **New .env keys (names only):** none.
+- **Tests:** API 857, web 1581 (same as before the upgrade); lint, format, API build, web build pass; the compiled API and `nest start --watch` answer `/health`.
+- **Decisions:** one PR for all of 8a (the split into 8a-1 and 8a-2 was dropped); Node, CI Node and `engines` not changed; TypeScript, Jest, ts-jest, Prisma, `@types/node` unchanged.
+- **Follow-ups and open items:** run Postman 7d, 7e and 7f; the 28 moderate findings (typescript-eslint 8.73 would clear six, ESLint step); an unexplained single start failure after the first `npm ci` (see decisions-8a); Node 24.9+ would make the Jest transform unnecessary.
+
 ## 2026-11-23 — Phase 2 — Step 8a started: plan and decisions recorded
 
 - **Added:** `docs/decisions/decisions-8a.md` (22 Nov decision to fold the 5 high npm findings into 8a; one PR with ordered commits; plan changes: multer fixed by `@nestjs/platform-express` 11.2.11, Nest 12 is ESM-only with a Jest-on-Node-22 risk, the three Prisma-tooling highs handled by an `effect` override).
