@@ -2,7 +2,7 @@
 
 import { useRef, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
-import { InputField } from '@/components/ui/field';
+import { InputField, SelectField } from '@/components/ui/field';
 import { staffCopy } from '@/config/staff-copy';
 import { createStaff, updateStaff } from '@/lib/staff/client';
 import { staffErrorMessage } from '@/lib/staff/errors';
@@ -45,6 +45,10 @@ export function StaffForm({
   const busy = useRef(false);
 
   const limits = options.limits;
+  // Only a hospital-wide Admin may choose the scope, and only for roles that are not the fixed system roles.
+  const scopeRoles = options.canHospitalScope
+    ? options.roles.filter((r) => (roles[r.id]?.on ?? false) && !r.isSystem)
+    : [];
   const toggleBranch = (id: string) =>
     setBranchIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
   const setRole = (id: string, patch: Partial<RoleChoice>) =>
@@ -108,7 +112,7 @@ export function StaffForm({
       <p className="type-label-strong">
         {member ? copy.editTitle.replace('{name}', member.name) : copy.addTitle}
       </p>
-      <fieldset disabled={saving} className="settings-part">
+      <fieldset disabled={saving} className="settings-part settings-part-top">
         <div className="settings-field-medium">
           <InputField
             label={copy.name}
@@ -184,23 +188,30 @@ export function StaffForm({
                     {copy.notAllowed[role.reason]}
                   </span>
                 ) : null}
-                {held && options.canHospitalScope && !role.isSystem ? (
-                  <label className="settings-check settings-check-inline">
-                    <input
-                      type="checkbox"
-                      checked={choice?.hospital ?? false}
-                      onChange={(event) => setRole(role.id, { hospital: event.target.checked })}
-                    />
-                    <span className="type-small" title={copy.wholeHospitalHint}>
-                      {copy.wholeHospital}
-                    </span>
-                  </label>
-                ) : null}
               </li>
             );
           })}
         </ul>
       </fieldset>
+      {scopeRoles.length > 0 ? (
+        <fieldset disabled={saving || locked} className="flex flex-col gap-[var(--space-1)]">
+          <legend className="type-label-strong">{copy.scopeTitle}</legend>
+          <p className="type-small text-muted-foreground">{copy.scopeHint}</p>
+          <div className="settings-part settings-part-top">
+            {scopeRoles.map((role) => (
+              <SelectField
+                key={role.id}
+                label={copy.scopeFor.replace('{role}', role.name)}
+                value={roles[role.id]?.hospital ? 'ALL' : 'BRANCHES'}
+                onChange={(event) => setRole(role.id, { hospital: event.target.value === 'ALL' })}
+              >
+                <option value="BRANCHES">{copy.scopeBranches}</option>
+                <option value="ALL">{copy.scopeAll}</option>
+              </SelectField>
+            ))}
+          </div>
+        </fieldset>
+      ) : null}
       <p
         role="alert"
         className="settings-flash settings-flash-lazy type-label text-destructive"

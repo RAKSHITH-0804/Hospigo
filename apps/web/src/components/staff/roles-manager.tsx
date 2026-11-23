@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { SettingBlock } from '@/components/settings/setting-block';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Modal } from '@/components/ui/modal';
 import { InputField, SelectField } from '@/components/ui/field';
 import { settingsScreenConfig } from '@/config/settings';
 import { staffCopy } from '@/config/staff-copy';
@@ -80,12 +81,7 @@ export function RolesManager({
   }
 
   function open(role: RoleView | null) {
-    const id = role?.id ?? 'new';
-    if (editing === id) {
-      setEditing(null);
-      return;
-    }
-    setEditing(id);
+    setEditing(role?.id ?? 'new');
     setDraft(draftOf(role));
     setTemplateKey('');
     setFlash(null);
@@ -175,12 +171,17 @@ export function RolesManager({
     <form
       onSubmit={(event) => void onSubmit(event, role)}
       noValidate
-      className="settings-panel"
+      className="section-stack"
       aria-label={role ? copy.form.editTitle.replace('{name}', role.name) : copy.form.addTitle}
     >
-      <p className="type-label-strong">
-        {role ? copy.form.editTitle.replace('{name}', role.name) : copy.form.addTitle}
-      </p>
+      {flash ? (
+        <p
+          role={flash.kind === 'error' ? 'alert' : 'status'}
+          className={`type-label ${flash.kind === 'error' ? 'text-destructive' : 'text-foreground'}`}
+        >
+          {flash.text}
+        </p>
+      ) : null}
       <fieldset disabled={saving} className="settings-part">
         <div className="settings-field-medium">
           <InputField
@@ -243,7 +244,7 @@ export function RolesManager({
           {saving ? copy.form.saving : copy.form.save}
         </Button>
         <Button type="button" variant="outline" disabled={saving} onClick={() => setEditing(null)}>
-          {copy.done}
+          {copy.form.cancel}
         </Button>
       </div>
     </form>
@@ -259,22 +260,35 @@ export function RolesManager({
           </Button>
         </div>
       ) : null}
-      <p
-        role={flash?.kind === 'error' ? 'alert' : 'status'}
-        className={`settings-flash settings-flash-lazy type-label ${flash?.kind === 'error' ? 'text-destructive' : 'text-foreground'}`}
-      >
-        {flash?.text ?? ''}
-      </p>
-      {editing === 'new' ? form(null) : null}
+      {editing === null && flash ? (
+        <p
+          role={flash.kind === 'error' ? 'alert' : 'status'}
+          className={`type-label ${flash.kind === 'error' ? 'text-destructive' : 'text-foreground'}`}
+        >
+          {flash.text}
+        </p>
+      ) : null}
+      {editing ? (
+        <Modal
+          title={
+            editing === 'new'
+              ? copy.form.addTitle
+              : copy.form.editTitle.replace(
+                  '{name}',
+                  roles.find((r) => r.id === editing)?.name ?? '',
+                )
+          }
+          onClose={() => setEditing(null)}
+        >
+          {form(editing === 'new' ? null : (roles.find((r) => r.id === editing) ?? null))}
+        </Modal>
+      ) : null}
       {roles.length === 0 ? (
         <p className="type-label text-muted-foreground">{copy.empty}</p>
       ) : (
         <ul className="staff-cards">
           {roles.map((role) => (
-            <li
-              key={role.id}
-              className={`settings-doctor ${editing === role.id ? 'staff-open' : ''}`}
-            >
+            <li key={role.id} className="settings-doctor">
               <div className="settings-doctor-head">
                 <div className="settings-cell-name">
                   <span className="type-label-strong">{role.name}</span>
@@ -299,10 +313,11 @@ export function RolesManager({
                     type="button"
                     variant="outline"
                     size="sm"
-                    aria-label={`${role.name}: ${editing === role.id ? copy.done : copy.edit}`}
+                    aria-haspopup="dialog"
+                    aria-label={`${role.name}: ${copy.edit}`}
                     onClick={() => open(role)}
                   >
-                    {editing === role.id ? copy.done : copy.edit}
+                    {copy.edit}
                   </Button>
                   {role.isActive && role.assignedCount === 0 ? (
                     <Button
@@ -328,7 +343,9 @@ export function RolesManager({
                   ) : null}
                 </div>
               ) : null}
-              {editing === role.id ? form(role) : null}
+              {!role.isSystem && canWrite && role.isActive && role.assignedCount > 0 ? (
+                <p className="type-small text-muted-foreground">{copy.cannotDeactivate}</p>
+              ) : null}
             </li>
           ))}
         </ul>

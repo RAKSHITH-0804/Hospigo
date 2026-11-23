@@ -14,6 +14,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:seed": "tsx prisma/seed.ts",
+    "hospital:starter": "tsx scripts/hospital-starter.ts",
     "create-hq-admin": "tsx scripts/create-hq-admin.ts",
     "send-activation": "tsx scripts/send-activation.ts"
   },

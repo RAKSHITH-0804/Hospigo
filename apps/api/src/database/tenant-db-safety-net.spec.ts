@@ -30,6 +30,14 @@ const RAW_SQL_ALLOWLIST = new Map<string, string>([
     'Batch row lock uses $queryRaw FOR UPDATE on TenantDb tx',
   ],
   [
+    'modules/imports/imports.service.ts',
+    'Import batch reads and the one-at-a-time lock use $queryRaw on TenantDb tx, tenant filtered, values as parameters',
+  ],
+  [
+    'modules/opd-prices/prices.service.ts',
+    'Price list (lateral joins, tenant filtered) and the FOR UPDATE row locks use $queryRaw on TenantDb tx, values as parameters',
+  ],
+  [
     'modules/opd-clinical/clinical-visit.ts',
     'Visit row lock (SELECT ... FOR UPDATE, filtered by tenant, branch and doctor) on the caller TenantDb tx',
   ],

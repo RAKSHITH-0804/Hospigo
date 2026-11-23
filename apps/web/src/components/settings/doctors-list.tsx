@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ImagePicker } from '@/components/images/image-picker';
+import { AvailabilityDialog } from '@/components/settings/availability-panel';
 import { SettingBlock } from '@/components/settings/setting-block';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Modal } from '@/components/ui/modal';
 import { InputField } from '@/components/ui/field';
 import { settingsScreenConfig } from '@/config/settings';
 import { staffCopy } from '@/config/staff-copy';
@@ -19,6 +21,7 @@ import { settingsErrorMessage } from '@/lib/settings/errors';
 
 const copy = staffCopy.settings.doctors;
 const pictures = staffCopy.pictures.signature;
+const availability = staffCopy.availability;
 
 type Draft = {
   printedName: string;
@@ -51,6 +54,7 @@ export function DoctorsList({
   const [items, setItems] = useState(initial?.items ?? []);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [availabilityId, setAvailabilityId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const busy = useRef(false);
@@ -75,14 +79,14 @@ export function DoctorsList({
   const { limits, canWrite, images } = initial;
 
   function open(doctor: DoctorProfile) {
-    if (editingId === doctor.id) {
-      setEditingId(null);
-      setDraft(null);
-      return;
-    }
     setEditingId(doctor.id);
     setDraft(draftOf(doctor));
     setMessage(null);
+  }
+
+  function closeEdit() {
+    setEditingId(null);
+    setDraft(null);
   }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>, id: string) {
@@ -105,6 +109,8 @@ export function DoctorsList({
     setMessage({ kind: 'ok', text: copy.saved });
   }
 
+  const availabilityDoctor = items.find((d) => d.id === availabilityId) ?? null;
+  const editingDoctor = items.find((d) => d.id === editingId) ?? null;
   const set = (patch: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...patch } : d));
   const value = (text: string | null) => text ?? copy.notSet;
 
@@ -131,17 +137,38 @@ export function DoctorsList({
                     {doctor.missing.length > 0 ? ` · ${copy.missingTag}` : ''}
                   </span>
                 </div>
-                {canWrite ? (
+                <div className="cluster">
+                  <a
+                    className={buttonVariants({ variant: 'outline', size: 'sm' })}
+                    href={`/app/settings/prices?kind=DOCTOR_FEE&q=${encodeURIComponent(doctor.code)}`}
+                    aria-label={`${doctor.name}: ${copy.fees}`}
+                    title={copy.feesHint}
+                  >
+                    {copy.fees}
+                  </a>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    aria-label={`${doctor.name}: ${editingId === doctor.id ? copy.done : copy.edit}`}
-                    onClick={() => open(doctor)}
+                    aria-haspopup="dialog"
+                    aria-label={`${doctor.name}: ${availability.open}`}
+                    onClick={() => setAvailabilityId(doctor.id)}
                   >
-                    {editingId === doctor.id ? copy.done : copy.edit}
+                    {availability.open}
                   </Button>
-                ) : null}
+                  {canWrite ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      aria-haspopup="dialog"
+                      aria-label={`${doctor.name}: ${copy.edit}`}
+                      onClick={() => open(doctor)}
+                    >
+                      {copy.edit}
+                    </Button>
+                  ) : null}
+                </div>
               </div>
               <dl className="settings-doctor-details">
                 <div>
@@ -175,95 +202,108 @@ export function DoctorsList({
                   <dd className="type-label">{doctor.branches.join(', ') || copy.notSet}</dd>
                 </div>
               </dl>
-              {editingId === doctor.id && draft ? (
-                <form
-                  onSubmit={(event) => void onSubmit(event, doctor.id)}
-                  noValidate
-                  className="settings-panel"
-                >
-                  <fieldset disabled={saving} className="settings-part">
-                    <div className="settings-field-medium">
-                      <InputField
-                        label={copy.printedName}
-                        value={draft.printedName}
-                        maxLength={limits.printedName}
-                        autoComplete="off"
-                        onChange={(event) => set({ printedName: event.target.value })}
-                      />
-                    </div>
-                    <div className="settings-field-medium">
-                      <InputField
-                        label={copy.qualifications}
-                        value={draft.qualifications}
-                        maxLength={limits.qualifications}
-                        autoComplete="off"
-                        onChange={(event) => set({ qualifications: event.target.value })}
-                      />
-                    </div>
-                    <div className="settings-field-medium">
-                      <InputField
-                        label={copy.speciality}
-                        value={draft.speciality}
-                        maxLength={limits.speciality}
-                        autoComplete="off"
-                        onChange={(event) => set({ speciality: event.target.value })}
-                      />
-                    </div>
-                    <div className="settings-field-narrow">
-                      <InputField
-                        label={copy.registrationNo}
-                        value={draft.registrationNo}
-                        maxLength={limits.registrationNo}
-                        autoComplete="off"
-                        onChange={(event) => set({ registrationNo: event.target.value })}
-                      />
-                    </div>
-                    <div className="settings-field-medium">
-                      <InputField
-                        label={copy.department}
-                        value={draft.department}
-                        maxLength={limits.department}
-                        autoComplete="off"
-                        onChange={(event) => set({ department: event.target.value })}
-                      />
-                    </div>
-                  </fieldset>
-                  <div className="settings-actions">
-                    <Button type="submit" disabled={saving} className="touch-target">
-                      {saving ? copy.saving : copy.save}
-                    </Button>
-                  </div>
-                  <div className="flex flex-col gap-[var(--space-1)]">
-                    <p className="type-label-strong">{pictures.title}</p>
-                    <ImagePicker
-                      image={doctor.signature}
-                      limits={images}
-                      canWrite
-                      alt={`${doctor.name}: ${pictures.alt}`}
-                      onUpload={async (file) => {
-                        const result = await uploadDoctorSignature(doctor.id, file);
-                        if (!result.ok) {
-                          return pictureErrorMessage(result, images);
-                        }
-                        setItems((rows) => rows.map((r) => (r.id === doctor.id ? result.data : r)));
-                        return null;
-                      }}
-                      onRemove={async () => {
-                        const result = await removeDoctorSignature(doctor.id);
-                        if (!result.ok) {
-                          return pictureErrorMessage(result, images);
-                        }
-                        setItems((rows) => rows.map((r) => (r.id === doctor.id ? result.data : r)));
-                        return null;
-                      }}
-                    />
-                  </div>
-                </form>
-              ) : null}
             </li>
           ))}
         </ul>
       )}
+      {editingDoctor && draft ? (
+        <Modal title={copy.editTitle.replace('{name}', editingDoctor.name)} onClose={closeEdit}>
+          <form
+            onSubmit={(event) => void onSubmit(event, editingDoctor.id)}
+            noValidate
+            className="section-stack"
+          >
+            <fieldset disabled={saving} className="settings-part">
+              <div className="settings-field-medium">
+                <InputField
+                  label={copy.printedName}
+                  value={draft.printedName}
+                  maxLength={limits.printedName}
+                  autoComplete="off"
+                  onChange={(event) => set({ printedName: event.target.value })}
+                />
+              </div>
+              <div className="settings-field-medium">
+                <InputField
+                  label={copy.qualifications}
+                  value={draft.qualifications}
+                  maxLength={limits.qualifications}
+                  autoComplete="off"
+                  onChange={(event) => set({ qualifications: event.target.value })}
+                />
+              </div>
+              <div className="settings-field-medium">
+                <InputField
+                  label={copy.speciality}
+                  value={draft.speciality}
+                  maxLength={limits.speciality}
+                  autoComplete="off"
+                  onChange={(event) => set({ speciality: event.target.value })}
+                />
+              </div>
+              <div className="settings-field-narrow">
+                <InputField
+                  label={copy.registrationNo}
+                  value={draft.registrationNo}
+                  maxLength={limits.registrationNo}
+                  autoComplete="off"
+                  onChange={(event) => set({ registrationNo: event.target.value })}
+                />
+              </div>
+              <div className="settings-field-medium">
+                <InputField
+                  label={copy.department}
+                  value={draft.department}
+                  maxLength={limits.department}
+                  autoComplete="off"
+                  onChange={(event) => set({ department: event.target.value })}
+                />
+              </div>
+            </fieldset>
+            <div className="settings-actions">
+              <Button type="submit" disabled={saving} className="touch-target">
+                {saving ? copy.saving : copy.save}
+              </Button>
+            </div>
+            <div className="flex flex-col gap-[var(--space-1)]">
+              <p className="type-label-strong">{pictures.title}</p>
+              <ImagePicker
+                image={editingDoctor.signature}
+                limits={images}
+                canWrite
+                alt={`${editingDoctor.name}: ${pictures.alt}`}
+                onUpload={async (file) => {
+                  const result = await uploadDoctorSignature(editingDoctor.id, file);
+                  if (!result.ok) {
+                    return pictureErrorMessage(result, images);
+                  }
+                  setItems((rows) =>
+                    rows.map((r) => (r.id === editingDoctor.id ? result.data : r)),
+                  );
+                  return null;
+                }}
+                onRemove={async () => {
+                  const result = await removeDoctorSignature(editingDoctor.id);
+                  if (!result.ok) {
+                    return pictureErrorMessage(result, images);
+                  }
+                  setItems((rows) =>
+                    rows.map((r) => (r.id === editingDoctor.id ? result.data : r)),
+                  );
+                  return null;
+                }}
+              />
+            </div>
+          </form>
+        </Modal>
+      ) : null}
+      {availabilityDoctor ? (
+        <AvailabilityDialog
+          doctorId={availabilityDoctor.id}
+          doctorName={availabilityDoctor.name}
+          onClose={() => setAvailabilityId(null)}
+        />
+      ) : null}
       <p className="type-small text-muted-foreground">{copy.note}</p>
     </SettingBlock>
   );

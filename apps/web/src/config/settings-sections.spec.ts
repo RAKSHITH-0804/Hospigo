@@ -25,8 +25,26 @@ describe('the settings menu', () => {
       ['hospital', ['branding', 'printing']],
       ['people', ['staff', 'roles', 'doctors']],
       ['patients', ['patient-registration', 'patient-numbers']],
-      ['opd', ['opd-rules']],
+      ['opd', ['opd-rules', 'prices', 'upload-lists']],
     ]);
+  });
+
+  it('the Prices section is for people who may change prices only', () => {
+    expect(visibleSettingsSections(['hospital.settings.read']).some((s) => s.id === 'prices')).toBe(
+      false,
+    );
+    expect(
+      visibleSettingsSections(['hospital.settings.read', 'opd.prices.write']).some(
+        (s) => s.id === 'prices',
+      ),
+    ).toBe(true);
+  });
+
+  it('Upload lists is for people who may change the masters only', () => {
+    const has = (permissions: string[]) =>
+      visibleSettingsSections(permissions).some((s) => s.id === 'upload-lists');
+    expect(has(['hospital.settings.read'])).toBe(false);
+    expect(has(['hospital.settings.read', 'opd.masters.write'])).toBe(true);
   });
 
   it('leaves out a heading with nothing under it, and keeps every section once', () => {

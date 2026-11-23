@@ -6,6 +6,8 @@ import { PrintingSettings } from '@/components/print/printing-settings';
 import { UhidStartCard } from '@/components/patients/uhid-start-card';
 import { DoctorsList } from '@/components/settings/doctors-list';
 import { OpdRulesForm } from '@/components/settings/opd-rules-form';
+import { PricesScreen } from '@/components/settings/prices-screen';
+import { ImportsScreen } from '@/components/settings/imports-screen';
 import { RegistrationFields } from '@/components/settings/registration-fields';
 import { UhidFormatCard } from '@/components/settings/uhid-format-card';
 import { LogoCard } from '@/components/images/logo-card';
@@ -13,6 +15,7 @@ import { CodeFormatCard } from '@/components/staff/code-format-card';
 import { RolesManager } from '@/components/staff/roles-manager';
 import { StaffAdmin } from '@/components/staff/staff-admin';
 import { EmptyState } from '@/components/states/empty-state';
+import { importScreenConfig } from '@/config/imports';
 import { sessionConfig } from '@/config/session';
 import { findSettingsSection, visibleSettingsSections } from '@/config/settings-sections';
 import { staffCopy } from '@/config/staff-copy';
@@ -22,6 +25,8 @@ import { API_UHID_START_NUMBER, fetchStaffOnServer, serverErrorCode } from '@/li
 import type { UhidStartNumberResponse } from '@/lib/patients/types';
 import { API_DOCTOR_PROFILES, type DoctorsListResponse } from '@/lib/doctors/types';
 import { API_BRANDING, type BrandingResponse } from '@/lib/images/types';
+import { API_IMPORTS, type ImportListResponse } from '@/lib/imports/types';
+import { API_PRICES, PRICE_KINDS, type PriceKind, type PricesResponse } from '@/lib/prices/types';
 import { API_OPD_RULES, API_PATIENT_FIELDS, API_UHID_FORMAT } from '@/lib/settings/paths';
 import {
   API_ROLES,
@@ -52,14 +57,18 @@ const WIDE_SECTIONS = [
   'doctors',
   'staff',
   'roles',
+  'prices',
+  'upload-lists',
 ];
 
 export const metadata: Metadata = { title: staffCopy.pageTitles.settings };
 
 export default async function SettingsSectionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ section: string }>;
+  searchParams?: Promise<{ q?: string; kind?: string }>;
 }) {
   // Viewing any settings needs hospital.settings.read; without it: the usual no-permission redirect.
   const session = await requirePermission('hospital.settings.read');
@@ -183,6 +192,41 @@ export default async function SettingsSectionPage({
           {errorMessageFor(serverErrorCode(rules))}
         </p>
       );
+  }
+  if (section.id === 'prices') {
+    // The Fees link of a doctor opens this list already searched (code) and filtered (doctor fees).
+    const wanted = (await searchParams) ?? {};
+    const startKind = (PRICE_KINDS as readonly string[]).includes(wanted.kind ?? '')
+      ? (wanted.kind as PriceKind)
+      : '';
+    const startQ = (wanted.q ?? '').trim().slice(0, 64);
+    const startQuery = new URLSearchParams();
+    if (startKind) startQuery.set('kind', startKind);
+    if (startQ) startQuery.set('q', startQ);
+    const startText = startQuery.toString();
+    const prices = await fetchStaffOnServer<PricesResponse>(
+      startText ? `${API_PRICES}?${startText}` : API_PRICES,
+    );
+    content = (
+      <PricesScreen
+        startQuery={{ q: startQ, kind: startKind }}
+        initial={prices.status === 'ok' ? prices.data : null}
+        initialErrorCode={prices.status === 'ok' ? null : serverErrorCode(prices)}
+      />
+    );
+  }
+  if (section.id === 'upload-lists') {
+    const batches = await fetchStaffOnServer<ImportListResponse>(API_IMPORTS, {
+      page: 1,
+      pageSize: importScreenConfig.historyPageSize,
+    });
+    content = (
+      <ImportsScreen
+        initial={batches.status === 'ok' ? batches.data : null}
+        initialErrorCode={batches.status === 'ok' ? null : serverErrorCode(batches)}
+        allowPrices={session.permissions?.includes('opd.prices.write') ?? false}
+      />
+    );
   }
   if (section.id === 'printing') {
     const [templates, presets, logoImageId] = await Promise.all([

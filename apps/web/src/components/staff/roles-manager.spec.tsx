@@ -204,6 +204,34 @@ describe('RolesManager', () => {
     );
   });
 
+  it('Add and Edit open in a pop-up; Cancel and Close hide it; a refusal shows inside it', async () => {
+    createMock.mockResolvedValue(refused({ field: 'name', reason: 'DUPLICATE' }));
+    renderRoles();
+    fireEvent.click(screen.getByRole('button', { name: copy.add }));
+    const dialog = screen.getByRole('dialog', { name: copy.form.addTitle });
+    fireEvent.click(within(dialog).getByRole('button', { name: copy.form.cancel }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: copy.add }));
+    fireEvent.change(screen.getByLabelText(copy.form.name), { target: { value: 'Lab clerk' } });
+    fireEvent.click(screen.getByLabelText('View visits'));
+    fireEvent.click(screen.getByRole('button', { name: copy.form.save }));
+    const inside = await within(screen.getByRole('dialog')).findByRole('alert');
+    expect(inside.textContent).toContain(staffCopy.settings.settingsErrors.reasons.DUPLICATE);
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: staffCopy.modal.close }),
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: `Lab clerk: ${copy.edit}` }));
+    expect(
+      screen.getByRole('dialog', { name: copy.form.editTitle.replace('{name}', 'Lab clerk') }),
+    ).toBeTruthy();
+  });
+
+  it('a role that people hold says why it cannot be deactivated', () => {
+    renderRoles([role({ id: 'r2', name: 'In use', assignedCount: 3 })]);
+    expect(screen.getByText(copy.cannotDeactivate)).toBeTruthy();
+  });
+
   it('Switch off only for a role nobody holds; a role in use has no such button', () => {
     renderRoles([role(), role({ id: 'r2', name: 'In use', assignedCount: 3 })]);
     expect(

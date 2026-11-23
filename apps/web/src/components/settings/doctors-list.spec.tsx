@@ -9,6 +9,11 @@ jest.mock('@/lib/doctors/client', () => ({
   saveDoctorProfile: (...args: unknown[]) => saveMock(...args),
 }));
 
+const availabilityMock = jest.fn();
+jest.mock('@/lib/availability/client', () => ({
+  getAvailability: (...args: unknown[]) => availabilityMock(...args),
+}));
+
 const copy = staffCopy.settings.doctors;
 const errors = staffCopy.settings.settingsErrors;
 const limits = {
@@ -69,7 +74,10 @@ const edit = (name: string) =>
 const panel = () => screen.getByRole('button', { name: copy.save }).closest('form') as HTMLElement;
 const field = (label: string) => within(panel()).getByLabelText(label) as HTMLInputElement;
 
-beforeEach(() => saveMock.mockReset());
+beforeEach(() => {
+  saveMock.mockReset();
+  availabilityMock.mockReset();
+});
 
 describe('DoctorsList', () => {
   it('lists every doctor with what prints, the department and the branches; empty details say Not set', () => {
@@ -90,7 +98,7 @@ describe('DoctorsList', () => {
     expect(filled.textContent).not.toContain(copy.missingTag);
   });
 
-  it('Edit opens the five fields filled with what is saved, and Close hides them', () => {
+  it('Edit opens a pop-up with the five fields filled with what is saved, and Close hides it', () => {
     renderList();
     edit('Login Anil');
     expect(field(copy.printedName).value).toBe('Dr. A. Rao');
@@ -98,8 +106,19 @@ describe('DoctorsList', () => {
     expect(field(copy.speciality).value).toBe('Cardiology');
     expect(field(copy.registrationNo).value).toBe('KMC/1');
     expect(field(copy.department).value).toBe('Cardiology');
-    fireEvent.click(screen.getByRole('button', { name: `Login Anil: ${copy.done}` }));
+    const dialog = screen.getByRole('dialog', {
+      name: copy.editTitle.replace('{name}', 'Login Anil'),
+    });
+    expect(within(dialog).getByRole('button', { name: copy.save })).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: staffCopy.modal.close }));
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.queryByRole('button', { name: copy.save })).toBeNull();
+  });
+
+  it('each doctor has a Fees link that opens the price list for that doctor only', () => {
+    renderList();
+    const link = screen.getByRole('link', { name: `Login Anil: ${copy.fees}` });
+    expect(link.getAttribute('href')).toBe('/app/settings/prices?kind=DOCTOR_FEE&q=DR002');
   });
 
   it('saves the five fields of that doctor and updates the row from the answer', async () => {
@@ -209,6 +228,47 @@ describe('DoctorsList', () => {
     expect(screen.getByText(copy.readOnly)).toBeTruthy();
     expect(screen.queryByRole('button', { name: new RegExp(copy.edit) })).toBeNull();
     expect(screen.getByText('Login Anil')).toBeTruthy();
+  });
+
+  it('the Availability button opens a pop-up for that doctor only; Close, Escape and a click outside close it (also for a reader)', async () => {
+    availabilityMock.mockResolvedValue({
+      ok: true,
+      data: {
+        doctorProfileId: 'd1',
+        code: 'DR001',
+        name: 'Login Meena',
+        availabilityOn: true,
+        today: '2026-11-23',
+        branches: [],
+        timings: [],
+        leaves: [],
+        canWrite: false,
+      },
+    });
+    renderList(data({ canWrite: false }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    const open = () =>
+      fireEvent.click(
+        screen.getByRole('button', { name: `Login Meena: ${staffCopy.availability.open}` }),
+      );
+    open();
+    const dialog = screen.getByRole('dialog', {
+      name: staffCopy.availability.dialogTitle.replace('{name}', 'Login Meena'),
+    });
+    expect(await within(dialog).findByText(staffCopy.availability.switchTitle)).toBeTruthy();
+    expect(availabilityMock).toHaveBeenCalledTimes(1);
+    expect(availabilityMock).toHaveBeenCalledWith('d1');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: staffCopy.modal.close }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    open();
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    open();
+    fireEvent.mouseDown(screen.getByRole('dialog').parentElement as HTMLElement);
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('says so when there are no doctors, and when they could not be read', () => {

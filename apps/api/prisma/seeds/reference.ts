@@ -3,6 +3,7 @@ import {
   BUILTIN_FIELD_DEFAULT_SECTION,
   PatientFieldSection,
 } from '../../src/modules/patients/patient-field-sections';
+import { IMPORT_TYPE_CODES, IMPORT_TYPE_NAMES } from '../../src/modules/imports/import.config';
 
 const MODULES = [
   { code: 'OPD', name: 'Outpatient' },
@@ -130,6 +131,15 @@ export async function seedReferenceData(prisma: PrismaClient): Promise<void> {
         alwaysRequired: item.alwaysRequired,
         defaultSection: item.defaultSection,
       },
+    });
+  }
+
+  // Step 8b: the kinds of Excel upload the batch engine knows (a global catalog; hospitals only read it).
+  for (const code of IMPORT_TYPE_CODES) {
+    await prisma.importType.upsert({
+      where: { code },
+      create: { code, name: IMPORT_TYPE_NAMES[code], isActive: true },
+      update: { name: IMPORT_TYPE_NAMES[code], isActive: true },
     });
   }
 

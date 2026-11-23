@@ -379,7 +379,9 @@ describe('OPD masters (Phase 2 Step 2)', () => {
   });
 
   describe('privileges', () => {
-    it('hospigo_app cannot DELETE on any of the 11 tables', async () => {
+    it('hospigo_app cannot DELETE on any of the 11 tables except the two that Step 8b part D opened (timings and leave)', async () => {
+      // Step 8b part D (migration 20261127090000) gives DELETE on these two tables ONLY.
+      const mayDelete = new Set(['doctor_timings', 'doctor_leave']);
       const client = createPgClient('app');
       await client.connect();
       try {
@@ -388,7 +390,10 @@ describe('OPD masters (Phase 2 Step 2)', () => {
             `SELECT has_table_privilege('hospigo_app', $1, 'DELETE') AS ok`,
             [`public.${table}`],
           );
-          expect({ table, delete: res.rows[0]?.ok }).toEqual({ table, delete: false });
+          expect({ table, delete: res.rows[0]?.ok }).toEqual({
+            table,
+            delete: mayDelete.has(table),
+          });
         }
       } finally {
         await client.end();

@@ -178,6 +178,9 @@
   --size-textarea-min: 2.75rem;
   --size-textarea-max: 18rem;
   --size-calendar-width: 19rem;
+  --size-modal-width: 60rem;
+  --size-modal-narrow: 32rem;
+  --z-modal: 50;
   --size-calendar-day: 2.125rem;
   --size-vitals-card: 15rem;
   --size-rx-medicine: 13rem;
@@ -2041,6 +2044,11 @@
     gap: var(--space-2);
   }
 
+  /* Same as settings-part but fields start at the top, so a hint under one field does not lift the others. */
+  .settings-part-top {
+    align-items: flex-start;
+  }
+
   .settings-actions {
     display: flex;
     flex-wrap: wrap;
@@ -2232,6 +2240,7 @@
   .staff-groups {
     display: grid;
     gap: var(--space-3);
+    align-items: start;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
   }
 
@@ -2455,6 +2464,75 @@
 
   .dashboard-link:hover {
     box-shadow: 0 0 0 2px var(--primary);
+  }
+
+  /* Items start at the top so labels and controls line up, whatever hint lines sit under a field. */
+  /* Items sit on the bottom line, so a button lines up with the field next to it (label above the field). */
+  .cluster-end {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-3);
+  }
+
+  .cluster-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  /* A pop-up dialog: dimmed page behind, one panel in the middle, scrolls inside when tall. */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-3);
+    background: oklch(0.2 0.04 265 / 0.45);
+  }
+
+  .modal-panel {
+    display: flex;
+    flex-direction: column;
+    width: min(var(--size-modal-width), 100%);
+    max-height: calc(100dvh - 2 * var(--space-3));
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    box-shadow: 0 1rem 3rem oklch(0.2 0.04 265 / 0.3);
+  }
+
+  .modal-panel-narrow {
+    width: min(var(--size-modal-narrow), 100%);
+  }
+
+  .modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .modal-body {
+    overflow: auto;
+    padding: var(--space-3);
+  }
+
+  /* One time slot: the day on its own line, then From, To and Remove on the next. */
+  .availability-slot {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    gap: var(--space-2);
+    align-items: end;
+  }
+
+  .availability-slot > :first-child {
+    grid-column: 1 / -1;
   }
 }
 
