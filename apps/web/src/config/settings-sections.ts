@@ -28,7 +28,8 @@ export type SettingsSection = {
     | 'opdRules'
     | 'staff'
     | 'roles'
-    | 'branding';
+    | 'branding'
+    | 'prices';
   route: string;
   /** Permission needed to view the section (changing needs the matching write permission). */
   permission: string;
@@ -94,6 +95,14 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     copyKey: 'opdRules',
     route: `${SETTINGS_BASE_ROUTE}/opd-rules`,
     permission: 'hospital.settings.read',
+  },
+  {
+    id: 'prices',
+    group: 'opd',
+    copyKey: 'prices',
+    route: `${SETTINGS_BASE_ROUTE}/prices`,
+    // Prices are shown and changed by Admin and SuperAdmin only.
+    permission: 'opd.prices.write',
   },
 ];
 

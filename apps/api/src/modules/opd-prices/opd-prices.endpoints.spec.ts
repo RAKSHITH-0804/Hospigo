@@ -353,6 +353,7 @@ describe('OPD prices: list, history and change (HTTP, hospigo_test)', () => {
 
   it('lists the registration fee, tests and doctor fees with search, filter and pages', async () => {
     const all = await http().get('/opd/prices?pageSize=100').set(auth(A.tokens.admin)).expect(200);
+    expect(all.body.today).toBe(today());
     const kinds = new Set((all.body.items as Array<{ kind: string }>).map((i) => i.kind));
     expect(kinds).toEqual(new Set(['REGISTRATION', 'INVESTIGATION', 'DOCTOR_FEE']));
     // inactive tests and consultation items are not listed; inactive doctors are not listed

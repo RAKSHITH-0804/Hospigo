@@ -81,7 +81,14 @@ export class PricesService {
   async list(
     actor: Actor,
     query: { q?: string; kind?: PriceKind; page: number; pageSize: number },
-  ): Promise<{ items: PriceRowView[]; total: number; page: number; pageSize: number }> {
+  ): Promise<{
+    items: PriceRowView[];
+    total: number;
+    page: number;
+    pageSize: number;
+    /** Today's date (YYYY-MM-DD) in the hospital time zone: the earliest date a price change may start. */
+    today: string;
+  }> {
     const now = this.clock.now();
     const tenantId = actor.tenantId;
     const q = (query.q ?? '').trim().toLowerCase().slice(0, C.searchMaxLength);
@@ -139,11 +146,13 @@ export class PricesService {
                    code, visit_type NULLS FIRST
           LIMIT ${query.pageSize} OFFSET ${(query.page - 1) * query.pageSize}`,
       );
+      const timeZone = await this.timeZoneOf(tx, tenantId);
       return {
         items: page.map((r) => this.toRow(r)),
         total: Number(n),
         page: query.page,
         pageSize: query.pageSize,
+        today: localDate(now, timeZone),
       };
     });
   }

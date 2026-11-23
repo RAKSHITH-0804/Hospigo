@@ -6,6 +6,7 @@ import { PrintingSettings } from '@/components/print/printing-settings';
 import { UhidStartCard } from '@/components/patients/uhid-start-card';
 import { DoctorsList } from '@/components/settings/doctors-list';
 import { OpdRulesForm } from '@/components/settings/opd-rules-form';
+import { PricesScreen } from '@/components/settings/prices-screen';
 import { RegistrationFields } from '@/components/settings/registration-fields';
 import { UhidFormatCard } from '@/components/settings/uhid-format-card';
 import { LogoCard } from '@/components/images/logo-card';
@@ -22,6 +23,7 @@ import { API_UHID_START_NUMBER, fetchStaffOnServer, serverErrorCode } from '@/li
 import type { UhidStartNumberResponse } from '@/lib/patients/types';
 import { API_DOCTOR_PROFILES, type DoctorsListResponse } from '@/lib/doctors/types';
 import { API_BRANDING, type BrandingResponse } from '@/lib/images/types';
+import { API_PRICES, type PricesResponse } from '@/lib/prices/types';
 import { API_OPD_RULES, API_PATIENT_FIELDS, API_UHID_FORMAT } from '@/lib/settings/paths';
 import {
   API_ROLES,
@@ -52,6 +54,7 @@ const WIDE_SECTIONS = [
   'doctors',
   'staff',
   'roles',
+  'prices',
 ];
 
 export const metadata: Metadata = { title: staffCopy.pageTitles.settings };
@@ -183,6 +186,15 @@ export default async function SettingsSectionPage({
           {errorMessageFor(serverErrorCode(rules))}
         </p>
       );
+  }
+  if (section.id === 'prices') {
+    const prices = await fetchStaffOnServer<PricesResponse>(API_PRICES);
+    content = (
+      <PricesScreen
+        initial={prices.status === 'ok' ? prices.data : null}
+        initialErrorCode={prices.status === 'ok' ? null : serverErrorCode(prices)}
+      />
+    );
   }
   if (section.id === 'printing') {
     const [templates, presets, logoImageId] = await Promise.all([

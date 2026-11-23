@@ -767,6 +767,7 @@ describe('patients pages', () => {
           doctors: 'opd.doctors.read',
           staff: 'user.read',
           roles: 'role.read',
+          prices: 'opd.prices.write',
         };
         expect(entry.permission).toBe(own[entry.id] ?? 'hospital.settings.read');
       }
