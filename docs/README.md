@@ -19,6 +19,7 @@ Start with the four living files in this folder. Everything else is grouped by w
 | [reference/](reference/) | How the system is built: API references, schema, architecture, env variables, CI, folder guide      |
 | [guides/](guides/)       | How to work with it: dev commands, demo accounts, staging checklist                                 |
 | [design/](design/)       | How screens look: `ui-design.md` (current rules), concept screens (history), the concept PDF        |
+| [audit/](audit/)         | Audits: `phase2-audit.md` (plan vs built, proof, security and money, decisions needed)              |
 | [plans/](plans/)         | What is planned: the OPD first-flow plan, use cases, the future Lab and Pharmacy notes              |
 
 ## Where do I add new things?
