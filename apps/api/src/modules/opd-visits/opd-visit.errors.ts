@@ -53,6 +53,9 @@ export const OpdErrorCode = {
   STAFF_CONFLICT: 'STAFF_CONFLICT',
   OTP_INVALID: 'OTP_INVALID',
   RATE_LIMITED: 'RATE_LIMITED',
+  // ---- Step 8b: prices
+  PRICE_INVALID: 'PRICE_INVALID',
+  PRICE_ITEM_NOT_FOUND: 'PRICE_ITEM_NOT_FOUND',
 } as const;
 
 export type OpdErrorCode = (typeof OpdErrorCode)[keyof typeof OpdErrorCode];
