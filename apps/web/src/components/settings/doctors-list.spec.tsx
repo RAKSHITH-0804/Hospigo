@@ -9,6 +9,11 @@ jest.mock('@/lib/doctors/client', () => ({
   saveDoctorProfile: (...args: unknown[]) => saveMock(...args),
 }));
 
+const availabilityMock = jest.fn();
+jest.mock('@/lib/availability/client', () => ({
+  getAvailability: (...args: unknown[]) => availabilityMock(...args),
+}));
+
 const copy = staffCopy.settings.doctors;
 const errors = staffCopy.settings.settingsErrors;
 const limits = {
@@ -69,7 +74,10 @@ const edit = (name: string) =>
 const panel = () => screen.getByRole('button', { name: copy.save }).closest('form') as HTMLElement;
 const field = (label: string) => within(panel()).getByLabelText(label) as HTMLInputElement;
 
-beforeEach(() => saveMock.mockReset());
+beforeEach(() => {
+  saveMock.mockReset();
+  availabilityMock.mockReset();
+});
 
 describe('DoctorsList', () => {
   it('lists every doctor with what prints, the department and the branches; empty details say Not set', () => {
@@ -209,6 +217,33 @@ describe('DoctorsList', () => {
     expect(screen.getByText(copy.readOnly)).toBeTruthy();
     expect(screen.queryByRole('button', { name: new RegExp(copy.edit) })).toBeNull();
     expect(screen.getByText('Login Anil')).toBeTruthy();
+  });
+
+  it('the Availability button opens the panel of that doctor only, and closes it again (also for a reader)', async () => {
+    availabilityMock.mockResolvedValue({
+      ok: true,
+      data: {
+        doctorProfileId: 'd1',
+        code: 'DR001',
+        name: 'Login Meena',
+        availabilityOn: true,
+        today: '2026-11-23',
+        branches: [],
+        timings: [],
+        leaves: [],
+        canWrite: false,
+      },
+    });
+    renderList(data({ canWrite: false }));
+    const name = `Login Meena: ${staffCopy.availability.open}`;
+    fireEvent.click(screen.getByRole('button', { name }));
+    expect(await screen.findByText(staffCopy.availability.switchTitle)).toBeTruthy();
+    expect(availabilityMock).toHaveBeenCalledTimes(1);
+    expect(availabilityMock).toHaveBeenCalledWith('d1');
+    fireEvent.click(
+      screen.getByRole('button', { name: `Login Meena: ${staffCopy.availability.close}` }),
+    );
+    expect(screen.queryByText(staffCopy.availability.switchTitle)).toBeNull();
   });
 
   it('says so when there are no doctors, and when they could not be read', () => {

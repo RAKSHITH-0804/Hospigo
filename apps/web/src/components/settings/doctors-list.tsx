@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ImagePicker } from '@/components/images/image-picker';
+import { AvailabilityPanel } from '@/components/settings/availability-panel';
 import { SettingBlock } from '@/components/settings/setting-block';
 import { Button } from '@/components/ui/button';
 import { InputField } from '@/components/ui/field';
@@ -19,6 +20,7 @@ import { settingsErrorMessage } from '@/lib/settings/errors';
 
 const copy = staffCopy.settings.doctors;
 const pictures = staffCopy.pictures.signature;
+const availability = staffCopy.availability;
 
 type Draft = {
   printedName: string;
@@ -51,6 +53,7 @@ export function DoctorsList({
   const [items, setItems] = useState(initial?.items ?? []);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [availabilityId, setAvailabilityId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const busy = useRef(false);
@@ -131,17 +134,29 @@ export function DoctorsList({
                     {doctor.missing.length > 0 ? ` · ${copy.missingTag}` : ''}
                   </span>
                 </div>
-                {canWrite ? (
+                <div className="cluster">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    aria-label={`${doctor.name}: ${editingId === doctor.id ? copy.done : copy.edit}`}
-                    onClick={() => open(doctor)}
+                    aria-expanded={availabilityId === doctor.id}
+                    aria-label={`${doctor.name}: ${availabilityId === doctor.id ? availability.close : availability.open}`}
+                    onClick={() => setAvailabilityId((id) => (id === doctor.id ? null : doctor.id))}
                   >
-                    {editingId === doctor.id ? copy.done : copy.edit}
+                    {availabilityId === doctor.id ? availability.close : availability.open}
                   </Button>
-                ) : null}
+                  {canWrite ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      aria-label={`${doctor.name}: ${editingId === doctor.id ? copy.done : copy.edit}`}
+                      onClick={() => open(doctor)}
+                    >
+                      {editingId === doctor.id ? copy.done : copy.edit}
+                    </Button>
+                  ) : null}
+                </div>
               </div>
               <dl className="settings-doctor-details">
                 <div>
@@ -175,6 +190,7 @@ export function DoctorsList({
                   <dd className="type-label">{doctor.branches.join(', ') || copy.notSet}</dd>
                 </div>
               </dl>
+              {availabilityId === doctor.id ? <AvailabilityPanel doctorId={doctor.id} /> : null}
               {editingId === doctor.id && draft ? (
                 <form
                   onSubmit={(event) => void onSubmit(event, doctor.id)}
