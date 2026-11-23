@@ -27,7 +27,7 @@ const LAYOUT_SOURCES = [
   join(SRC_ROOT, 'app', 'app', 'layout.tsx'),
   join(SRC_ROOT, 'components', 'brand-scope.tsx'),
   join(SRC_ROOT, 'components', 'shell', 'app-shell.tsx'),
-  join(SRC_ROOT, 'components', 'book', 'booking-screen.tsx'),
+  join(SRC_ROOT, 'components', 'book', 'booking-coming-soon.tsx'),
   join(SRC_ROOT, 'app', 'login', 'page.tsx'),
 ];
 

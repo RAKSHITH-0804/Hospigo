@@ -4,6 +4,9 @@ import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { sessionConfig } from '@/config/session';
+import { staffCopy } from '@/config/staff-copy';
+
+const copy = staffCopy.auth;
 
 type LoginTab = 'hospital' | 'hq';
 type FormError = 'rate_limited' | 'unavailable' | null;
@@ -75,10 +78,10 @@ export default function ForgotPasswordPage() {
         <p className="type-label font-medium tracking-wide">Hospigo</p>
         <div className="login-brand-copy">
           <h1 className="type-title max-w-[var(--size-form-card-max)] font-medium leading-tight">
-            Reset your password
+            {copy.forgotHeadline}
           </h1>
           <p className="type-label mt-[var(--space-3)] text-login-brand-foreground/80">
-            A product by Indigo
+            {copy.product}
           </p>
         </div>
         <div aria-hidden="true" />
@@ -87,10 +90,10 @@ export default function ForgotPasswordPage() {
       <section className="login-form-panel">
         <div className="login-form-card">
           <div className="cluster-between mb-[var(--space-3)]">
-            <h2 className="type-heading font-medium">Forgot password</h2>
+            <h2 className="type-heading font-medium">{copy.forgotTitle}</h2>
           </div>
 
-          <div role="tablist" aria-label="Account type" className="login-tabs">
+          <div role="tablist" aria-label={copy.accountType} className="login-tabs">
             <button
               type="button"
               role="tab"
@@ -103,7 +106,7 @@ export default function ForgotPasswordPage() {
                 setAccepted(false);
               }}
             >
-              Hospital staff
+              {copy.tabHospital}
             </button>
             <button
               type="button"
@@ -117,7 +120,7 @@ export default function ForgotPasswordPage() {
                 setAccepted(false);
               }}
             >
-              Indigo HQ
+              {copy.tabHq}
             </button>
           </div>
 
@@ -130,7 +133,7 @@ export default function ForgotPasswordPage() {
           <form className="login-form" onSubmit={onSubmit} noValidate>
             {tab === 'hospital' ? (
               <label className="field-label">
-                Access code
+                {copy.accessCode}
                 <input
                   name="accessCode"
                   autoComplete="organization"
@@ -141,7 +144,7 @@ export default function ForgotPasswordPage() {
               </label>
             ) : null}
             <label className="field-label">
-              Email
+              {copy.email}
               <input
                 name="email"
                 type="email"
@@ -157,7 +160,7 @@ export default function ForgotPasswordPage() {
               </p>
             ) : null}
             <Button type="submit" className="touch-target" disabled={pending}>
-              {pending ? 'Sending…' : 'Send reset link'}
+              {pending ? copy.sending : copy.sendReset}
             </Button>
           </form>
 
@@ -166,7 +169,7 @@ export default function ForgotPasswordPage() {
               href={sessionConfig.loginPath}
               className="text-primary underline-offset-4 hover:underline"
             >
-              Back to sign in
+              {copy.backToSignIn}
             </Link>
           </p>
         </div>

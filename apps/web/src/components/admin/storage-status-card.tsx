@@ -4,6 +4,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ErrorState } from '@/components/states/error-state';
 import { LoadingState } from '@/components/states/loading-state';
+import { staffCopy } from '@/config/staff-copy';
+
+const copy = staffCopy.admin.storage;
 
 type HealthResponse = {
   status: string;
@@ -38,13 +41,11 @@ export function StorageStatusCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Storage</CardTitle>
+        <CardTitle>{copy.title}</CardTitle>
       </CardHeader>
       <CardContent>
-        {phase === 'loading' ? <LoadingState label="Checking status" /> : null}
-        {phase === 'error' ? (
-          <ErrorState message="Status could not be loaded." onRetry={load} />
-        ) : null}
+        {phase === 'loading' ? <LoadingState label={copy.checking} /> : null}
+        {phase === 'error' ? <ErrorState message={copy.loadError} onRetry={load} /> : null}
         {phase === 'ready' ? <p className="text-sm">{status}</p> : null}
       </CardContent>
     </Card>

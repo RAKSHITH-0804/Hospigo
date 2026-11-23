@@ -8,19 +8,12 @@ import { readdirSync, readFileSync, statSync } from 'fs';
 import { join, relative } from 'path';
 
 const WEB_SRC = join(__dirname, '..');
-const SCAN_ROOTS = [
-  join(WEB_SRC, 'components', 'ui'),
-  join(WEB_SRC, 'components', 'shell'),
-  join(WEB_SRC, 'components', 'patients'),
-  join(WEB_SRC, 'app', 'app', 'patients'),
-  join(WEB_SRC, 'app', 'app', 'settings'),
-];
-
-const EXTRA_FILES = [
-  join(WEB_SRC, 'components', 'sample-data-badge.tsx'),
-  join(WEB_SRC, 'components', 'coming-later.tsx'),
-  join(WEB_SRC, 'components', 'ui', 'tooltip.tsx'),
-];
+/**
+ * EVERY folder under apps/web/src is scanned (Step 7f). A new folder is covered the moment it
+ * exists: nothing has to be added here. Only test files and the test helper folder are skipped.
+ */
+const SCAN_ROOTS = [WEB_SRC];
+const SKIPPED_FOLDERS = new Set(['test', 'node_modules']);
 
 const ALLOWED_LITERALS = new Set(['Hospigo', 'HQ', '—']);
 
@@ -31,8 +24,10 @@ function walk(dir: string, files: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
     const full = join(dir, name);
     if (statSync(full).isDirectory()) {
-      walk(full, files);
-    } else if (name.endsWith('.tsx') && !name.endsWith('.spec.tsx')) {
+      if (!SKIPPED_FOLDERS.has(name)) {
+        walk(full, files);
+      }
+    } else if (name.endsWith('.tsx') && !/\.(spec|test)\.tsx$/.test(name)) {
       files.push(full);
     }
   }
@@ -47,6 +42,11 @@ function isSentenceLike(raw: string): boolean {
   const text = raw.trim();
   if (text.length < 2) return false;
   if (ALLOWED_LITERALS.has(text)) return false;
+  // A piece of code that the JSX-text pattern caught between two tags ("0 ? (", "1 || x ? (").
+  if (/(\?\s*\(|&&\s*\(|\|\|\s*\(|\)\s*\?|=>|\s=\s|;|\(\s*$)/.test(text)) return false;
+  // A list of CSS class names written in kebab-case ("settings-content settings-content-wide").
+  if (text.split(/\s+/).every((token) => /^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$/.test(token)))
+    return false;
   // Tailwind / utility class lists are not UI copy.
   if (/\b(?:bg|text|font|min|rounded|border|flex|grid|px|py|w|h|items|justify)-/.test(text)) {
     return false;
@@ -88,9 +88,9 @@ function collectHits(source: string, rel: string): string[] {
 }
 
 describe('staff UI copy scan', () => {
-  it('forbids sentence-like literals in staff UI kit, shell, and patients pages', () => {
+  it('forbids sentence-like literals in every screen and component under src', () => {
     const offenders: string[] = [];
-    const files = [...SCAN_ROOTS.flatMap((root) => walk(root)), ...EXTRA_FILES];
+    const files = SCAN_ROOTS.flatMap((root) => walk(root));
     for (const file of files) {
       const source = readFileSync(file, 'utf8');
       const rel = relative(WEB_SRC, file).replace(/\\/g, '/');
