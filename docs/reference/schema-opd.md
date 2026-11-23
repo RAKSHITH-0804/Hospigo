@@ -294,7 +294,7 @@ Rule: a reversal on a consultation bill is **refused when the visit has `consult
 | charged_at   | timestamptz      |                              |
 | voided_at    | timestamptz null | set if that bill is reversed |
 
-Partial unique index `(tenant_id, patient_id) WHERE voided_at IS NULL` makes the registration fee **once per patient across all branches**, guaranteed by the database. UNCONFIRMED: when the bill is reversed the patient is charged again on the next visit.
+Partial unique index `(tenant_id, patient_id) WHERE voided_at IS NULL` makes the registration fee **once per patient across all branches**, guaranteed by the database. **Decided (Step 7f):** after a cancelled first visit the patient is charged the registration fee again on the next visit, but only when the cancelled visit's bill was refunded in full (a database trigger voids the record; a partial refund keeps it).
 
 ## 7. Append-only protection (same idea as the audit log)
 
@@ -326,12 +326,12 @@ Discounts, insurance and organisation billing, lab results, pharmacy stock, appo
 
 ## 11. Open items
 
-| #   | Item                                                          | Default used                             |
-| --- | ------------------------------------------------------------- | ---------------------------------------- |
-| 1   | Refund approver: may the requester approve their own request? | No; a different user with the permission |
-| 2   | After a reversed registration fee, charge again next visit?   | Yes                                      |
-| 3   | Branch-specific prices                                        | Not supported; prices are hospital-wide  |
-| 4   | Tax rules                                                     | Off; columns exist                       |
+| #   | Item                                                          | Default used                                             |
+| --- | ------------------------------------------------------------- | -------------------------------------------------------- |
+| 1   | Refund approver: may the requester approve their own request? | No; a different user with the permission                 |
+| 2   | After a reversed registration fee, charge again next visit?   | Yes (built in 7f, only after a full refund of that bill) |
+| 3   | Branch-specific prices                                        | Not supported; prices are hospital-wide                  |
+| 4   | Tax rules                                                     | Off; columns exist                                       |
 
 ## As built (Step 2)
 

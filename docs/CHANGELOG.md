@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-23 — Phase 2 — Step 7f: audit fixes (branch `feature/step-7f-audit-fixes`, not pushed)
+
+- **Commit hash(es):** see `git log` on the branch (docs commits `fbc1ffc`, `a867ffa`, `8a468d2` travel with it).
+- **Added:** database trigger that voids a registration fee when a cancelled visit's bill was refunded in full, with an update guard on `patient_registration_fees`; delete and truncate blocking triggers on `stored_images` and `uhid_counters`; slip field `relative`; `TOKEN_REQUIRED` rule for receipt templates; `/book/[code]` Coming soon page; `docs/decisions/decisions-7f.md`; Step 8c in the tracker and handoff.
+- **Changed:** duplicate-patient warning needs mobile, name and date of birth; `confirmDuplicate` must be a real boolean; the copy scan test covers every folder under `apps/web/src`; sign-in, password, admin and Retry text moved to `staff-copy.ts`; decisions-4a, UC-15, schema-opd and the tracker updated.
+- **Removed:** the mock booking screen (`components/book/booking-screen.tsx`, `mock/booking.ts`) and its tests (replaced by Coming soon tests).
+- **Fixed:** registration fee could never be charged again after a cancelled first visit (when fully refunded).
+- **Database (migrations, roles, RLS):** `20261126090000_registration_fee_void_on_cancel`, `20261126091000_image_and_uhid_counter_protection`. Applied to `hospigo_test` only; the dev database is migrated by Rakshith after pulling.
+- **New .env keys (names only):** none.
+- **Tests:** API 849, web 1580 (baseline 833 and 1576).
+- **Decisions:** `docs/decisions/decisions-7f.md` (repeat-visit-free approved 22 Nov; SuperAdmin reads queue, vitals and notes; leave blocks, timings warn; Branch Admin and SuperAdmin raise the UHID counter; patient-update audit field names only; vitals ranges warn only; tax-on stays 501; registration fee charged again after a refunded cancelled first visit).
+- **Follow-ups and open items:** DEFERRED pending the manager (part payment, pending dues, Emergency flag, online booking and slots); Step 8c scope; see decisions-7f "Not done".
+
 ## 2026-11-23 — Phase 2 — audit of Steps 1 to 7e (read-only)
 
 - **Added:** `docs/audit/phase2-audit.md`: plan vs built table (294 rows), automated proof, security and money checks, top 10 problems, 15 decisions for Rakshith.

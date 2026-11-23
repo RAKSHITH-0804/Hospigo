@@ -150,7 +150,7 @@ Uploaded by the Admin or SuperAdmin, one file per data type, matched by a unique
 ### UC-15 Doctor availability
 
 - The Admin sets a today's availability switch, weekly timings and leave days for each doctor.
-- Rules: a doctor marked unavailable is still listed but shown as **Not Available Now** and cannot be assigned. Timings and leave only warn the receptionist.
+- Rules: a doctor marked unavailable is still listed but shown as **Not Available Now** and cannot be assigned. A doctor's **leave day BLOCKS assignment** (UC-15.3, confirmed 23 Nov 2026; this is what the code does); the weekly **timings only WARN** the receptionist.
 - UNCONFIRMED: the developer read "both" as switch plus timings and leave. To be confirmed.
 
 ### UC-16 Collect a pending balance

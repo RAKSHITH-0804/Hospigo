@@ -7,7 +7,7 @@ Written 18 Nov 2026 on branch `feature/phase2-step-4a-visit-billing`. Read with 
 - **4a-1 and 4a-2 are merged into one step 4a**: one branch, one PR, two commits. The migration commit is a mandatory review gate; the API part starts only after approval.
 - **Ledger is written only by database triggers**; the app role has no INSERT on `ledger_entries`.
 - **Clinical tables** (consultations, notes, addenda, vitals, prescription) are built in the 5a migration, not in 4a.
-- **Admin roles**: SuperAdmin and Branch Admin currently receive every active permission automatically. In the API part of 4a they are changed to get only the read permissions for visits and billing, never notes, vitals or cash collection (Q6: notes only for Doctor and Nurse).
+- **Admin roles**: SuperAdmin and Branch Admin currently receive every active permission automatically. In the API part of 4a they are changed to get only the read permissions for visits and billing, never notes, vitals or cash collection (Q6: notes only for Doctor and Nurse). **Amended at Step 7 (approved by Rakshith, "SuperAdmin sees everything"; recorded in 7f):** the SuperAdmin DOES also read the OPD queue, vitals and clinical notes (read permissions only; the actions stay with the roles that do them). Branch Admin keeps the longer list. See `docs/decisions/decisions-7f.md`.
 - **Doctor gets `opd.vitals.read` and `opd.vitals.write`** (applied in the 5a seed).
 - Earlier decisions that apply: bill and payment are separate records, the reception button does visit + bill + payment in one transaction with an idempotency key; free follow-up is a hospital setting and makes a zero bill that counts as settled; the registration fee is once per patient as a bill line; part payments, refunds, investigations, Emergency and print templates are cut for this flow.
 
@@ -42,7 +42,7 @@ See "As built (Step 4a)" in `docs/reference/schema-opd.md`. In short: append-onl
 - The owner role (BYPASSRLS, runs migrations) can still disable triggers; keep owner credentials off the app server (go-live item).
 - `visit_date` and `token_date` are supplied by the service; the database cannot know the hospital's local day. The API part allocates them from the hospital timezone and tests midnight.
 - A queue gate for part-paid and Emergency visits is intentionally not in the database yet; adding them later needs a migration that changes `opd_visits_guard`.
-- `patient_registration_fees.voided_at` has no app grant yet (added with refunds in 6a).
+- `patient_registration_fees.voided_at` has no app grant yet (added with refunds in 6a). **Update (Step 7f):** still no app grant; a database trigger voids the fee when a cancelled visit's bill was refunded in full (`docs/decisions/decisions-7f.md`).
 - Prisma does not model triggers or partial indexes; the SQL migration is the source of truth. `prisma migrate diff` could not be used (Prisma 7 removed `--from-url`); the DB tests exercise every model instead.
 
 ## API part (second commit of 4a)
@@ -99,6 +99,7 @@ Follow-ups: after a network error on "Take cash" the safest advice is to look at
 
 ## Free repeat-visit window (built in Step 4a, after the click test)
 
+- **Approved by Rakshith on 22 Nov 2026** (the rule was first recorded here without a named approver; the audit asked for it).
 - **Rule:** same patient + same doctor within `repeat_visit_free_hours` of the last PAID consultation = consultation fee 0, whatever visit type the receptionist picked. 0 turns it off (default; demo hospitals seed 24).
 - **Where the window starts:** the last visit that really paid a consultation (queued, not cancelled, PAID bill with a consultation line above zero). A free visit never restarts the clock, so the hospital cannot be gamed into endless free visits and the clock cannot be pushed forward by free visits.
 - **Boundary:** strictly inside the window is free; exactly at the limit is charged.
