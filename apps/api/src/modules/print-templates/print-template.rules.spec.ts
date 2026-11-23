@@ -9,10 +9,52 @@ import {
   pageSizeMm,
   presetInput,
   presetInputV2,
-  validateTemplate,
+  validateTemplate as validateTemplateStrict,
   type PrintDocType,
   type PrintTemplateInput,
 } from './print-template.rules';
+
+/**
+ * The rules below (paper, margins, boxes, styles) do not care about the token. Since Step 7f a
+ * RECEIPT must show the token, so for those tests only a tiny token box is added when the template
+ * under test was otherwise valid and has none. The token rule itself is tested with
+ * `validateTemplateStrict` in its own section at the end of this file.
+ */
+function validateTemplate(docType: PrintDocType, raw: unknown): PrintTemplateInput {
+  try {
+    return validateTemplateStrict(docType, raw);
+  } catch (error) {
+    const response = (error as { getResponse?: () => Record<string, unknown> }).getResponse?.();
+    if (docType !== 'RECEIPT' || response?.reason !== 'TOKEN_REQUIRED') {
+      throw error;
+    }
+    const clone = JSON.parse(JSON.stringify(raw)) as {
+      layout: { version?: number; elements: unknown[] };
+    };
+    clone.layout.elements.push(
+      clone.layout.version === 3
+        ? {
+            id: 'tokenbox',
+            type: 'RICH',
+            xMm: 0,
+            yMm: 0,
+            widthMm: 10,
+            heightMm: 5,
+            content: { paragraphs: [{ runs: [{ t: 'field', field: 'token' }] }] },
+          }
+        : {
+            id: 'tokenbox',
+            type: 'FIELD',
+            field: 'token',
+            xMm: 0,
+            yMm: 0,
+            widthMm: 10,
+            heightMm: 5,
+          },
+    );
+    return validateTemplateStrict(docType, clone);
+  }
+}
 
 /** A valid template to start every refusal test from. */
 function valid(docType: PrintDocType = 'RECEIPT'): Record<string, unknown> {
@@ -322,8 +364,8 @@ describe('validateTemplate: what is accepted', () => {
     ).toBe(false);
     expect(
       validateTemplate(
-        'RECEIPT',
-        withChange('RECEIPT', (t) => (t.layout.elements = [])),
+        'REGISTRATION_SLIP',
+        withChange('REGISTRATION_SLIP', (t) => (t.layout.elements = [])),
       ).layout.elements,
     ).toEqual([]);
   });
@@ -716,8 +758,8 @@ describe('validateTemplate: what is refused, field by field', () => {
         }));
       expect(() =>
         validateTemplate(
-          'RECEIPT',
-          withChange('RECEIPT', (t) => (t.layout.elements = boxes(40))),
+          'REGISTRATION_SLIP',
+          withChange('REGISTRATION_SLIP', (t) => (t.layout.elements = boxes(40))),
         ),
       ).not.toThrow();
       expectRefused(
@@ -759,7 +801,10 @@ describe('older (version 1) templates are converted to boxes', () => {
       footerText: 'Thank you',
       showLogo: true,
       fields: Object.fromEntries(
-        PRINT_FIELDS[docType].map((k) => [k, ['hospitalName', 'billNumber', 'total'].includes(k)]),
+        PRINT_FIELDS[docType].map((k) => [
+          k,
+          ['hospitalName', 'billNumber', 'total', 'token'].includes(k),
+        ]),
       ),
       offset: { xMm: 1.5, yMm: 0 },
       positions: {},
@@ -773,7 +818,7 @@ describe('older (version 1) templates are converted to boxes', () => {
     expect(t.layout.version).toBe(3);
     expect(t.layout.fontSizePt).toBe(10);
     expect(t.layout.offset).toEqual({ xMm: 1.5, yMm: 0 });
-    expect(fieldsOf(t).sort()).toEqual(['billNumber', 'hospitalName', 'total']);
+    expect(fieldsOf(t).sort()).toEqual(['billNumber', 'hospitalName', 'token', 'total']);
     const texts = t.layout.elements
       .filter(
         (e) =>
@@ -1086,8 +1131,20 @@ describe('version 3: rich text boxes', () => {
       }));
     two.layout.elements = many(41);
     expectRefused('RECEIPT', two, 'layout.elements', 'TOO_MANY');
-    two.layout.elements = many(40);
-    expect(() => validateTemplate('RECEIPT', two)).not.toThrow();
+    // exactly 40 boxes, one of them showing the token (a receipt must)
+    two.layout.elements = [
+      ...many(39),
+      {
+        id: 'tok',
+        type: 'RICH',
+        xMm: 1,
+        yMm: 1,
+        widthMm: 10,
+        heightMm: 5,
+        content: { paragraphs: [{ runs: [{ t: 'field', field: 'token' }] }] },
+      },
+    ];
+    expect(() => validateTemplateStrict('RECEIPT', two)).not.toThrow();
   });
 
   it('a layout too big to store is refused with TOO_LARGE, not a database error', () => {
@@ -1135,5 +1192,104 @@ describe('version 3: rich text boxes', () => {
       const twice = validateTemplate(docType, JSON.parse(JSON.stringify(once)));
       expect(twice).toEqual(once);
     }
+  });
+});
+
+describe('the token is mandatory on a receipt (D5-4)', () => {
+  const tokenBox = {
+    id: 'tok',
+    type: 'RICH',
+    xMm: 1,
+    yMm: 1,
+    widthMm: 20,
+    heightMm: 6,
+    content: { paragraphs: [{ runs: [{ t: 'field', field: 'token' }] }] },
+  };
+  const otherBox = {
+    id: 'bill',
+    type: 'RICH',
+    xMm: 1,
+    yMm: 10,
+    widthMm: 20,
+    heightMm: 6,
+    content: { paragraphs: [{ runs: [{ t: 'field', field: 'billNumber' }] }] },
+  };
+  const v3Receipt = (elements: unknown[]): Record<string, Loose> => {
+    const t = JSON.parse(JSON.stringify(presetInput('A5_FULL', 'RECEIPT'))) as Record<
+      string,
+      Loose
+    >;
+    t.layout.elements = elements;
+    return t;
+  };
+
+  it('every built-in receipt starting point has a token box', () => {
+    for (const preset of ['A4_FULL', 'A5_FULL', 'LABEL_SLIP', 'PREPRINTED_BILL']) {
+      expect(fieldsOf(presetInput(preset, 'RECEIPT'))).toContain('token');
+      expect(() => validateTemplateStrict('RECEIPT', presetInput(preset, 'RECEIPT'))).not.toThrow();
+    }
+    expect(fieldsOf(defaultInput('RECEIPT'))).toContain('token');
+  });
+
+  it('a custom receipt without a token box is refused in plain terms (version 3)', () => {
+    expect(refusal(() => validateTemplateStrict('RECEIPT', v3Receipt([otherBox])))).toMatchObject({
+      code: 'PRINT_TEMPLATE_INVALID',
+      field: 'layout.elements',
+      reason: 'TOKEN_REQUIRED',
+    });
+    expect(refusal(() => validateTemplateStrict('RECEIPT', v3Receipt([])))).toMatchObject({
+      reason: 'TOKEN_REQUIRED',
+    });
+    // a text that merely says "token" is not the token value
+    const typed = {
+      ...otherBox,
+      content: { paragraphs: [{ runs: [{ t: 'text', text: 'Token' }] }] },
+    };
+    expect(refusal(() => validateTemplateStrict('RECEIPT', v3Receipt([typed])))).toMatchObject({
+      reason: 'TOKEN_REQUIRED',
+    });
+    expect(() => validateTemplateStrict('RECEIPT', v3Receipt([otherBox, tokenBox]))).not.toThrow();
+  });
+
+  it('also when the token is switched off in a version 1 or version 2 template', () => {
+    const v1 = JSON.parse(JSON.stringify(presetInputV2('A5_FULL', 'RECEIPT'))) as Record<
+      string,
+      Loose
+    >;
+    v1.layout = {
+      version: 1,
+      fontSizePt: 10,
+      headerText: '',
+      footerText: '',
+      showLogo: true,
+      fields: { token: false },
+      offset: { xMm: 0, yMm: 0 },
+      positions: {},
+    };
+    expect(refusal(() => validateTemplateStrict('RECEIPT', v1))).toMatchObject({
+      reason: 'TOKEN_REQUIRED',
+    });
+    v1.layout.fields = { token: true };
+    expect(() => validateTemplateStrict('RECEIPT', v1)).not.toThrow();
+    const v2 = withChange('RECEIPT', (t) => {
+      t.layout.elements = t.layout.elements.filter((e: Loose) => e.field !== 'token');
+    });
+    expect(refusal(() => validateTemplateStrict('RECEIPT', v2))).toMatchObject({
+      reason: 'TOKEN_REQUIRED',
+    });
+  });
+
+  it('a switched-off receipt template still needs its token; other documents do not', () => {
+    const off = v3Receipt([otherBox]);
+    off.enabled = false;
+    expect(refusal(() => validateTemplateStrict('RECEIPT', off))).toMatchObject({
+      reason: 'TOKEN_REQUIRED',
+    });
+    const slip = JSON.parse(JSON.stringify(presetInput('A5_FULL', 'REGISTRATION_SLIP'))) as Record<
+      string,
+      Loose
+    >;
+    slip.layout.elements = [];
+    expect(() => validateTemplateStrict('REGISTRATION_SLIP', slip)).not.toThrow();
   });
 });

@@ -590,6 +590,8 @@ export const staffCopy = {
         DUPLICATE_ID: 'is used twice.',
         BAD_ID: 'is not a valid name.',
         UNKNOWN_FIELD: 'does not belong to this document.',
+        TOKEN_REQUIRED:
+          'must show the token number on a receipt. Add the Token value to one of the boxes.',
       } as Record<string, string>,
       invalidFallback: 'Cannot save: check the values and try again.',
     },

@@ -465,6 +465,11 @@ export function validateTemplate(docType: PrintDocType, raw: unknown): PrintTemp
   }
 
   const layout = validateLayout(docType, raw.layout, raw.mode as PrintMode, page, margins);
+  // D5-4: the token must be on every receipt (the default ones and a custom one). A template
+  // without a token box is refused, whatever way the layout was sent.
+  if (docType === 'RECEIPT' && !layoutShowsField(layout, 'token')) {
+    throw printError('layout.elements', 'TOKEN_REQUIRED');
+  }
   return {
     enabled,
     preset,
@@ -473,6 +478,15 @@ export function validateTemplate(docType: PrintDocType, raw: unknown): PrintTemp
     mode: raw.mode as PrintMode,
     layout,
   };
+}
+
+/** True when some box of the layout holds the value (a mail-merge field) of this field. */
+function layoutShowsField(layout: PrintLayout, field: string): boolean {
+  return layout.elements.some((element) =>
+    (element.content?.paragraphs ?? []).some((paragraph) =>
+      paragraph.runs.some((run) => run.t === 'field' && run.field === field),
+    ),
+  );
 }
 
 function validateLegacyLayout(
