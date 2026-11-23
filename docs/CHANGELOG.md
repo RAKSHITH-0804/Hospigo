@@ -39,7 +39,7 @@
 - **Database (migrations, roles, RLS):** `20261126090000_registration_fee_void_on_cancel`, `20261126091000_image_and_uhid_counter_protection`. Applied to `hospigo_test` only; the dev database is migrated by Rakshith after pulling.
 - **New .env keys (names only):** none.
 - **Follow-up (same branch):** migration `20261126092000_registration_fee_void_on_later_refund` (a refund can still be made after a cancel, so the fee is also voided when later refunds reach the total of a cancelled visit's bill); the stale UHID comment in `uhid.service.ts` fixed; rule recorded: later migrations (8a, 8b, 8c) must be named after `20261126092000`.
-- **Tests:** API 857, web 1580 (baseline 833 and 1576).
+- **Tests:** API 857, web 1581 (baseline 833 and 1576).
 - **Decisions:** `docs/decisions/decisions-7f.md` (repeat-visit-free approved 22 Nov; SuperAdmin reads queue, vitals and notes; leave blocks, timings warn; Branch Admin and SuperAdmin raise the UHID counter; patient-update audit field names only; vitals ranges warn only; tax-on stays 501; registration fee charged again after a refunded cancelled first visit).
 - **Follow-ups and open items:** DEFERRED pending the manager (part payment, pending dues, Emergency flag, online booking and slots); Step 8c scope; see decisions-7f "Not done".
 

@@ -259,7 +259,6 @@ export function PrintToolbar({
                 </SelectField>
                 <SelectField
                   label={copy.insertValue}
-                  hint={copy.insertValueHint}
                   value=""
                   disabled={off}
                   onChange={(event) => {
@@ -282,7 +281,8 @@ export function PrintToolbar({
                 )}
               </div>
               <p className="type-small text-muted-foreground">
-                {editing ? copy.editingHint : copy.doubleClickHint}
+                <span>{copy.insertValueHint}</span>{' '}
+                <span>{editing ? copy.editingHint : copy.doubleClickHint}</span>
               </p>
             </>
           ) : null}

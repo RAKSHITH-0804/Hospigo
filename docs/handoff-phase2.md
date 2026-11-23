@@ -19,7 +19,7 @@ Everything below this section is history. Where it disagrees with this section, 
 
 **Docs layout (25 Nov):** the docs are in folders: the four living files stay in `docs/`, the rest are in `docs/decisions/`, `docs/reference/`, `docs/guides/`, `docs/design/` and `docs/plans/`; `docs/README.md` is the index. **Settings menu (25 Nov):** grouped under Hospital, People, Patients and OPD (`docs/design/ui-design.md`).
 
-**Checks at this point (after 7f):** API 857 tests, web 1580 tests, lint, format, both builds green (baseline before 7f: API 833, web 1576). `ci` was green on PR #54.
+**Checks at this point (after 7f):** API 857 tests, web 1581 tests, lint, format, both builds green (baseline before 7f: API 833, web 1576). `ci` was green on PR #54.
 
 **Click-tested by Rakshith:** the report screen, print settings and designer, SuperAdmin OPD queue, the 7b screens, Staff and Roles pages (layout fixed after his first look), My profile, the Logo and Printing pages, and the Postman 7d collection (OK). **Not yet confirmed by him:** the full working of 7c (prescription print with doctor details, consult reminder), a real signature on a printed prescription, the email and password codes with a real mailbox, and the Postman collections written but not run by the assistant (they need the dev passwords): `hospigo-7-reports-print-templates`, `hospigo-7b-settings`, `hospigo-7c-doctor-profile` and `hospigo-7e-pictures` (in the git-ignored `postman/collections/`; run with the `Hospigo Local` environment).
 
