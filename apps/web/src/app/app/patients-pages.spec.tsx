@@ -768,6 +768,7 @@ describe('patients pages', () => {
           staff: 'user.read',
           roles: 'role.read',
           prices: 'opd.prices.write',
+          'upload-lists': 'opd.masters.write',
         };
         expect(entry.permission).toBe(own[entry.id] ?? 'hospital.settings.read');
       }

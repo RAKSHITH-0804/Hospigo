@@ -29,7 +29,8 @@ export type SettingsSection = {
     | 'staff'
     | 'roles'
     | 'branding'
-    | 'prices';
+    | 'prices'
+    | 'uploadLists';
   route: string;
   /** Permission needed to view the section (changing needs the matching write permission). */
   permission: string;
@@ -103,6 +104,14 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     route: `${SETTINGS_BASE_ROUTE}/prices`,
     // Prices are shown and changed by Admin and SuperAdmin only.
     permission: 'opd.prices.write',
+  },
+  {
+    id: 'upload-lists',
+    group: 'opd',
+    copyKey: 'uploadLists',
+    route: `${SETTINGS_BASE_ROUTE}/upload-lists`,
+    // The price lists inside also need opd.prices.write (the API checks it for each list).
+    permission: 'opd.masters.write',
   },
 ];
 

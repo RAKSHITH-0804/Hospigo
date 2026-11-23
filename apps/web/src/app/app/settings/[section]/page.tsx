@@ -7,6 +7,7 @@ import { UhidStartCard } from '@/components/patients/uhid-start-card';
 import { DoctorsList } from '@/components/settings/doctors-list';
 import { OpdRulesForm } from '@/components/settings/opd-rules-form';
 import { PricesScreen } from '@/components/settings/prices-screen';
+import { ImportsScreen } from '@/components/settings/imports-screen';
 import { RegistrationFields } from '@/components/settings/registration-fields';
 import { UhidFormatCard } from '@/components/settings/uhid-format-card';
 import { LogoCard } from '@/components/images/logo-card';
@@ -14,6 +15,7 @@ import { CodeFormatCard } from '@/components/staff/code-format-card';
 import { RolesManager } from '@/components/staff/roles-manager';
 import { StaffAdmin } from '@/components/staff/staff-admin';
 import { EmptyState } from '@/components/states/empty-state';
+import { importScreenConfig } from '@/config/imports';
 import { sessionConfig } from '@/config/session';
 import { findSettingsSection, visibleSettingsSections } from '@/config/settings-sections';
 import { staffCopy } from '@/config/staff-copy';
@@ -23,6 +25,7 @@ import { API_UHID_START_NUMBER, fetchStaffOnServer, serverErrorCode } from '@/li
 import type { UhidStartNumberResponse } from '@/lib/patients/types';
 import { API_DOCTOR_PROFILES, type DoctorsListResponse } from '@/lib/doctors/types';
 import { API_BRANDING, type BrandingResponse } from '@/lib/images/types';
+import { API_IMPORTS, type ImportListResponse } from '@/lib/imports/types';
 import { API_PRICES, type PricesResponse } from '@/lib/prices/types';
 import { API_OPD_RULES, API_PATIENT_FIELDS, API_UHID_FORMAT } from '@/lib/settings/paths';
 import {
@@ -55,6 +58,7 @@ const WIDE_SECTIONS = [
   'staff',
   'roles',
   'prices',
+  'upload-lists',
 ];
 
 export const metadata: Metadata = { title: staffCopy.pageTitles.settings };
@@ -193,6 +197,19 @@ export default async function SettingsSectionPage({
       <PricesScreen
         initial={prices.status === 'ok' ? prices.data : null}
         initialErrorCode={prices.status === 'ok' ? null : serverErrorCode(prices)}
+      />
+    );
+  }
+  if (section.id === 'upload-lists') {
+    const batches = await fetchStaffOnServer<ImportListResponse>(API_IMPORTS, {
+      page: 1,
+      pageSize: importScreenConfig.historyPageSize,
+    });
+    content = (
+      <ImportsScreen
+        initial={batches.status === 'ok' ? batches.data : null}
+        initialErrorCode={batches.status === 'ok' ? null : serverErrorCode(batches)}
+        allowPrices={session.permissions?.includes('opd.prices.write') ?? false}
       />
     );
   }
