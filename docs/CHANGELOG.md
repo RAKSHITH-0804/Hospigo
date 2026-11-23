@@ -29,6 +29,12 @@
 
 ## Unreleased
 
+## 2026-11-23 — Phase 2 — Step 8a started: plan and decisions recorded
+
+- **Added:** `docs/decisions/decisions-8a.md` (22 Nov decision to fold the 5 high npm findings into 8a; one PR with ordered commits; plan changes: multer fixed by `@nestjs/platform-express` 11.2.11, Nest 12 is ESM-only with a Jest-on-Node-22 risk, the three Prisma-tooling highs handled by an `effect` override).
+- **Changed:** tracker rows 8a and 8b, handoff NEXT; corrected baselines (API 857, web 1581; Postman 7d 64 requests / 115 checks, last run 114 passed 1 failed and why; 7f 29 requests / 44 checks).
+- **Tests:** unchanged.
+
 ## 2026-11-23 — Phase 2 — Step 7f: audit fixes (branch `feature/step-7f-audit-fixes`, not pushed)
 
 - **Commit hash(es):** see `git log` on the branch (docs commits `fbc1ffc`, `a867ffa`, `8a468d2` travel with it).
