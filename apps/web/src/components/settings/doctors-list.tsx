@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ImagePicker } from '@/components/images/image-picker';
-import { AvailabilityPanel } from '@/components/settings/availability-panel';
+import { AvailabilityDialog } from '@/components/settings/availability-panel';
 import { SettingBlock } from '@/components/settings/setting-block';
 import { Button } from '@/components/ui/button';
 import { InputField } from '@/components/ui/field';
@@ -108,6 +108,7 @@ export function DoctorsList({
     setMessage({ kind: 'ok', text: copy.saved });
   }
 
+  const availabilityDoctor = items.find((d) => d.id === availabilityId) ?? null;
   const set = (patch: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...patch } : d));
   const value = (text: string | null) => text ?? copy.notSet;
 
@@ -139,11 +140,11 @@ export function DoctorsList({
                     type="button"
                     variant="outline"
                     size="sm"
-                    aria-expanded={availabilityId === doctor.id}
-                    aria-label={`${doctor.name}: ${availabilityId === doctor.id ? availability.close : availability.open}`}
-                    onClick={() => setAvailabilityId((id) => (id === doctor.id ? null : doctor.id))}
+                    aria-haspopup="dialog"
+                    aria-label={`${doctor.name}: ${availability.open}`}
+                    onClick={() => setAvailabilityId(doctor.id)}
                   >
-                    {availabilityId === doctor.id ? availability.close : availability.open}
+                    {availability.open}
                   </Button>
                   {canWrite ? (
                     <Button
@@ -190,7 +191,6 @@ export function DoctorsList({
                   <dd className="type-label">{doctor.branches.join(', ') || copy.notSet}</dd>
                 </div>
               </dl>
-              {availabilityId === doctor.id ? <AvailabilityPanel doctorId={doctor.id} /> : null}
               {editingId === doctor.id && draft ? (
                 <form
                   onSubmit={(event) => void onSubmit(event, doctor.id)}
@@ -280,6 +280,13 @@ export function DoctorsList({
           ))}
         </ul>
       )}
+      {availabilityDoctor ? (
+        <AvailabilityDialog
+          doctorId={availabilityDoctor.id}
+          doctorName={availabilityDoctor.name}
+          onClose={() => setAvailabilityId(null)}
+        />
+      ) : null}
       <p className="type-small text-muted-foreground">{copy.note}</p>
     </SettingBlock>
   );

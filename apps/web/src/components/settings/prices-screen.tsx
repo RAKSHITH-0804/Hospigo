@@ -285,7 +285,7 @@ export function PricesScreen({
               ? ` · ${copy.currentLine.replace('{amount}', formatPaise(editing.currentAmountPaise))}`
               : ''}
           </p>
-          <div className="cluster">
+          <div className="cluster-top">
             <InputField
               label={copy.amountLabel}
               hint={copy.amountHint}

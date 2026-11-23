@@ -178,6 +178,12 @@
   --size-textarea-min: 2.75rem;
   --size-textarea-max: 18rem;
   --size-calendar-width: 19rem;
+  --size-modal-width: 60rem;
+  --size-modal-narrow: 28rem;
+  --size-availability-col: 22rem;
+  --size-availability-day: 9rem;
+  --size-availability-time: 8rem;
+  --z-modal: 50;
   --size-calendar-day: 2.125rem;
   --size-vitals-card: 15rem;
   --size-rx-medicine: 13rem;
@@ -2455,6 +2461,72 @@
 
   .dashboard-link:hover {
     box-shadow: 0 0 0 2px var(--primary);
+  }
+
+  /* Items start at the top so labels and controls line up, whatever hint lines sit under a field. */
+  .cluster-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  /* A pop-up dialog: dimmed page behind, one panel in the middle, scrolls inside when tall. */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-3);
+    background: oklch(0.2 0.04 265 / 0.45);
+  }
+
+  .modal-panel {
+    display: flex;
+    flex-direction: column;
+    width: min(var(--size-modal-width), 100%);
+    max-height: calc(100dvh - 2 * var(--space-3));
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    box-shadow: 0 1rem 3rem oklch(0.2 0.04 265 / 0.3);
+  }
+
+  .modal-panel-narrow {
+    width: min(var(--size-modal-narrow), 100%);
+  }
+
+  .modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .modal-body {
+    overflow: auto;
+    padding: var(--space-3);
+  }
+
+  /* Availability dialog: switch and leave on one side, weekly times on the other (stack when narrow). */
+  .availability-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(var(--size-availability-col), 100%), 1fr));
+    gap: var(--space-3);
+    align-items: start;
+  }
+
+  .availability-slot {
+    display: grid;
+    grid-template-columns:
+      minmax(0, var(--size-availability-day)) minmax(0, var(--size-availability-time))
+      minmax(0, var(--size-availability-time)) auto;
+    gap: var(--space-2);
+    align-items: center;
   }
 }
 

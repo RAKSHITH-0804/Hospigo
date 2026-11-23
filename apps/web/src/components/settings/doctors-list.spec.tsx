@@ -219,7 +219,7 @@ describe('DoctorsList', () => {
     expect(screen.getByText('Login Anil')).toBeTruthy();
   });
 
-  it('the Availability button opens the panel of that doctor only, and closes it again (also for a reader)', async () => {
+  it('the Availability button opens a pop-up for that doctor only; Close, Escape and a click outside close it (also for a reader)', async () => {
     availabilityMock.mockResolvedValue({
       ok: true,
       data: {
@@ -235,15 +235,29 @@ describe('DoctorsList', () => {
       },
     });
     renderList(data({ canWrite: false }));
-    const name = `Login Meena: ${staffCopy.availability.open}`;
-    fireEvent.click(screen.getByRole('button', { name }));
-    expect(await screen.findByText(staffCopy.availability.switchTitle)).toBeTruthy();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    const open = () =>
+      fireEvent.click(
+        screen.getByRole('button', { name: `Login Meena: ${staffCopy.availability.open}` }),
+      );
+    open();
+    const dialog = screen.getByRole('dialog', {
+      name: staffCopy.availability.dialogTitle.replace('{name}', 'Login Meena'),
+    });
+    expect(await within(dialog).findByText(staffCopy.availability.switchTitle)).toBeTruthy();
     expect(availabilityMock).toHaveBeenCalledTimes(1);
     expect(availabilityMock).toHaveBeenCalledWith('d1');
-    fireEvent.click(
-      screen.getByRole('button', { name: `Login Meena: ${staffCopy.availability.close}` }),
-    );
-    expect(screen.queryByText(staffCopy.availability.switchTitle)).toBeNull();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: staffCopy.modal.close }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    open();
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    open();
+    fireEvent.mouseDown(screen.getByRole('dialog').parentElement as HTMLElement);
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('says so when there are no doctors, and when they could not be read', () => {

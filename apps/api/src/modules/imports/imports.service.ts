@@ -139,6 +139,10 @@ export class ImportsService {
       const row: Record<string, ExcelJS.CellValue> = {};
       for (const c of columns) {
         const v = sample[c.key] ?? '';
+        if (v === '') {
+          // An optional column stays a truly empty cell (an empty text run can upset Excel).
+          continue;
+        }
         // Text is always written as TEXT (never as a formula); numbers stay numbers.
         row[c.key] = typeof v === 'number' ? v : { richText: [{ text: String(v) }] };
       }

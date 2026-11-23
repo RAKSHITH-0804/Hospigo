@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Modal } from '@/components/ui/modal';
 import { DatePicker } from '@/components/ui/date-picker';
 import { InputField, SelectField } from '@/components/ui/field';
 import { opdWebConfig } from '@/config/opd';
@@ -51,6 +52,23 @@ function localProblem(rows: Row[]): string | null {
     }
   }
   return null;
+}
+
+/** The availability of one doctor in a pop-up (opened by the Availability button of the doctor). */
+export function AvailabilityDialog({
+  doctorId,
+  doctorName,
+  onClose,
+}: {
+  doctorId: string;
+  doctorName: string;
+  onClose: () => void;
+}) {
+  return (
+    <Modal title={copy.dialogTitle.replace('{name}', doctorName)} onClose={onClose}>
+      <AvailabilityPanel doctorId={doctorId} />
+    </Modal>
+  );
 }
 
 /**
@@ -201,228 +219,253 @@ export function AvailabilityPanel({ doctorId }: { doctorId: string }) {
   }
 
   const dateText = (iso: string) => formatDateOnly(iso);
+  const locked = saving !== null;
+  const quickPicks = [
+    { label: copy.today, days: 0 },
+    { label: copy.tomorrow, days: 1 },
+  ];
 
   return (
-    <div className="settings-panel">
+    <div className="section-stack">
       {!canWrite ? <p className="type-label text-muted-foreground">{copy.readOnly}</p> : null}
-      <p
-        role={flash?.kind === 'error' ? 'alert' : 'status'}
-        className={`type-label ${flash?.kind === 'error' ? 'text-destructive' : 'text-foreground'}`}
-      >
-        {flash?.text ?? ''}
-      </p>
+      {flash ? (
+        <p
+          role={flash.kind === 'error' ? 'alert' : 'status'}
+          className={`type-label ${flash.kind === 'error' ? 'text-destructive' : 'text-foreground'}`}
+        >
+          {flash.text}
+        </p>
+      ) : null}
 
-      <section className="settings-part" aria-label={copy.switchTitle}>
-        <p className="type-label-strong">{copy.switchTitle}</p>
-        <p className="type-label">{data.availabilityOn ? copy.switchOn : copy.switchOff}</p>
-        {canWrite ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={saving !== null}
-            onClick={() =>
-              void run('switch', () => saveSwitch(doctorId, !data.availabilityOn), copy.switchSaved)
-            }
-          >
-            {data.availabilityOn ? copy.turnOff : copy.turnOn}
-          </Button>
-        ) : null}
-      </section>
+      <div className="availability-grid">
+        <div className="section-stack">
+          <section className="surface-card section-stack" aria-label={copy.switchTitle}>
+            <p className="type-label-strong">{copy.switchTitle}</p>
+            <div className="cluster">
+              <p className="type-label">{data.availabilityOn ? copy.switchOn : copy.switchOff}</p>
+              {canWrite ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={locked}
+                  onClick={() =>
+                    void run(
+                      'switch',
+                      () => saveSwitch(doctorId, !data.availabilityOn),
+                      copy.switchSaved,
+                    )
+                  }
+                >
+                  {data.availabilityOn ? copy.turnOff : copy.turnOn}
+                </Button>
+              ) : null}
+            </div>
+          </section>
 
-      <section className="settings-part" aria-label={copy.timetableTitle}>
-        <p className="type-label-strong">{copy.timetableTitle}</p>
-        <p className="type-small text-muted-foreground">{copy.timetableHint}</p>
-        {data.branches.length === 0 ? (
-          <p className="type-label text-muted-foreground">{copy.noBranches}</p>
-        ) : (
-          data.branches.map((branch) => {
-            const rows = drafts[branch.id] ?? [];
-            const editable = canWrite && branch.editable;
-            return (
-              <div key={branch.id} className="settings-doctor" aria-label={branch.name}>
-                <p className="type-label-strong">{branch.name}</p>
-                {!branch.editable ? (
-                  <p className="type-small text-muted-foreground">{copy.branchReadOnly}</p>
-                ) : null}
-                {rows.length === 0 ? (
-                  <p className="type-small text-muted-foreground">{copy.noSlots}</p>
-                ) : null}
-                {rows.map((row) => (
-                  <div key={row.key} className="cluster">
-                    <SelectField
-                      label={copy.day}
-                      value={row.weekday}
-                      disabled={!editable || saving !== null}
-                      onChange={(event) =>
-                        setRows(branch.id, (list) =>
-                          list.map((r) =>
-                            r.key === row.key ? { ...r, weekday: event.target.value } : r,
-                          ),
-                        )
-                      }
-                    >
-                      {copy.weekdays.map((name, index) => (
-                        <option key={name} value={String(index)}>
-                          {name}
-                        </option>
-                      ))}
-                    </SelectField>
-                    <InputField
-                      label={copy.from}
-                      type="time"
-                      value={row.start}
-                      disabled={!editable || saving !== null}
-                      onChange={(event) =>
-                        setRows(branch.id, (list) =>
-                          list.map((r) =>
-                            r.key === row.key ? { ...r, start: event.target.value } : r,
-                          ),
-                        )
-                      }
-                    />
-                    <InputField
-                      label={copy.to}
-                      type="time"
-                      value={row.end}
-                      disabled={!editable || saving !== null}
-                      onChange={(event) =>
-                        setRows(branch.id, (list) =>
-                          list.map((r) =>
-                            r.key === row.key ? { ...r, end: event.target.value } : r,
-                          ),
-                        )
-                      }
-                    />
-                    {editable ? (
+          <section className="surface-card section-stack" aria-label={copy.leaveTitle}>
+            <p className="type-label-strong">{copy.leaveTitle}</p>
+            <p className="type-small text-muted-foreground">{copy.leaveHint}</p>
+            {data.leaves.length === 0 ? (
+              <p className="type-label text-muted-foreground">{copy.noLeave}</p>
+            ) : (
+              <ul className="section-stack">
+                {data.leaves.map((leave) => (
+                  <li key={leave.id} className="cluster-between">
+                    <span className="type-label">
+                      {leave.fromDate === leave.toDate
+                        ? dateText(leave.fromDate)
+                        : `${dateText(leave.fromDate)} – ${dateText(leave.toDate)}`}
+                      {leave.toDate < data.today ? ` · ${copy.ended}` : ''}
+                    </span>
+                    {canWrite ? (
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        disabled={saving !== null}
-                        aria-label={`${branch.name}: ${copy.removeSlot} ${copy.weekdays[Number(row.weekday)] ?? ''} ${row.start}`}
+                        disabled={locked}
+                        aria-label={`${copy.removeLeave} ${dateText(leave.fromDate)}`}
                         onClick={() =>
-                          setRows(branch.id, (list) => list.filter((r) => r.key !== row.key))
+                          void run(
+                            `leave:${leave.id}`,
+                            () => removeLeave(doctorId, leave.id),
+                            copy.leaveRemoved,
+                          )
                         }
                       >
-                        {copy.removeSlot}
+                        {copy.removeLeave}
                       </Button>
                     ) : null}
-                  </div>
+                  </li>
                 ))}
-                {editable ? (
-                  <div className="settings-actions">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={saving !== null}
-                      onClick={() =>
-                        setRows(branch.id, (list) => [
-                          ...list,
-                          { key: (keys.current += 1), weekday: '1', start: '', end: '' },
-                        ])
-                      }
-                    >
-                      {copy.addSlot}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={saving !== null}
-                      onClick={() => void saveBranch(branch.id)}
-                    >
-                      {saving === `timings:${branch.id}` ? copy.saving : copy.saveTimetable}
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-            );
-          })
-        )}
-      </section>
-
-      <section className="settings-part" aria-label={copy.leaveTitle}>
-        <p className="type-label-strong">{copy.leaveTitle}</p>
-        <p className="type-small text-muted-foreground">{copy.leaveHint}</p>
-        {data.leaves.length === 0 ? (
-          <p className="type-label text-muted-foreground">{copy.noLeave}</p>
-        ) : (
-          <ul>
-            {data.leaves.map((leave) => (
-              <li key={leave.id} className="cluster">
-                <span className="type-label">
-                  {leave.fromDate === leave.toDate
-                    ? dateText(leave.fromDate)
-                    : `${dateText(leave.fromDate)} – ${dateText(leave.toDate)}`}
-                  {leave.toDate < data.today ? ` · ${copy.ended}` : ''}
-                </span>
-                {canWrite ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={saving !== null}
-                    aria-label={`${copy.removeLeave} ${dateText(leave.fromDate)}`}
-                    onClick={() =>
-                      void run(
-                        `leave:${leave.id}`,
-                        () => removeLeave(doctorId, leave.id),
-                        copy.leaveRemoved,
-                      )
+              </ul>
+            )}
+            {canWrite ? (
+              <div className="cluster-top">
+                <DatePicker
+                  label={copy.leaveFrom}
+                  value={from}
+                  min={data.today}
+                  todayIso={data.today}
+                  weekStart={opdWebConfig.calendarWeekStart}
+                  quickDays={[]}
+                  quickPicks={quickPicks}
+                  onChange={(iso) => {
+                    setFrom(iso);
+                    if (to && to < iso) {
+                      setTo(iso);
                     }
-                  >
-                    {copy.removeLeave}
-                  </Button>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-        {canWrite ? (
-          <div className="cluster">
-            <DatePicker
-              label={copy.leaveFrom}
-              value={from}
-              min={data.today}
-              todayIso={data.today}
-              weekStart={opdWebConfig.calendarWeekStart}
-              quickDays={[]}
-              quickPicks={[
-                { label: copy.today, days: 0 },
-                { label: copy.tomorrow, days: 1 },
-              ]}
-              onChange={(iso) => {
-                setFrom(iso);
-                if (to && to < iso) {
-                  setTo(iso);
-                }
-              }}
-            />
-            <DatePicker
-              label={copy.leaveTo}
-              value={to}
-              min={from || data.today}
-              todayIso={data.today}
-              weekStart={opdWebConfig.calendarWeekStart}
-              quickDays={[]}
-              quickPicks={[
-                { label: copy.today, days: 0 },
-                { label: copy.tomorrow, days: 1 },
-              ]}
-              onChange={setTo}
-            />
-            <Button
-              type="button"
-              size="sm"
-              disabled={saving !== null}
-              onClick={() => void onAddLeave()}
-            >
-              {saving === 'leave:add' ? copy.saving : copy.addLeave}
-            </Button>
+                  }}
+                />
+                <DatePicker
+                  label={copy.leaveTo}
+                  value={to}
+                  min={from || data.today}
+                  todayIso={data.today}
+                  weekStart={opdWebConfig.calendarWeekStart}
+                  quickDays={[]}
+                  quickPicks={quickPicks}
+                  onChange={setTo}
+                />
+                <Button type="button" size="sm" disabled={locked} onClick={() => void onAddLeave()}>
+                  {saving === 'leave:add' ? copy.saving : copy.addLeave}
+                </Button>
+              </div>
+            ) : null}
+          </section>
+        </div>
+
+        <section className="section-stack" aria-label={copy.timetableTitle}>
+          <div>
+            <p className="type-label-strong">{copy.timetableTitle}</p>
+            <p className="type-small text-muted-foreground">{copy.timetableHint}</p>
           </div>
-        ) : null}
-      </section>
+          {data.branches.length === 0 ? (
+            <p className="type-label text-muted-foreground">{copy.noBranches}</p>
+          ) : (
+            data.branches.map((branch) => {
+              const rows = drafts[branch.id] ?? [];
+              const editable = canWrite && branch.editable;
+              return (
+                <div
+                  key={branch.id}
+                  className="surface-card section-stack"
+                  role="group"
+                  aria-label={branch.name}
+                >
+                  <p className="type-label-strong">{branch.name}</p>
+                  {!branch.editable ? (
+                    <p className="type-small text-muted-foreground">{copy.branchReadOnly}</p>
+                  ) : null}
+                  {rows.length === 0 ? (
+                    <p className="type-small text-muted-foreground">{copy.noSlots}</p>
+                  ) : (
+                    <div className="availability-slot type-small text-muted-foreground" aria-hidden>
+                      <span>{copy.day}</span>
+                      <span>{copy.from}</span>
+                      <span>{copy.to}</span>
+                      <span />
+                    </div>
+                  )}
+                  {rows.map((row) => (
+                    <div key={row.key} className="availability-slot">
+                      <SelectField
+                        label={copy.day}
+                        hideLabel
+                        value={row.weekday}
+                        disabled={!editable || locked}
+                        onChange={(event) =>
+                          setRows(branch.id, (list) =>
+                            list.map((r) =>
+                              r.key === row.key ? { ...r, weekday: event.target.value } : r,
+                            ),
+                          )
+                        }
+                      >
+                        {copy.weekdays.map((name, index) => (
+                          <option key={name} value={String(index)}>
+                            {name}
+                          </option>
+                        ))}
+                      </SelectField>
+                      <InputField
+                        label={copy.from}
+                        hideLabel
+                        type="time"
+                        value={row.start}
+                        disabled={!editable || locked}
+                        onChange={(event) =>
+                          setRows(branch.id, (list) =>
+                            list.map((r) =>
+                              r.key === row.key ? { ...r, start: event.target.value } : r,
+                            ),
+                          )
+                        }
+                      />
+                      <InputField
+                        label={copy.to}
+                        hideLabel
+                        type="time"
+                        value={row.end}
+                        disabled={!editable || locked}
+                        onChange={(event) =>
+                          setRows(branch.id, (list) =>
+                            list.map((r) =>
+                              r.key === row.key ? { ...r, end: event.target.value } : r,
+                            ),
+                          )
+                        }
+                      />
+                      {editable ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={locked}
+                          aria-label={`${branch.name}: ${copy.removeSlot} ${copy.weekdays[Number(row.weekday)] ?? ''} ${row.start}`}
+                          onClick={() =>
+                            setRows(branch.id, (list) => list.filter((r) => r.key !== row.key))
+                          }
+                        >
+                          {copy.removeSlot}
+                        </Button>
+                      ) : (
+                        <span />
+                      )}
+                    </div>
+                  ))}
+                  {editable ? (
+                    <div className="cluster">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={locked}
+                        onClick={() =>
+                          setRows(branch.id, (list) => [
+                            ...list,
+                            { key: (keys.current += 1), weekday: '1', start: '', end: '' },
+                          ])
+                        }
+                      >
+                        {copy.addSlot}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={locked}
+                        onClick={() => void saveBranch(branch.id)}
+                      >
+                        {saving === `timings:${branch.id}` ? copy.saving : copy.saveTimetable}
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })
+          )}
+        </section>
+      </div>
     </div>
   );
 }

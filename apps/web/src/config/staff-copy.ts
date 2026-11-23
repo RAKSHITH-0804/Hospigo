@@ -75,6 +75,9 @@ export const staffCopy = {
     roleCaption: 'Role',
   },
   back: 'Back',
+  modal: {
+    close: 'Close',
+  },
   calendar: {
     placeholder: 'Choose a date',
     dialogTitle: 'Choose a date',
@@ -1892,7 +1895,7 @@ export const staffCopy = {
   availability: {
     title: 'Availability',
     open: 'Availability',
-    close: 'Close availability',
+    dialogTitle: 'Availability: {name}',
     loading: 'Loading availability…',
     loadError: 'Availability could not be loaded.',
     retry: 'Try again',
