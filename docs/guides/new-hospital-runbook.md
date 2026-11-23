@@ -4,13 +4,13 @@ There is **no tool that creates a hospital** (HQ hospital creation is parked and
 
 ## 1. What must exist before the starter script runs
 
-| #   | What                                                                                                                                    | Why                                                             |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| 1   | A `hospitals` row: unique `code`, `name`, `status ACTIVE`, `isTest false`                                                               | The script finds the hospital by its code and refuses test data |
-| 2   | The two system roles of the hospital (SuperAdmin, Branch Admin) with their permissions                                                  | Staff, roles and screens depend on them                         |
-| 3   | At least one `branches` row with `isMain true` and a unique **access code** per branch                                                  | The access code is part of the sign-in                          |
-| 4   | Module subscriptions for the hospital and its branches (OPD switched on)                                                                | The sidebar and API guards need the OPD module                  |
-| 5   | The first **SuperAdmin user** (code, email, name, password hash), with a membership of the main branch and the SuperAdmin hospital role | Prices, the UHID format and the audit need a real user id       |
+| #   | What                                                                                                                                    | Why                                                       |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| 1   | A `hospitals` row: unique `code`, `name`, `status ACTIVE`, `isTest false`                                                               | The script finds the hospital by its code                 |
+| 2   | The two system roles of the hospital (SuperAdmin, Branch Admin) with their permissions                                                  | Staff, roles and screens depend on them                   |
+| 3   | At least one `branches` row with `isMain true` and a unique **access code** per branch                                                  | The access code is part of the sign-in                    |
+| 4   | Module subscriptions for the hospital and its branches (OPD switched on)                                                                | The sidebar and API guards need the OPD module            |
+| 5   | The first **SuperAdmin user** (code, email, name, password hash), with a membership of the main branch and the SuperAdmin hospital role | Prices, the UHID format and the audit need a real user id |
 
 The script **checks** items 1, 3 and 5 and stops with a plain message if one is missing. It does not create them.
 
