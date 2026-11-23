@@ -11,7 +11,8 @@ import {
   type PriceKind,
   type PriceVisitType,
 } from './opd-prices.config';
-import { isRealDate, localDate, startOfLocalDay } from './local-date';
+import { localDate } from './local-date';
+import { planPriceChange } from './price-plan';
 
 export type PriceRowView = {
   /** Stable key of the row for the screen. */
@@ -257,26 +258,6 @@ export class PricesService {
 
   // ---------------------------------------------------------------------------- changes
 
-  /** The moment a price starts, and the checks on the date (decision 3 of Step 8b). */
-  private resolveStart(args: {
-    requested: string | undefined;
-    now: Date;
-    timeZone: string;
-    isFirst: boolean;
-  }): Date {
-    const today = localDate(args.now, args.timeZone);
-    const date = args.requested ?? today;
-    if (!isRealDate(date)) {
-      priceInvalid('effectiveFrom', 'DATE_INVALID');
-    }
-    if (date < today && !args.isFirst) {
-      priceInvalid('effectiveFrom', 'DATE_IN_PAST');
-    }
-    // Today means "from now"; a later date starts at the beginning of that day. The very first
-    // price may be dated earlier, and then starts at the beginning of that day.
-    return date === today ? args.now : startOfLocalDay(date, args.timeZone);
-  }
-
   private async timeZoneOf(tx: TenantTx, tenantId: string): Promise<string> {
     const settings = await tx.opdSettings.findUnique({ where: { tenantId } });
     return settings?.timezone ?? OPD_SETTINGS_DEFAULTS.timezone;
@@ -287,86 +268,98 @@ export class PricesService {
     input: { amountPaise: number; effectiveFrom?: string },
     actor: Actor,
   ): Promise<PriceChangeResult> {
+    return this.tenantDb.withTenant((tx) =>
+      this.changeChargeItemPriceInTx(tx, itemId, input, actor),
+    );
+  }
+
+  /** The same change inside a transaction of the caller (the Excel upload posts many in one). */
+  async changeChargeItemPriceInTx(
+    tx: TenantTx,
+    itemId: string,
+    input: { amountPaise: number; effectiveFrom?: string },
+    actor: Actor,
+  ): Promise<PriceChangeResult> {
     const now = this.clock.now();
     const tenantId = actor.tenantId;
-    return this.tenantDb.withTenant(async (tx) => {
-      // Lock the item: two changes at the same moment queue here and the second sees the first.
-      const locked = await tx.$queryRaw<Array<{ kind: string; active: boolean }>>(
-        Prisma.sql`SELECT kind::text AS kind, active FROM charge_items
+    // Lock the item: two changes at the same moment queue here and the second sees the first.
+    const locked = await tx.$queryRaw<Array<{ kind: string; active: boolean }>>(
+      Prisma.sql`SELECT kind::text AS kind, active FROM charge_items
                     WHERE tenant_id = ${tenantId} AND id = ${itemId} FOR UPDATE`,
-      );
-      const item = locked[0];
-      if (!item || (item.kind !== 'REGISTRATION' && item.kind !== 'INVESTIGATION')) {
-        throw opdError(404, OpdErrorCode.PRICE_ITEM_NOT_FOUND);
-      }
-      if (!item.active) {
-        priceInvalid('item', 'ITEM_INACTIVE');
-      }
-      const latest = await tx.chargeItemPrice.findFirst({
-        where: { tenantId, chargeItemId: itemId },
-        orderBy: { effectiveFrom: 'desc' },
-      });
-      const timeZone = await this.timeZoneOf(tx, tenantId);
-      const start = this.resolveStart({
-        requested: input.effectiveFrom,
-        now,
-        timeZone,
-        isFirst: latest === null,
-      });
-      if (latest && start.getTime() < latest.effectiveFrom.getTime()) {
-        priceInvalid('effectiveFrom', 'DATE_BEFORE_LATEST');
-      }
-      if (latest && latest.amountPaise === input.amountPaise) {
-        // The same amount again (also a repeated request): no new version.
-        return {
-          changed: false,
-          previousAmountPaise: latest.amountPaise,
-          price: {
-            id: latest.id,
-            amountPaise: latest.amountPaise,
-            effectiveFrom: latest.effectiveFrom.toISOString(),
-          },
-        };
-      }
-      if (latest && start.getTime() === latest.effectiveFrom.getTime()) {
-        priceInvalid('effectiveFrom', 'VERSION_EXISTS');
-      }
-      const created = await tx.chargeItemPrice.create({
-        data: {
-          tenantId,
-          chargeItemId: itemId,
-          amountPaise: input.amountPaise,
-          effectiveFrom: start,
-          createdBy: actor.userId,
-        },
-      });
-      await tx.auditLog.create({
-        data: {
-          tenantId,
-          actorUserId: actor.userId,
-          branchId: actor.branchId,
-          action: PRICE_AUDIT.chargeItemPriceChanged,
-          entityType: 'charge_item_price',
-          entityId: created.id,
-          // Ids and amounts only, no free text.
-          metadata: {
-            chargeItemId: itemId,
-            oldAmountPaise: latest?.amountPaise ?? null,
-            newAmountPaise: created.amountPaise,
-            effectiveFrom: created.effectiveFrom.toISOString(),
-          },
-        },
-      });
+    );
+    const item = locked[0];
+    if (!item || (item.kind !== 'REGISTRATION' && item.kind !== 'INVESTIGATION')) {
+      throw opdError(404, OpdErrorCode.PRICE_ITEM_NOT_FOUND);
+    }
+    if (!item.active) {
+      priceInvalid('item', 'ITEM_INACTIVE');
+    }
+    const latest = await tx.chargeItemPrice.findFirst({
+      where: { tenantId, chargeItemId: itemId },
+      orderBy: { effectiveFrom: 'desc' },
+    });
+    const timeZone = await this.timeZoneOf(tx, tenantId);
+    const plan = planPriceChange({
+      requested: input.effectiveFrom,
+      now,
+      timeZone,
+      latest,
+      amountPaise: input.amountPaise,
+    });
+    if (plan.kind === 'invalid') {
+      priceInvalid(plan.field, plan.reason);
+    }
+    if (plan.kind === 'unchanged' && latest) {
+      // The same amount again (also a repeated request): no new version.
       return {
-        changed: true,
-        previousAmountPaise: latest?.amountPaise ?? null,
+        changed: false,
+        previousAmountPaise: latest.amountPaise,
         price: {
-          id: created.id,
-          amountPaise: created.amountPaise,
-          effectiveFrom: created.effectiveFrom.toISOString(),
+          id: latest.id,
+          amountPaise: latest.amountPaise,
+          effectiveFrom: latest.effectiveFrom.toISOString(),
         },
       };
+    }
+    if (plan.kind !== 'new') {
+      throw new Error('unreachable price plan');
+    }
+    const start = plan.start;
+    const created = await tx.chargeItemPrice.create({
+      data: {
+        tenantId,
+        chargeItemId: itemId,
+        amountPaise: input.amountPaise,
+        effectiveFrom: start,
+        createdBy: actor.userId,
+      },
     });
+    await tx.auditLog.create({
+      data: {
+        tenantId,
+        actorUserId: actor.userId,
+        branchId: actor.branchId,
+        action: PRICE_AUDIT.chargeItemPriceChanged,
+        entityType: 'charge_item_price',
+        entityId: created.id,
+        // Ids and amounts only, no free text.
+        metadata: {
+          chargeItemId: itemId,
+          oldAmountPaise: latest?.amountPaise ?? null,
+          newAmountPaise: created.amountPaise,
+          effectiveFrom: created.effectiveFrom.toISOString(),
+        },
+      },
+    });
+    return {
+      changed: true,
+      previousAmountPaise: latest?.amountPaise ?? null,
+      price: {
+        id: created.id,
+        amountPaise: created.amountPaise,
+        effectiveFrom: created.effectiveFrom.toISOString(),
+      },
+    };
   }
 
   async changeDoctorFee(
@@ -378,85 +371,99 @@ export class PricesService {
     },
     actor: Actor,
   ): Promise<PriceChangeResult> {
+    return this.tenantDb.withTenant((tx) => this.changeDoctorFeeInTx(tx, input, actor));
+  }
+
+  async changeDoctorFeeInTx(
+    tx: TenantTx,
+    input: {
+      doctorProfileId: string;
+      visitType: PriceVisitType;
+      amountPaise: number;
+      effectiveFrom?: string;
+    },
+    actor: Actor,
+  ): Promise<PriceChangeResult> {
     const now = this.clock.now();
     const tenantId = actor.tenantId;
-    return this.tenantDb.withTenant(async (tx) => {
-      // Lock the doctor's row (the fee rows are append-only and cannot be locked for a new insert).
-      const locked = await tx.$queryRaw<Array<{ active: boolean }>>(
-        Prisma.sql`SELECT active FROM doctor_profiles
+    // Lock the doctor's row (the fee rows are append-only and cannot be locked for a new insert).
+    const locked = await tx.$queryRaw<Array<{ active: boolean }>>(
+      Prisma.sql`SELECT active FROM doctor_profiles
                     WHERE tenant_id = ${tenantId} AND id = ${input.doctorProfileId} FOR UPDATE`,
-      );
-      const doctor = locked[0];
-      if (!doctor) {
-        throw opdError(404, OpdErrorCode.PRICE_ITEM_NOT_FOUND);
-      }
-      if (!doctor.active) {
-        priceInvalid('doctor', 'ITEM_INACTIVE');
-      }
-      const latest = await tx.doctorFee.findFirst({
-        where: { tenantId, doctorProfileId: input.doctorProfileId, visitType: input.visitType },
-        orderBy: { effectiveFrom: 'desc' },
-      });
-      const timeZone = await this.timeZoneOf(tx, tenantId);
-      const start = this.resolveStart({
-        requested: input.effectiveFrom,
-        now,
-        timeZone,
-        isFirst: latest === null,
-      });
-      if (latest && start.getTime() < latest.effectiveFrom.getTime()) {
-        priceInvalid('effectiveFrom', 'DATE_BEFORE_LATEST');
-      }
-      if (latest && latest.amountPaise === input.amountPaise) {
-        return {
-          changed: false,
-          previousAmountPaise: latest.amountPaise,
-          price: {
-            id: latest.id,
-            amountPaise: latest.amountPaise,
-            effectiveFrom: latest.effectiveFrom.toISOString(),
-          },
-        };
-      }
-      if (latest && start.getTime() === latest.effectiveFrom.getTime()) {
-        priceInvalid('effectiveFrom', 'VERSION_EXISTS');
-      }
-      const created = await tx.doctorFee.create({
-        data: {
-          tenantId,
-          doctorProfileId: input.doctorProfileId,
-          visitType: input.visitType,
-          amountPaise: input.amountPaise,
-          effectiveFrom: start,
-          createdBy: actor.userId,
-        },
-      });
-      await tx.auditLog.create({
-        data: {
-          tenantId,
-          actorUserId: actor.userId,
-          branchId: actor.branchId,
-          action: PRICE_AUDIT.doctorFeeChanged,
-          entityType: 'doctor_fee',
-          entityId: created.id,
-          metadata: {
-            doctorProfileId: input.doctorProfileId,
-            visitType: input.visitType,
-            oldAmountPaise: latest?.amountPaise ?? null,
-            newAmountPaise: created.amountPaise,
-            effectiveFrom: created.effectiveFrom.toISOString(),
-          },
-        },
-      });
+    );
+    const doctor = locked[0];
+    if (!doctor) {
+      throw opdError(404, OpdErrorCode.PRICE_ITEM_NOT_FOUND);
+    }
+    if (!doctor.active) {
+      priceInvalid('doctor', 'ITEM_INACTIVE');
+    }
+    const latest = await tx.doctorFee.findFirst({
+      where: { tenantId, doctorProfileId: input.doctorProfileId, visitType: input.visitType },
+      orderBy: { effectiveFrom: 'desc' },
+    });
+    const timeZone = await this.timeZoneOf(tx, tenantId);
+    const plan = planPriceChange({
+      requested: input.effectiveFrom,
+      now,
+      timeZone,
+      latest,
+      amountPaise: input.amountPaise,
+    });
+    if (plan.kind === 'invalid') {
+      priceInvalid(plan.field, plan.reason);
+    }
+    if (plan.kind === 'unchanged' && latest) {
+      // The same amount again (also a repeated request): no new version.
       return {
-        changed: true,
-        previousAmountPaise: latest?.amountPaise ?? null,
+        changed: false,
+        previousAmountPaise: latest.amountPaise,
         price: {
-          id: created.id,
-          amountPaise: created.amountPaise,
-          effectiveFrom: created.effectiveFrom.toISOString(),
+          id: latest.id,
+          amountPaise: latest.amountPaise,
+          effectiveFrom: latest.effectiveFrom.toISOString(),
         },
       };
+    }
+    if (plan.kind !== 'new') {
+      throw new Error('unreachable price plan');
+    }
+    const start = plan.start;
+    const created = await tx.doctorFee.create({
+      data: {
+        tenantId,
+        doctorProfileId: input.doctorProfileId,
+        visitType: input.visitType,
+        amountPaise: input.amountPaise,
+        effectiveFrom: start,
+        createdBy: actor.userId,
+      },
     });
+    await tx.auditLog.create({
+      data: {
+        tenantId,
+        actorUserId: actor.userId,
+        branchId: actor.branchId,
+        action: PRICE_AUDIT.doctorFeeChanged,
+        entityType: 'doctor_fee',
+        entityId: created.id,
+        metadata: {
+          doctorProfileId: input.doctorProfileId,
+          visitType: input.visitType,
+          oldAmountPaise: latest?.amountPaise ?? null,
+          newAmountPaise: created.amountPaise,
+          effectiveFrom: created.effectiveFrom.toISOString(),
+        },
+      },
+    });
+    return {
+      changed: true,
+      previousAmountPaise: latest?.amountPaise ?? null,
+      price: {
+        id: created.id,
+        amountPaise: created.amountPaise,
+        effectiveFrom: created.effectiveFrom.toISOString(),
+      },
+    };
   }
 }

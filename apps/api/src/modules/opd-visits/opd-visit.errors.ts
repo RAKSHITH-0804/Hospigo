@@ -56,6 +56,14 @@ export const OpdErrorCode = {
   // ---- Step 8b: prices
   PRICE_INVALID: 'PRICE_INVALID',
   PRICE_ITEM_NOT_FOUND: 'PRICE_ITEM_NOT_FOUND',
+  // ---- Step 8b: Excel upload of the masters
+  IMPORT_NOT_FOUND: 'IMPORT_NOT_FOUND',
+  IMPORT_FILE_INVALID: 'IMPORT_FILE_INVALID',
+  IMPORT_DUPLICATE_FILE: 'IMPORT_DUPLICATE_FILE',
+  IMPORT_NOT_READY: 'IMPORT_NOT_READY',
+  IMPORT_NOTHING_TO_SAVE: 'IMPORT_NOTHING_TO_SAVE',
+  IMPORT_STATE: 'IMPORT_STATE',
+  IMPORT_BUSY: 'IMPORT_BUSY',
 } as const;
 
 export type OpdErrorCode = (typeof OpdErrorCode)[keyof typeof OpdErrorCode];
