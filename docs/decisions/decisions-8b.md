@@ -4,7 +4,7 @@ Branch: `feature/step-8b-masters-setup`, from `develop` at `4fc440a` (Step 8a me
 
 ## Decisions
 
-1. **Option A: parts A, B, C and D in one PR.** Build order: A (starter script), B (price change), C (Excel upload), D (doctor availability, timings and leave). **Part D is the cut line:** if it clearly cannot finish, A, B and C are completed with docs and tests, D goes to a separate local branch, and the report says so. _Why:_ Wed and Thu are the days planned for 8b and Step 9 starts Friday; A, B and C are what a hospital needs to start billing, D is useful but not blocking.
+1. **Option A: parts A, B, C and D in one PR.** Build order: A (starter script), B (price change), C (Excel upload), D (doctor availability, timings and leave). **Part D was the cut line (it was built after the first report, see the Part D section):** if it clearly cannot finish, A, B and C are completed with docs and tests, D goes to a separate local branch, and the report says so. _Why:_ Wed and Thu are the days planned for 8b and Step 9 starts Friday; A, B and C are what a hospital needs to start billing, D is useful but not blocking.
 2. **No undo for imports after posting.** A batch can be CANCELLED before it is posted (nothing is saved). After posting, a correction is a new upload: medicines and tests update by code, prices get a new version and are never deleted. **This is a deviation from the 4 Nov rule** in `docs/project-context.md` ("preview, approve, post, undo the whole batch"). _Why:_ price rows are append-only (a database trigger refuses update and delete, and the money rules say prices are never edited or deleted), so a posted price batch cannot be taken back; offering undo for some types and not others would be confusing, so the posted state is final for every type. The engine's UNDONE state and its undo method stay in the code unused by the screens; they are not exposed by any route.
 3. **Price effective date:** not before today in hospital time (the OPD rules timezone), except the very first price of an item. _Why:_ a price dated in the past would silently change what new bills charge from "now" and would make a later correction impossible (a new price may not be earlier than the latest one).
 4. **Hospital creation stays manual** (HQ creating a hospital is parked). The runbook is `docs/guides/new-hospital-runbook.md`. "HQ hospital creation" is added to the go-live blockers of the exit report (Step 9).
@@ -47,6 +47,42 @@ Lists: TESTS (code, name, price, optional start date, optional Active), DOCTOR_F
 
 Tried: wrong hospital (another hospital's batch, doctor, same file) -> refused, covered; replay and double post -> saves once, covered; two posts at the same moment -> covered; data changed after preview -> whole post refused, covered; file swapped on disk after approve -> refused, covered; formula, macro, zip bomb, wrong type -> refused, covered; missing permission and no token on every route -> covered; huge file -> **found: the default 5 s transaction would fail a big post; fixed** (120 s) and proven with an 800-row test; far-future price date -> **found: it would lock the item forever; fixed** (366 days). Not covered: a real crash of the server in the middle of a post (the transaction rolls back by the database's own rule; a stale run is marked failed after 10 minutes). Orphan files: a cancelled or failed upload keeps its stored file (follow-up, small). Verdict: safe to approve.
 
-## Part D: doctor availability, timings and leave (NOT built: the cut line)
+## Part D: doctor availability, timings and leave (built after the first 8b report, on the same branch)
 
-Not started, by decision 1. Impact today: no screen sets the availability switch, a weekly timetable or leave; nothing edits `availabilityOn`, so doctors stay as the seed or the owner left them. Design for later: migration named after `20261126092000` giving the application login DELETE only on `doctor_timings` and `doctor_leave` (the only grants, nothing else); API under `/opd/doctors/:id/availability`; a panel on the Settings, Doctors page. Leave days keep the decided rule (they block assignment). No migration was created in 8b.
+**Why and when:** the first 8b report (commit `155696d`) said Part D was cut. After that report Rakshith allowed the time (23 Nov 2026: 8b had finished early), so Part D was built **on the same branch `feature/step-8b-masters-setup`**, on top of `155696d`, and goes into the ONE PR for the whole of 8b (A, B, C, D). No new branch was made.
+
+**Before building I checked the default:** a new doctor profile is written by the staff service (Step 7d) with no availability value, and the column `availability_on` has `DEFAULT true` (migration `20261114100000`, schema `@default(true)`), so a new doctor is available at once and can be picked in a brand-new hospital. Nothing needed fixing. A test now proves it (a profile created exactly as the staff service does shows `availabilityOn true`, and reception can pick the doctor).
+
+**Migration** `20261127090000_doctor_availability_delete_grant` (named after `20261126092000`; applied to `hospigo_test` only):
+
+```sql
+GRANT DELETE ON TABLE doctor_timings, doctor_leave TO hospigo_app;
+```
+
+No other table, no other login. Both tables stay under forced row level security (policies `doctor_timings_app_all` and `doctor_leave_app_all` are FOR ALL with the tenant filter), so a delete can only reach rows of the signed-in hospital. The schema has no "active" column on these tables, so deactivating instead of deleting was not possible; the grant was the safe choice. A test checks the two grants and that doctor_profiles, doctor_fees, charge_item_prices, audit_logs, opd_visits and bills still refuse DELETE for the application login.
+
+**API** (`apps/api/src/modules/doctor-availability/`), all under `/opd/doctors/:id/availability`:
+
+| Route                        | Permission          | What                                                                              |
+| ---------------------------- | ------------------- | --------------------------------------------------------------------------------- |
+| `GET`                        | `opd.doctors.read`  | switch, branches the caller may see, weekly times of those branches, leave, today |
+| `PUT switch`                 | `opd.doctors.write` | on or off (a real boolean)                                                        |
+| `PUT timings/:branchId`      | `opd.doctors.write` | replaces the whole weekly timetable of that doctor in that branch (empty clears)  |
+| `POST leave`                 | `opd.doctors.write` | adds a leave period (first and last day)                                          |
+| `POST leave/:leaveId/remove` | `opd.doctors.write` | removes a leave period                                                            |
+
+No new permission: the existing doctor permissions are used, so no seed change is needed. A hospital-wide Admin (SuperAdmin) reaches every doctor. A Branch Admin reaches only doctors who work in a branch where they hold the permission (a doctor outside is 404) and may change the weekly times of those branches only (another branch is refused with `BRANCH_NOT_ALLOWED`; a branch of another hospital or one the doctor does not work in gets the same answer).
+
+**Rules:** times are `HH:MM`, the end must be after the start, touching slots are fine, overlaps are refused, at most 4 slots per weekday. Leave: both days real dates, end not before start, not ended before today, at most 366 days long, starting at most 731 days ahead, no overlap with another leave of the same doctor, at most 200 periods. Leave blocks assignment on its days only (the last day counts) and the switch blocks it until switched on again; timings only warn (`outsideTimings`), as already decided and implemented in `DoctorAvailabilityService`, which was not changed. Each change takes a row lock on the doctor profile, so two requests at once run one after the other (proven: three equal leave requests save once; three timetable saves leave one whole timetable).
+
+**Audit** (`DOCTOR_AVAILABILITY_CHANGE`, entity `doctor_profiles`): kind and ids, dates, times only (`SWITCH` with the boolean, `TIMINGS` with branch id and slots, `LEAVE_ADD` and `LEAVE_REMOVE` with leave id and dates). No typed text; the reason is a fixed sentence.
+
+**Decision (safest reading, noted):** the switch and leave belong to the doctor, not to a branch. A Branch Admin may therefore switch off or add leave for a doctor who also works in another branch, and that applies in both branches. The alternative (hospital-wide Admin only) would leave a branch without any way to record the leave of its doctor. Only the weekly times are per branch. Revisit if a hospital objects.
+
+**Web:** an **Availability** button on every doctor in Settings, Doctors (also for a reader, who sees but cannot change) opens a panel with the switch, the weekly times per branch (day, from, to, add and remove rows, one Save per branch) and the leave list with an add form (two calendars). Loading line, retry on error, empty states, plain reasons for every refusal, double-click safe. A mistake in times is shown before anything is sent (the API still decides). All text is in the copy file.
+
+**Not in Part D:** public booking slots and appointment lengths (online booking is still deferred), exceptions for one single date, a calendar overview of all doctors.
+
+**Self-review (Part D):** tried: reception and a user with no permission on every route (403), no token (401), another hospital's doctor, leave id and branch id (404 or `BRANCH_NOT_ALLOWED`), a Branch Admin on the doctor of the other branch (404) and on the timetable of the other branch (refused), overlaps, end before start, bad times and weekdays, extra fields, 5 slots on a day, text instead of a boolean, leave in the past, too long, too far, overlapping, a leave of another doctor removed through this address, removing twice, three requests at once. Found and fixed in my own tests only (an audit assertion that read an older row). Not covered: a real crash in the middle of a request (the transaction rolls back). Verdict: safe to approve.
+
+**Observed, not changed (pre-existing):** the application login already had DELETE on `users` before this step (granted earlier, outside Part D). Worth a look in Step 9; the app never deletes users and foreign keys block it.

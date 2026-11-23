@@ -47,3 +47,7 @@ After the starter script, an Admin or SuperAdmin must set:
 4. The **last UHID number** if the hospital already has patients (Settings, Patients, Patient numbers: raise-only, with a reason).
 
 Without a registration price and a doctor fee, the first visit is refused with `409 FEE_NOT_CONFIGURED`.
+
+## 5. Doctor availability (optional)
+
+A new doctor is **available at once** (the switch defaults to on) and has no weekly times and no leave, so reception can pick the doctor straight away. To change this, an Admin opens Settings, Doctors and presses **Availability** on the doctor: the switch (off stops the doctor being picked), the weekly times per branch (they only warn at the desk) and leave days (they stop the doctor being picked on those days).
