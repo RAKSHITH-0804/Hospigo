@@ -99,44 +99,47 @@ export class ImportBatchService {
    * change commit together or not at all (Step 8b: the Excel upload applies its rows here).
    */
   async post(
-    input: { tenantId: string; batchId: string; actorUserId: string },
+    input: { tenantId: string; batchId: string; actorUserId: string; timeoutMs?: number },
     apply?: (tx: TenantTx) => Promise<void>,
   ): Promise<void> {
     const now = this.clock.now();
-    await this.tenantDb.withTenant(async (tx) => {
-      const batch = await this.lockBatch(tx, input.tenantId, input.batchId);
-      if (batch.status !== 'APPROVED') {
-        throw new Error(`Import batch refused: expected status APPROVED, found ${batch.status}`);
-      }
-      const from = batch.status;
-      if (apply) {
-        await apply(tx);
-      }
-      const updated = await tx.importBatch.update({
-        where: { id: input.batchId },
-        data: {
-          status: 'POSTED',
-          postedAt: now,
-          postedRows: batch.validRows,
-        },
-      });
-      await tx.importBatchRow.updateMany({
-        where: {
+    await this.tenantDb.withTenant(
+      async (tx) => {
+        const batch = await this.lockBatch(tx, input.tenantId, input.batchId);
+        if (batch.status !== 'APPROVED') {
+          throw new Error(`Import batch refused: expected status APPROVED, found ${batch.status}`);
+        }
+        const from = batch.status;
+        if (apply) {
+          await apply(tx);
+        }
+        const updated = await tx.importBatch.update({
+          where: { id: input.batchId },
+          data: {
+            status: 'POSTED',
+            postedAt: now,
+            postedRows: batch.validRows,
+          },
+        });
+        await tx.importBatchRow.updateMany({
+          where: {
+            tenantId: input.tenantId,
+            batchId: input.batchId,
+            rowStatus: 'VALID',
+          },
+          data: { rowStatus: 'POSTED' },
+        });
+        await this.audit(tx, {
           tenantId: input.tenantId,
-          batchId: input.batchId,
-          rowStatus: 'VALID',
-        },
-        data: { rowStatus: 'POSTED' },
-      });
-      await this.audit(tx, {
-        tenantId: input.tenantId,
-        actorUserId: input.actorUserId,
-        batchId: updated.id,
-        from,
-        to: 'POSTED',
-        reason: 'post',
-      });
-    });
+          actorUserId: input.actorUserId,
+          batchId: updated.id,
+          from,
+          to: 'POSTED',
+          reason: 'post',
+        });
+      },
+      { timeoutMs: input.timeoutMs },
+    );
   }
 
   /**

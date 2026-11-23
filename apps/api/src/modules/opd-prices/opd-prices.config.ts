@@ -7,6 +7,10 @@ export const OPD_PRICES_CONFIG = {
   /** How many versions the history of one price shows. */
   historyLimit: 50,
   idPattern: /^[A-Za-z0-9_-]{1,64}$/,
+  /** A price may be scheduled at most this many days ahead (a far date would block every later change). */
+  maxDaysAhead: 366,
+  /** The earliest date a first price may carry. */
+  earliestDate: '2000-01-01',
 } as const;
 
 export const PRICE_KINDS = ['REGISTRATION', 'INVESTIGATION', 'DOCTOR_FEE'] as const;

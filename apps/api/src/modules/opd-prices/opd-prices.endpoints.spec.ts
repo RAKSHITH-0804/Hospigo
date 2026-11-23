@@ -613,6 +613,10 @@ describe('OPD prices: list, history and change (HTTP, hospigo_test)', () => {
     await change({ amountPaise: 200, effectiveFrom: addDays(today(), -1) })
       .expect(400)
       .expect((res) => expect(res.body.reason).toBe('DATE_IN_PAST'));
+    // a date far ahead is refused (it would block every later change)
+    await change({ amountPaise: 250, effectiveFrom: addDays(today(), 400) })
+      .expect(400)
+      .expect((res) => expect(res.body.reason).toBe('DATE_TOO_FAR'));
     // a future date schedules a price: the current price stays until that day
     const future = addDays(today(), 10);
     await change({ amountPaise: 300, effectiveFrom: future }).expect(200);

@@ -239,12 +239,15 @@ export class ImportsService {
     try {
       const sheet = await readSheet(buffer, type);
       const now = this.clock.now();
-      const prepared = await this.tenantDb.withTenant(async (tx) => {
-        const ctx = await loadContext(tx, actor.tenantId, type, sheet, now);
-        const rows = prepareRows(type, sheet, ctx);
-        await this.storeRows(tx, actor.tenantId, batchId, rows);
-        return rows;
-      });
+      const prepared = await this.tenantDb.withTenant(
+        async (tx) => {
+          const ctx = await loadContext(tx, actor.tenantId, type, sheet, now);
+          const rows = prepareRows(type, sheet, ctx);
+          await this.storeRows(tx, actor.tenantId, batchId, rows);
+          return rows;
+        },
+        { timeoutMs: IMPORT_LIMITS.transactionMs },
+      );
       const exceptions = prepared.filter((r) => r.issue !== null).length;
       await this.engine.markPreviewed({
         tenantId: actor.tenantId,
@@ -554,7 +557,12 @@ export class ImportsService {
       const sheet = await readSheet(buffer, type);
       const now = this.clock.now();
       await this.engine.post(
-        { tenantId: actor.tenantId, batchId: id, actorUserId: actor.userId },
+        {
+          tenantId: actor.tenantId,
+          batchId: id,
+          actorUserId: actor.userId,
+          timeoutMs: IMPORT_LIMITS.transactionMs,
+        },
         async (tx) => {
           const ctx = await loadContext(tx, actor.tenantId, type, sheet, now);
           const prepared = prepareRows(type, sheet, ctx);

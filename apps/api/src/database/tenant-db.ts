@@ -14,7 +14,14 @@ export type TenantTx = Prisma.TransactionClient;
 export class TenantDb {
   constructor(private readonly prisma: PrismaService) {}
 
-  async withTenant<T>(fn: (tx: TenantTx) => Promise<T>): Promise<T> {
+  /**
+   * Runs `fn` in one transaction of the request's hospital. `options.timeoutMs` lifts the usual
+   * short limit for the few jobs that really take long (an Excel upload saves thousands of rows).
+   */
+  async withTenant<T>(
+    fn: (tx: TenantTx) => Promise<T>,
+    options?: { timeoutMs?: number },
+  ): Promise<T> {
     const ctx = requireContext();
     if (ctx.kind === 'HQ' || ctx.kind === 'PATIENT') {
       throw new Error(`TenantDb refused: ${ctx.kind} context cannot open a tenant transaction`);
@@ -23,9 +30,12 @@ export class TenantDb {
       throw new Error('TenantDb refused: no tenant in request context');
     }
     const tenantId = ctx.tenantId;
-    return this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
-      return fn(tx);
-    });
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
+        return fn(tx);
+      },
+      options?.timeoutMs ? { timeout: options.timeoutMs, maxWait: 10_000 } : undefined,
+    );
   }
 }

@@ -38,6 +38,8 @@ export const IMPORT_LIMITS = {
   rowsDefaultPageSize: 50,
   /** A batch stuck in a background run for longer than this may be run again. */
   staleRunMs: 10 * 60 * 1000,
+  /** The longest a read or a save of a whole file may take (the usual limit is a few seconds). */
+  transactionMs: 120_000,
   idPattern: /^[A-Za-z0-9_-]{1,64}$/,
 } as const;
 

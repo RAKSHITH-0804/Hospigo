@@ -1953,6 +1953,7 @@ export const staffCopy = {
       reasons: {
         DATE_INVALID: 'That is not a real date.',
         DATE_IN_PAST: 'A price cannot start before today.',
+        DATE_TOO_FAR: 'A price can be scheduled at most a year ahead.',
         DATE_BEFORE_LATEST:
           'A price that starts later is already scheduled. Choose a date after it.',
         VERSION_EXISTS: 'A price already starts on that date. Choose another date.',
@@ -2030,6 +2031,7 @@ export const staffCopy = {
       PRICE_INVALID: 'The price must be in rupees, for example 300 or 300.50.',
       DATE_INVALID: 'That is not a real date. Use a date such as 2026-12-01.',
       DATE_IN_PAST: 'A price cannot start before today.',
+      DATE_TOO_FAR: 'A price can be scheduled at most a year ahead.',
       DATE_BEFORE_LATEST: 'A price that starts later is already scheduled.',
       VERSION_EXISTS: 'A price already starts at that moment.',
       CODE_USED_BY_OTHER_ITEM:

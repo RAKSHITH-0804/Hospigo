@@ -1,4 +1,10 @@
 import { isRealDate, localDate, startOfLocalDay } from './local-date';
+import { OPD_PRICES_CONFIG as C } from './opd-prices.config';
+
+function addDays(date: string, days: number): string {
+  const [y, m, d] = date.split('-').map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
 
 /** What a requested price change would do (one rule for the Prices screen and the Excel upload). */
 export type PricePlan =
@@ -22,6 +28,14 @@ export function planPriceChange(args: {
   const today = localDate(args.now, args.timeZone);
   const date = args.requested ?? today;
   if (!isRealDate(date)) {
+    return { kind: 'invalid', field: 'effectiveFrom', reason: 'DATE_INVALID' };
+  }
+  // A price scheduled far ahead would become the latest version and block every later change
+  // (versions are never deleted and a new one may not start before the latest).
+  if (date > addDays(today, C.maxDaysAhead)) {
+    return { kind: 'invalid', field: 'effectiveFrom', reason: 'DATE_TOO_FAR' };
+  }
+  if (date < C.earliestDate) {
     return { kind: 'invalid', field: 'effectiveFrom', reason: 'DATE_INVALID' };
   }
   if (date < today && args.latest !== null) {

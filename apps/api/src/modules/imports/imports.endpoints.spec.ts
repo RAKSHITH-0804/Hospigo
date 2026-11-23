@@ -653,6 +653,30 @@ describe('Excel upload of the masters (HTTP, hospigo_test)', () => {
     ).toBeGreaterThanOrEqual(2);
   });
 
+  it('a big list (800 new tests) previews and posts well inside the transaction limit, all or nothing', async () => {
+    const tag = uniq('BIG');
+    const rows = Array.from({ length: 800 }, (_, i) => [
+      `${tag}${i}`,
+      `Big test ${i}`,
+      100 + i,
+      '',
+      '',
+    ]);
+    const batch = await uploaded(A.tokens.admin, 'TESTS', await testsFile(rows));
+    expect(batch).toMatchObject({ status: 'PREVIEWED', validRows: 800, exceptionRows: 0 });
+    later();
+    const done = await approveAndPost(A.tokens.admin, batch.id);
+    expect(done.status).toBe('POSTED');
+    expect(
+      await owner.chargeItem.count({ where: { tenantId: A.tenant, code: { startsWith: tag } } }),
+    ).toBe(800);
+    expect(
+      await owner.chargeItemPrice.count({
+        where: { tenantId: A.tenant, chargeItem: { code: { startsWith: tag } } },
+      }),
+    ).toBe(800);
+  }, 120_000);
+
   it('tests: bad prices, dates, kinds and codes become exceptions in plain, stable codes', async () => {
     const dated = uniq('T');
     await owner.chargeItem
