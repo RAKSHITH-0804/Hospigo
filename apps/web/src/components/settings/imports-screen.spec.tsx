@@ -320,4 +320,78 @@ describe('ImportsScreen', () => {
     expect(within(table).getByText(copy.states.cancelled)).toBeTruthy();
     expect(within(table).getByText('old.xlsx')).toBeTruthy();
   });
+
+  it('shows every column of the file for each row (Code, Name, Price, Active ...)', async () => {
+    rowsMock.mockResolvedValue(
+      page([
+        problemRow({
+          rowNumber: 2,
+          matchKey: 'CBC',
+          status: 'VALID',
+          action: 'CREATE',
+          values: {
+            code: 'CBC',
+            name: 'Complete blood count',
+            price: 350,
+            startDate: '',
+            active: 'Yes',
+          },
+          reason: null,
+          field: null,
+        }),
+      ]),
+    );
+    render(
+      <ImportsScreen
+        initial={list([batch({ type: 'TESTS', exceptionRows: 0, validRows: 1, totalRows: 1 })])}
+        initialErrorCode={null}
+        allowPrices
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: `medicines.xlsx: ${copy.open}` }));
+    const table = await screen.findByRole('table', { name: copy.okTitle });
+    for (const header of ['Code', 'Name', 'Price', 'Start date', 'Active']) {
+      expect(within(table).getByText(header)).toBeTruthy();
+    }
+    expect(within(table).getByText('Complete blood count')).toBeTruthy();
+    expect(within(table).getByText('350')).toBeTruthy();
+    expect(within(table).getByText('Yes')).toBeTruthy();
+    expect(within(table).getByText('—')).toBeTruthy(); // the empty start date
+  });
+
+  it('Open on a saved upload shows the rows that were saved and brings the block into view', async () => {
+    const scroll = jest.fn();
+    Element.prototype.scrollIntoView = scroll;
+    rowsMock.mockResolvedValue(
+      page([
+        problemRow({
+          rowNumber: 2,
+          matchKey: 'PCM500',
+          status: 'POSTED',
+          action: 'CREATE',
+          values: {
+            code: 'PCM500',
+            name: 'Paracetamol',
+            composition: 'Paracetamol',
+            form: 'Tablet',
+            active: 'Yes',
+          },
+          reason: null,
+          field: null,
+        }),
+      ]),
+    );
+    render(
+      <ImportsScreen
+        initial={list([batch({ status: 'POSTED', postedRows: 1, exceptionRows: 0, totalRows: 1 })])}
+        initialErrorCode={null}
+        allowPrices
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: `medicines.xlsx: ${copy.open}` }));
+    const table = await screen.findByRole('table', { name: copy.savedTitle });
+    expect(within(table).getByText('PCM500')).toBeTruthy();
+    expect(rowsMock).toHaveBeenLastCalledWith('b1', 'POSTED', 1, expect.any(Number));
+    expect(scroll).toHaveBeenCalled();
+  });
 });

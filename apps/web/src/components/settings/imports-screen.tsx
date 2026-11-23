@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { SelectField } from '@/components/ui/field';
 import { Pagination } from '@/components/ui/pagination';
-import { importScreenConfig } from '@/config/imports';
+import { importScreenConfig, importValueColumns } from '@/config/imports';
 import { staffCopy } from '@/config/staff-copy';
 import {
   getImport,
@@ -36,7 +36,7 @@ const paging = staffCopy.pagination;
 
 type StateKey = keyof typeof copy.states;
 type Flash = { kind: 'ok' | 'error'; text: string } | null;
-type RowView = 'EXCEPTION' | 'VALID';
+type RowView = 'EXCEPTION' | 'VALID' | 'POSTED';
 
 /** The one sentence that says where a batch is (the API keeps the status; this only words it). */
 export function stateOf(batch: ImportBatch): { key: StateKey; variant: BadgeVariant } {
@@ -96,6 +96,8 @@ export function ImportsScreen({
   const [working, setWorking] = useState<ImportAction | null>(null);
   const busy = useRef(false);
   const firstHistory = useRef(true);
+  const batchRef = useRef<HTMLElement>(null);
+  const scrollToBatch = useRef(false);
 
   const refreshHistory = useCallback(async (page: number) => {
     const result = await listImports(page, importScreenConfig.historyPageSize);
@@ -139,6 +141,9 @@ export function ImportsScreen({
   const status = current?.status ?? null;
   const settled = current !== null && !running;
   const exceptionRows = current?.exceptionRows ?? 0;
+  // A saved batch shows the rows that were saved; a batch not yet saved shows the rows that can be saved.
+  const primaryView: RowView = status === 'POSTED' ? 'POSTED' : 'VALID';
+  const view: RowView = rowView === 'EXCEPTION' ? 'EXCEPTION' : primaryView;
   useEffect(() => {
     if (
       !currentId ||
@@ -149,7 +154,7 @@ export function ImportsScreen({
       return;
     }
     let live = true;
-    void importRows(currentId, rowView, rowPage, importScreenConfig.rowsPageSize).then((result) => {
+    void importRows(currentId, view, rowPage, importScreenConfig.rowsPageSize).then((result) => {
       if (live && result.ok) {
         setRows(result.data);
       }
@@ -157,9 +162,18 @@ export function ImportsScreen({
     return () => {
       live = false;
     };
-  }, [currentId, settled, status, rowView, rowPage, exceptionRows]);
+  }, [currentId, settled, status, view, rowPage, exceptionRows]);
 
-  function open(batch: ImportBatch) {
+  // Pressing Open on an earlier upload brings the opened batch into view (it sits above the list).
+  useEffect(() => {
+    if (scrollToBatch.current && currentId) {
+      scrollToBatch.current = false;
+      batchRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+    }
+  }, [currentId]);
+
+  function open(batch: ImportBatch, fromHistory = false) {
+    scrollToBatch.current = fromHistory;
     setCurrent(batch);
     setRowView(batch.exceptionRows > 0 ? 'EXCEPTION' : 'VALID');
     setRowPage(1);
@@ -228,10 +242,19 @@ export function ImportsScreen({
   const problem = current ? batchProblemText(current.errorMessage) : null;
   const finished = current !== null && (current.status === 'POSTED' || current.status === 'FAILED');
 
-  const rowColumns: DataTableColumn<RowTable>[] = [
-    { id: 'row', header: copy.rowColumns.row, nowrap: true, cell: (r) => r.rowNumber },
-    { id: 'value', header: copy.rowColumns.value, cell: (r) => r.matchKey },
-    rowView === 'EXCEPTION'
+  // Every column of the file, so the person sees what was read (Code, Name, Price, Active ...).
+  const valueColumns: DataTableColumn<RowTable>[] = (
+    current ? (importValueColumns[current.type as ImportType] ?? []) : []
+  ).map((key) => ({
+    id: key,
+    header: copy.columnNames[key] ?? key,
+    cell: (r: RowTable) => {
+      const value = r.values[key];
+      return value === null || value === undefined || value === '' ? '—' : String(value);
+    },
+  }));
+  const lastColumn: DataTableColumn<RowTable> | null =
+    view === 'EXCEPTION'
       ? {
           id: 'problem',
           header: copy.rowColumns.problem,
@@ -240,11 +263,19 @@ export function ImportsScreen({
               .replace('{reason}', copy.rowReasons[r.reason ?? ''] ?? copy.fileFallback)
               .replace('{column}', copy.columnNames[r.field ?? ''] ?? r.field ?? ''),
         }
-      : {
-          id: 'action',
-          header: copy.rowColumns.action,
-          cell: (r) => copy.actions[r.action ?? 'NONE'] ?? '',
-        },
+      : view === 'POSTED'
+        ? null
+        : {
+            id: 'action',
+            header: copy.rowColumns.action,
+            cell: (r) => copy.actions[r.action ?? 'NONE'] ?? '',
+          };
+  const rowColumns: DataTableColumn<RowTable>[] = [
+    { id: 'row', header: copy.rowColumns.row, nowrap: true, cell: (r) => r.rowNumber },
+    ...(valueColumns.length > 0
+      ? valueColumns
+      : [{ id: 'value', header: copy.rowColumns.value, cell: (r: RowTable) => r.matchKey }]),
+    ...(lastColumn ? [lastColumn] : []),
   ];
 
   const historyColumns: DataTableColumn<ImportBatch>[] = [
@@ -286,7 +317,7 @@ export function ImportsScreen({
           size="sm"
           variant="outline"
           aria-label={`${b.fileName}: ${copy.open}`}
-          onClick={() => open(b)}
+          onClick={() => open(b, true)}
         >
           {copy.open}
         </Button>
@@ -300,7 +331,7 @@ export function ImportsScreen({
   return (
     <SettingBlock title={copy.title} description={copy.description}>
       <div className="surface-card section-stack">
-        <div className="cluster">
+        <div className="cluster-end">
           <SelectField
             label={copy.typeLabel}
             value={type}
@@ -320,7 +351,7 @@ export function ImportsScreen({
           </a>
         </div>
         <p className="type-small text-muted-foreground">{copy.typeHints[type]}</p>
-        <div className="cluster">
+        <div className="cluster-end">
           <label className="field-label">
             {copy.fileLabel}
             <input
@@ -345,6 +376,7 @@ export function ImportsScreen({
 
       {current && state ? (
         <section
+          ref={batchRef}
           className="surface-card section-stack"
           aria-label={copy.batchTitle.replace('{name}', current.fileName)}
         >
@@ -417,29 +449,44 @@ export function ImportsScreen({
             <div className="section-stack">
               <div className="cluster">
                 <h4 className="type-label-strong">
-                  {rowView === 'EXCEPTION' ? copy.problemsTitle : copy.okTitle}
+                  {view === 'EXCEPTION'
+                    ? copy.problemsTitle
+                    : view === 'POSTED'
+                      ? copy.savedTitle
+                      : copy.okTitle}
                 </h4>
-                {current.exceptionRows > 0 && current.validRows > 0 ? (
+                {current.exceptionRows > 0 &&
+                (current.status === 'POSTED' ? current.postedRows : current.validRows) > 0 ? (
                   <Button
                     type="button"
                     size="sm"
                     variant="ghost"
                     onClick={() => {
-                      setRowView(rowView === 'EXCEPTION' ? 'VALID' : 'EXCEPTION');
+                      setRowView(view === 'EXCEPTION' ? primaryView : 'EXCEPTION');
                       setRowPage(1);
                     }}
                   >
-                    {rowView === 'EXCEPTION' ? copy.okTitle : copy.problemsTitle}
+                    {view === 'EXCEPTION'
+                      ? current.status === 'POSTED'
+                        ? copy.savedTitle
+                        : copy.okTitle
+                      : copy.problemsTitle}
                   </Button>
                 ) : null}
               </div>
               {rows.items.length === 0 ? (
                 <p className="type-label text-muted-foreground">
-                  {rowView === 'EXCEPTION' ? copy.noProblems : copy.noRows}
+                  {view === 'EXCEPTION' ? copy.noProblems : copy.noRows}
                 </p>
               ) : (
                 <DataTable<RowTable>
-                  ariaLabel={rowView === 'EXCEPTION' ? copy.problemsTitle : copy.okTitle}
+                  ariaLabel={
+                    view === 'EXCEPTION'
+                      ? copy.problemsTitle
+                      : view === 'POSTED'
+                        ? copy.savedTitle
+                        : copy.okTitle
+                  }
                   columns={rowColumns}
                   rows={rows.items.map((r) => ({ ...r, id: String(r.rowNumber) }))}
                   stackOnPhone

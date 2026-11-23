@@ -1,6 +1,6 @@
 # Engineering tracker (Phase 1 + Phase 2)
 
-Status: Phase 2 steps 1 to 7f are merged (7f is PR #57, merge commit `4919548` on `develop`). Step 8a is merged (PR #58). **Step 8b (masters setup, parts A, B, C and D) is built on `feature/step-8b-masters-setup`, not pushed.** API 930 tests, web 1658 tests. Next: the 8b PR, then 9, then 8c. Start from `docs/handoff-phase2.md`, section CURRENT STATE. Evidence is repo-local unless noted.
+Status: Phase 2 steps 1 to 7f are merged (7f is PR #57, merge commit `4919548` on `develop`). Step 8a is merged (PR #58). **Step 8b (masters setup, parts A, B, C and D) is built on `feature/step-8b-masters-setup`, not pushed.** API 930 tests, web 1660 tests. Next: the 8b PR, then 9, then 8c. Start from `docs/handoff-phase2.md`, section CURRENT STATE. Evidence is repo-local unless noted.
 
 Planned order: 3d, 4a (migration part, then API part), 4b, 5a, 5b, 6a, 6b, 7, 7b, 7c, 7d (staff and roles), 7e (image and logo upload), 7f (audit fixes), 8a, 8b, 8c (setup and masters), 9 (see `docs/plans/plan-opd-first-flow.md`). Target for the first working OPD flow: Fri 27 Nov 2026 (quality first; tests and review gates are never shortened).
 

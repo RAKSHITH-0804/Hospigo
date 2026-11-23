@@ -11,3 +11,10 @@ export const importScreenConfig = {
   /** Batches shown per page in the history. */
   historyPageSize: 10,
 } as const;
+
+/** The columns of each list, in the order of the Excel file, as the preview shows them (keys of the stored row values). */
+export const importValueColumns = {
+  TESTS: ['code', 'name', 'price', 'startDate', 'active'],
+  DOCTOR_FEES: ['doctorCode', 'visitType', 'amount', 'startDate'],
+  MEDICINES: ['code', 'name', 'composition', 'form', 'active'],
+} as const;

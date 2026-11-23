@@ -295,7 +295,7 @@ describe('StaffAdmin: add staff', () => {
     expect(screen.queryByRole('button', { name: form.addSubmit })).toBeNull(); // the form closes
   });
 
-  it('a hospital-wide Admin can tick All branches for a role; it is sent as the HOSPITAL scope', async () => {
+  it('a hospital-wide Admin can choose every branch for a role; it is sent as the HOSPITAL scope', async () => {
     createMock.mockResolvedValue({
       ok: true,
       data: { staff: member({ id: 'u9', name: 'Wide' }), activationSent: true },
@@ -305,17 +305,20 @@ describe('StaffAdmin: add staff', () => {
     fill();
     fireEvent.click(screen.getByLabelText('Main Branch'));
     fireEvent.click(screen.getByLabelText('Nurse'));
-    fireEvent.click(screen.getByLabelText(form.wholeHospital));
+    fireEvent.change(screen.getByLabelText(form.scopeFor.replace('{role}', 'Nurse')), {
+      target: { value: 'ALL' },
+    });
     fireEvent.click(screen.getByRole('button', { name: form.addSubmit }));
     await waitFor(() => expect(createMock).toHaveBeenCalled());
     expect(createMock.mock.calls[0]![0].roles).toEqual([{ roleId: 'r-nurse', scope: 'HOSPITAL' }]);
   });
 
-  it('a Branch Admin is not offered All branches', () => {
+  it('a Branch Admin is not offered the every-branch choice', () => {
     renderAdmin(undefined, options({ canHospitalScope: false }));
     open();
     fireEvent.click(screen.getByLabelText('Nurse'));
-    expect(screen.queryByLabelText(form.wholeHospital)).toBeNull();
+    expect(screen.queryByLabelText(form.scopeFor.replace('{role}', 'Nurse'))).toBeNull();
+    expect(screen.queryByText(form.scopeTitle)).toBeNull();
   });
 
   it('says so when the person was added but the email could not be sent', async () => {
