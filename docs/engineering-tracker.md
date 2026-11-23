@@ -1,6 +1,6 @@
 # Engineering tracker (Phase 1 + Phase 2)
 
-Status: Phase 2 steps 1 to 7e are merged (Steps 7 to 7e together in PR #54, merge commit `0762601` on `develop`). **Step 7f (audit fixes) is built on branch `feature/step-7f-audit-fixes`, not pushed.** API 849 tests, web 1580 tests. Next: PR for 7f, then 8a (NestJS 12 upgrade), 8b, 8c, 9. Start from `docs/handoff-phase2.md`, section CURRENT STATE. Evidence is repo-local unless noted.
+Status: Phase 2 steps 1 to 7e are merged (Steps 7 to 7e together in PR #54, merge commit `0762601` on `develop`). **Step 7f (audit fixes) is built on branch `feature/step-7f-audit-fixes`, not pushed.** API 857 tests, web 1580 tests. Next: PR for 7f, then 8a (NestJS 12 upgrade), 8b, 8c, 9. Start from `docs/handoff-phase2.md`, section CURRENT STATE. Evidence is repo-local unless noted.
 
 Planned order: 3d, 4a (migration part, then API part), 4b, 5a, 5b, 6a, 6b, 7, 7b, 7c, 7d (staff and roles), 7e (image and logo upload), 7f (audit fixes), 8a, 8b, 8c (setup and masters), 9 (see `docs/plans/plan-opd-first-flow.md`). Target for the first working OPD flow: Fri 27 Nov 2026 (quality first; tests and review gates are never shortened).
 

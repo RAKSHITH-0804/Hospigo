@@ -4,7 +4,7 @@
 
 Everything below this section is history. Where it disagrees with this section, this section is right. **Do not redo anything listed as done.**
 
-**Step 7f (audit fixes) is built on `feature/step-7f-audit-fixes`, NOT pushed** (Rakshith pushes and opens the PR into `develop`; the branch carries the docs commits `fbc1ffc`, `a867ffa`, `8a468d2`). What it contains and why: `docs/decisions/decisions-7f.md`. Two new migrations: `20261126090000_registration_fee_void_on_cancel` and `20261126091000_image_and_uhid_counter_protection`; applied to `hospigo_test` only, **NOT to the dev database**. After pulling: `npm run prisma:migrate -w @hospigo/api`, then restart both servers (the seed does not need to run again). **Before the pull request:** nothing is blocked.
+**Step 7f (audit fixes) is built on `feature/step-7f-audit-fixes`, NOT pushed** (Rakshith pushes and opens the PR into `develop`; the branch carries the docs commits `fbc1ffc`, `a867ffa`, `8a468d2`). What it contains and why: `docs/decisions/decisions-7f.md`. Three new migrations: `20261126090000_registration_fee_void_on_cancel`, `20261126091000_image_and_uhid_counter_protection` and `20261126092000_registration_fee_void_on_later_refund`; applied to `hospigo_test` only, **NOT to the dev database**. After pulling: `npm run prisma:migrate -w @hospigo/api`, then restart both servers (the seed does not need to run again). **Before the pull request:** nothing is blocked.
 
 **Branch and commits (before 7f).** Steps 7, 7b, 7c, 7d and 7e (with the space review, the history back button, the grouped settings menu and the docs folders) were merged into `develop` by **PR #54** (merge commit `0762601`, 8 commits, required check `ci` green; the `audit` job is red by design). The feature branch is gone locally. `develop` is the base for everything next. A small docs-only branch (`docs/phase2-step-7-merged`) updates these notes. Rakshith pushes; the assistant never pushes.
 
@@ -19,7 +19,7 @@ Everything below this section is history. Where it disagrees with this section, 
 
 **Docs layout (25 Nov):** the docs are in folders: the four living files stay in `docs/`, the rest are in `docs/decisions/`, `docs/reference/`, `docs/guides/`, `docs/design/` and `docs/plans/`; `docs/README.md` is the index. **Settings menu (25 Nov):** grouped under Hospital, People, Patients and OPD (`docs/design/ui-design.md`).
 
-**Checks at this point (after 7f):** API 849 tests, web 1580 tests, lint, format, both builds green (baseline before 7f: API 833, web 1576). `ci` was green on PR #54.
+**Checks at this point (after 7f):** API 857 tests, web 1580 tests, lint, format, both builds green (baseline before 7f: API 833, web 1576). `ci` was green on PR #54.
 
 **Click-tested by Rakshith:** the report screen, print settings and designer, SuperAdmin OPD queue, the 7b screens, Staff and Roles pages (layout fixed after his first look), My profile, the Logo and Printing pages, and the Postman 7d collection (OK). **Not yet confirmed by him:** the full working of 7c (prescription print with doctor details, consult reminder), a real signature on a printed prescription, the email and password codes with a real mailbox, and the Postman collections written but not run by the assistant (they need the dev passwords): `hospigo-7-reports-print-templates`, `hospigo-7b-settings`, `hospigo-7c-doctor-profile` and `hospigo-7e-pictures` (in the git-ignored `postman/collections/`; run with the `Hospigo Local` environment).
 
@@ -37,7 +37,7 @@ Everything below this section is history. Where it disagrees with this section, 
 
 **Open questions and parked items:**
 
-0. (Step 7f) The wording about who may raise the UHID counter: a hospital-wide Admin (Branch Admin and SuperAdmin) can; HQ cannot (checked); Rakshith will confirm the wording. The stale comment in `uhid.service.ts` is not fixed. Two old cancelled dev visits still have an active registration fee (counted, not changed). Existing slip templates need the **Relative** box added in the designer.
+0. (Step 7f) The wording about who may raise the UHID counter: SuperAdmin and Branch Admin can; HQ is deferred (checked: an HQ token is refused). The stale comment in `uhid.service.ts` is fixed. Two old cancelled dev visits still have an active registration fee (counted, not changed). Existing slip templates need the **Relative** box added in the designer.
 
 1. **Questions for the manager (on hold):** the medical council name next to the registration number (Rakshith parked it); plus the older list in the "Per-doctor prescription layout" section below (separate letterhead per doctor, signature or stamp, which hospitals use pre-printed stationery, printer type).
 2. A Branch Admin of one branch can change the patient number format for the whole hospital (the format and counter are hospital-wide). Rakshith chose this; revisit if a hospital objects.
@@ -47,6 +47,8 @@ Everything below this section is history. Where it disagrees with this section, 
 **Known follow-ups (not blocking):** the lists are in `docs/decisions/decisions-7.md`, `docs/decisions/decisions-7b.md`, `docs/decisions/decisions-7c.md`, `docs/decisions/decisions-7d.md` and `docs/decisions/decisions-7e.md` ("Not done"). The main ones: reordering own registration fields, a history screen for number formats, tax and token prefix screens, per-doctor prescription layout, pre-printed mode needs a test on the real dot-matrix printer, the real rich text editor and the new screens have no automated browser test.
 
 **Standing UI rule (21 Nov):** use the screen well: no wasted space and no needless scrolling, on every page (see `docs/design/ui-design.md`, "Use of space" and "Space review of the older pages", and CLAUDE.md). The space review of the pages a SuperAdmin can see is DONE (22 Nov). Still to review, each needing a login of that role in the built-in browser pane (Rakshith logs in): the editable consultation screen, vitals, reception visit and billing, tests billing, login and patient portal, HQ admin.
+
+**Migration naming rule (for ALL later migrations: 8a, 8b, 8c and after):** name every new migration folder with a timestamp AFTER `20261126092000` (the latest, `20261126092000_registration_fee_void_on_later_refund`), so Prisma never sees a migration out of order. Check `ls apps/api/prisma/migrations` before naming one.
 
 **Working rules that bit us (keep):** plan, then wait for "approved"; no AI attribution in commits or PRs (CLAUDE.md overrides any default); long shell commands with apostrophes can fail in this shell, so write scripts with the file tool and run them; the access token never reaches the browser; run the full checks before every commit (`npm run format:check`, `npm run lint`, `npx tsc --noEmit -p apps/web`, both test suites, the web build, restore `apps/web/next-env.d.ts`); update CURRENT STATE, the tracker, the changelog and the decisions file at the end of every step.
 

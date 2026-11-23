@@ -26,6 +26,13 @@ Branch: `feature/step-7f-audit-fixes` (built on the docs branch `docs/phase2-ste
 - **No backfill.** Dev data on 23 Nov 2026 (read-only count on the dev database): 2 cancelled visits, both with a still-active registration fee. They are NOT changed; the owner can void them by hand if wanted.
 - **Self-review (adversarial pass), what the tests cover:** a replayed cancel (refused, fee unchanged); two cancels at the same moment (exactly one wins, the fee is voided once, refunds are not doubled); a cancel asked from another branch (refused, fee stays); hospital B cannot cancel or void anything of hospital A, and the trigger itself refuses a trusted login that carries another tenant; the application login cannot UPDATE the table; the owner cannot change another column, un-void or re-void; cancelling a visit that did not carry the fee leaves the patient's fee alone; a partial or zero refund keeps the fee and a second active fee is still impossible. Not covered: a refund spread over several requests on one bill (`refunded_paise` adds them up, so the rule still holds, but there is no dedicated test).
 
+## Item 3, follow-up: refunds made AFTER the cancel
+
+- **Question:** can a refund still be made on the bill of an already-cancelled visit? **Yes.** The consultation never started, the API and the database only refuse a refund once `consultation_started_at` is set, and a partial refund at cancel time leaves money on the bill. Several refund requests can also add up over time.
+- **So the cancel-time trigger was not enough:** a fee kept after a partial refund must be voided when later refunds bring the bill to the total. Migration `20261126092000_registration_fee_void_on_later_refund` adds a deferred constraint trigger on `refunds` (after insert): when the bill's `refunded_paise >= total_paise` AND the visit is CANCELLED, the registration fee of that bill is voided (time = the refund time). A full refund on a visit that is not cancelled keeps the fee; cancelling it afterwards voids it (the cancel-time trigger).
+- **Safety:** `SECURITY DEFINER` with `opd_assert_tenant`, no new right for the application login, only an active fee is touched (so repeated firing is harmless), and the update guard of `patient_registration_fees` still allows nothing but voiding once.
+- **Tests (`registration-fee-void.spec.ts`):** a later refund is possible; cancel partially then refund the rest voids the fee and the next visit is charged again; several refunds adding up (one paisa short does not void, the last one does); an over-refund is refused and the fee stays; a replay (same request key, a refund after the total) changes nothing; a full refund on a visit that is not cancelled keeps the fee until it is cancelled; two refunds at the same moment never exceed the bill; hospital B cannot insert a refund on hospital A.
+
 ## Item 4
 
 `stored_images` and `uhid_counters` were protected from deletion only by a missing DELETE grant. The owner role (BYPASSRLS) could delete. Now BEFORE DELETE (row) and BEFORE TRUNCATE (statement) triggers refuse for every login, reusing `refuse_opd_price_mutation` and `refuse_opd_price_truncate`. The 3a "raise-only" trigger and the 7e `is_current` guard are unchanged. A hospital can therefore no longer be deleted through the cascade while it has pictures or a UHID counter (there is no such feature; a migration or owner script that needs it must disable the trigger on purpose).
@@ -84,7 +91,7 @@ Setup and masters that only the dev seed writes today:
 
 ## Not done (follow-ups noticed, not fixed)
 
-- The stale comment in `uhid.service.ts` ("SuperAdmin only, pending Step 6").
+- (Fixed in the 7f follow-up: the stale comment in `uhid.service.ts`.)
 - Existing hospitals' saved slip templates have no "Relative" box until an Admin adds it.
 - The two cancelled dev visits with an active registration fee (counted, not changed).
 - A DB test for a refund spread over several requests on one bill (the rule holds by `refunded_paise`, no dedicated test).

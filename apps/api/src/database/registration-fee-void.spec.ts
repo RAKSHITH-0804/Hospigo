@@ -390,4 +390,131 @@ describe('Registration fee voided by a refunded cancellation (database rules, ho
       /tenant mismatch/i,
     );
   });
+
+  // ------------------------------------------------- later refunds on an already-cancelled visit
+
+  /** A plain REFUND request, approved by another user, and its refund row, in one transaction. */
+  async function laterRefund(
+    f: Fixture,
+    v: Visit,
+    amount: number,
+    key: string = unique('RQ'),
+  ): Promise<void> {
+    await inTenant(f.tenant, async (c) => {
+      const id = randomUUID();
+      await c.query(
+        `INSERT INTO refund_requests (id, tenant_id, branch_id, bill_id, visit_id, request_type,
+                amount_paise, reason, requested_by, idempotency_key)
+         VALUES ($1, $2, $3, $4, $5, 'REFUND', $6, 'later', $7, $8)`,
+        [id, f.tenant, f.main, v.bill, v.visit, amount, f.user, key],
+      );
+      await c.query(
+        `UPDATE refund_requests SET status='APPROVED', decided_by=$2, decided_at=now(), refund_number=$3
+          WHERE id=$1`,
+        [id, f.approver, unique('RF')],
+      );
+      await c.query(
+        `INSERT INTO refunds (id, tenant_id, branch_id, bill_id, request_id, payment_id,
+                              payment_mode_id, amount_paise, refunded_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [randomUUID(), f.tenant, f.main, v.bill, id, v.payment, f.cash, amount, f.approver],
+      );
+    });
+  }
+
+  it('a refund CAN still be made on the bill of an already-cancelled visit (so the fee must follow it)', async () => {
+    const v = await paidVisit(A);
+    await cancel(A, v, FEE); // partial: the registration part is still on the bill
+    expect((await feeRow(v.fee)).voidedAt).toBeNull();
+    await laterRefund(A, v, 1_000);
+    const bill = await owner.bill.findUniqueOrThrow({ where: { id: v.bill } });
+    expect(bill.refundedPaise).toBe(FEE + 1_000);
+    expect((await feeRow(v.fee)).voidedAt).toBeNull(); // not yet the whole bill
+  });
+
+  it('cancel partially, then refund the rest: the fee is voided and the next visit is charged again', async () => {
+    const v = await paidVisit(A);
+    await cancel(A, v, FEE);
+    await laterRefund(A, v, REG);
+    const row = await feeRow(v.fee);
+    expect(row.voidedAt).not.toBeNull();
+    const again = await paidVisit(A, { patient: v.patient });
+    const active = await owner.patientRegistrationFee.findMany({
+      where: { tenantId: A.tenant, patientId: v.patient, voidedAt: null },
+    });
+    expect(active.map((r) => r.id)).toEqual([again.fee]);
+  });
+
+  it('several later refunds that add up to the total void the fee only at the last one', async () => {
+    const v = await paidVisit(A);
+    await cancel(A, v, 0); // free cancellation: nothing refunded yet
+    await laterRefund(A, v, 20_000);
+    await laterRefund(A, v, 20_000);
+    expect((await feeRow(v.fee)).voidedAt).toBeNull();
+    await laterRefund(A, v, 19_999);
+    expect((await feeRow(v.fee)).voidedAt).toBeNull(); // one paisa short
+    await laterRefund(A, v, 1);
+    expect((await feeRow(v.fee)).voidedAt).not.toBeNull();
+  });
+
+  it('an over-refund is still refused and the fee stays', async () => {
+    const v = await paidVisit(A);
+    await cancel(A, v, FEE);
+    await expect(laterRefund(A, v, REG + 1)).rejects.toThrow(
+      /more than|left to return|refundable/i,
+    );
+    expect((await feeRow(v.fee)).voidedAt).toBeNull();
+    const bill = await owner.bill.findUniqueOrThrow({ where: { id: v.bill } });
+    expect(bill.refundedPaise).toBe(FEE);
+  });
+
+  it('a replay changes nothing: the same request key and a second refund after the total are refused, the void time stays', async () => {
+    const v = await paidVisit(A);
+    await cancel(A, v, FEE);
+    const key = unique('RQ');
+    await laterRefund(A, v, REG, key);
+    const first = (await feeRow(v.fee)).voidedAt!.getTime();
+    await expect(laterRefund(A, v, REG, key)).rejects.toThrow();
+    await expect(laterRefund(A, v, 1)).rejects.toThrow();
+    expect((await feeRow(v.fee)).voidedAt!.getTime()).toBe(first);
+    const refunds = await owner.refund.findMany({ where: { billId: v.bill } });
+    expect(refunds.reduce((sum, r) => sum + r.amountPaise, 0)).toBe(FEE + REG);
+  });
+
+  it('a full refund on a visit that is NOT cancelled keeps the fee; cancelling it afterwards voids it', async () => {
+    const v = await paidVisit(A);
+    await laterRefund(A, v, FEE + REG);
+    expect((await feeRow(v.fee)).voidedAt).toBeNull();
+    await cancel(A, v, 0);
+    expect((await feeRow(v.fee)).voidedAt).not.toBeNull();
+  });
+
+  it('two later refunds at the same moment never exceed the bill and void the fee once', async () => {
+    const v = await paidVisit(A);
+    await cancel(A, v, 0);
+    const results = await Promise.allSettled([
+      laterRefund(A, v, FEE + REG),
+      laterRefund(A, v, FEE + REG),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect((await feeRow(v.fee)).voidedAt).not.toBeNull();
+    const refunds = await owner.refund.findMany({ where: { billId: v.bill } });
+    expect(refunds.reduce((sum, r) => sum + r.amountPaise, 0)).toBe(FEE + REG);
+  });
+
+  it('a refund of hospital B (or a trusted login with another tenant) cannot void a fee of hospital A', async () => {
+    const v = await paidVisit(A);
+    await cancel(A, v, FEE);
+    await expect(
+      inTenant(B.tenant, (c) =>
+        c.query(
+          `INSERT INTO refunds (id, tenant_id, branch_id, bill_id, request_id, payment_id,
+                                payment_mode_id, amount_paise, refunded_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 1, $8)`,
+          [randomUUID(), A.tenant, A.main, v.bill, randomUUID(), v.payment, A.cash, A.approver],
+        ),
+      ),
+    ).rejects.toThrow();
+    expect((await feeRow(v.fee)).voidedAt).toBeNull();
+  });
 });
