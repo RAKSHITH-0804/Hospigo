@@ -245,13 +245,15 @@ export class PatientsService {
 
     try {
       return await this.tenantDb.withTenant(async (tx) => {
-        if (cleaned.phone && !input.confirmDuplicate) {
+        // UC02-7: the same mobile, the same name AND the same date of birth.
+        if (cleaned.phone && cleaned.dateOfBirth && input.confirmDuplicate !== true) {
           const matches = await tx.$queryRaw<Array<{ id: string; uhid: string; name: string }>>`
             SELECT id, uhid, name FROM patients
             WHERE tenant_id = ${input.tenantId}
               AND is_active = true
               AND phone = ${cleaned.phone}
               AND lower(btrim(name)) = lower(btrim(${cleaned.name}))
+              AND date_of_birth = ${cleaned.dateOfBirth}::date
             ORDER BY created_at DESC
             LIMIT 5
           `;

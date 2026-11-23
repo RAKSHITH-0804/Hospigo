@@ -6,6 +6,9 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { sessionConfig } from '@/config/session';
 import { takeActionTokenFromHash } from '@/lib/auth/action-token-hash';
+import { staffCopy } from '@/config/staff-copy';
+
+const copy = staffCopy.auth;
 
 type FormError = 'mismatch' | 'invalid_link' | 'validation' | 'rate_limited' | 'unavailable' | null;
 
@@ -94,7 +97,7 @@ export default function ActivatePage() {
 
   const alertText =
     error === 'mismatch'
-      ? 'New password and confirmation do not match.'
+      ? copy.mismatch
       : error === 'invalid_link'
         ? sessionConfig.errorInvalidLink
         : error === 'validation'
@@ -108,7 +111,7 @@ export default function ActivatePage() {
   if (!tokenReady) {
     return (
       <div className="viewport-fill bg-background p-[var(--space-page-x)] type-label text-muted-foreground">
-        Loading…
+        {copy.loading}
       </div>
     );
   }
@@ -117,7 +120,7 @@ export default function ActivatePage() {
     return (
       <div className="viewport-fill bg-background">
         <div className="mx-auto flex min-h-[100dvh] max-w-[var(--size-form-card-max)] flex-col justify-center p-[var(--space-page-x)]">
-          <h1 className="type-heading font-medium">Activate account</h1>
+          <h1 className="type-heading font-medium">{copy.activateTitle}</h1>
           <p role="alert" className="type-label mt-[var(--space-3)] text-destructive">
             {sessionConfig.errorInvalidLink}
           </p>
@@ -126,7 +129,7 @@ export default function ActivatePage() {
               href={sessionConfig.forgotPasswordPath}
               className="text-primary underline-offset-4 hover:underline"
             >
-              Request a new link
+              {copy.requestNewLink}
             </Link>
           </p>
         </div>
@@ -137,9 +140,9 @@ export default function ActivatePage() {
   return (
     <div className="viewport-fill bg-background">
       <div className="mx-auto flex min-h-[100dvh] max-w-[var(--size-form-card-max)] flex-col justify-center p-[var(--space-page-x)]">
-        <h1 className="type-heading font-medium">Activate account</h1>
+        <h1 className="type-heading font-medium">{copy.activateTitle}</h1>
         <p className="type-label mt-[var(--space-2)] text-muted-foreground">
-          Choose a password to activate your account.
+          {copy.chooseActivate}
         </p>
         {alertText ? (
           <p role="alert" className="type-label mt-[var(--space-3)] text-destructive">
@@ -153,7 +156,7 @@ export default function ActivatePage() {
           noValidate
         >
           <label className="field-label">
-            New password
+            {copy.newPassword}
             <input
               name="newPassword"
               type="password"
@@ -164,7 +167,7 @@ export default function ActivatePage() {
             />
           </label>
           <label className="field-label">
-            Confirm new password
+            {copy.confirmNewPassword}
             <input
               name="confirmPassword"
               type="password"
@@ -176,7 +179,7 @@ export default function ActivatePage() {
           </label>
           <div className="flex flex-wrap gap-[var(--space-2)]">
             <Button type="submit" className="touch-target" disabled={pending}>
-              {pending ? 'Saving…' : 'Activate'}
+              {pending ? copy.saving : copy.activate}
             </Button>
             {error === 'unavailable' ? (
               <Button
@@ -186,7 +189,7 @@ export default function ActivatePage() {
                 disabled={pending}
                 onClick={onRetry}
               >
-                Retry
+                {copy.retry}
               </Button>
             ) : null}
           </div>

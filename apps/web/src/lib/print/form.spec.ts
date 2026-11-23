@@ -109,7 +109,7 @@ describe('the values of each document', () => {
   // The values each document can show, in the API's order (PRINT_FIELDS of print-template.rules.ts).
   it('are pinned to the API lists, the hospital name first', () => {
     expect(DOC_FIELD_ORDER.RECEIPT[0]).toBe('hospitalName');
-    expect(DOC_FIELD_ORDER.REGISTRATION_SLIP).toHaveLength(9);
+    expect(DOC_FIELD_ORDER.REGISTRATION_SLIP).toHaveLength(10);
     expect(DOC_FIELD_ORDER.RECEIPT).toHaveLength(15);
     expect(DOC_FIELD_ORDER.PRESCRIPTION).toHaveLength(20);
     for (const keys of Object.values(DOC_FIELD_ORDER)) {

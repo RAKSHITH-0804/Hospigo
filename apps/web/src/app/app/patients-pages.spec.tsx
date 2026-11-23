@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import PatientsPage from '@/app/app/patients/page';
 import NewPatientPage from '@/app/app/patients/new/page';
@@ -441,9 +441,15 @@ describe('patients pages', () => {
     await expect(PatientSlipPage(idParams)).rejects.toThrow(NO_PERMISSION);
 
     requireKindMock.mockResolvedValue(hospitalSession(['patients.registry.read']));
-    fetchMock.mockResolvedValue(ok(patient));
+    fetchMock.mockImplementation((path: string) =>
+      Promise.resolve(path.includes('form-config') ? ok(formConfig) : ok(patient)),
+    );
     const { container } = render(await PatientSlipPage(idParams));
-    expect(propsOf('patient-slip')).toEqual({ patient, hospitalName: 'Demo Hospital One' });
+    expect(propsOf('patient-slip')).toEqual({
+      patient,
+      hospitalName: 'Demo Hospital One',
+      relative: '',
+    });
     expect(container.querySelector('style')?.textContent).toBe('@page { size: A4; margin: 0; }');
   });
 
@@ -451,9 +457,53 @@ describe('patients pages', () => {
     requireKindMock.mockResolvedValue(
       hospitalSession(['patients.registry.read'], { hospitalName: null }),
     );
-    fetchMock.mockResolvedValue(ok(patient));
+    fetchMock.mockImplementation((path: string) =>
+      Promise.resolve(path.includes('form-config') ? ok(formConfig) : ok(patient)),
+    );
     render(await PatientSlipPage(idParams));
     expect(propsOf('patient-slip').hospitalName).toBe(staffCopy.brand);
+  });
+
+  it('slip page prints the relation and the relative name together, and still works without the form config', async () => {
+    requireKindMock.mockResolvedValue(hospitalSession(['patients.registry.read']));
+    const withRelative = {
+      ...patient,
+      customFieldValues: [
+        { code: 'relation_type', optionLabel: 'S/O' },
+        { code: 'relative_name', valueText: 'Ravi Kumar' },
+      ],
+    };
+    const relativeFields = [
+      {
+        code: 'relation_type',
+        label: 'r',
+        dataType: 'DROPDOWN',
+        required: false,
+        sortOrder: 1,
+        section: 'RELATIVE',
+      },
+      {
+        code: 'relative_name',
+        label: 'n',
+        dataType: 'TEXT',
+        required: false,
+        sortOrder: 2,
+        section: 'RELATIVE',
+      },
+    ];
+    fetchMock.mockImplementation((path: string) =>
+      Promise.resolve(
+        path.includes('form-config') ? ok({ fields: relativeFields }) : ok(withRelative),
+      ),
+    );
+    render(await PatientSlipPage(idParams));
+    expect(propsOf('patient-slip').relative).toBe('S/O Ravi Kumar');
+    cleanup();
+    fetchMock.mockImplementation((path: string) =>
+      Promise.resolve(path.includes('form-config') ? { status: 'error' } : ok(withRelative)),
+    );
+    render(await PatientSlipPage(idParams));
+    expect(propsOf('patient-slip').relative).toBe('');
   });
 
   describe('settings routes', () => {

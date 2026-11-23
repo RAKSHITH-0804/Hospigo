@@ -4,6 +4,7 @@ import type { VisitTestsResponse } from '@/lib/opd/tests-types';
 import type { VisitView } from '@/lib/opd/types';
 import type { PatientDetail } from '@/lib/patients/types';
 import { prescriptionItems, receiptItems, slipItems } from './documents';
+import { DOC_FIELD_ORDER } from './form';
 import type { PrintItem } from './types';
 
 // The fields each document can show, in the API's order (PRINT_FIELDS of print-template.rules.ts).
@@ -12,6 +13,7 @@ const API_FIELDS = {
     'hospitalName',
     'uhid',
     'patientName',
+    'relative',
     'age',
     'gender',
     'phone',
@@ -225,6 +227,12 @@ const patient: PatientDetail = {
   customFieldValues: [],
 };
 
+describe('the designer value lists', () => {
+  it('are the same as the API lists, so every value the API can print is offered in the designer', () => {
+    expect(DOC_FIELD_ORDER).toEqual(API_FIELDS);
+  });
+});
+
 describe('slipItems', () => {
   it('has exactly the slip fields of the API in order and joins only the address parts that exist', () => {
     const items = slipItems(patient, 'Main Branch', 'Demo Hospital');
@@ -233,6 +241,42 @@ describe('slipItems', () => {
     expect(textOf(items, 'phone')).toBe('9876543210');
     expect(textOf(items, 'branchName')).toBe('Main Branch');
     expect(textOf(items, 'age')).toBe('34');
+  });
+
+  it('prints the relation and the relative name together on one line', () => {
+    const fields = [
+      {
+        code: 'relation_type',
+        label: 'r',
+        dataType: 'DROPDOWN',
+        required: false,
+        sortOrder: 1,
+        section: 'RELATIVE',
+      },
+      {
+        code: 'relative_name',
+        label: 'n',
+        dataType: 'TEXT',
+        required: false,
+        sortOrder: 2,
+        section: 'RELATIVE',
+      },
+    ];
+    const items = slipItems(
+      {
+        ...patient,
+        customFieldValues: [
+          { code: 'relative_name', valueText: 'Ravi Kumar' },
+          { code: 'relation_type', optionLabel: 'S/O' },
+        ],
+      },
+      null,
+      'Demo Hospital',
+      fields,
+    );
+    expect(textOf(items, 'relative')).toBe('S/O Ravi Kumar');
+    // without the form config or values nothing is printed
+    expect(textOf(slipItems(patient, null, 'Demo Hospital'), 'relative')).toBe('');
   });
 
   it('prints nothing for what the patient does not have', () => {

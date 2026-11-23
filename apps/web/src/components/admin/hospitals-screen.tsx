@@ -11,6 +11,9 @@ import { useMockLoad } from '@/hooks/use-mock-load';
 import { mockHqStats } from '@/mock/hq';
 import { mockHospitals, type MockHospital } from '@/mock/hospitals';
 import type { LoadMockOptions } from '@/mock/load-mock';
+import { staffCopy } from '@/config/staff-copy';
+
+const copy = staffCopy.admin.hospitals;
 
 const emptyHospitals: MockHospital[] = [];
 
@@ -38,18 +41,18 @@ export function HospitalsScreen({ loadOptions }: { loadOptions?: LoadMockOptions
     <div className="section-stack content-container-inner">
       <div className="cluster-between">
         <div className="cluster">
-          <h1 className="type-heading font-medium">Hospitals</h1>
+          <h1 className="type-heading font-medium">{copy.title}</h1>
           <SampleDataBadge />
         </div>
         <Button type="button" disabled className="touch-target">
-          Onboard hospital
+          {copy.onboard}
         </Button>
       </div>
 
       <div className="stat-grid">
         <Card>
           <CardHeader>
-            <CardTitle>Hospitals</CardTitle>
+            <CardTitle>{copy.statHospitals}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="type-stat font-medium">{mockHqStats.hospitalCount}</p>
@@ -57,7 +60,7 @@ export function HospitalsScreen({ loadOptions }: { loadOptions?: LoadMockOptions
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Staff accounts</CardTitle>
+            <CardTitle>{copy.statStaff}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="type-stat font-medium">{mockHqStats.staffAccounts}</p>
@@ -65,7 +68,7 @@ export function HospitalsScreen({ loadOptions }: { loadOptions?: LoadMockOptions
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Last backup</CardTitle>
+            <CardTitle>{copy.statBackup}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="type-label">{mockHqStats.lastBackupLabel}</p>
@@ -73,7 +76,7 @@ export function HospitalsScreen({ loadOptions }: { loadOptions?: LoadMockOptions
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>System health</CardTitle>
+            <CardTitle>{copy.statHealth}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="type-label">{mockHqStats.systemHealthLabel}</p>
@@ -81,12 +84,10 @@ export function HospitalsScreen({ loadOptions }: { loadOptions?: LoadMockOptions
         </Card>
       </div>
 
-      {phase === 'loading' ? <LoadingState label="Loading hospitals" /> : null}
-      {phase === 'error' ? (
-        <ErrorState message="Hospitals could not be loaded." onRetry={reload} />
-      ) : null}
+      {phase === 'loading' ? <LoadingState label={copy.loading} /> : null}
+      {phase === 'error' ? <ErrorState message={copy.loadError} onRetry={reload} /> : null}
       {phase === 'empty' ? (
-        <EmptyState title="No hospitals yet" description="Demo hospitals will appear here." />
+        <EmptyState title={copy.emptyTitle} description={copy.emptyHint} />
       ) : null}
       {phase === 'ready' ? (
         <>
@@ -111,10 +112,10 @@ export function HospitalsScreen({ loadOptions }: { loadOptions?: LoadMockOptions
             <table className="data-table">
               <thead>
                 <tr>
-                  <th className="font-medium">Hospital</th>
-                  <th className="font-medium">Access code</th>
-                  <th className="font-medium">Modules</th>
-                  <th className="font-medium">Status</th>
+                  <th className="font-medium">{copy.colHospital}</th>
+                  <th className="font-medium">{copy.colAccessCode}</th>
+                  <th className="font-medium">{copy.colModules}</th>
+                  <th className="font-medium">{copy.colStatus}</th>
                 </tr>
               </thead>
               <tbody>

@@ -7,8 +7,14 @@ import { staffCopy } from '@/config/staff-copy';
 import { requirePermission } from '@/lib/auth/guards';
 import { errorMessageFor } from '@/lib/patients/client';
 import { slipPageRule } from '@/lib/patients/format';
-import { API_PATIENTS, fetchStaffOnServer, serverErrorCode } from '@/lib/patients/server';
-import type { PatientDetail } from '@/lib/patients/types';
+import {
+  API_PATIENTS,
+  API_PATIENT_FORM_CONFIG,
+  fetchStaffOnServer,
+  serverErrorCode,
+} from '@/lib/patients/server';
+import { relativeLine } from '@/lib/patients/relative';
+import type { FormConfigResponse, PatientDetail } from '@/lib/patients/types';
 import { slipItems } from '@/lib/print/documents';
 import { fetchLogoImageId, fetchTemplate, readTemplate } from '@/lib/print/server';
 
@@ -18,11 +24,13 @@ export default async function PatientSlipPage({ params }: { params: Promise<{ id
   const session = await requirePermission('patients.registry.read');
   const { id } = await params;
   const hospitalName = session.hospitalName?.trim() || staffCopy.brand;
-  const [detail, templateResult, logoImageId] = await Promise.all([
+  const [detail, templateResult, logoImageId, formConfig] = await Promise.all([
     fetchStaffOnServer<PatientDetail>(`${API_PATIENTS}/${encodeURIComponent(id)}`),
     fetchTemplate('REGISTRATION_SLIP'),
     fetchLogoImageId(),
+    fetchStaffOnServer<FormConfigResponse>(API_PATIENT_FORM_CONFIG),
   ]);
+  const formFields = formConfig.status === 'ok' ? formConfig.data.fields : [];
 
   if (detail.status === 'notFound') {
     return (
@@ -47,7 +55,7 @@ export default async function PatientSlipPage({ params }: { params: Promise<{ id
     return (
       <PrintStage
         template={template}
-        items={slipItems(detail.data, session.activeBranchName ?? null, hospitalName)}
+        items={slipItems(detail.data, session.activeBranchName ?? null, hospitalName, formFields)}
         images={{ LOGO: logoImageId }}
         title={staffCopy.patients.slip.title}
         backHref={`/app/patients/${encodeURIComponent(detail.data.id)}`}
@@ -62,7 +70,11 @@ export default async function PatientSlipPage({ params }: { params: Promise<{ id
       <style>
         {slipPageRule(patientsWebConfig.slipPaperSize, patientsWebConfig.slipPageMargin)}
       </style>
-      <PatientSlip patient={detail.data} hospitalName={hospitalName} />
+      <PatientSlip
+        patient={detail.data}
+        hospitalName={hospitalName}
+        relative={relativeLine(detail.data.customFieldValues, formFields)}
+      />
     </>
   );
 }

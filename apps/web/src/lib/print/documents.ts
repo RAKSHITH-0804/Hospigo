@@ -5,7 +5,8 @@ import { fill } from '@/lib/opd/clinical-format';
 import type { VisitTestsResponse } from '@/lib/opd/tests-types';
 import { REPEAT_VISIT_NOTE, type BillView, type VisitView } from '@/lib/opd/types';
 import { ageLabel, formatDateOnly, genderLabel } from '@/lib/patients/format';
-import type { PatientDetail } from '@/lib/patients/types';
+import type { FormConfigField, PatientDetail } from '@/lib/patients/types';
+import { relativeLine } from '@/lib/patients/relative';
 import type { PrintItem } from './types';
 
 /**
@@ -96,6 +97,7 @@ export function slipItems(
   patient: PatientDetail,
   branchName: string | null,
   hospitalName: string,
+  formFields: readonly FormConfigField[] = [],
 ): PrintItem[] {
   const address = [
     patient.addressStreet,
@@ -112,6 +114,8 @@ export function slipItems(
     text('hospitalName', hospitalName),
     text('uhid', patient.uhid),
     text('patientName', patient.name),
+    // The relation (S/O, W/O ...) and the relative's name are stored apart and print together.
+    text('relative', relativeLine(patient.customFieldValues, formFields)),
     text('age', patient.ageYears === null ? '' : ageLabel(patient.ageYears)),
     text('gender', patient.gender ? genderLabel(patient.gender) : ''),
     text('phone', patient.phone),

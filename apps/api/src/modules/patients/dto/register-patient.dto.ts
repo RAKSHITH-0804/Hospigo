@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
@@ -123,6 +123,8 @@ export class RegisterPatientDto {
     description: 'Set true to proceed when POSSIBLE_DUPLICATE was returned',
   })
   @IsOptional()
+  // The raw value is kept: implicit conversion would turn the text "false" into true.
+  @Transform(({ obj }: { obj: Record<string, unknown> }) => obj.confirmDuplicate)
   @IsBoolean()
   confirmDuplicate?: boolean;
 }

@@ -4,6 +4,9 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { sessionConfig } from '@/config/session';
+import { staffCopy } from '@/config/staff-copy';
+
+const copy = staffCopy.auth;
 
 type FormError = 'mismatch' | 'invalid' | 'rate_limited' | 'unavailable' | 'rules' | null;
 
@@ -75,7 +78,7 @@ export default function ChangePasswordPage() {
 
   const alertText =
     error === 'mismatch'
-      ? 'New password and confirmation do not match.'
+      ? copy.mismatch
       : error === 'invalid'
         ? sessionConfig.errorChangePasswordInvalid
         : error === 'rate_limited'
@@ -89,10 +92,8 @@ export default function ChangePasswordPage() {
   return (
     <div className="viewport-fill bg-background">
       <div className="mx-auto flex min-h-[100dvh] max-w-[var(--size-form-card-max)] flex-col justify-center p-[var(--space-page-x)]">
-        <h1 className="type-heading font-medium">Change password</h1>
-        <p className="type-label mt-[var(--space-2)] text-muted-foreground">
-          Choose a new password to continue.
-        </p>
+        <h1 className="type-heading font-medium">{copy.changeTitle}</h1>
+        <p className="type-label mt-[var(--space-2)] text-muted-foreground">{copy.chooseNew}</p>
         {alertText ? (
           <p role="alert" className="type-label mt-[var(--space-3)] text-destructive">
             {alertText}
@@ -105,7 +106,7 @@ export default function ChangePasswordPage() {
           noValidate
         >
           <label className="field-label">
-            Current password
+            {copy.currentPassword}
             <input
               name="currentPassword"
               type="password"
@@ -116,7 +117,7 @@ export default function ChangePasswordPage() {
             />
           </label>
           <label className="field-label">
-            New password
+            {copy.newPassword}
             <input
               name="newPassword"
               type="password"
@@ -127,7 +128,7 @@ export default function ChangePasswordPage() {
             />
           </label>
           <label className="field-label">
-            Confirm new password
+            {copy.confirmNewPassword}
             <input
               name="confirmPassword"
               type="password"
@@ -139,7 +140,7 @@ export default function ChangePasswordPage() {
           </label>
           <div className="flex flex-wrap gap-[var(--space-2)]">
             <Button type="submit" className="touch-target" disabled={pending}>
-              {pending ? 'Saving…' : 'Update password'}
+              {pending ? copy.saving : copy.updatePassword}
             </Button>
             {error === 'unavailable' ? (
               <Button
@@ -149,7 +150,7 @@ export default function ChangePasswordPage() {
                 disabled={pending}
                 onClick={onRetry}
               >
-                Retry
+                {copy.retry}
               </Button>
             ) : null}
           </div>

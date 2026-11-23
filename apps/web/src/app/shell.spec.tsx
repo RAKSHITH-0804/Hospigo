@@ -8,7 +8,8 @@ import { HospitalsScreen } from '@/components/admin/hospitals-screen';
 import StaffLayout from './app/layout';
 import StaffDashboardPage from './app/page';
 import BookLayout from './book/[code]/layout';
-import { BookingScreen } from '@/components/book/booking-screen';
+import { BookingComingSoon } from '@/components/book/booking-coming-soon';
+import { staffCopy } from '@/config/staff-copy';
 import { EmptyState } from '@/components/states/empty-state';
 import { ErrorState } from '@/components/states/error-state';
 import { LoadingState } from '@/components/states/loading-state';
@@ -141,14 +142,13 @@ describe('web shell smoke', () => {
     expect(screen.getByRole('status').textContent).toMatch(/permission/i);
   });
 
-  it('renders the public booking page and layout', async () => {
+  it('renders the public booking page and layout', () => {
     render(
       <BookLayout>
-        <BookingScreen code="DEMOONE" loadOptions={{ delayMs: 0 }} />
+        <BookingComingSoon />
       </BookLayout>,
     );
-    expect(screen.getByRole('heading', { name: 'Book an OPD appointment' })).toBeTruthy();
-    expect(await screen.findByText('Demo Doctor A')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: staffCopy.booking.heading })).toBeTruthy();
   });
 
   it('renders loading, empty, and error states', () => {

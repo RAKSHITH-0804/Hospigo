@@ -732,6 +732,29 @@ describe('Patients registry endpoints (HTTP)', () => {
     expect(dup.body.code).toBe('POSSIBLE_DUPLICATE');
     expect(Array.isArray(dup.body.matches)).toBe(true);
 
+    // The use case asks for the same mobile, the same name AND the same date of birth: another
+    // birth date is not a possible duplicate.
+    await request(app.getHttpServer())
+      .post('/patients')
+      .set('Authorization', `Bearer ${recv}`)
+      .send({ name: 'Dup Person', dateOfBirth: '1990-01-01', phone: '9000011111' })
+      .expect((res) => expect([200, 201]).toContain(res.status));
+
+    // confirmDuplicate must be a real boolean: the text "false" (or "true") is refused, and it
+    // never counts as a confirmation.
+    for (const text of ['false', 'true', '1']) {
+      const refused = await request(app.getHttpServer())
+        .post('/patients')
+        .set('Authorization', `Bearer ${recv}`)
+        .send({
+          name: 'Dup Person',
+          dateOfBirth: '1985-05-05',
+          phone: '9000011111',
+          confirmDuplicate: text,
+        });
+      expect(refused.status).toBe(400);
+    }
+
     await request(app.getHttpServer())
       .post('/patients')
       .set('Authorization', `Bearer ${recv}`)

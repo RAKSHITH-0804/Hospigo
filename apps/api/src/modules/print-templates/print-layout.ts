@@ -274,6 +274,7 @@ export const FIELD_CAPTIONS: Record<string, string> = {
   hospitalName: 'Hospital',
   uhid: 'UHID',
   patientName: 'Patient',
+  relative: 'Relative',
   age: 'Age',
   gender: 'Gender',
   phone: 'Phone',

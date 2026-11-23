@@ -304,8 +304,9 @@ export class UhidService {
   /**
    * Raise-only start-number change for the hospital's current period
    * (resolved from the effective format config). Requires a reason; writes audit.
-   * Permission (Indigo or hospital SuperAdmin only — NOT branch Admin) is pending auth (Step 6).
-   * Method accepts actorUserId for the future check; documented as pending.
+   * Who may call it: the hospital SuperAdmin and the Branch Admin (permission
+   * `hospital.settings.write`, checked by the controller; the counter is hospital-wide).
+   * HQ access is deferred. `actorUserId` is kept for the audit trail.
    */
   async setStartNumber(input: {
     tenantId: string;
@@ -319,7 +320,7 @@ export class UhidService {
     if (!input.reason.trim()) {
       throw new Error('setStartNumber requires a non-empty reason');
     }
-    // Pending Step 6: enforce Indigo / hospital SuperAdmin only (counter is hospital-wide).
+    // The permission is enforced by the controller (hospital.settings.write); not repeated here.
     void input.actorUserId;
 
     const now = input.now ?? this.clock.now();

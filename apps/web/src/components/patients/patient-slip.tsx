@@ -14,13 +14,17 @@ const copy = staffCopy.patients;
 export function PatientSlip({
   patient,
   hospitalName,
+  relative = '',
 }: {
   patient: PatientDetail;
   hospitalName: string;
+  /** Relation and relative's name, already joined (see relativeLine). */
+  relative?: string;
 }) {
   const rows: Array<[string, string]> = [
     [copy.slip.name, patient.name],
     [copy.slip.uhid, patient.uhid],
+    ...(relative ? ([[copy.slip.relative, relative]] as Array<[string, string]>) : []),
     [copy.slip.gender, genderLabel(patient.gender)],
     [copy.slip.age, ageLabel(patient.ageYears)],
     [copy.slip.phone, textOrEmpty(patient.phone)],

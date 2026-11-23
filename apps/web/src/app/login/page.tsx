@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { sessionConfig } from '@/config/session';
+import { staffCopy } from '@/config/staff-copy';
+
+const copy = staffCopy.auth;
 
 type LoginTab = 'hospital' | 'hq';
 type FormError = 'invalid' | 'rate_limited' | 'unavailable' | null;
@@ -92,10 +95,10 @@ export default function LoginPage() {
         <p className="type-label font-medium tracking-wide">Hospigo</p>
         <div className="login-brand-copy">
           <h1 className="type-title max-w-[var(--size-form-card-max)] font-medium leading-tight">
-            One platform. Every hospital.
+            {copy.brandTagline}
           </h1>
           <p className="type-label mt-[var(--space-3)] text-login-brand-foreground/80">
-            A product by Indigo
+            {copy.product}
           </p>
         </div>
         <div aria-hidden="true" />
@@ -104,7 +107,7 @@ export default function LoginPage() {
       <section className="login-form-panel">
         <div className="login-form-card">
           <div className="cluster-between mb-[var(--space-3)]">
-            <h2 className="type-heading font-medium">Sign in</h2>
+            <h2 className="type-heading font-medium">{copy.signIn}</h2>
           </div>
 
           {notice ? (
@@ -113,7 +116,7 @@ export default function LoginPage() {
             </p>
           ) : null}
 
-          <div role="tablist" aria-label="Sign-in type" className="login-tabs">
+          <div role="tablist" aria-label={copy.signInType} className="login-tabs">
             <button
               type="button"
               role="tab"
@@ -125,7 +128,7 @@ export default function LoginPage() {
                 setError(null);
               }}
             >
-              Hospital staff
+              {copy.tabHospital}
             </button>
             <button
               type="button"
@@ -138,14 +141,14 @@ export default function LoginPage() {
                 setError(null);
               }}
             >
-              Indigo HQ
+              {copy.tabHq}
             </button>
           </div>
 
           <form className="login-form" onSubmit={onSubmit} noValidate>
             {tab === 'hospital' ? (
               <label className="field-label">
-                Access code
+                {copy.accessCode}
                 <input
                   name="accessCode"
                   autoComplete="organization"
@@ -156,7 +159,7 @@ export default function LoginPage() {
               </label>
             ) : null}
             <label className="field-label">
-              Email
+              {copy.email}
               <input
                 name="email"
                 type="email"
@@ -167,7 +170,7 @@ export default function LoginPage() {
               />
             </label>
             <label className="field-label">
-              Password
+              {copy.password}
               <input
                 name="password"
                 type="password"
@@ -183,13 +186,13 @@ export default function LoginPage() {
               </p>
             ) : null}
             <Button type="submit" className="touch-target" disabled={pending}>
-              {pending ? 'Signing in…' : 'Sign in'}
+              {pending ? copy.signingIn : copy.signIn}
             </Button>
           </form>
 
           <p className="type-label mt-[var(--space-3)]">
             <Link href={forgotHref} className="text-primary underline-offset-4 hover:underline">
-              Forgot password?
+              {copy.forgotLink}
             </Link>
           </p>
         </div>
