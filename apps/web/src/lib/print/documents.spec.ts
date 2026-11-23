@@ -4,6 +4,7 @@ import type { VisitTestsResponse } from '@/lib/opd/tests-types';
 import type { VisitView } from '@/lib/opd/types';
 import type { PatientDetail } from '@/lib/patients/types';
 import { prescriptionItems, receiptItems, slipItems } from './documents';
+import { DOC_FIELD_ORDER } from './form';
 import type { PrintItem } from './types';
 
 // The fields each document can show, in the API's order (PRINT_FIELDS of print-template.rules.ts).
@@ -225,6 +226,12 @@ const patient: PatientDetail = {
   isActive: true,
   customFieldValues: [],
 };
+
+describe('the designer value lists', () => {
+  it('are the same as the API lists, so every value the API can print is offered in the designer', () => {
+    expect(DOC_FIELD_ORDER).toEqual(API_FIELDS);
+  });
+});
 
 describe('slipItems', () => {
   it('has exactly the slip fields of the API in order and joins only the address parts that exist', () => {

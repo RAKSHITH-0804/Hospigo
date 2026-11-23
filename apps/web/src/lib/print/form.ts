@@ -172,6 +172,7 @@ export const DOC_FIELD_ORDER: Record<PrintDocType, readonly string[]> = {
     'hospitalName',
     'uhid',
     'patientName',
+    'relative',
     'age',
     'gender',
     'phone',
