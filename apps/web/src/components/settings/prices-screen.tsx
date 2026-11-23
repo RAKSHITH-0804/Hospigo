@@ -44,13 +44,16 @@ function typeText(row: PriceRow): string {
 export function PricesScreen({
   initial,
   initialErrorCode,
+  startQuery,
 }: {
   initial: PricesResponse | null;
   initialErrorCode: string | null;
+  /** The search and filter the page was opened with (the first list is already for them). */
+  startQuery?: { q: string; kind: PriceKind | '' };
 }) {
   const [data, setData] = useState(initial);
-  const [q, setQ] = useState('');
-  const [kind, setKind] = useState<PriceKind | ''>('');
+  const [q, setQ] = useState(startQuery?.q ?? '');
+  const [kind, setKind] = useState<PriceKind | ''>(startQuery?.kind ?? '');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);

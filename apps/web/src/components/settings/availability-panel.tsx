@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { DatePicker } from '@/components/ui/date-picker';
 import { InputField, SelectField } from '@/components/ui/field';
+import { availabilityScreenConfig as screen } from '@/config/availability';
 import { opdWebConfig } from '@/config/opd';
 import { settingsScreenConfig } from '@/config/settings';
 import { staffCopy } from '@/config/staff-copy';
@@ -47,7 +48,12 @@ function localProblem(rows: Row[]): string | null {
       .sort((a, b) => minutes(a.start) - minutes(b.start));
     for (let i = 1; i < ofDay.length; i += 1) {
       if (minutes(ofDay[i]!.start) < minutes(ofDay[i - 1]!.end)) {
-        return copy.errors.localOverlap;
+        const before = ofDay[i - 1]!;
+        const after = ofDay[i]!;
+        return copy.errors.localOverlap
+          .replace('{day}', copy.weekdays[day] ?? '')
+          .replace('{a}', `${before.start}–${before.end}`)
+          .replace('{b}', `${after.start}–${after.end}`);
       }
     }
   }
@@ -179,8 +185,21 @@ export function AvailabilityPanel({ doctorId }: { doctorId: string }) {
   }
 
   const canWrite = data.canWrite;
-  const setRows = (branchId: string, update: (rows: Row[]) => Row[]) =>
+  // Changing a time clears an old error message (it may no longer be true).
+  const setRows = (branchId: string, update: (rows: Row[]) => Row[]) => {
+    setFlash((f) => (f?.kind === 'error' ? null : f));
     setDrafts((d) => ({ ...d, [branchId]: update(d[branchId] ?? []) }));
+  };
+  // One click for a full-time doctor: Monday to Friday, the same hours (still to be saved).
+  const fillWeekdays = (branchId: string) =>
+    setRows(branchId, () =>
+      screen.presetDays.map((day) => ({
+        key: (keys.current += 1),
+        weekday: String(day),
+        start: screen.presetStart,
+        end: screen.presetEnd,
+      })),
+    );
 
   async function saveBranch(branchId: string) {
     const rows = drafts[branchId] ?? [];
@@ -228,6 +247,14 @@ export function AvailabilityPanel({ doctorId }: { doctorId: string }) {
   return (
     <div className="section-stack">
       {!canWrite ? <p className="type-label text-muted-foreground">{copy.readOnly}</p> : null}
+      <div className="type-small text-muted-foreground">
+        <p className="type-label-strong">{copy.introTitle}</p>
+        <ol className="settings-help-list">
+          {copy.introSteps.map((step) => (
+            <li key={step}>{step}</li>
+          ))}
+        </ol>
+      </div>
       {flash ? (
         <p
           role={flash.kind === 'error' ? 'alert' : 'status'}
@@ -363,6 +390,17 @@ export function AvailabilityPanel({ doctorId }: { doctorId: string }) {
                     </Button>
                     <Button
                       type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={locked}
+                      onClick={() => fillWeekdays(branch.id)}
+                    >
+                      {copy.presetWeekdays
+                        .replace('{start}', screen.presetStart)
+                        .replace('{end}', screen.presetEnd)}
+                    </Button>
+                    <Button
+                      type="button"
                       size="sm"
                       disabled={locked}
                       onClick={() => void saveBranch(branch.id)}
@@ -415,7 +453,7 @@ export function AvailabilityPanel({ doctorId }: { doctorId: string }) {
           </ul>
         )}
         {canWrite ? (
-          <div className="cluster-top">
+          <div className="cluster-end">
             <DatePicker
               label={copy.leaveFrom}
               value={from}

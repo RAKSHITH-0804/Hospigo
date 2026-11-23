@@ -26,7 +26,7 @@ import type { UhidStartNumberResponse } from '@/lib/patients/types';
 import { API_DOCTOR_PROFILES, type DoctorsListResponse } from '@/lib/doctors/types';
 import { API_BRANDING, type BrandingResponse } from '@/lib/images/types';
 import { API_IMPORTS, type ImportListResponse } from '@/lib/imports/types';
-import { API_PRICES, type PricesResponse } from '@/lib/prices/types';
+import { API_PRICES, PRICE_KINDS, type PriceKind, type PricesResponse } from '@/lib/prices/types';
 import { API_OPD_RULES, API_PATIENT_FIELDS, API_UHID_FORMAT } from '@/lib/settings/paths';
 import {
   API_ROLES,
@@ -65,8 +65,10 @@ export const metadata: Metadata = { title: staffCopy.pageTitles.settings };
 
 export default async function SettingsSectionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ section: string }>;
+  searchParams?: Promise<{ q?: string; kind?: string }>;
 }) {
   // Viewing any settings needs hospital.settings.read; without it: the usual no-permission redirect.
   const session = await requirePermission('hospital.settings.read');
@@ -192,9 +194,22 @@ export default async function SettingsSectionPage({
       );
   }
   if (section.id === 'prices') {
-    const prices = await fetchStaffOnServer<PricesResponse>(API_PRICES);
+    // The Fees link of a doctor opens this list already searched (code) and filtered (doctor fees).
+    const wanted = (await searchParams) ?? {};
+    const startKind = (PRICE_KINDS as readonly string[]).includes(wanted.kind ?? '')
+      ? (wanted.kind as PriceKind)
+      : '';
+    const startQ = (wanted.q ?? '').trim().slice(0, 64);
+    const startQuery = new URLSearchParams();
+    if (startKind) startQuery.set('kind', startKind);
+    if (startQ) startQuery.set('q', startQ);
+    const startText = startQuery.toString();
+    const prices = await fetchStaffOnServer<PricesResponse>(
+      startText ? `${API_PRICES}?${startText}` : API_PRICES,
+    );
     content = (
       <PricesScreen
+        startQuery={{ q: startQ, kind: startKind }}
         initial={prices.status === 'ok' ? prices.data : null}
         initialErrorCode={prices.status === 'ok' ? null : serverErrorCode(prices)}
       />

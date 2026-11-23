@@ -98,7 +98,7 @@ describe('DoctorsList', () => {
     expect(filled.textContent).not.toContain(copy.missingTag);
   });
 
-  it('Edit opens the five fields filled with what is saved, and Close hides them', () => {
+  it('Edit opens a pop-up with the five fields filled with what is saved, and Close hides it', () => {
     renderList();
     edit('Login Anil');
     expect(field(copy.printedName).value).toBe('Dr. A. Rao');
@@ -106,8 +106,19 @@ describe('DoctorsList', () => {
     expect(field(copy.speciality).value).toBe('Cardiology');
     expect(field(copy.registrationNo).value).toBe('KMC/1');
     expect(field(copy.department).value).toBe('Cardiology');
-    fireEvent.click(screen.getByRole('button', { name: `Login Anil: ${copy.done}` }));
+    const dialog = screen.getByRole('dialog', {
+      name: copy.editTitle.replace('{name}', 'Login Anil'),
+    });
+    expect(within(dialog).getByRole('button', { name: copy.save })).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: staffCopy.modal.close }));
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.queryByRole('button', { name: copy.save })).toBeNull();
+  });
+
+  it('each doctor has a Fees link that opens the price list for that doctor only', () => {
+    renderList();
+    const link = screen.getByRole('link', { name: `Login Anil: ${copy.fees}` });
+    expect(link.getAttribute('href')).toBe('/app/settings/prices?kind=DOCTOR_FEE&q=DR002');
   });
 
   it('saves the five fields of that doctor and updates the row from the answer', async () => {

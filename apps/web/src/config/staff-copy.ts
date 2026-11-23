@@ -801,6 +801,9 @@ export const staffCopy = {
       notSet: 'Not set',
       missingTag: 'Details missing',
       edit: 'Edit',
+      editTitle: 'Edit {name}',
+      fees: 'Fees',
+      feesHint: 'Change the new-visit and follow-up fee of this doctor',
       done: 'Close',
       save: 'Save',
       saving: 'Saving…',
@@ -1100,7 +1103,10 @@ export const staffCopy = {
         saving: 'Saving…',
         saved: 'Saved.',
         created: 'Role added. You can now give it to staff.',
+        cancel: 'Cancel',
       },
+      cannotDeactivate:
+        'To deactivate this role, first take it off the people who hold it (Settings, Staff).',
       actions: {
         switchOff: 'Deactivate',
         switchOn: 'Activate',
@@ -1900,6 +1906,13 @@ export const staffCopy = {
     title: 'Availability',
     open: 'Availability',
     dialogTitle: 'Availability: {name}',
+    introTitle: 'What to do here',
+    introSteps: [
+      'Use the button under Can be picked for visits to stop or allow visits for this doctor at once.',
+      'Under Weekly times, set the days and hours the doctor sits. This is only a reminder at the desk.',
+      'Under Leave, add the days the doctor is away. On those days the doctor cannot be picked for a visit.',
+    ],
+    presetWeekdays: 'Monday to Friday, {start} to {end}',
     loading: 'Loading availability…',
     loadError: 'Availability could not be loaded.',
     retry: 'Try again',
@@ -1914,7 +1927,8 @@ export const staffCopy = {
       'A reminder only. A visit outside these times still goes ahead, with a warning at the desk.',
     noBranches: 'This doctor does not work in a branch you can manage.',
     branchReadOnly: 'Managed by the Admin of that branch.',
-    noSlots: 'No times set, so no warning is shown.',
+    noSlots:
+      'No times set, so no warning is shown. Press Add times for one day, or use the Monday to Friday button.',
     day: 'Day',
     from: 'From',
     to: 'To',
@@ -1943,7 +1957,8 @@ export const staffCopy = {
       notFound: 'This doctor or leave period was not found. Refresh the page and try again.',
       fallback: 'That could not be saved. Check the values and try again.',
       localEndBeforeStart: 'The end time must be after the start time.',
-      localOverlap: 'Two times on the same day overlap.',
+      localOverlap:
+        'On {day}, {a} runs into {b}. Change one of them so they do not share any minutes.',
       localTime: 'Choose a start and an end time.',
       reasons: {
         OVERLAP: 'Two times on the same day overlap.',

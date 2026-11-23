@@ -129,7 +129,12 @@ describe('AvailabilityPanel', () => {
     fireEvent.change(tos[1]!, { target: { value: '15:00' } });
     save();
     await waitFor(() =>
-      expect(screen.getByRole('alert').textContent).toBe(copy.errors.localOverlap),
+      expect(screen.getByRole('alert').textContent).toBe(
+        copy.errors.localOverlap
+          .replace('{day}', 'Monday')
+          .replace('{a}', '12:00–13:00')
+          .replace('{b}', '12:30–15:00'),
+      ),
     );
     expect(timingsMock).not.toHaveBeenCalled();
   });
@@ -229,5 +234,38 @@ describe('AvailabilityPanel', () => {
   it('says so when the doctor has no branch the Admin can manage', async () => {
     await shown(base({ branches: [] }));
     expect(screen.getByText(copy.noBranches)).toBeTruthy();
+  });
+
+  it('an old error disappears as soon as a time is changed', async () => {
+    await shown();
+    fireEvent.click(screen.getByRole('button', { name: copy.addSlot }));
+    fireEvent.click(screen.getByRole('button', { name: copy.saveTimetable }));
+    expect((await screen.findByRole('alert')).textContent).toBe(copy.errors.localTime);
+    fireEvent.change(screen.getByLabelText(copy.from), { target: { value: '09:00' } });
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('one click fills Monday to Friday for a full-time doctor, and Save sends those five days', async () => {
+    await shown();
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: copy.presetWeekdays.replace('{start}', '09:00').replace('{end}', '17:00'),
+      }),
+    );
+    expect(screen.getAllByLabelText(copy.day)).toHaveLength(5);
+    timingsMock.mockResolvedValue(ok(base()));
+    fireEvent.click(screen.getByRole('button', { name: copy.saveTimetable }));
+    await waitFor(() => expect(timingsMock).toHaveBeenCalled());
+    expect(timingsMock.mock.calls[0]![2]).toEqual(
+      [1, 2, 3, 4, 5].map((weekday) => ({ weekday, start: '09:00', end: '17:00' })),
+    );
+  });
+
+  it('tells a first-time user what to do', async () => {
+    await shown();
+    expect(screen.getByText(copy.introTitle)).toBeTruthy();
+    for (const step of copy.introSteps) {
+      expect(screen.getByText(step)).toBeTruthy();
+    }
   });
 });
