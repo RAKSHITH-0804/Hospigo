@@ -45,7 +45,7 @@ This file explains what Hospigo is and why it is built the way it is. The workin
 
 - Delete rules: master data (staff, doctors, medicines, tests, prices) is deactivated or archived, never hard-deleted. Money, stock transfers and audit logs are never deleted or edited by anyone including SuperAdmin; corrections are reversal entries (who, when, why). Staff are disabled, not deleted.
 - Money: integer paise, append-only ledger, bills and payments kept separate, versioned prices (old bills keep old prices), tax columns present but off by default (GST/tax is a hospital setting).
-- Excel upload: one file per data type; re-upload updates rows, no duplicates; match only by unique business code; invalid or unmatched rows go to an exceptions list, never placeholder records. Every import is a batch (preview, approve, post, undo the whole batch), runs in the background with visible status, safe to run twice. Same engine for hospital and Indigo uploads.
+- Excel upload: one file per data type; re-upload updates rows, no duplicates; match only by unique business code; invalid or unmatched rows go to an exceptions list, never placeholder records. Every import is a batch (preview, approve, post; **amended 23 Nov 2026 (Step 8b): no undo after posting, a correction is a new upload, because price rows are append-only; a batch can still be cancelled before posting**), runs in the background with visible status, safe to run twice. Same engine for hospital and Indigo uploads.
 - Every master table has a business code unique per hospital.
 - First live site must be fully empty: no demo or test data in production (seed guards enforce it).
 
