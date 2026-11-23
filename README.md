@@ -7,7 +7,7 @@ This repository is the npm workspaces monorepo for the API, web app, and shared 
 ## Tech stack
 
 - npm workspaces monorepo, TypeScript (strict), ESLint, Prettier, Husky
-- NestJS API (`@hospigo/api`) with Swagger, Socket.IO, BullMQ, ioredis, `pg`
+- NestJS 12 API (`@hospigo/api`) with Swagger, Socket.IO, BullMQ, ioredis, `pg` (Node 22; the Nest packages are ES modules, Jest loads them through `apps/api/jest.esm-transform.cjs`)
 - Prisma ORM 7 (`@prisma/client` + `@prisma/adapter-pg`) with PostgreSQL
 - Local-folder `StorageService` (S3-compatible driver planned later)
 - Jest + Supertest for API tests
