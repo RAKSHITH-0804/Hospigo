@@ -56,6 +56,9 @@ export const OpdErrorCode = {
   // ---- Step 8b: prices
   PRICE_INVALID: 'PRICE_INVALID',
   PRICE_ITEM_NOT_FOUND: 'PRICE_ITEM_NOT_FOUND',
+  // ---- Step 8b part D: doctor availability
+  AVAILABILITY_INVALID: 'AVAILABILITY_INVALID',
+  AVAILABILITY_LEAVE_NOT_FOUND: 'AVAILABILITY_LEAVE_NOT_FOUND',
   // ---- Step 8b: Excel upload of the masters
   IMPORT_NOT_FOUND: 'IMPORT_NOT_FOUND',
   IMPORT_FILE_INVALID: 'IMPORT_FILE_INVALID',
