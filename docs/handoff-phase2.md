@@ -1,8 +1,10 @@
 # Hospigo: handoff for the next chat
 
-## CURRENT STATE (read this first; last updated after Step 8a was built on its branch, 23 Nov 2026)
+## CURRENT STATE (read this first; last updated after Step 8b was built on its branch, 23 Nov 2026)
 
 Everything below this section is history. Where it disagrees with this section, this section is right. **Do not redo anything listed as done.**
+
+**Step 8b (masters setup) is built on `feature/step-8b-masters-setup` (from `develop` at `4fc440a`, after 8a PR #58), NOT pushed.** Part A hospital starter script (`npm run hospital:starter -w @hospigo/api -- --hospital CODE [--dry-run]`, code in `apps/api/src/database/hospital-starter/`), Part B price change (API and Settings, OPD, Prices), Part C Excel upload of tests, doctor fees and medicines (API and Settings, OPD, Upload lists). **Part D (doctor availability, timings, leave) was NOT built** (the cut line): no screen sets availability; design in `docs/decisions/decisions-8b.md`. No migration in 8b. No undo after posting (decision 2). Tests: API 906, web 1636. After pulling: stop servers, `npm ci`, delete `apps/api/dist`, `npm run prisma:seed -w @hospigo/api` (import types), restart. Runbook: `docs/guides/new-hospital-runbook.md`. Postman 8b written, not run. Follow-ups: part D; orphan stored files of cancelled or failed uploads; HQ hospital creation (go-live blocker for the Step 9 exit report). **Next: the 8b PR, then Step 9 (the exit report lists HQ hospital creation and the DEFERRED items as go-live blockers), then 8c.**
 
 **Step 8a is built on `feature/step-8a-nestjs-12`, NOT pushed** (Rakshith pushes and opens the PR into `develop`). NestJS 12 (all `@nestjs/*` 12.x, config 12.1.1, swagger 12.1.2, cli 12.0.15), multer 2.5.0, an `overrides` entry pinning `effect` 3.22.5; `npm audit` went from 36 findings (5 high) to 28 (0 high); API 857 and web 1581 tests pass; Node, CI Node and `engines` are unchanged; Jest loads the ES-module-only Nest packages through `apps/api/jest.config.js` and `apps/api/jest.esm-transform.cjs`. No migration. Details, risks and the explained and unexplained oddities: `docs/decisions/decisions-8a.md`. **After pulling 8a:** stop both servers, `npm ci`, delete `apps/api/dist`, restart both servers (`EBADENGINE` warnings from the Nest CLI are harmless). Postman 7d, 7e and 7f are for Rakshith to run.
 

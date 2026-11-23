@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-23 — Phase 2 Step 8b — Masters setup (starting a real hospital)
+
+- **Commit hash(es):** on `feature/step-8b-masters-setup` (not pushed); see `git log` on the branch.
+- **Added:** hospital starter script (`hospital:starter`, dry run, idempotent); price change routes and Settings, OPD, Prices screen (history, effective date up to 366 days ahead); Excel upload of tests, doctor fees and medicines (preview, approve, post, cancel; all-or-nothing post) and Settings, OPD, Upload lists screen; new hospital runbook.
+- **Changed:** project rule "undo the whole batch" replaced by cancel-before-post only (prices are append-only). Raw SQL allowlist in the tenant safety-net test gained the imports and prices services.
+- **Removed:** nothing.
+- **Fixed:** nothing existing.
+- **Database (migrations, roles, RLS):** no migration. Import types TESTS, DOCTOR_FEES, MEDICINES come from the reference seed (run `npm run prisma:seed -w @hospigo/api` once).
+- **New .env keys (names only):** none.
+- **Tests:** API 857 to 906, web 1581 to 1636.
+- **Decisions:** `docs/decisions/decisions-8b.md`.
+- **Follow-ups and open items:** Part D (doctor availability) not built; orphan files of cancelled uploads; HQ hospital creation is a go-live blocker; 8c moves after Step 9.
+
 ## 2026-11-23 — Phase 2 — Step 8a: NestJS 12 and the 5 high npm findings (branch `feature/step-8a-nestjs-12`, not pushed)
 
 - **Commit hash(es):** see `git log` on the branch (5 commits: docs; `@nestjs/*` 11.2.11; `effect` override; NestJS 12; docs).

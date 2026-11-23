@@ -18,7 +18,7 @@ import {
   defaultStarterOptions,
   runHospitalStarter,
   type StarterOptions,
-} from '../src/modules/hospital-starter/hospital-starter';
+} from '../src/database/hospital-starter/hospital-starter';
 
 loadEnv({ path: path.resolve(__dirname, '../../../.env') });
 

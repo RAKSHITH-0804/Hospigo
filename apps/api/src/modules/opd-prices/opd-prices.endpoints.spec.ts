@@ -9,7 +9,10 @@ import request from 'supertest';
 import { CLOCK, FakeClock } from '../../common/clock';
 import { createOwnerPrisma } from '../../database/db-test.util';
 import { ensureSystemRolesForTenant } from '../../../prisma/seeds/reference';
-import { defaultStarterOptions, runHospitalStarter } from '../hospital-starter/hospital-starter';
+import {
+  defaultStarterOptions,
+  runHospitalStarter,
+} from '../../database/hospital-starter/hospital-starter';
 import { localDate } from './local-date';
 
 loadEnv({ path: path.resolve(process.cwd(), '../../.env') });

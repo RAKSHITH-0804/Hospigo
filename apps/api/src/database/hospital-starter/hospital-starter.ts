@@ -2,11 +2,11 @@ import type { Prisma, PrismaClient, UhidResetRule } from '../../generated/prisma
 import {
   validateNumberSeriesFormat,
   type NumberSeriesFormat,
-} from '../opd-masters/number-series-format';
+} from '../../modules/opd-masters/number-series-format';
 import {
   OPD_FY_START_MONTH_DEFAULT,
   OPD_SETTINGS_DEFAULTS,
-} from '../opd-masters/opd-settings.defaults';
+} from '../../modules/opd-masters/opd-settings.defaults';
 import { STARTER_PAYMENT_MODES, STARTER_REGISTRATION_ITEM, STARTER_VITALS } from './starter-data';
 
 /**

@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import path from 'path';
 import { config as loadEnv } from 'dotenv';
-import { createOwnerPrisma, requireTestDatabaseUrl } from '../../database/db-test.util';
+import { createOwnerPrisma, requireTestDatabaseUrl } from '../db-test.util';
 import { ensureSystemRolesForTenant } from '../../../prisma/seeds/reference';
 import {
   StarterError,
