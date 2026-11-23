@@ -29,6 +29,13 @@
 
 ## Unreleased
 
+## 2026-11-23 — Phase 2 — audit of Steps 1 to 7e (read-only)
+
+- **Added:** `docs/audit/phase2-audit.md`: plan vs built table (294 rows), automated proof, security and money checks, top 10 problems, 15 decisions for Rakshith.
+- **Changed / Fixed:** nothing in code. Docs only: the tracker rows "Prescription print" and "Doctor profile setup (7c)" were stale and now say Done; the handoff and README point to the audit.
+- **Tests:** API 833 and web 1576 re-run, all pass; lint, format, API build and web build pass; migrations apply from zero on `hospigo_test`.
+- **Follow-ups and open items:** the audit's findings (see the audit file and the handoff). Step 8a stays planned for Monday.
+
 ## 2026-11-25 — Phase 2 — PR #54 merged (Steps 7 to 7e)
 
 - **Commit hash(es):** merge commit `0762601` on `develop` (commits `88a955c` to `40faa56`).
