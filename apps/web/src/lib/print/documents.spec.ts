@@ -12,6 +12,7 @@ const API_FIELDS = {
     'hospitalName',
     'uhid',
     'patientName',
+    'relative',
     'age',
     'gender',
     'phone',
@@ -233,6 +234,42 @@ describe('slipItems', () => {
     expect(textOf(items, 'phone')).toBe('9876543210');
     expect(textOf(items, 'branchName')).toBe('Main Branch');
     expect(textOf(items, 'age')).toBe('34');
+  });
+
+  it('prints the relation and the relative name together on one line', () => {
+    const fields = [
+      {
+        code: 'relation_type',
+        label: 'r',
+        dataType: 'DROPDOWN',
+        required: false,
+        sortOrder: 1,
+        section: 'RELATIVE',
+      },
+      {
+        code: 'relative_name',
+        label: 'n',
+        dataType: 'TEXT',
+        required: false,
+        sortOrder: 2,
+        section: 'RELATIVE',
+      },
+    ];
+    const items = slipItems(
+      {
+        ...patient,
+        customFieldValues: [
+          { code: 'relative_name', valueText: 'Ravi Kumar' },
+          { code: 'relation_type', optionLabel: 'S/O' },
+        ],
+      },
+      null,
+      'Demo Hospital',
+      fields,
+    );
+    expect(textOf(items, 'relative')).toBe('S/O Ravi Kumar');
+    // without the form config or values nothing is printed
+    expect(textOf(slipItems(patient, null, 'Demo Hospital'), 'relative')).toBe('');
   });
 
   it('prints nothing for what the patient does not have', () => {

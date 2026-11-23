@@ -75,6 +75,7 @@ export const PRINT_FIELDS: Record<PrintDocType, readonly string[]> = {
     'hospitalName',
     'uhid',
     'patientName',
+    'relative',
     'age',
     'gender',
     'phone',
