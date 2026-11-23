@@ -1,6 +1,6 @@
 # Plan: doctor leave requests with admin approval
 
-Status: **plan only, waiting for "approved" from Rakshith** (23 Nov 2026). It needs a migration, a new table with row level security and permission rules, so it is a review gate (CLAUDE.md). Nothing is built.
+Status: **plan only. Rakshith decided on 23 Nov 2026 that it is built in Step 8c** (after Step 9); answer the questions below and get "approved" when 8c is planned. It needs a migration, a new table with row level security and permission rules, so it is a review gate (CLAUDE.md). Nothing is built.
 
 ## What Rakshith asked
 
@@ -35,7 +35,7 @@ Permissions and scope (doctor only own, Branch Admin only own branch, SuperAdmin
 2. May a doctor cancel leave that was already approved? Proposal: no, an Admin removes it.
 3. Should the doctor be able to type a short reason (up to 200 characters)? Proposal: no, to keep personal text out of the audit and the database.
 4. Should the Admin be told by email when a request arrives? Proposal: not now (screen only); email later with the other notifications.
-5. When: right after the 8b PR is merged (own small PR), or after Step 9 with Step 8c? Proposal: right after the 8b PR, because the manual test of availability will already be fresh.
+5. When: decided, in Step 8c.
 
 ## Not in this plan
 

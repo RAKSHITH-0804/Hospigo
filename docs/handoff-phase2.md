@@ -39,7 +39,7 @@ Everything below this section is history. Where it disagrees with this section, 
 
 **End of Phase 2 (Rakshith, 23 Nov 2026): test EVERYTHING again by hand, end to end, before go-live** (Phase 2 is about 80 to 90 percent of the OPD). The Step 9 plan must contain the full manual checklist (every role, visit and bill, queue, vitals, consultation, prescription, tests and bills, refunds, reports, print, all settings pages, staff and roles, prices, Excel upload, doctor availability) and the Postman collections 3d to 8b. Remind him.
 
-**Waiting for his approval:** doctor leave requests with admin approval (`docs/plans/plan-doctor-leave-requests.md`, five questions at the end). Open question: a real delete for a role nobody ever held (today roles are only deactivated).
+**Decided 23 Nov:** doctor leave requests with admin approval are built in **Step 8c** (`docs/plans/plan-doctor-leave-requests.md`; answer its five questions when 8c is planned). Open question: a real delete for a role nobody ever held (today roles are only deactivated).
 
 **DEFERRED, pending the manager's decision (to ask on demo day; NOT built; the exit report in Step 9 must say so):** part payment, the pending-dues list and balance collection (UC-16); the Emergency flag; and whether online booking and doctor slots are in release 1 (`/book/[code]` is "Coming soon").
 
