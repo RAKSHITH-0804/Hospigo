@@ -86,6 +86,7 @@ Setup and masters that only the dev seed writes today:
 5. A doctor filter on the OPD queue.
 6. Built-in patient reference fields (referred by, category, organisation, staff number) or a ready-made field set.
 7. Per-branch print templates.
+8. Extra print values: let a hospital add its own per-patient or per-bill values to the print designer (today a value exists only if it is in the API list, the web designer list and the code that fills it in; fixed text such as address or GST number is already possible with Add text). Rakshith agreed on 23 Nov 2026 that this belongs in 8c.
 
 **Step 8b notes:** the starter script creates NO demo data; the Excel doctor fees must carry both NEW and FOLLOW_UP rows.
 
