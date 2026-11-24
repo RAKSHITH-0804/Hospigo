@@ -49,39 +49,43 @@ export function PaymentLines({
         const mode = modes.find((m) => m.code === draft.modeCode);
         const n = index + 1;
         return (
-          <div key={draft.id} className="flex flex-wrap items-start gap-[var(--space-2)]">
-            <SelectField
-              label={`${copy.paymentModeLabel} ${n}`}
-              value={draft.modeCode}
-              onChange={(e) => onMode(draft.id, e.target.value)}
-            >
-              {modes.map((m) => (
-                <option
-                  key={m.code}
-                  value={m.code}
-                  disabled={m.code !== draft.modeCode && drafts.some((d) => d.modeCode === m.code)}
-                >
-                  {m.name}
-                </option>
-              ))}
-            </SelectField>
-            {split ? (
-              <InputField
-                label={`${copy.paymentAmountLabel} ${n}`}
-                inputMode="decimal"
-                autoComplete="off"
-                value={draft.amountText}
-                onChange={(e) => onAmount(draft.id, e.target.value)}
-              />
-            ) : null}
-            {mode?.requiresReference ? (
-              <InputField
-                label={`${copy.paymentReferenceLabel} ${n}`}
-                autoComplete="off"
-                value={draft.reference}
-                onChange={(e) => onReference(draft.id, e.target.value)}
-              />
-            ) : null}
+          <div key={draft.id} className="flex flex-col items-start gap-[var(--space-2)]">
+            <div className="flex flex-wrap items-start gap-[var(--space-2)]">
+              <SelectField
+                label={`${copy.paymentModeLabel} ${n}`}
+                value={draft.modeCode}
+                onChange={(e) => onMode(draft.id, e.target.value)}
+              >
+                {modes.map((m) => (
+                  <option
+                    key={m.code}
+                    value={m.code}
+                    disabled={
+                      m.code !== draft.modeCode && drafts.some((d) => d.modeCode === m.code)
+                    }
+                  >
+                    {m.name}
+                  </option>
+                ))}
+              </SelectField>
+              {split ? (
+                <InputField
+                  label={`${copy.paymentAmountLabel} ${n}`}
+                  inputMode="decimal"
+                  autoComplete="off"
+                  value={draft.amountText}
+                  onChange={(e) => onAmount(draft.id, e.target.value)}
+                />
+              ) : null}
+              {mode?.requiresReference ? (
+                <InputField
+                  label={`${copy.paymentReferenceLabel} ${n}`}
+                  autoComplete="off"
+                  value={draft.reference}
+                  onChange={(e) => onReference(draft.id, e.target.value)}
+                />
+              ) : null}
+            </div>
             {split ? (
               <Button
                 type="button"
