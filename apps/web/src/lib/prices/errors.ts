@@ -5,6 +5,9 @@ const copy = staffCopy.prices.errors;
 
 /** The calm sentence for a refused price change. Never shows upstream text. */
 export function priceErrorMessage(error: PatientsApiError): string {
+  if (error.status === 403 && error.code === 'PRICE_SCOPE_FORBIDDEN') {
+    return copy.scopeForbidden;
+  }
   if (error.status === 404 && error.code === 'PRICE_ITEM_NOT_FOUND') {
     return copy.notFound;
   }

@@ -28,11 +28,16 @@ export function listPrices(query: PriceListQuery): Promise<PatientsApiResult<Pri
   return patientsApi<PricesResponse>(`${PRICES_ROUTES.list}${text ? `?${text}` : ''}`);
 }
 
-export function priceHistory(row: PriceRow): Promise<PatientsApiResult<PriceHistoryResponse>> {
+export function priceHistory(
+  row: PriceRow,
+  branchId?: string | null,
+): Promise<PatientsApiResult<PriceHistoryResponse>> {
   const params = new URLSearchParams();
   if (row.kind === 'DOCTOR_FEE') {
     params.set('doctorProfileId', row.doctorProfileId ?? '');
     params.set('visitType', row.visitType ?? '');
+    // the versions of the fee that is shown: the branch's own, or the hospital-wide ones
+    if (row.feeScope === 'BRANCH' && branchId) params.set('branchId', branchId);
   } else {
     params.set('itemId', row.itemId ?? '');
   }
@@ -43,11 +48,18 @@ export function priceHistory(row: PriceRow): Promise<PatientsApiResult<PriceHist
 export function changePrice(
   row: PriceRow,
   body: { amountPaise: number; effectiveFrom?: string },
+  /** A doctor fee only: a branch id sets the fee for that branch; none sets the hospital-wide fee. */
+  branchId?: string | null,
 ): Promise<PatientsApiResult<PriceChangeResponse>> {
   if (row.kind === 'DOCTOR_FEE') {
     return patientsApi<PriceChangeResponse>(PRICES_ROUTES.doctorFees, {
       method: 'POST',
-      body: { ...body, doctorProfileId: row.doctorProfileId, visitType: row.visitType },
+      body: {
+        ...body,
+        doctorProfileId: row.doctorProfileId,
+        visitType: row.visitType,
+        ...(branchId ? { branchId } : {}),
+      },
     });
   }
   return patientsApi<PriceChangeResponse>(

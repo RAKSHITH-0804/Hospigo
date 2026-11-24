@@ -27,6 +27,11 @@ export type PriceRow = {
   nextFrom: string | null;
   /** A follow-up fee row with no separate follow-up fee: it costs the same as the new-visit fee. */
   followsBase: boolean;
+  /**
+   * Doctor fees: where the fee shown comes from (Step 9). BRANCH = set for the active branch,
+   * HOSPITAL = the doctor's hospital-wide fee, null or missing = no fee yet / not a doctor fee.
+   */
+  feeScope?: 'BRANCH' | 'HOSPITAL' | null;
 };
 
 export type PricesResponse = {
@@ -36,6 +41,8 @@ export type PricesResponse = {
   pageSize: number;
   /** Today in the hospital time zone (YYYY-MM-DD). */
   today: string;
+  /** True when the caller may set a doctor's hospital-wide fee (a hospital-wide Admin). */
+  canSetHospitalWide?: boolean;
 };
 
 export type PriceVersion = {
