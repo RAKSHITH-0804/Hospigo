@@ -27,6 +27,7 @@ const row = (over: Partial<PriceRow> = {}): PriceRow => ({
   currentFrom: '2026-01-01T00:00:00.000Z',
   nextAmountPaise: null,
   nextFrom: null,
+  followsBase: false,
   ...over,
 });
 
@@ -263,5 +264,58 @@ describe('PricesScreen', () => {
       jest.advanceTimersByTime(10);
     });
     expect(listMock).toHaveBeenCalledTimes(2);
+  });
+
+  describe('a follow-up fee that follows the new-visit fee', () => {
+    const follow = row({
+      key: 'fee:d1:FOLLOW_UP',
+      kind: 'DOCTOR_FEE',
+      itemId: null,
+      doctorProfileId: 'd1',
+      visitType: 'FOLLOW_UP',
+      code: 'DR1',
+      name: 'Dr Rao',
+      currentAmountPaise: 50_000,
+      followsBase: true,
+    });
+
+    it('shows the price as the same as the new visit, offers to set a separate fee and explains what that means', () => {
+      render(<PricesScreen initial={data([follow])} initialErrorCode={null} />);
+      expect(screen.getByText(`(${copy.sameAsNew})`)).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: `Dr Rao: ${copy.setSeparate}` }));
+      expect(screen.getByText(copy.setSeparateTitle.replace('{name}', 'Dr Rao'))).toBeTruthy();
+      expect(screen.getByText(copy.followUpNote)).toBeTruthy();
+      expect((screen.getByLabelText(copy.amountLabel) as HTMLInputElement).value).toBe('500.00');
+    });
+
+    it('a doctor fee that is its own price is changed in the usual way and still carries the note', () => {
+      render(
+        <PricesScreen
+          initial={data([{ ...follow, followsBase: false }])}
+          initialErrorCode={null}
+        />,
+      );
+      expect(screen.queryByText(`(${copy.sameAsNew})`)).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: `Dr Rao: ${copy.change}` }));
+      expect(screen.getByText(copy.followUpNote)).toBeTruthy();
+    });
+
+    it('the history says there is no separate follow-up fee yet', async () => {
+      historyMock.mockResolvedValueOnce({ ok: true, data: { items: [] } });
+      render(<PricesScreen initial={data([follow])} initialErrorCode={null} />);
+      fireEvent.click(screen.getByRole('button', { name: `Dr Rao: ${copy.history}` }));
+      expect(await screen.findByText(copy.historyFollowsBase)).toBeTruthy();
+    });
+
+    it('the new-visit fee row has no such note', () => {
+      render(
+        <PricesScreen
+          initial={data([{ ...follow, visitType: 'NEW', followsBase: false }])}
+          initialErrorCode={null}
+        />,
+      );
+      fireEvent.click(screen.getByRole('button', { name: `Dr Rao: ${copy.change}` }));
+      expect(screen.queryByText(copy.followUpNote)).toBeNull();
+    });
   });
 });

@@ -318,7 +318,7 @@ export const staffCopy = {
             'A price cannot start before today. Only the very first price of an item may start earlier.',
             'Old bills never change: each bill keeps the price it was made with.',
             'Prices are never deleted or edited. To correct a mistake, save the right price from today.',
-            'A visit cannot be billed without a registration fee and a doctor fee for its visit type.',
+            'A visit cannot be billed without a registration fee and a new-visit fee. A follow-up costs the new-visit fee unless you set a separate follow-up fee.',
           ],
         },
         'upload-lists': {
@@ -330,7 +330,7 @@ export const staffCopy = {
             'Press Approve, then Save to hospital. Everything is saved together, or nothing is.',
           ],
           example:
-            'A fees file has two rows for Dr Rao: NEW 500 and FOLLOW_UP 300. Both rows are needed.',
+            'A fees file has a row for Dr Rao: NEW 500. A second row, FOLLOW_UP 300, is optional: without it a follow-up costs 500.',
           good: [
             'You can cancel before Save to hospital: nothing was saved.',
             'After saving, an upload is final. To correct a mistake, upload a corrected file: names change by code and prices get a new version.',
@@ -2010,6 +2010,12 @@ export const staffCopy = {
     nextOn: '{amount} from {date}',
     change: 'Change price',
     setFirst: 'Set price',
+    setSeparate: 'Set separate follow-up fee',
+    setSeparateTitle: 'Set a separate follow-up fee: {name}',
+    sameAsNew: 'same as new visit',
+    followUpNote:
+      'Until a separate follow-up fee is set, a follow-up visit costs the new-visit fee. Once you set one, it no longer follows later changes to the new-visit fee. To go back to the same price, type the same amount as the new-visit fee.',
+    historyFollowsBase: 'No separate follow-up fee yet: a follow-up visit costs the new-visit fee.',
     history: 'History',
     changeTitle: 'Change price: {name}',
     setTitle: 'Set the first price: {name}',
@@ -2065,7 +2071,7 @@ export const staffCopy = {
     typeHints: {
       TESTS: 'Columns: Code, Name, Price. Start date and Active are optional.',
       DOCTOR_FEES:
-        'Columns: Doctor code, Visit type (NEW or FOLLOW_UP), Fee. Start date is optional. Each doctor needs both visit types.',
+        'Columns: Doctor code, Visit type (NEW or FOLLOW_UP), Fee. Start date is optional. Every doctor needs a NEW row (or one already saved). A FOLLOW_UP row is optional: without it a follow-up costs the new-visit fee.',
       MEDICINES: 'Columns: Code, Name. Composition, Form and Active are optional.',
     } as Record<string, string>,
     sample: 'Download the sample file',
@@ -2129,7 +2135,8 @@ export const staffCopy = {
         'This code belongs to something that is not a test (for example the registration fee).',
       DUPLICATE_IN_FILE:
         'This code is in the file more than once, so it is not clear which row is meant.',
-      DOCTOR_NEEDS_BOTH_TYPES: 'This doctor needs a good NEW row and a good FOLLOW_UP row.',
+      DOCTOR_NEEDS_NEW_FEE:
+        'This doctor has no new-visit fee yet. Add a good NEW row for this doctor (the FOLLOW_UP row is optional).',
       DOCTOR_CODE_REQUIRED: 'The doctor code is missing.',
       DOCTOR_NOT_FOUND: 'No doctor of this hospital has that code.',
       DOCTOR_INACTIVE: 'This doctor is switched off.',

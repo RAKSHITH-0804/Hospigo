@@ -365,8 +365,14 @@ export function prepareRows(
     }
     for (const r of rows) {
       if (r.issue === null && r.data?.kind === 'DOCTOR_FEES') {
-        if ((kinds.get(r.data.doctorCode.toLowerCase())?.size ?? 0) < 2) {
-          r.issue = { reason: 'DOCTOR_NEEDS_BOTH_TYPES', field: 'visitType' };
+        // The new-visit fee is required (in the file, or already saved). The follow-up fee is optional:
+        // without one, a follow-up costs the new-visit fee.
+        const doctor = ctx.doctors.get(r.data.doctorCode);
+        const hasNew =
+          kinds.get(r.data.doctorCode.toLowerCase())?.has('NEW') === true ||
+          (doctor !== undefined && ctx.fees.has(`${doctor.id}|NEW`));
+        if (!hasNew) {
+          r.issue = { reason: 'DOCTOR_NEEDS_NEW_FEE', field: 'visitType' };
           r.action = null;
           r.data = null;
         }

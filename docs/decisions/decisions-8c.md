@@ -24,3 +24,10 @@ Branch: `feature/step-8c-settings-and-gaps`, from `develop` at `2e333ef` (the me
 ## Notes added while building
 
 (See the sections below as each item is finished.)
+
+## (4) Doctor fee structure (built)
+
+- No migration. `resolveDoctorFee` (`apps/api/src/modules/opd-masters/doctor-fee.ts`) is the one place that picks a fee: a new-visit fee is the latest NEW row that has started; a follow-up fee is the latest FOLLOW_UP row that has started, and with none, the new-visit fee. Visit pricing, the doctor picker (`feeFollowUpPaise`) and `PriceService.getDoctorFee` use it. A bill line still keeps the id of the row that was used, so bills already made are untouched; the free-follow-up window and the starter script are unchanged.
+- Existing follow-up rows stay as separate fees. A separate follow-up fee, once set, does not follow later changes of the new-visit fee. Fee rows are append-only, so the way back to "same price" is to type the same amount as the new-visit fee (a later flag column could make this cleaner; not needed now).
+- Prices list: a follow-up row with no separate fee carries `followsBase` and shows the new-visit price with "(same as new visit)" and the button **Set separate follow-up fee**; the form and the history say what this means.
+- Excel (Doctor fees): the new-visit fee is required (in the file or already saved), the follow-up fee is optional. The row reason `DOCTOR_NEEDS_BOTH_TYPES` became `DOCTOR_NEEDS_NEW_FEE`; its tests and the screen text were updated on purpose.

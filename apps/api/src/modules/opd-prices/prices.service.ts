@@ -27,6 +27,8 @@ export type PriceRowView = {
   currentFrom: string | null;
   nextAmountPaise: number | null;
   nextFrom: string | null;
+  /** A follow-up fee row with no separate follow-up fee: it costs the same as the new-visit fee. */
+  followsBase: boolean;
 };
 
 export type PriceVersionView = {
@@ -56,6 +58,7 @@ type RawRow = {
   cur_from: Date | null;
   next_amount: number | null;
   next_from: Date | null;
+  follows_base: boolean;
 };
 
 function priceInvalid(field: string, reason: string): never {
@@ -103,7 +106,8 @@ export class PricesService {
         SELECT ci.kind::text AS kind, ci.id AS item_id, NULL::text AS doctor_profile_id,
                NULL::text AS visit_type, ci.code AS code, ci.name AS name,
                cur.amount_paise AS cur_amount, cur.effective_from AS cur_from,
-               nxt.amount_paise AS next_amount, nxt.effective_from AS next_from
+               nxt.amount_paise AS next_amount, nxt.effective_from AS next_from,
+               false AS follows_base
           FROM charge_items ci
           LEFT JOIN LATERAL (
             SELECT p.amount_paise, p.effective_from FROM charge_item_prices p
@@ -118,7 +122,15 @@ export class PricesService {
          WHERE ci.tenant_id = ${tenantId} AND ci.active AND ci.kind IN ('REGISTRATION', 'INVESTIGATION')
         UNION ALL
         SELECT 'DOCTOR_FEE', NULL, dp.id, vt.visit_type, dp.code, u.display_name,
-               cur.amount_paise, cur.effective_from, nxt.amount_paise, nxt.effective_from
+               CASE WHEN vt.visit_type = 'FOLLOW_UP' AND cur.amount_paise IS NULL
+                    THEN curb.amount_paise ELSE cur.amount_paise END,
+               CASE WHEN vt.visit_type = 'FOLLOW_UP' AND cur.amount_paise IS NULL
+                    THEN curb.effective_from ELSE cur.effective_from END,
+               CASE WHEN vt.visit_type = 'FOLLOW_UP' AND cur.amount_paise IS NULL AND nxt.amount_paise IS NULL
+                    THEN nxtb.amount_paise ELSE nxt.amount_paise END,
+               CASE WHEN vt.visit_type = 'FOLLOW_UP' AND cur.amount_paise IS NULL AND nxt.amount_paise IS NULL
+                    THEN nxtb.effective_from ELSE nxt.effective_from END,
+               (vt.visit_type = 'FOLLOW_UP' AND cur.amount_paise IS NULL)
           FROM doctor_profiles dp
           JOIN users u ON u.tenant_id = dp.tenant_id AND u.id = dp.user_id
           CROSS JOIN (VALUES ('NEW'), ('FOLLOW_UP')) AS vt(visit_type)
@@ -132,6 +144,16 @@ export class PricesService {
              WHERE f.tenant_id = dp.tenant_id AND f.doctor_profile_id = dp.id
                AND f.visit_type = vt.visit_type::visit_type AND f.effective_from > ${now}::timestamptz
              ORDER BY f.effective_from ASC LIMIT 1) nxt ON true
+          LEFT JOIN LATERAL (
+            SELECT f.amount_paise, f.effective_from FROM doctor_fees f
+             WHERE f.tenant_id = dp.tenant_id AND f.doctor_profile_id = dp.id
+               AND f.visit_type = 'NEW'::visit_type AND f.effective_from <= ${now}::timestamptz
+             ORDER BY f.effective_from DESC LIMIT 1) curb ON true
+          LEFT JOIN LATERAL (
+            SELECT f.amount_paise, f.effective_from FROM doctor_fees f
+             WHERE f.tenant_id = dp.tenant_id AND f.doctor_profile_id = dp.id
+               AND f.visit_type = 'NEW'::visit_type AND f.effective_from > ${now}::timestamptz
+             ORDER BY f.effective_from ASC LIMIT 1) nxtb ON true
          WHERE dp.tenant_id = ${tenantId} AND dp.active
       ) all_rows
       WHERE true ${kindFilter} ${search}`;
@@ -173,6 +195,7 @@ export class PricesService {
       currentFrom: r.cur_from ? r.cur_from.toISOString() : null,
       nextAmountPaise: r.next_amount,
       nextFrom: r.next_from ? r.next_from.toISOString() : null,
+      followsBase: r.follows_base === true,
     };
   }
 

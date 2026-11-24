@@ -31,6 +31,14 @@ const paging = staffCopy.pagination;
 type Flash = { kind: 'ok' | 'error'; text: string } | null;
 type TableRow = PriceRow & { id: string };
 
+/** The words on the row button: set the first price, set a separate follow-up fee, or change the price. */
+function actionText(row: PriceRow): string {
+  if (row.followsBase && row.currentAmountPaise !== null) {
+    return copy.setSeparate;
+  }
+  return row.currentAmountPaise === null ? copy.setFirst : copy.change;
+}
+
 function typeText(row: PriceRow): string {
   return copy.types[row.kind === 'DOCTOR_FEE' ? (row.visitType ?? '') : row.kind] ?? row.kind;
 }
@@ -187,6 +195,11 @@ export function PricesScreen({
       cell: (row) =>
         row.currentAmountPaise === null ? (
           <Badge variant="warning">{copy.noPrice}</Badge>
+        ) : row.followsBase ? (
+          <span>
+            {formatPaise(row.currentAmountPaise)}{' '}
+            <span className="type-small text-muted-foreground">({copy.sameAsNew})</span>
+          </span>
         ) : (
           formatPaise(row.currentAmountPaise)
         ),
@@ -218,10 +231,10 @@ export function PricesScreen({
             type="button"
             size="sm"
             variant="outline"
-            aria-label={`${row.name}: ${row.currentAmountPaise === null ? copy.setFirst : copy.change}`}
+            aria-label={`${row.name}: ${actionText(row)}`}
             onClick={() => openEditor(row)}
           >
-            {row.currentAmountPaise === null ? copy.setFirst : copy.change}
+            {actionText(row)}
           </Button>
           <Button
             type="button"
@@ -280,7 +293,12 @@ export function PricesScreen({
       {editing ? (
         <form className="surface-card section-stack" onSubmit={onSubmit} noValidate>
           <h3 className="type-label-strong">
-            {(firstPrice ? copy.setTitle : copy.changeTitle).replace('{name}', editing.name)}
+            {(editing.followsBase && editing.currentAmountPaise !== null
+              ? copy.setSeparateTitle
+              : firstPrice
+                ? copy.setTitle
+                : copy.changeTitle
+            ).replace('{name}', editing.name)}
           </h3>
           <p className="type-small text-muted-foreground">
             {copy.typeLine.replace('{type}', typeText(editing)).replace('{code}', editing.code)}
@@ -288,6 +306,9 @@ export function PricesScreen({
               ? ` · ${copy.currentLine.replace('{amount}', formatPaise(editing.currentAmountPaise))}`
               : ''}
           </p>
+          {editing.kind === 'DOCTOR_FEE' && editing.visitType === 'FOLLOW_UP' ? (
+            <p className="type-small text-muted-foreground">{copy.followUpNote}</p>
+          ) : null}
           <div className="cluster-top">
             <InputField
               label={copy.amountLabel}
@@ -347,7 +368,9 @@ export function PricesScreen({
               {copy.historyLoadError}
             </p>
           ) : history.length === 0 ? (
-            <p className="type-label text-muted-foreground">{copy.historyEmpty}</p>
+            <p className="type-label text-muted-foreground">
+              {historyRow.followsBase ? copy.historyFollowsBase : copy.historyEmpty}
+            </p>
           ) : (
             <DataTable<PriceVersion>
               ariaLabel={copy.history}

@@ -800,4 +800,80 @@ describe('OPD prices: list, history and change (HTTP, hospigo_test)', () => {
     const bill = await owner.bill.findUniqueOrThrow({ where: { id: first.body.bill.id } });
     expect(bill.totalPaise).toBe(60_000);
   });
+
+  // ------------------------------------------- the follow-up fee is optional (Step 8c)
+
+  it('a doctor with only a new-visit fee: the follow-up fee is the same price until a separate one is set, and then it stays put', async () => {
+    const doctor = await makeDoctor(A, 'fallback');
+    const code = (await owner.doctorProfile.findUniqueOrThrow({ where: { id: doctor } })).code;
+    const rows = async () =>
+      (
+        await http()
+          .get(`/opd/prices?kind=DOCTOR_FEE&q=${code}`)
+          .set(auth(A.tokens.admin))
+          .expect(200)
+      ).body.items as Array<{
+        visitType: string;
+        currentAmountPaise: number | null;
+        followsBase: boolean;
+      }>;
+    const pick = async (type: string) => (await rows()).find((r) => r.visitType === type)!;
+    const doctorsList = async () =>
+      (await http().get('/opd/doctors').set(auth(A.tokens.recv)).expect(200)).body.items.find(
+        (d: { id: string }) => d.id === doctor,
+      ) as { feeNewPaise: number | null; feeFollowUpPaise: number | null };
+
+    // nothing set yet
+    expect(await pick('FOLLOW_UP')).toMatchObject({ currentAmountPaise: null, followsBase: true });
+
+    // only the new-visit fee: the follow-up row shows the same price, marked as following it
+    await http()
+      .post('/opd/prices/doctor-fees')
+      .set(auth(A.tokens.admin))
+      .send({ doctorProfileId: doctor, visitType: 'NEW', amountPaise: 40_000 })
+      .expect(200);
+    expect(await pick('NEW')).toMatchObject({ currentAmountPaise: 40_000, followsBase: false });
+    expect(await pick('FOLLOW_UP')).toMatchObject({
+      currentAmountPaise: 40_000,
+      followsBase: true,
+    });
+    expect(await doctorsList()).toMatchObject({ feeNewPaise: 40_000, feeFollowUpPaise: 40_000 });
+
+    // a later change of the new-visit fee is followed by the follow-up fee
+    clock.set(new Date(clock.now().getTime() + 120_000));
+    await http()
+      .post('/opd/prices/doctor-fees')
+      .set(auth(A.tokens.admin))
+      .send({ doctorProfileId: doctor, visitType: 'NEW', amountPaise: 45_000 })
+      .expect(200);
+    expect(await pick('FOLLOW_UP')).toMatchObject({
+      currentAmountPaise: 45_000,
+      followsBase: true,
+    });
+
+    // a separate follow-up fee: its own price from now on
+    clock.set(new Date(clock.now().getTime() + 120_000));
+    await http()
+      .post('/opd/prices/doctor-fees')
+      .set(auth(A.tokens.admin))
+      .send({ doctorProfileId: doctor, visitType: 'FOLLOW_UP', amountPaise: 25_000 })
+      .expect(200);
+    expect(await pick('FOLLOW_UP')).toMatchObject({
+      currentAmountPaise: 25_000,
+      followsBase: false,
+    });
+
+    // ... and it no longer follows later changes of the new-visit fee
+    clock.set(new Date(clock.now().getTime() + 120_000));
+    await http()
+      .post('/opd/prices/doctor-fees')
+      .set(auth(A.tokens.admin))
+      .send({ doctorProfileId: doctor, visitType: 'NEW', amountPaise: 50_000 })
+      .expect(200);
+    expect(await pick('FOLLOW_UP')).toMatchObject({
+      currentAmountPaise: 25_000,
+      followsBase: false,
+    });
+    expect(await doctorsList()).toMatchObject({ feeNewPaise: 50_000, feeFollowUpPaise: 25_000 });
+  });
 });
