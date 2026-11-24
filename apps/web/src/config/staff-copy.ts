@@ -1614,6 +1614,8 @@ export const staffCopy = {
     },
     clinical: {
       queue: {
+        doctorFilter: 'Doctor',
+        allDoctors: 'All doctors',
         title: 'OPD queue',
         descriptionOwn: 'Your patients: who is waiting now and who you have seen today.',
         descriptionBranch:

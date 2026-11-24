@@ -31,3 +31,9 @@ Branch: `feature/step-8c-settings-and-gaps`, from `develop` at `2e333ef` (the me
 - Existing follow-up rows stay as separate fees. A separate follow-up fee, once set, does not follow later changes of the new-visit fee. Fee rows are append-only, so the way back to "same price" is to type the same amount as the new-visit fee (a later flag column could make this cleaner; not needed now).
 - Prices list: a follow-up row with no separate fee carries `followsBase` and shows the new-visit price with "(same as new visit)" and the button **Set separate follow-up fee**; the form and the history say what this means.
 - Excel (Doctor fees): the new-visit fee is required (in the file or already saved), the follow-up fee is optional. The row reason `DOCTOR_NEEDS_BOTH_TYPES` became `DOCTOR_NEEDS_NEW_FEE`; its tests and the screen text were updated on purpose.
+
+## (6) Queue doctor filter (built)
+
+- `GET /opd/queue?doctorProfileId=` narrows the list to one doctor. A doctor still sees only their own visits whatever is asked (the filter can never widen it, and a doctor gets no doctor list). A malformed id is refused (400); an unknown doctor or one of another hospital gives an empty list (the tenant filter applies).
+- For the whole-branch scope the answer also lists the doctors that have visits in the branch queue (`doctors`), taken from the unfiltered list so the choices do not shrink when one is picked. No migration, no new permission.
+- Screen: a **Doctor** dropdown (All doctors, then each doctor) above the list for nurse and reception; the choice stays through Refresh and the automatic refresh.

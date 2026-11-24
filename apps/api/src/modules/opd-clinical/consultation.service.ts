@@ -207,21 +207,25 @@ export class ConsultationService {
    *    reception can see who has been attended.
    * A doctor sees only their own; everyone else with the permission (a nurse, reception) sees the
    * whole branch. Names, tokens and status only: no clinical text, no money.
+   * Optional `doctorProfileId` narrows the list to one doctor (for everyone except a doctor, who
+   * always sees only their own: the filter can never widen it). For the whole branch the answer
+   * also lists the doctors that have visits in the queue, so the screen can offer them as a filter.
    */
-  async queue(actor: Actor) {
+  async queue(actor: Actor, doctorProfileId?: string) {
     return this.tenantDb.withTenant(async (tx) => {
       const { prefix, today, startOfToday } = await this.dayInfo(tx, actor);
       const own = await ownDoctorId(tx, actor);
+      const floor = {
+        tenantId: actor.tenantId,
+        branchId: actor.branchId,
+        OR: [
+          { status: { in: ['WAITING', 'IN_CONSULTATION'] as ('WAITING' | 'IN_CONSULTATION')[] } },
+          { status: 'COMPLETED' as const, completedAt: { gte: startOfToday } },
+        ],
+      };
+      const wanted = own ?? (doctorProfileId || undefined);
       const rows = await tx.opdVisit.findMany({
-        where: {
-          tenantId: actor.tenantId,
-          branchId: actor.branchId,
-          OR: [
-            { status: { in: ['WAITING', 'IN_CONSULTATION'] } },
-            { status: 'COMPLETED', completedAt: { gte: startOfToday } },
-          ],
-          ...(own ? { doctorProfileId: own } : {}),
-        },
+        where: { ...floor, ...(wanted ? { doctorProfileId: wanted } : {}) },
         select: CLINICAL_VISIT_SELECT,
         orderBy: [{ queuedAt: 'asc' }, { id: 'asc' }],
       });
@@ -240,10 +244,26 @@ export class ConsultationService {
         distinct: ['visitId'],
       });
       const hasVitals = new Set(withVitals.map((v) => v.visitId));
+      // The doctors that have visits in the queue (the unfiltered branch list), for the filter.
+      const doctors = own
+        ? []
+        : (
+            await tx.opdVisit.findMany({
+              where: floor,
+              select: {
+                doctorProfileId: true,
+                doctor: { select: { user: { select: { displayName: true } } } },
+              },
+              distinct: ['doctorProfileId'],
+            })
+          )
+            .map((d) => ({ id: d.doctorProfileId, name: d.doctor.user.displayName }))
+            .sort((a, b) => a.name.localeCompare(b.name));
       return {
         date: isoDate(today),
         scope: own ? 'OWN' : 'BRANCH',
         total: ordered.length,
+        doctors,
         items: ordered.map((r) => ({
           ...toVisitSummary(r, prefix, today),
           vitalsRecorded: hasVitals.has(r.id),
