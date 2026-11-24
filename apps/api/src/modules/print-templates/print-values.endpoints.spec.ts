@@ -248,6 +248,8 @@ describe('Extra print values (HTTP, hospigo_test)', () => {
     await bad({ key: k, label: '<b>L</b>', value: 'v' }, 'NOT_PLAIN_TEXT', 'label');
     await bad({ key: k, label: 'L', value: 'line one\nline two' }, 'NOT_PLAIN_TEXT', 'value');
     await bad({ key: k, label: 'L', value: 'tab\there' }, 'NOT_PLAIN_TEXT', 'value');
+    await bad({ key: k, label: 'L', value: 'abc\u202Edef' }, 'NOT_PLAIN_TEXT', 'value');
+    await bad({ key: k, label: 'zero\u200Bwidth', value: 'v' }, 'NOT_PLAIN_TEXT', 'label');
     await bad({ key: k, label: 'L', value: '   ' }, 'REQUIRED', 'value');
     await bad({ key: k, label: 'L', value: 'x'.repeat(201) }, 'TOO_LONG', 'value');
     await bad({ key: k, label: 'x'.repeat(61), value: 'v' }, 'TOO_LONG', 'label');
@@ -426,6 +428,9 @@ describe('Extra print values (HTTP, hospigo_test)', () => {
     ).rejects.toThrow();
     await expect(
       owner.printValue.update({ where: { id: made.id }, data: { value: 'a\nb' } }),
+    ).rejects.toThrow();
+    await expect(
+      owner.printValue.update({ where: { id: made.id }, data: { value: 'a\u202Eb' } }),
     ).rejects.toThrow();
     await expect(
       owner.printValue.create({

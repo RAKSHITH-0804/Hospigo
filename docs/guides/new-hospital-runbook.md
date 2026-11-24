@@ -37,6 +37,15 @@ Run `--dry-run` first: it prints what it would create and changes nothing. It ne
 
 Created when missing: payment modes (Cash, UPI, Card), vitals fields, the BILL, RECEIPT and REFUND number series, the OPD rules row, the "Registration" charge item (without a price), the patient registration field settings and a default UHID format.
 
+**Optional (Step 8c): the patient reference fields.** Add `--reference-fields` to also create the ready-made registration fields **Referred by**, **Category**, **Organisation** and **Staff number** (section Other, on the form, not required):
+
+```powershell
+npm run hospital:starter -w @hospigo/api -- --hospital CODE --reference-fields --dry-run
+npm run hospital:starter -w @hospigo/api -- --hospital CODE --reference-fields
+```
+
+It is off by default, so the older command behaves exactly as before. A field whose name already exists (any letters) is left as it is, and running it twice adds nothing twice. The same set can be added later by an Admin with one click: Settings, Patients, Registration fields, **Add ready-made fields**.
+
 ## 4. What is still needed before the first visit
 
 After the starter script, an Admin or SuperAdmin must set:
@@ -45,6 +54,8 @@ After the starter script, an Admin or SuperAdmin must set:
 2. Each **doctor's fee** for NEW and for FOLLOW_UP (Prices, or the Excel upload "Doctor fees"). The doctors exist first (Settings, Staff, role Doctor).
 3. The test prices and the medicine list if wanted (Settings, OPD, Upload lists).
 4. The **last UHID number** if the hospital already has patients (Settings, Patients, Patient numbers: raise-only, with a reason).
+5. The **bill, receipt and refund number format** if the hospital wants its own (Settings, Billing, Bill numbers, hospital-wide Admin only), and the **start number** if it already issued numbers on paper (raise-only, with a reason). The count rule and the financial year start can only be chosen before the first number exists.
+6. Optional: **payment modes** (Settings, Billing, Payment modes), **vitals fields** (Settings, OPD, Vitals fields), **print values** such as a helpline number (Settings, Hospital, Print values) and a **branch print design** (Settings, Printing, Save for this branch).
 
 Without a registration price and a doctor fee, the first visit is refused with `409 FEE_NOT_CONFIGURED`.
 

@@ -1,6 +1,7 @@
 /**
  * Rules for the extra print values (Step 8c). A value is a named piece of PLAIN TEXT: no line breaks,
- * no angle brackets (so no HTML), nothing is ever evaluated (so no formulas and no scripts). The
+ * no angle brackets (so no HTML), no invisible direction or zero-width characters (a printed text
+ * must read as it was typed), nothing is ever evaluated (so no formulas and no scripts). The
  * same rules are repeated in the database (check constraints).
  */
 export const PRINT_VALUE_LIMITS = {
@@ -40,7 +41,7 @@ const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
 // eslint-disable-next-line no-control-regex
-const NOT_PLAIN = /[\u0000-\u001f\u007f<>]/;
+const NOT_PLAIN = /[\u0000-\u001f\u007f-\u009f<>\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/;
 
 function plainText(field: string, raw: unknown, max: number): string {
   if (typeof raw !== 'string') {

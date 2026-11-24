@@ -13,14 +13,14 @@ Start with the four living files in this folder. Everything else is grouped by w
 
 ## Folders
 
-| Folder                   | What it holds                                                                                       |
-| ------------------------ | --------------------------------------------------------------------------------------------------- |
-| [decisions/](decisions/) | One file per step (`decisions-7d.md`, ...): what was decided and built, the self-review, "Not done" |
-| [reference/](reference/) | How the system is built: API references, schema, architecture, env variables, CI, folder guide      |
-| [guides/](guides/)       | How to work with it: dev commands, demo accounts, staging checklist                                 |
-| [design/](design/)       | How screens look: `ui-design.md` (current rules), concept screens (history), the concept PDF        |
-| [audit/](audit/)         | Audits: `phase2-audit.md` (plan vs built, proof, security and money, decisions needed)              |
-| [plans/](plans/)         | What is planned: the OPD first-flow plan, use cases, the future Lab and Pharmacy notes              |
+| Folder                   | What it holds                                                                                                          |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| [decisions/](decisions/) | One file per step (`decisions-7d.md`, ...): what was decided and built, the self-review, "Not done"                    |
+| [reference/](reference/) | How the system is built: API references, schema, architecture, env variables, CI, folder guide                         |
+| [guides/](guides/)       | How to work with it: dev commands, demo accounts, new hospital runbook, manual regression checklist, staging checklist |
+| [design/](design/)       | How screens look: `ui-design.md` (current rules), concept screens (history), the concept PDF                           |
+| [audit/](audit/)         | Audits: `phase2-audit.md` (plan vs built, proof, security and money, decisions needed)                                 |
+| [plans/](plans/)         | What is planned: the OPD first-flow plan, use cases, the future Lab and Pharmacy notes                                 |
 
 ## Where do I add new things?
 

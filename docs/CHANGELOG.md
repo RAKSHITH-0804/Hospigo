@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-24 — Phase 2 Step 8c — Settings and gaps (branch `feature/step-8c-settings-and-gaps`, not pushed)
+
+- **Commit hash(es):** see `git log` on the branch (one commit group per item, then the docs).
+- **Added:** doctor fee fallback (a follow-up with no fee of its own costs the new-visit fee) and the "Set separate follow-up fee" screen; OPD queue doctor filter; Payment modes screen and API; Vitals fields screen and API with a warning while typing; Bill numbers screen and API (format with live preview, locked count rule, raise-only start number); patient reference field set (one click, starter `--reference-fields`); "T7 cancelled" token marker; doctor leave requests (My leave, Leave requests pop-up, approval creates the leave through the Availability rules); print templates per branch (lookup branch, hospital, default; Save for this branch or the whole hospital); extra print values (Settings, Print values; inserted from the designer; printed on slip, receipt and prescription); `docs/guides/manual-regression-checklist.md`; Postman 8c collection (git-ignored, not run); a test kit for HTTP specs.
+- **Changed:** the Excel row reason `DOCTOR_NEEDS_BOTH_TYPES` became `DOCTOR_NEEDS_NEW_FEE` (follow-up fee optional); the settings menu has a Billing group (Prices, Payment modes, Bill numbers) and Print values under Hospital; hospital-wide print templates now need the settings permission in every branch; the new-hospital runbook mentions the reference fields and the new settings.
+- **Removed:** nothing.
+- **Fixed:** counters could be deleted, emptied, re-keyed, and the count rule changed after numbers existed; now refused by the database.
+- **Database (migrations, roles, RLS):** `20261127100000_number_series_protection`, `20261127110000_doctor_leave_requests` (forced RLS, no delete or truncate, close-once guard), `20261127120000_print_values` (forced RLS, plain-text checks, no delete or truncate, identity guard); applied to `hospigo_test` only.
+- **New .env keys (names only):** none.
+- **Tests:** API 930 to 1022, web 1666 to 1780.
+- **Decisions:** `docs/decisions/decisions-8c.md` (includes the self-review and what was not built).
+- **Follow-ups and open items:** Rakshith migrates the dev database and runs Postman 8c and the manual regression checklist; hide Bill numbers from a Branch Admin?; `users` DELETE grant (Step 9); the full manual test belongs in Step 9.
+
 ## 2026-11-23 — Phase 2 Step 8b — Masters setup (starting a real hospital)
 
 - **Commit hash(es):** merged as PR #60, merge commit `2e333ef`.

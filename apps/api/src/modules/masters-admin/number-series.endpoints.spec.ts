@@ -321,6 +321,32 @@ describe('Number series settings (HTTP, hospigo_test)', () => {
     ).toBe('NOT_CONFIGURED');
   });
 
+  it('raises at the same moment never lower the count: the highest wins, nothing is lost or repeated', async () => {
+    await settings(B, 'RECEIPT', [
+      { type: 'FINANCIAL_YEAR', style: 'LONG' },
+      { type: 'RUNNING', width: 4 },
+    ]);
+    const asked = [3000, 5000, 4000, 4500];
+    const calls = await Promise.all(
+      asked.map((n) => start(B, 'RECEIPT', { startNumber: n, reason: 'race ' + n })),
+    );
+    // each request is either accepted or told it does not raise the count; nothing else
+    for (const c of calls) {
+      expect([200, 409]).toContain(c.status);
+      if (c.status === 409) {
+        expect(c.body.reason).toBe('NOT_RAISING');
+      }
+    }
+    expect(calls.some((c) => c.status === 200)).toBe(true);
+    // the count ends at the highest asked number, whatever the order they ran in
+    expect((await one(B, 'RECEIPT')).lastNumber).toBe('4999');
+    const rows = await owner.numberSeries.findMany({
+      where: { tenantId: B.h.tenant, series: 'RECEIPT' },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.lastNumber.toString()).toBe('4999');
+  });
+
   it('the audit trail keeps ids, series, field names and numbers; the reason of a start number is kept as the reason', async () => {
     const rows = await owner.auditLog.findMany({
       where: { tenantId: B.h.tenant, action: 'NUMBER_SERIES_CHANGE' },

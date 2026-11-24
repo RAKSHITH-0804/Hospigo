@@ -453,3 +453,12 @@ Row level security is enabled and forced on `staff_code_settings` (policy `staff
 | `stored_images.created_by/created_at`  | text / timestamptz | Who and when; no delete grant: pictures are never removed                                                        |
 
 `consultations.doctor_details` (the copy taken at completion) now also holds `signatureImageId` (the id of the doctor's current signature at that moment, or null); `consultations_guard` was replaced to write it. The isolation spec has a sample row for `stored_images`.
+
+## Step 8c additions (migrations `20261127100000`, `20261127110000`, `20261127120000`)
+
+| Table / change                         | Rule                                                                                                                                                                                                                                                                             |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `number_series` (counters), protection | Triggers: a counter row cannot be deleted, emptied or re-keyed (hospital, series, period); with the older forward-only trigger a counter never goes down. `number_series_settings.reset_rule` and `fy_start_month` cannot change once a counter row of the series exists.        |
+| `doctor_leave_requests`                | Hospital, doctor, first and last day, status (PENDING, APPROVED, REJECTED, CANCELLED), requester, decider, leave id. Forced RLS; SELECT, INSERT, UPDATE for the app login; no delete or truncate; closed once, never edited; composite foreign keys.                             |
+| `print_values`                         | Hospital, optional branch, code, label, text, active. Forced RLS; SELECT and INSERT, UPDATE only on label, text, active and the stamps; no delete or truncate; identity guard; plain-text checks (no control or direction characters, no `<` `>`); one value per scope and code. |
+| `print_templates` (no change)          | Its nullable `branch_id` and the unique key per scope and document are now used by the per-branch lookup.                                                                                                                                                                        |

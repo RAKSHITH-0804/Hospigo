@@ -22,12 +22,16 @@ CREATE TABLE "print_values" (
     CONSTRAINT "print_values_pkey" PRIMARY KEY ("id"),
     -- the key is a lower-case code, 1 to 30 characters, starting with a letter
     CONSTRAINT "print_values_key_chk" CHECK ("key" ~ '^[a-z][a-z0-9_]{0,29}$'),
-    -- plain text only: no control characters (no line breaks), no angle brackets (no HTML)
+    -- plain text only: no control characters (no line breaks), no angle brackets (no HTML), and none of
+    -- the invisible direction and zero-width characters that could make a printed text read differently
+    -- from what was typed (U+200B to U+200F, U+202A to U+202E, U+2066 to U+2069, U+FEFF)
     CONSTRAINT "print_values_label_chk" CHECK (
-      length(btrim("label")) >= 1 AND length("label") <= 60 AND "label" !~ '[[:cntrl:]<>]'
+      length(btrim("label")) >= 1 AND length("label") <= 60
+      AND "label" !~ '[[:cntrl:]<>\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]'
     ),
     CONSTRAINT "print_values_value_chk" CHECK (
-      length(btrim("value")) >= 1 AND length("value") <= 200 AND "value" !~ '[[:cntrl:]<>]'
+      length(btrim("value")) >= 1 AND length("value") <= 200
+      AND "value" !~ '[[:cntrl:]<>\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]'
     )
 );
 
