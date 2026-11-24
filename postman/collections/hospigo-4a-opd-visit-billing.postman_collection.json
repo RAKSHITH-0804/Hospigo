@@ -246,6 +246,48 @@
               }
             }
           ]
+        },
+        {
+          "name": "5b Setup: make sure one doctor is switched off (this collection needs one; undone at the end if we did it)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().items;",
+                  "const already = items.find(d => !d.available && d.unavailableReason === 'SWITCH_OFF');",
+                  "pm.collectionVariables.set('offWasMine', already ? 'no' : 'yes');",
+                  "if (!already) {",
+                  "  const avail = items.filter(d => d.available);",
+                  "  const ID = avail[avail.length - 1].id;",
+                  "  pm.collectionVariables.set('offDoctorMine', ID);",
+                  "  pm.sendRequest({ url: pm.collectionVariables.get('baseUrl') + '/opd/doctors/' + ID + '/availability/switch', method: 'PUT', header: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + pm.collectionVariables.get('superAccess') }, body: { mode: 'raw', raw: JSON.stringify({ availabilityOn: false }) } }, (err, res) => { pm.test('doctor switch off (200)', () => { pm.expect(err).to.eql(null); pm.expect(res.code).to.eql(200); }); });",
+                  "}"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -1400,6 +1442,43 @@
                 "exec": [
                   "pm.test('200', () => pm.response.to.have.status(200));",
                   "pm.test('bill visible', () => pm.expect(pm.response.json().bill.paymentStatus).to.eql('PAID'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "30 Cleanup: switch the doctor on again if this run switched it off",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "if (pm.collectionVariables.get('offWasMine') === 'yes') {",
+                  "  const ID = pm.collectionVariables.get('offDoctorMine');",
+                  "  pm.sendRequest({ url: pm.collectionVariables.get('baseUrl') + '/opd/doctors/' + ID + '/availability/switch', method: 'PUT', header: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + pm.collectionVariables.get('superAccess') }, body: { mode: 'raw', raw: JSON.stringify({ availabilityOn: true }) } }, (err, res) => { pm.test('doctor switch on (200)', () => { pm.expect(err).to.eql(null); pm.expect(res.code).to.eql(200); }); });",
+                  "}"
                 ]
               }
             }
