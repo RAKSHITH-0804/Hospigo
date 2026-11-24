@@ -6,7 +6,9 @@ import { PrintingSettings } from '@/components/print/printing-settings';
 import { UhidStartCard } from '@/components/patients/uhid-start-card';
 import { DoctorsList } from '@/components/settings/doctors-list';
 import { OpdRulesForm } from '@/components/settings/opd-rules-form';
+import { PaymentModesScreen } from '@/components/settings/payment-modes-screen';
 import { PricesScreen } from '@/components/settings/prices-screen';
+import { VitalsFieldsScreen } from '@/components/settings/vitals-fields-screen';
 import { ImportsScreen } from '@/components/settings/imports-screen';
 import { RegistrationFields } from '@/components/settings/registration-fields';
 import { UhidFormatCard } from '@/components/settings/uhid-format-card';
@@ -26,6 +28,12 @@ import type { UhidStartNumberResponse } from '@/lib/patients/types';
 import { API_DOCTOR_PROFILES, type DoctorsListResponse } from '@/lib/doctors/types';
 import { API_BRANDING, type BrandingResponse } from '@/lib/images/types';
 import { API_IMPORTS, type ImportListResponse } from '@/lib/imports/types';
+import {
+  API_PAYMENT_MODES,
+  API_VITALS_FIELDS,
+  type PaymentModesResponse,
+  type VitalsFieldsResponse,
+} from '@/lib/masters/types';
 import { API_PRICES, PRICE_KINDS, type PriceKind, type PricesResponse } from '@/lib/prices/types';
 import { API_OPD_RULES, API_PATIENT_FIELDS, API_UHID_FORMAT } from '@/lib/settings/paths';
 import {
@@ -59,6 +67,8 @@ const WIDE_SECTIONS = [
   'roles',
   'prices',
   'upload-lists',
+  'payment-modes',
+  'vitals-fields',
 ];
 
 export const metadata: Metadata = { title: staffCopy.pageTitles.settings };
@@ -212,6 +222,24 @@ export default async function SettingsSectionPage({
         startQuery={{ q: startQ, kind: startKind }}
         initial={prices.status === 'ok' ? prices.data : null}
         initialErrorCode={prices.status === 'ok' ? null : serverErrorCode(prices)}
+      />
+    );
+  }
+  if (section.id === 'payment-modes') {
+    const modes = await fetchStaffOnServer<PaymentModesResponse>(API_PAYMENT_MODES);
+    content = (
+      <PaymentModesScreen
+        initial={modes.status === 'ok' ? modes.data : null}
+        initialErrorCode={modes.status === 'ok' ? null : serverErrorCode(modes)}
+      />
+    );
+  }
+  if (section.id === 'vitals-fields') {
+    const fields = await fetchStaffOnServer<VitalsFieldsResponse>(API_VITALS_FIELDS);
+    content = (
+      <VitalsFieldsScreen
+        initial={fields.status === 'ok' ? fields.data : null}
+        initialErrorCode={fields.status === 'ok' ? null : serverErrorCode(fields)}
       />
     );
   }

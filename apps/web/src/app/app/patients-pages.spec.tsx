@@ -769,6 +769,8 @@ describe('patients pages', () => {
           roles: 'role.read',
           prices: 'opd.prices.write',
           'upload-lists': 'opd.masters.write',
+          'payment-modes': 'opd.masters.write',
+          'vitals-fields': 'opd.masters.write',
         };
         expect(entry.permission).toBe(own[entry.id] ?? 'hospital.settings.read');
       }

@@ -11,7 +11,7 @@
 export const SETTINGS_BASE_ROUTE = '/app/settings';
 
 /** The headings of the settings menu, in the order they are shown. */
-export const SETTINGS_GROUPS = ['hospital', 'people', 'patients', 'opd'] as const;
+export const SETTINGS_GROUPS = ['hospital', 'people', 'patients', 'opd', 'billing'] as const;
 export type SettingsGroup = (typeof SETTINGS_GROUPS)[number];
 
 export type SettingsSection = {
@@ -30,7 +30,9 @@ export type SettingsSection = {
     | 'roles'
     | 'branding'
     | 'prices'
-    | 'uploadLists';
+    | 'uploadLists'
+    | 'paymentModes'
+    | 'vitalsFields';
   route: string;
   /** Permission needed to view the section (changing needs the matching write permission). */
   permission: string;
@@ -98,12 +100,26 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     permission: 'hospital.settings.read',
   },
   {
-    id: 'prices',
+    id: 'vitals-fields',
     group: 'opd',
+    copyKey: 'vitalsFields',
+    route: `${SETTINGS_BASE_ROUTE}/vitals-fields`,
+    permission: 'opd.masters.write',
+  },
+  {
+    id: 'prices',
+    group: 'billing',
     copyKey: 'prices',
     route: `${SETTINGS_BASE_ROUTE}/prices`,
     // Prices are shown and changed by Admin and SuperAdmin only.
     permission: 'opd.prices.write',
+  },
+  {
+    id: 'payment-modes',
+    group: 'billing',
+    copyKey: 'paymentModes',
+    route: `${SETTINGS_BASE_ROUTE}/payment-modes`,
+    permission: 'opd.masters.write',
   },
   {
     id: 'upload-lists',

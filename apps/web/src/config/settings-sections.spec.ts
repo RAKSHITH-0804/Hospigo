@@ -16,7 +16,7 @@ describe('the settings menu', () => {
     }
   });
 
-  it('lists the sections under Hospital, People, Patients and OPD, in that order', () => {
+  it('lists the sections under Hospital, People, Patients, OPD and Billing, in that order', () => {
     const grouped = groupSettingsSections(SETTINGS_SECTIONS).map((g) => [
       g.group,
       g.sections.map((s) => s.id),
@@ -25,7 +25,8 @@ describe('the settings menu', () => {
       ['hospital', ['branding', 'printing']],
       ['people', ['staff', 'roles', 'doctors']],
       ['patients', ['patient-registration', 'patient-numbers']],
-      ['opd', ['opd-rules', 'prices', 'upload-lists']],
+      ['opd', ['opd-rules', 'vitals-fields', 'upload-lists']],
+      ['billing', ['prices', 'payment-modes']],
     ]);
   });
 
@@ -45,6 +46,15 @@ describe('the settings menu', () => {
       visibleSettingsSections(permissions).some((s) => s.id === 'upload-lists');
     expect(has(['hospital.settings.read'])).toBe(false);
     expect(has(['hospital.settings.read', 'opd.masters.write'])).toBe(true);
+  });
+
+  it('Payment modes and Vitals fields are for people who may change the masters only', () => {
+    for (const id of ['payment-modes', 'vitals-fields']) {
+      const has = (permissions: string[]) =>
+        visibleSettingsSections(permissions).some((s) => s.id === id);
+      expect(has(['hospital.settings.read'])).toBe(false);
+      expect(has(['hospital.settings.read', 'opd.masters.write'])).toBe(true);
+    }
   });
 
   it('leaves out a heading with nothing under it, and keeps every section once', () => {

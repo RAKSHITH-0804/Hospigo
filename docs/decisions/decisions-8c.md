@@ -37,3 +37,26 @@ Branch: `feature/step-8c-settings-and-gaps`, from `develop` at `2e333ef` (the me
 - `GET /opd/queue?doctorProfileId=` narrows the list to one doctor. A doctor still sees only their own visits whatever is asked (the filter can never widen it, and a doctor gets no doctor list). A malformed id is refused (400); an unknown doctor or one of another hospital gives an empty list (the tenant filter applies).
 - For the whole-branch scope the answer also lists the doctors that have visits in the branch queue (`doctors`), taken from the unfiltered list so the choices do not shrink when one is picked. No migration, no new permission.
 - Screen: a **Doctor** dropdown (All doctors, then each doctor) above the list for nurse and reception; the choice stays through Refresh and the automatic refresh.
+
+## (2) Payment modes (built)
+
+- **Correction of the plan:** the plan said the "requires reference" flag was not enforced anywhere. That was wrong. The check already exists in `planPayments` (visit payments, test bills, single and split payments: `REFERENCE_REQUIRED`) and in the refund code (a refund line of such a mode needs its reference). It was not changed in 8c, so no payment or refund behaviour changed and no existing Postman collection needed an edit. New tests (`billing-helpers.spec.ts`) pin the rule: cash needs no reference, UPI and card do, a split checks every line, the flag of the mode as it is NOW decides, a switched-off mode is refused, a free bill takes no payment.
+- New API (module `masters-admin`, no migration: the application login already has SELECT, INSERT and UPDATE on `payment_modes`): `GET/POST /settings/payment-modes`, `PUT /settings/payment-modes/:id`. Permission `opd.masters.write` for all of them (reception, nurse and "nobody" are refused, a Branch Admin is allowed as for the prices).
+- Rules: code is made upper case, 2 to 20 characters (A to Z, digits, `_`), unique per hospital, **never changed**; name is plain text (no `<` or `>`), at most 40 characters; at most 30 modes. **Never deleted** (no route; payments and refunds point at modes). **Cash cannot be deactivated** (billing uses it as the default) and **at least one mode stays active**. A mode switched off is not offered when taking payment and comes back when switched on. The flag decides for NEW payments and refunds only.
+- Two changes at the same moment run one after the other (the settings row is locked for the transaction). Audit: kind and the NAMES of the changed fields only. A change that changes nothing writes nothing.
+- Screen: Settings, Billing, **Payment modes** (list with reference rule, status and how often it was used; Add and Edit in a pop-up; Activate and Deactivate; help block).
+
+## (3) Vitals fields (built)
+
+- New API (same module, no migration): `GET/POST /settings/vitals-fields`, `PUT /settings/vitals-fields/:id`, `POST /settings/vitals-fields/reorder`. Permission `opd.masters.write`.
+- Rules: code (small letters, digits, `_`) and kind (number or text) never change; name and unit are plain text; a usual range (`warnMin`, `warnMax`, at most 2 decimals, highest above lowest) only for number fields, `null` clears a limit; fields are never deleted, only deactivated; reorder needs the complete list of the hospital's field ids (another hospital's id or a missing id is refused). A reading keeps its own copy of the name, unit and kind, so editing a field never rewrites what was recorded.
+- **The warning** (warn only, never blocks): the nurse screen already marked a saved reading outside the range; 8c adds the warning while typing ("Outside the usual range. Usual range: 50 – 120. Please check the reading. It can still be saved."). A field without a range, and a text field, never warn.
+- Screen: Settings, OPD, **Vitals fields** (list with unit, type, range and status; Add and Edit in a pop-up; up and down arrows; Activate and Deactivate; help block).
+
+## Menu grouping
+
+The settings menu got a new heading **Billing** (Prices, Payment modes, and later Bill numbers). OPD keeps OPD rules, Vitals fields and Upload lists. A heading with nothing the person may open is left out, as before.
+
+## Test kit
+
+`apps/api/src/database/hospital-test-kit.ts` (not part of the build: excluded in `tsconfig.json`) gives the 8c HTTP specs the same set-up: test environment, booted app with the given clock, hospitals with a Main and an East branch, and people with a role or a made-up permission list.
