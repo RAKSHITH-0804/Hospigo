@@ -812,6 +812,12 @@ export const staffCopy = {
       } as Record<string, string>,
       customEmpty: 'No fields of your own yet.',
       addButton: 'Add a field',
+      referenceButton: 'Add ready-made fields',
+      referenceHint:
+        'Adds Referred by, Category (General, Staff, Insurance, Senior citizen), Organisation and Staff number. A field you already have with the same name is left as it is.',
+      referenceAdded: 'Added: {names}. You can rename, move or switch them off below.',
+      referenceNothingNew: 'These fields are already there. Nothing was changed.',
+      referenceSkipped: 'Not added, because the limit of fields was reached: {names}.',
       addHeading: 'New field',
       labelLabel: 'Name of the field',
       typeLabel: 'Type',

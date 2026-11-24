@@ -84,6 +84,17 @@ export class HospitalSettingsController {
     return this.fields.createCustom(actorOf(req), body);
   }
 
+  @Post('patient-fields/reference-set')
+  @HttpCode(200)
+  @RequirePermission('hospital.settings.write')
+  @ApiOperation({
+    summary:
+      'Add the ready-made reference fields (Referred by, Category, Organisation, Staff number) that are not there yet; existing fields are left as they are',
+  })
+  async addReferenceSet(@Req() req: HttpReq) {
+    return this.fields.addReferenceSet(actorOf(req));
+  }
+
   @Patch('patient-fields/custom/:id')
   @RequirePermission('hospital.settings.write')
   @ApiOperation({ summary: 'Rename, move, switch off/on or make required a custom field' })

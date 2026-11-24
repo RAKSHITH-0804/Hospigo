@@ -1,3 +1,7 @@
+import {
+  codeFromLabel,
+  REFERENCE_FIELD_SET,
+} from '../../modules/patients/patient-reference-fields';
 import type { Prisma, PrismaClient, UhidResetRule } from '../../generated/prisma';
 import {
   validateNumberSeriesFormat,
@@ -38,6 +42,8 @@ export type StarterOptions = {
   seriesPrefix: Partial<Record<SeriesKind, string>>;
   /** The default patient number (UHID) format. */
   uhid: { prefix: string; width: number; resetRule: StarterResetRule };
+  /** Also add the ready-made reference fields (Referred by, Category, ...) to the registration form. */
+  referenceFields: boolean;
 };
 
 export type StarterReport = {
@@ -68,6 +74,7 @@ export function defaultStarterOptions(hospitalCode: string): StarterOptions {
     fyStartMonth: OPD_FY_START_MONTH_DEFAULT,
     seriesPrefix: {},
     uhid: { prefix: '', width: 5, resetRule: 'FINANCIAL_YEAR' },
+    referenceFields: false,
   };
 }
 
@@ -348,6 +355,70 @@ export async function runHospitalStarter(
           });
           order += 1;
         }
+      }
+    }
+
+    // The ready-made reference fields (Referred by, Category, ...), only when asked for. A field whose
+    // name is already used is left exactly as it is: nothing is overwritten.
+    if (options.referenceFields) {
+      const existingCustom = await tx.patientCustomField.findMany({
+        where: { tenantId },
+        select: { label: true, code: true },
+      });
+      const labels = new Set(existingCustom.map((f) => f.label.toLowerCase()));
+      const codes = new Set(existingCustom.map((f) => f.code));
+      const top = await tx.patientFieldSetting.aggregate({
+        where: { tenantId },
+        _max: { sortOrder: true },
+      });
+      let sortOrder = top._max.sortOrder ?? 0;
+      for (const def of REFERENCE_FIELD_SET) {
+        if (labels.has(def.label.toLowerCase())) {
+          report.kept.push(`Reference field ${def.label}`);
+          continue;
+        }
+        report.created.push(`Reference field ${def.label}`);
+        if (options.dryRun) {
+          continue;
+        }
+        const base = codeFromLabel(def.label);
+        let code = base;
+        for (let n = 2; codes.has(code); n += 1) {
+          code = `${base}_${n}`;
+        }
+        codes.add(code);
+        const field = await tx.patientCustomField.create({
+          data: {
+            tenantId,
+            code,
+            label: def.label,
+            dataType: def.dataType,
+            section: def.section,
+          },
+        });
+        if (def.options) {
+          await tx.patientCustomFieldOption.createMany({
+            data: def.options.map((label, index) => ({
+              tenantId,
+              fieldId: field.id,
+              label,
+              sortOrder: index,
+            })),
+          });
+        }
+        sortOrder += 1;
+        await tx.patientFieldSetting.create({
+          data: {
+            tenantId,
+            customFieldId: field.id,
+            isEnabled: true,
+            isRequired: false,
+            label: def.label,
+            sortOrder,
+            changedBy: superAdminId,
+            changedAt: new Date(),
+          },
+        });
       }
     }
 

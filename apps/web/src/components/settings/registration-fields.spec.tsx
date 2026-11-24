@@ -9,12 +9,16 @@ const mocks = {
   createCustomField: jest.fn(),
   updateCustomField: jest.fn(),
   saveCustomOptions: jest.fn(),
+  addReferenceSet: jest.fn(),
+  loadPatientFields: jest.fn(),
 };
 jest.mock('@/lib/settings/client', () => ({
   saveBuiltinField: (...a: unknown[]) => mocks.saveBuiltinField(...a),
   createCustomField: (...a: unknown[]) => mocks.createCustomField(...a),
   updateCustomField: (...a: unknown[]) => mocks.updateCustomField(...a),
   saveCustomOptions: (...a: unknown[]) => mocks.saveCustomOptions(...a),
+  addReferenceSet: (...a: unknown[]) => mocks.addReferenceSet(...a),
+  loadPatientFields: (...a: unknown[]) => mocks.loadPatientFields(...a),
 }));
 
 const copy = staffCopy.settings.patientFields;
@@ -450,5 +454,60 @@ describe('load failure and permission', () => {
     }
     expect(screen.queryByRole('button', { name: copy.add })).toBeNull();
     expect(screen.queryByRole('button', { name: new RegExp(copy.edit) })).toBeNull();
+  });
+});
+
+describe('the ready-made reference fields', () => {
+  const referred = text({
+    id: 'f-ref',
+    code: 'cf_referred_by',
+    label: 'Referred by',
+    section: 'OTHER',
+  });
+
+  it('one click adds them, reads the form again and says what was added', async () => {
+    mocks.addReferenceSet.mockResolvedValue({
+      ok: true,
+      data: { created: ['Referred by', 'Category'], kept: ['Organisation'], skipped: [] },
+    });
+    mocks.loadPatientFields.mockResolvedValue({
+      ok: true,
+      data: data({ custom: [text(), dropdown(), referred] }),
+    });
+    renderFields();
+    fireEvent.click(screen.getByRole('button', { name: copy.referenceButton }));
+    await waitFor(() => expect(mocks.addReferenceSet).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText('Referred by')).toBeTruthy();
+    expect(status()).toBe(copy.referenceAdded.replace('{names}', 'Referred by, Category'));
+  });
+
+  it('says so when nothing was new, and which fields were left out because of the limit', async () => {
+    mocks.addReferenceSet.mockResolvedValue({
+      ok: true,
+      data: { created: [], kept: ['Referred by'], skipped: ['Category', 'Staff number'] },
+    });
+    mocks.loadPatientFields.mockResolvedValue({ ok: true, data: data() });
+    renderFields();
+    fireEvent.click(screen.getByRole('button', { name: copy.referenceButton }));
+    await waitFor(() => expect(status()).toContain(copy.referenceNothingNew));
+    expect(status()).toContain(copy.referenceSkipped.replace('{names}', 'Category, Staff number'));
+  });
+
+  it('a refusal shows its reason and changes nothing; the button waits while it works', async () => {
+    let finish: (v: unknown) => void = () => {};
+    mocks.addReferenceSet.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    renderFields();
+    const button = screen.getByRole('button', { name: copy.referenceButton }) as HTMLButtonElement;
+    fireEvent.click(button);
+    fireEvent.click(button);
+    expect(mocks.addReferenceSet).toHaveBeenCalledTimes(1);
+    finish({ ok: false, status: 403, code: 'FORBIDDEN' });
+    expect((await screen.findAllByRole('alert'))[0]!.textContent).toBeTruthy();
+    expect(mocks.loadPatientFields).not.toHaveBeenCalled();
+  });
+
+  it('is not offered to a person who may only look', () => {
+    renderFields(data(), false);
+    expect(screen.queryByRole('button', { name: copy.referenceButton })).toBeNull();
   });
 });

@@ -131,6 +131,74 @@ describe('hospital starter script (hospigo_test only)', () => {
     expect(await owner.auditLog.count({ where: { tenantId: h.tenantId } })).toBe(0);
   });
 
+  it('the reference field set is added only when asked, never overwrites, and a second run changes nothing', async () => {
+    const h = await emptyHospital();
+    // not asked for: no custom field
+    await runHospitalStarter(owner, options(h.code));
+    expect(await owner.patientCustomField.count({ where: { tenantId: h.tenantId } })).toBe(0);
+
+    // the hospital already has its own field named like one of the set (other letters), and a note
+    const mine = await owner.patientCustomField.create({
+      data: {
+        tenantId: h.tenantId,
+        code: 'cf_category',
+        label: 'CATEGORY',
+        dataType: 'TEXT',
+        section: 'OTHER',
+      },
+    });
+
+    // a dry run shows it and writes nothing
+    const dry = await runHospitalStarter(
+      owner,
+      options(h.code, { dryRun: true, referenceFields: true }),
+    );
+    expect(dry.created).toEqual(
+      expect.arrayContaining([
+        'Reference field Referred by',
+        'Reference field Organisation',
+        'Reference field Staff number',
+      ]),
+    );
+    expect(dry.kept).toContain('Reference field Category');
+    expect(await owner.patientCustomField.count({ where: { tenantId: h.tenantId } })).toBe(1);
+
+    const real = await runHospitalStarter(owner, options(h.code, { referenceFields: true }));
+    expect(real.created).toEqual([
+      'Reference field Referred by',
+      'Reference field Organisation',
+      'Reference field Staff number',
+    ]);
+    const fields = await owner.patientCustomField.findMany({
+      where: { tenantId: h.tenantId },
+      include: { options: true },
+      orderBy: { label: 'asc' },
+    });
+    expect(fields.map((f) => f.label)).toEqual([
+      'CATEGORY',
+      'Organisation',
+      'Referred by',
+      'Staff number',
+    ]);
+    // the hospital's own field was not touched
+    const kept = fields.find((f) => f.id === mine.id)!;
+    expect(kept).toMatchObject({ label: 'CATEGORY', dataType: 'TEXT', code: 'cf_category' });
+    expect(kept.options).toHaveLength(0);
+    // every new field is on the registration form, not required
+    const settings = await owner.patientFieldSetting.findMany({
+      where: { tenantId: h.tenantId, customFieldId: { not: null } },
+    });
+    expect(
+      settings
+        .filter((x) => x.customFieldId !== mine.id)
+        .every((x) => x.isEnabled && !x.isRequired),
+    ).toBe(true);
+
+    const again = await runHospitalStarter(owner, options(h.code, { referenceFields: true }));
+    expect(again.created.filter((c) => c.startsWith('Reference field'))).toEqual([]);
+    expect(await owner.patientCustomField.count({ where: { tenantId: h.tenantId } })).toBe(4);
+  });
+
   it('creates the standard data and NO demo data (no patients, doctors, users, visits or prices)', async () => {
     const h = await emptyHospital();
     const report = await runHospitalStarter(owner, options(h.code));
