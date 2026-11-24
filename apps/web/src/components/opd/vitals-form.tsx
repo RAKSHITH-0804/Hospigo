@@ -184,7 +184,7 @@ export function VitalsForm({
                                 value: h.value,
                                 who: h.recordedBy.name,
                               })}{' '}
-                              <span suppressHydrationWarning>{formatDateTime(h.recordedAt)}</span>
+                              <span>{formatDateTime(h.recordedAt)}</span>
                               {h.correctionReason
                                 ? ` · ${fill(copy.historyReason, { reason: h.correctionReason })}`
                                 : ''}

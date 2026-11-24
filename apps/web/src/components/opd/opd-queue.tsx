@@ -151,7 +151,7 @@ export function OpdQueue({
             {STATUS_LABEL[v.status as keyof typeof STATUS_LABEL] ?? v.status}
           </Badge>
           {v.status === 'COMPLETED' && v.completedAt ? (
-            <span className="type-small text-muted-foreground" suppressHydrationWarning>
+            <span className="type-small text-muted-foreground">
               {fill(copy.completedAt, { time: formatClock(new Date(v.completedAt)) })}
             </span>
           ) : null}

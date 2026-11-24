@@ -9,6 +9,7 @@ import { InputField, SelectField } from '@/components/ui/field';
 import { Pagination } from '@/components/ui/pagination';
 import { settingsScreenConfig, staffScreenConfig } from '@/config/settings';
 import { staffCopy } from '@/config/staff-copy';
+import { formatDateTimeLong } from '@/lib/format-datetime';
 import { errorMessageFor } from '@/lib/patients/client';
 import { listStaff, staffAction, type StaffAction } from '@/lib/staff/client';
 import { staffErrorMessage } from '@/lib/staff/errors';
@@ -267,7 +268,7 @@ export function StaffAdmin({
                     <dt className="type-small text-muted-foreground">{copy.columnLastLogin}</dt>
                     <dd className="type-label">
                       {member.lastLoginAt
-                        ? new Date(member.lastLoginAt).toLocaleString()
+                        ? formatDateTimeLong(member.lastLoginAt)
                         : copy.neverSignedIn}
                     </dd>
                   </div>
