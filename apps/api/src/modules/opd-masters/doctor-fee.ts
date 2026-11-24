@@ -30,7 +30,9 @@ function inEffect<T extends DoctorFeeRow>(
     rows
       .filter(
         (r) =>
-          r.visitType === type && r.branchId === branch && r.effectiveFrom.getTime() <= at.getTime(),
+          r.visitType === type &&
+          r.branchId === branch &&
+          r.effectiveFrom.getTime() <= at.getTime(),
       )
       .sort((a, b) => b.effectiveFrom.getTime() - a.effectiveFrom.getTime())[0] ?? null;
   return (branchId ? newest(branchId) : null) ?? newest(null);

@@ -629,14 +629,7 @@ export class OpdVisitsService {
     }
 
     // ---- prices (the amount is never taken from the request)
-    const { fee } = await resolveDoctorFee(
-      tx,
-      tenantId,
-      doctor.id,
-      input.visitType,
-      now,
-      branchId,
-    );
+    const { fee } = await resolveDoctorFee(tx, tenantId, doctor.id, input.visitType, now, branchId);
     if (!fee) {
       throw opdError(409, OpdErrorCode.FEE_NOT_CONFIGURED, { what: 'CONSULTATION' });
     }

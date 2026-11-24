@@ -14,9 +14,12 @@
     "lint": "eslint . --ext .js,.cjs,.mjs,.ts,.tsx --max-warnings 0 --no-error-on-unmatched-pattern",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "e2e": "playwright test",
+    "e2e:stack": "node e2e/test-stack.mjs"
   },
   "devDependencies": {
+    "@playwright/test": "1.57.0",
     "@typescript-eslint/eslint-plugin": "^8.72.1",
     "@typescript-eslint/parser": "^8.19.0",
     "eslint": "^8.57.1",

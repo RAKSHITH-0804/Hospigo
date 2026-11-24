@@ -33,3 +33,9 @@ postman/collections/*
 !postman/collections/README.md
 *.postman_environment.json
 
+
+# Browser-test stack build folder and Playwright output
+apps/web/.next-e2e
+e2e/.output
+test-results
+playwright-report
