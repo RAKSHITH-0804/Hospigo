@@ -15,8 +15,8 @@ Tick a line only when you saw the result. If a line fails, write the line number
 5. Take payment with **Cash**: the bill is paid, the receipt opens. The receipt shows the token (for example T7) and the bill number in the format set under Bill numbers.
 6. Take payment with a mode that needs a **reference** (UPI or the Postman test mode): without a reference you get a calm message and nothing is paid; with a reference it is paid. A split payment (part Cash, part UPI) works the same way.
 7. Print the registration slip, the receipt and the prescription. With a branch template or print values set (section E, lines 13 to 17) the printout uses the template of this branch and shows the values.
-8. Cancel a visit that is still **waiting**. The patient's visit list and the visit header show the token as **"T7 cancelled"**. Create the next visit: its token is the next number, never the cancelled one.
-9. OPD, Queue: the **Doctor** drop-down lists only doctors that have visits in the queue; choosing one shows only their visits; All doctors shows all again. A cancelled visit is not in the queue.
+8. Cancel a visit that is still **waiting** (from the patient's Visits tab or from the OPD queue). **Cancel visit** opens a pop-up and creates a refund request; the visit stays waiting until an Admin who did not ask approves it. After approval the visit leaves the queue and the visit list and header show the token as **"T7 cancelled"**. Create the next visit: its token is the next number, never the cancelled one.
+9. OPD, Queue: the **Doctor** drop-down lists only doctors that have visits in the queue; choosing one shows only their visits; All doctors shows all again. Waiting rows show **Cancel visit** when you may cancel; a visit with an approved cancellation is not in the queue.
 10. OPD, Tests to bill and Refund requests open (if you have the permission); Collection report shows the day's money with refunds on their own.
 11. Open Settings by typing `/app/settings` in the address bar: you are refused or sent back, never shown an Admin screen. Try `/app/settings/payment-modes`: refused.
 
@@ -41,7 +41,7 @@ Tick a line only when you saw the result. If a line fails, write the line number
 
 ## D. Branch Admin (`branchadmin@demo-north.example.test`, access code `demo-north-main`)
 
-1. The menu shows Settings with the groups Hospital, People, Patients, OPD, Billing. **Bill numbers** may be listed but opening it says it is for a hospital-wide Admin (the money numbering is hospital-wide). Print values and Printing are listed.
+1. The menu shows Settings with the groups Hospital, People, Patients, OPD, Billing. **Bill numbers** is not listed (money numbering is hospital-wide). Print values and Printing are listed.
 2. **Settings, Doctors**: you see only doctors of your own branch. Press **Edit** on a doctor: a pop-up opens (printed name, qualifications, speciality, registration number, department, signature). **Fees** opens Prices for that doctor. **Availability** opens a pop-up (switch, weekly times, leave).
 3. **Leave requests (N)**: the number is the waiting requests of your branch's doctors. Open it: a table with Approve and Reject. Approve one: "Leave approved", the list refreshes, the number goes down. A request of a doctor of another branch is never shown.
 4. **Settings, Printing**: you can only save **for this branch** (a note says so). Save a changed receipt design: "Saved". The line above says "This branch uses its own template". Press **Remove the template of this branch** and confirm: the hospital template (or the built-in default) is used again.
