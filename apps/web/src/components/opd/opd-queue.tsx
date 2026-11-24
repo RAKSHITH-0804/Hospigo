@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { EmptyState } from '@/components/states/empty-state';
+import { RefundRequestAction } from '@/components/opd/refund-request-action';
 import { CLINICAL_STATUS_VARIANT, ageText } from '@/components/opd/visit-header';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -48,12 +49,15 @@ export function OpdQueue({
   canOpenConsultation,
   canViewNotes,
   canRecordVitals,
+  canRequestCancel = false,
 }: {
   initial: QueueResponse;
   refreshSeconds: number;
   canOpenConsultation: boolean;
   canViewNotes: boolean;
   canRecordVitals: boolean;
+  /** Reception may ask to cancel a waiting visit (opd.refunds.request). */
+  canRequestCancel?: boolean;
 }) {
   const [data, setData] = useState<QueueResponse>(initial);
   const [updatedAt, setUpdatedAt] = useState<Date>(() => new Date());
@@ -206,6 +210,9 @@ export function OpdQueue({
               >
                 {copy.vitals}
               </Link>
+            ) : null}
+            {canRequestCancel && v.status === 'WAITING' ? (
+              <RefundRequestAction kind="CANCEL" visitId={v.id} onSent={() => void refresh()} />
             ) : null}
           </div>
         );

@@ -56,17 +56,19 @@ beforeEach(() => {
 });
 
 describe('request a refund', () => {
-  it('opens a small form with the most that can be returned already filled in', () => {
+  it('opens a pop-up with the most that can be returned already filled in', () => {
     renderAction();
     expect(screen.queryByLabelText(copy.reasonLabel)).toBeNull();
     openForm();
+    expect(screen.getByRole('dialog')).toBeTruthy();
     expect((screen.getByLabelText(copy.amountLabel) as HTMLInputElement).value).toBe('600.00');
     expect(screen.getByText('Can still be returned: ₹600.00.')).toBeTruthy();
     expect((screen.getByRole('button', { name: copy.send }) as HTMLButtonElement).disabled).toBe(
       true,
     );
-    fireEvent.click(screen.getByRole('button', { name: copy.close }));
+    fireEvent.click(screen.getAllByRole('button', { name: copy.close })[0]!);
     expect(screen.queryByLabelText(copy.reasonLabel)).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('needs a reason and an amount above zero, up to what can be returned', () => {

@@ -120,6 +120,7 @@ describe('OPD queue page', () => {
       canOpenConsultation: true,
       canViewNotes: true,
       canRecordVitals: true,
+      canRequestCancel: false,
     });
     expect(propsOf('queue').initial.items).toHaveLength(1);
     first.unmount();
