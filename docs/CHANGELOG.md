@@ -31,12 +31,12 @@
 
 ## 2026-11-24 — Phase 2 Step 8c UI fixes follow-up (consult layout + hydration)
 
-- **Commit hash(es):** unverified (land with this entry).
+- **Commit hash(es):** `474a7e5`, `506fd9e`, `ed427d2`.
 - **Changed:** consultation page uses a named CSS grid (vitals strip full width; Note and Prescription equal columns from 1100px; actions and previous visits on their own rows); prescription row fields keep full labels via larger mins and container wrap.
 - **Fixed:** Settings, Staff last-login used `toLocaleString()` and mismatched server HTML (hydration error). Shared `@/lib/format-datetime` now formats instants with the configured locale and hospital time zone; a scan test refuses viewer-locale date formatting in components.
 - **Database (migrations, roles, RLS):** none.
 - **New .env keys (names only):** none.
-- **Tests:** unverified until the gate run.
+- **Tests:** web 1788 (was 1783), API 1022 (unchanged).
 - **Decisions:** none new.
 - **Follow-ups and open items:** none for this follow-up.
 
