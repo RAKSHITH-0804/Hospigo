@@ -33,4 +33,13 @@ export class ChangeDoctorFeeDto extends PriceChangeBase {
   @ApiProperty({ enum: VISIT_TYPES })
   @IsIn([...VISIT_TYPES])
   visitType!: PriceVisitType;
+
+  @ApiPropertyOptional({
+    description:
+      'Step 9: a branch id sets the fee for that branch only; none sets the doctor hospital-wide fee. A Branch Admin may set only the fee of their own branches; the hospital-wide fee needs a hospital-wide Admin.',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(C.idPattern)
+  branchId?: string;
 }

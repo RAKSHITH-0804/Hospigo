@@ -1,10 +1,16 @@
 import type { DoctorFee, VisitType } from '../../generated/prisma';
 import type { TenantTx } from '../../database/tenant-db';
-import { resolveDoctorFee } from './doctor-fee';
+import { pickDoctorFee, resolveDoctorFee } from './doctor-fee';
 
-const fee = (visitType: VisitType, amountPaise: number, from: string): DoctorFee =>
+const fee = (
+  visitType: VisitType,
+  amountPaise: number,
+  from: string,
+  branchId: string | null = null,
+): DoctorFee =>
   ({
-    id: `${visitType}-${from}`,
+    id: `${visitType}-${from}-${branchId ?? 'all'}`,
+    branchId,
     visitType,
     amountPaise,
     effectiveFrom: new Date(from),
@@ -14,6 +20,9 @@ const fee = (visitType: VisitType, amountPaise: number, from: string): DoctorFee
 function txWith(rows: DoctorFee[]): TenantTx {
   return {
     doctorFee: {
+      // the rows that have started (the lookup picks the right one itself)
+      findMany: async ({ where }: { where: { effectiveFrom: { lte: Date } } }) =>
+        rows.filter((r) => r.effectiveFrom <= where.effectiveFrom.lte),
       findFirst: async ({
         where,
       }: {
@@ -74,5 +83,44 @@ describe('resolveDoctorFee', () => {
     const tx = txWith([]);
     expect((await resolveDoctorFee(tx, 't', 'd', 'NEW', NOW)).fee).toBeNull();
     expect((await resolveDoctorFee(tx, 't', 'd', 'FOLLOW_UP', NOW)).fee).toBeNull();
+  });
+});
+
+describe('pickDoctorFee (per-branch fees, Step 9)', () => {
+  const rows = [
+    fee('NEW', 500, '2026-01-01T00:00:00Z'),
+    fee('FOLLOW_UP', 300, '2026-01-01T00:00:00Z'),
+    fee('NEW', 700, '2026-02-01T00:00:00Z', 'east'),
+  ];
+
+  it('a branch fee beats the hospital-wide fee in its branch only', () => {
+    expect(pickDoctorFee(rows, 'NEW', 'east', NOW).fee?.amountPaise).toBe(700);
+    expect(pickDoctorFee(rows, 'NEW', 'main', NOW).fee?.amountPaise).toBe(500);
+    expect(pickDoctorFee(rows, 'NEW', null, NOW).fee?.amountPaise).toBe(500);
+  });
+
+  it('a branch fee wins even when the hospital-wide fee is newer', () => {
+    const all = [...rows, fee('NEW', 900, '2026-11-01T00:00:00Z')];
+    expect(pickDoctorFee(all, 'NEW', 'east', NOW).fee?.amountPaise).toBe(700);
+    expect(pickDoctorFee(all, 'NEW', 'main', NOW).fee?.amountPaise).toBe(900);
+  });
+
+  it('a branch fee that has not started is ignored', () => {
+    const all = [...rows, fee('NEW', 800, '2026-12-01T00:00:00Z', 'east')];
+    expect(pickDoctorFee(all, 'NEW', 'east', NOW).fee?.amountPaise).toBe(700);
+  });
+
+  it('a follow-up uses its own fee (branch, then hospital-wide), else the new-visit fee found the same way', () => {
+    expect(pickDoctorFee(rows, 'FOLLOW_UP', 'east', NOW)).toMatchObject({
+      followsBase: false,
+      fee: { amountPaise: 300 },
+    });
+    const noFollowUp = [rows[0]!, rows[2]!];
+    expect(pickDoctorFee(noFollowUp, 'FOLLOW_UP', 'east', NOW)).toMatchObject({
+      followsBase: true,
+      fee: { amountPaise: 700 },
+    });
+    expect(pickDoctorFee(noFollowUp, 'FOLLOW_UP', 'main', NOW).fee?.amountPaise).toBe(500);
+    expect(pickDoctorFee([], 'NEW', 'east', NOW).fee).toBeNull();
   });
 });

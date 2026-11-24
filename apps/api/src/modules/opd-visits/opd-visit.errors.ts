@@ -63,6 +63,8 @@ export const OpdErrorCode = {
   // ---- Step 8b: prices
   PRICE_INVALID: 'PRICE_INVALID',
   PRICE_ITEM_NOT_FOUND: 'PRICE_ITEM_NOT_FOUND',
+  // ---- Step 9: per-branch doctor fees
+  PRICE_SCOPE_FORBIDDEN: 'PRICE_SCOPE_FORBIDDEN',
   // ---- Step 8c: doctor leave requests
   LEAVE_REQUEST_NOT_FOUND: 'LEAVE_REQUEST_NOT_FOUND',
   LEAVE_REQUEST_CONFLICT: 'LEAVE_REQUEST_CONFLICT',

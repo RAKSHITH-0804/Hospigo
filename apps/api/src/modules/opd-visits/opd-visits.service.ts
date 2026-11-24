@@ -5,7 +5,7 @@ import { TenantDb, type TenantTx } from '../../database/tenant-db';
 import { AccessService } from '../access/access.service';
 import { NumberSeriesService } from '../numbering/number-series.service';
 import { TokenCounterService } from '../numbering/token-counter.service';
-import { resolveDoctorFee } from '../opd-masters/doctor-fee';
+import { pickDoctorFee, resolveDoctorFee } from '../opd-masters/doctor-fee';
 import { DoctorAvailabilityService } from '../opd-masters/doctor-availability.service';
 import { OPD_SETTINGS_DEFAULTS } from '../opd-masters/opd-settings.defaults';
 import { zonedParts } from '../patients/uhid.util';
@@ -256,11 +256,13 @@ export class OpdVisitsService {
         include: { user: { select: { displayName: true } } },
         orderBy: { code: 'asc' },
       });
+      // fees of the active branch first, then the hospital-wide ones (Step 9: per-branch fees)
       const fees = await tx.doctorFee.findMany({
         where: {
           tenantId: actor.tenantId,
           doctorProfileId: { in: profiles.map((p) => p.id) },
           effectiveFrom: { lte: now },
+          OR: [{ branchId: actor.branchId }, { branchId: null }],
         },
         orderBy: { effectiveFrom: 'desc' },
       });
@@ -273,14 +275,10 @@ export class OpdVisitsService {
           actor.branchId,
           now,
         );
+        const mine = fees.filter((f) => f.doctorProfileId === profile.id);
+        // branch fee, else hospital-wide; a follow-up with none of its own costs the new-visit fee
         const feeFor = (type: 'NEW' | 'FOLLOW_UP') =>
-          fees.find((f) => f.doctorProfileId === profile.id && f.visitType === type)?.amountPaise ??
-          // no separate follow-up fee: a follow-up costs the new-visit fee
-          (type === 'FOLLOW_UP'
-            ? fees.find((f) => f.doctorProfileId === profile.id && f.visitType === 'NEW')
-                ?.amountPaise
-            : undefined) ??
-          null;
+          pickDoctorFee(mine, type, actor.branchId, now).fee?.amountPaise ?? null;
         items.push({
           id: profile.id,
           code: profile.code,
@@ -631,7 +629,14 @@ export class OpdVisitsService {
     }
 
     // ---- prices (the amount is never taken from the request)
-    const { fee } = await resolveDoctorFee(tx, tenantId, doctor.id, input.visitType, now);
+    const { fee } = await resolveDoctorFee(
+      tx,
+      tenantId,
+      doctor.id,
+      input.visitType,
+      now,
+      branchId,
+    );
     if (!fee) {
       throw opdError(409, OpdErrorCode.FEE_NOT_CONFIGURED, { what: 'CONSULTATION' });
     }

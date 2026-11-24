@@ -26,10 +26,12 @@ export class PriceService {
     doctorProfileId: string,
     visitType: VisitType,
     at: Date,
+    branchId: string | null = null,
   ): Promise<DoctorFee | null> {
     return this.tenantDb.withTenant(async (tx) => {
       const ctx = requireContext();
-      return (await resolveDoctorFee(tx, ctx.tenantId!, doctorProfileId, visitType, at)).fee;
+      return (await resolveDoctorFee(tx, ctx.tenantId!, doctorProfileId, visitType, at, branchId))
+        .fee;
     });
   }
 

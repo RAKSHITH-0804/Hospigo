@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { CLOCK, type Clock } from '../../common/clock';
+import { AccessService } from '../access/access.service';
 import { TenantDb, type TenantTx } from '../../database/tenant-db';
 import { Prisma } from '../../generated/prisma';
 import { OPD_SETTINGS_DEFAULTS } from '../opd-masters/opd-settings.defaults';
@@ -29,6 +30,11 @@ export type PriceRowView = {
   nextFrom: string | null;
   /** A follow-up fee row with no separate follow-up fee: it costs the same as the new-visit fee. */
   followsBase: boolean;
+  /**
+   * Doctor fees only: where the fee shown comes from. BRANCH = a fee set for the branch asked for,
+   * HOSPITAL = the doctor's hospital-wide fee, null = no fee yet (and for tests and the registration fee).
+   */
+  feeScope: 'BRANCH' | 'HOSPITAL' | null;
 };
 
 export type PriceVersionView = {
@@ -59,7 +65,41 @@ type RawRow = {
   next_amount: number | null;
   next_from: Date | null;
   follows_base: boolean;
+  fee_is_branch: boolean | null;
 };
+
+/**
+ * One lookup of a doctor fee row for the price list, in the order the billing code uses: a row of the
+ * branch asked for beats a hospital-wide row (whatever their dates); with no branch only hospital-wide
+ * rows count. `cur` = the row in effect now, `nxt` = the next scheduled row (a hospital-wide row is
+ * only a candidate when the current fee is not a branch fee, since a branch fee would still win).
+ */
+function feeLateral(
+  alias: 'cur' | 'nxt' | 'curb' | 'nxtb',
+  visitType: Prisma.Sql,
+  now: Date,
+  branchId: string | null,
+  currentAlias: 'cur' | 'curb' | null,
+): Prisma.Sql {
+  const a = Prisma.raw(alias);
+  const scope = Prisma.sql`(f.branch_id IS NULL OR f.branch_id = ${branchId}::text)`;
+  if (currentAlias === null) {
+    return Prisma.sql`LEFT JOIN LATERAL (
+            SELECT f.amount_paise, f.effective_from, (f.branch_id IS NOT NULL) AS is_branch
+              FROM doctor_fees f
+             WHERE f.tenant_id = dp.tenant_id AND f.doctor_profile_id = dp.id
+               AND f.visit_type = ${visitType} AND f.effective_from <= ${now}::timestamptz AND ${scope}
+             ORDER BY (f.branch_id IS NULL), f.effective_from DESC LIMIT 1) ${a} ON true`;
+  }
+  const c = Prisma.raw(currentAlias);
+  return Prisma.sql`LEFT JOIN LATERAL (
+            SELECT f.amount_paise, f.effective_from
+              FROM doctor_fees f
+             WHERE f.tenant_id = dp.tenant_id AND f.doctor_profile_id = dp.id
+               AND f.visit_type = ${visitType} AND f.effective_from > ${now}::timestamptz AND ${scope}
+               AND (f.branch_id IS NOT NULL OR ${c}.is_branch IS NOT TRUE)
+             ORDER BY f.effective_from ASC LIMIT 1) ${a} ON true`;
+}
 
 function priceInvalid(field: string, reason: string): never {
   throw opdError(400, OpdErrorCode.PRICE_INVALID, { field, reason });
@@ -78,6 +118,7 @@ export class PricesService {
   constructor(
     private readonly tenantDb: TenantDb,
     @Inject(CLOCK) private readonly clock: Clock,
+    private readonly access: AccessService,
   ) {}
 
   // ------------------------------------------------------------------------------- list
@@ -92,6 +133,8 @@ export class PricesService {
     pageSize: number;
     /** Today's date (YYYY-MM-DD) in the hospital time zone: the earliest date a price change may start. */
     today: string;
+    /** True when the caller may set the doctor's hospital-wide fee (a hospital-wide Admin). */
+    canSetHospitalWide: boolean;
   }> {
     const now = this.clock.now();
     const tenantId = actor.tenantId;
@@ -109,13 +152,14 @@ export class PricesService {
                AND ub.branch_id = ${query.branchId} AND ub.is_active)`
       : Prisma.empty;
 
+    const branchParam = query.branchId ?? null;
     const rows = Prisma.sql`
       SELECT * FROM (
         SELECT ci.kind::text AS kind, ci.id AS item_id, NULL::text AS doctor_profile_id,
                NULL::text AS visit_type, ci.code AS code, ci.name AS name,
                cur.amount_paise AS cur_amount, cur.effective_from AS cur_from,
                nxt.amount_paise AS next_amount, nxt.effective_from AS next_from,
-               false AS follows_base
+               false AS follows_base, NULL::boolean AS fee_is_branch
           FROM charge_items ci
           LEFT JOIN LATERAL (
             SELECT p.amount_paise, p.effective_from FROM charge_item_prices p
@@ -138,44 +182,23 @@ export class PricesService {
                     THEN nxtb.amount_paise ELSE nxt.amount_paise END,
                CASE WHEN vt.visit_type = 'FOLLOW_UP' AND cur.amount_paise IS NULL AND nxt.amount_paise IS NULL
                     THEN nxtb.effective_from ELSE nxt.effective_from END,
-               (vt.visit_type = 'FOLLOW_UP' AND cur.amount_paise IS NULL)
+               (vt.visit_type = 'FOLLOW_UP' AND cur.amount_paise IS NULL),
+               CASE WHEN vt.visit_type = 'FOLLOW_UP' AND cur.amount_paise IS NULL
+                    THEN curb.is_branch ELSE cur.is_branch END
           FROM doctor_profiles dp
           JOIN users u ON u.tenant_id = dp.tenant_id AND u.id = dp.user_id
           CROSS JOIN (VALUES ('NEW'), ('FOLLOW_UP')) AS vt(visit_type)
-          LEFT JOIN LATERAL (
-            SELECT f.amount_paise, f.effective_from FROM doctor_fees f
-             WHERE f.tenant_id = dp.tenant_id AND f.doctor_profile_id = dp.id
-               AND f.visit_type = vt.visit_type::visit_type AND f.effective_from <= ${now}::timestamptz
-             ORDER BY f.effective_from DESC LIMIT 1) cur ON true
-          LEFT JOIN LATERAL (
-            SELECT f.amount_paise, f.effective_from FROM doctor_fees f
-             WHERE f.tenant_id = dp.tenant_id AND f.doctor_profile_id = dp.id
-               AND f.visit_type = vt.visit_type::visit_type AND f.effective_from > ${now}::timestamptz
-             ORDER BY f.effective_from ASC LIMIT 1) nxt ON true
-          LEFT JOIN LATERAL (
-            SELECT f.amount_paise, f.effective_from FROM doctor_fees f
-             WHERE f.tenant_id = dp.tenant_id AND f.doctor_profile_id = dp.id
-               AND f.visit_type = 'NEW'::visit_type AND f.effective_from <= ${now}::timestamptz
-             ORDER BY f.effective_from DESC LIMIT 1) curb ON true
-          LEFT JOIN LATERAL (
-            SELECT f.amount_paise, f.effective_from FROM doctor_fees f
-             WHERE f.tenant_id = dp.tenant_id AND f.doctor_profile_id = dp.id
-               AND f.visit_type = 'NEW'::visit_type AND f.effective_from > ${now}::timestamptz
-             ORDER BY f.effective_from ASC LIMIT 1) nxtb ON true
+          ${feeLateral('cur', Prisma.sql`vt.visit_type::visit_type`, now, branchParam, null)}
+          ${feeLateral('nxt', Prisma.sql`vt.visit_type::visit_type`, now, branchParam, 'cur')}
+          ${feeLateral('curb', Prisma.sql`'NEW'::visit_type`, now, branchParam, null)}
+          ${feeLateral('nxtb', Prisma.sql`'NEW'::visit_type`, now, branchParam, 'curb')}
          WHERE dp.tenant_id = ${tenantId} AND dp.active ${doctorBranch}
       ) all_rows
       WHERE true ${kindFilter} ${search}`;
 
     return this.tenantDb.withTenant(async (tx) => {
       if (query.branchId) {
-        // A branch of another hospital is not visible under row level security: refused like an unknown one.
-        const branch = await tx.branch.findFirst({
-          where: { id: query.branchId, tenantId },
-          select: { id: true },
-        });
-        if (!branch) {
-          priceInvalid('branchId', 'BRANCH_NOT_FOUND');
-        }
+        await this.assertMayReadBranch(tx, tenantId, query.branchId);
       }
       const counted = await tx.$queryRaw<Array<{ n: bigint }>>(
         Prisma.sql`SELECT count(*)::bigint AS n FROM (${rows}) counted`,
@@ -194,8 +217,35 @@ export class PricesService {
         page: query.page,
         pageSize: query.pageSize,
         today: localDate(now, timeZone),
+        canSetHospitalWide:
+          (await this.access.hospitalWideBranches('opd.prices.write', 'OPD')).length > 0,
       };
     });
+  }
+
+  /**
+   * The branch must be one of this hospital (a branch of another hospital is invisible under row
+   * level security and refused like an unknown one: 400 BRANCH_NOT_FOUND). A hospital-wide Admin may
+   * look at any branch; anyone else only at the branches they hold the permission in (403).
+   */
+  private async assertMayReadBranch(
+    tx: TenantTx,
+    tenantId: string,
+    branchId: string,
+  ): Promise<void> {
+    const branch = await tx.branch.findFirst({
+      where: { id: branchId, tenantId },
+      select: { id: true },
+    });
+    if (!branch) {
+      priceInvalid('branchId', 'BRANCH_NOT_FOUND');
+    }
+    if ((await this.access.hospitalWideBranches('opd.prices.write', 'OPD')).length > 0) {
+      return;
+    }
+    if (!(await this.access.permittedBranches('opd.prices.write', 'OPD')).includes(branchId)) {
+      throw opdError(403, OpdErrorCode.PRICE_SCOPE_FORBIDDEN);
+    }
   }
 
   private toRow(r: RawRow): PriceRowView {
@@ -214,6 +264,12 @@ export class PricesService {
       nextAmountPaise: r.next_amount,
       nextFrom: r.next_from ? r.next_from.toISOString() : null,
       followsBase: r.follows_base === true,
+      feeScope:
+        kind === 'DOCTOR_FEE' && r.fee_is_branch !== null
+          ? r.fee_is_branch
+            ? 'BRANCH'
+            : 'HOSPITAL'
+          : null,
     };
   }
 
@@ -223,7 +279,13 @@ export class PricesService {
     actor: Actor,
     target:
       | { kind: 'ITEM'; itemId: string }
-      | { kind: 'DOCTOR_FEE'; doctorProfileId: string; visitType: PriceVisitType },
+      | {
+          kind: 'DOCTOR_FEE';
+          doctorProfileId: string;
+          visitType: PriceVisitType;
+          /** null or absent = the hospital-wide versions; a branch id = the versions set for that branch. */
+          branchId?: string | null;
+        },
   ): Promise<{ items: PriceVersionView[] }> {
     const now = this.clock.now();
     const tenantId = actor.tenantId;
@@ -264,8 +326,17 @@ export class PricesService {
         if (!doctor) {
           throw opdError(404, OpdErrorCode.PRICE_ITEM_NOT_FOUND);
         }
+        const scope = target.branchId ?? null;
+        if (scope) {
+          await this.assertMayReadBranch(tx, tenantId, scope);
+        }
         versions = await tx.doctorFee.findMany({
-          where: { tenantId, doctorProfileId: target.doctorProfileId, visitType: target.visitType },
+          where: {
+            tenantId,
+            doctorProfileId: target.doctorProfileId,
+            visitType: target.visitType,
+            branchId: scope,
+          },
           orderBy: { effectiveFrom: 'desc' },
           take: C.historyLimit,
           select: {
@@ -403,12 +474,34 @@ export class PricesService {
     };
   }
 
+  /**
+   * Who may set a doctor fee: the hospital-wide fee needs the permission in EVERY branch (a
+   * hospital-wide Admin); a branch fee needs it in that branch (a Branch Admin only for their own
+   * branches, a hospital-wide Admin for any). The registration fee and test prices keep the rule of
+   * Step 8b (hospital-wide, permission opd.prices.write) and are not touched here.
+   */
+  private async assertMayChangeDoctorFee(
+    tx: TenantTx,
+    tenantId: string,
+    branchId: string | null,
+  ): Promise<void> {
+    if (branchId === null) {
+      if ((await this.access.hospitalWideBranches('opd.prices.write', 'OPD')).length === 0) {
+        throw opdError(403, OpdErrorCode.PRICE_SCOPE_FORBIDDEN);
+      }
+      return;
+    }
+    await this.assertMayReadBranch(tx, tenantId, branchId);
+  }
+
   async changeDoctorFee(
     input: {
       doctorProfileId: string;
       visitType: PriceVisitType;
       amountPaise: number;
       effectiveFrom?: string;
+      /** null or absent = the hospital-wide fee; a branch id = the fee in that branch only. */
+      branchId?: string | null;
     },
     actor: Actor,
   ): Promise<PriceChangeResult> {
@@ -422,11 +515,14 @@ export class PricesService {
       visitType: PriceVisitType;
       amountPaise: number;
       effectiveFrom?: string;
+      branchId?: string | null;
     },
     actor: Actor,
   ): Promise<PriceChangeResult> {
     const now = this.clock.now();
     const tenantId = actor.tenantId;
+    const branchId = input.branchId ?? null;
+    await this.assertMayChangeDoctorFee(tx, tenantId, branchId);
     // Lock the doctor's row (the fee rows are append-only and cannot be locked for a new insert).
     const locked = await tx.$queryRaw<Array<{ active: boolean }>>(
       Prisma.sql`SELECT active FROM doctor_profiles
@@ -439,8 +535,28 @@ export class PricesService {
     if (!doctor.active) {
       priceInvalid('doctor', 'ITEM_INACTIVE');
     }
+    if (branchId) {
+      // A branch fee is only for a doctor who works in that branch.
+      const works = await tx.userBranch.findFirst({
+        where: {
+          tenantId,
+          branchId,
+          isActive: true,
+          user: { doctorProfiles: { some: { id: input.doctorProfileId } } },
+        },
+        select: { id: true },
+      });
+      if (!works) {
+        priceInvalid('doctor', 'DOCTOR_NOT_IN_BRANCH');
+      }
+    }
     const latest = await tx.doctorFee.findFirst({
-      where: { tenantId, doctorProfileId: input.doctorProfileId, visitType: input.visitType },
+      where: {
+        tenantId,
+        doctorProfileId: input.doctorProfileId,
+        visitType: input.visitType,
+        branchId,
+      },
       orderBy: { effectiveFrom: 'desc' },
     });
     const timeZone = await this.timeZoneOf(tx, tenantId);
@@ -474,6 +590,7 @@ export class PricesService {
       data: {
         tenantId,
         doctorProfileId: input.doctorProfileId,
+        branchId,
         visitType: input.visitType,
         amountPaise: input.amountPaise,
         effectiveFrom: start,
@@ -490,6 +607,7 @@ export class PricesService {
         entityId: created.id,
         metadata: {
           doctorProfileId: input.doctorProfileId,
+          branchId,
           visitType: input.visitType,
           oldAmountPaise: latest?.amountPaise ?? null,
           newAmountPaise: created.amountPaise,
