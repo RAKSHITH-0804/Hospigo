@@ -15,6 +15,7 @@ import type {
 } from '@/lib/opd/tests-types';
 import { formatDateOnly } from '@/lib/patients/format';
 import { cn } from '@/lib/utils';
+import { tokenText } from '@/lib/opd/token-label';
 
 const copy = staffCopy.opd.tests.refunds;
 const tabsCopy = staffCopy.opd.tabs;
@@ -99,7 +100,7 @@ export function RefundRequestsList({
           <span className="type-label-strong">{r.visit.patient.name}</span>
           <span className="type-small text-muted-foreground">
             {r.visit.patient.uhid}
-            {r.visit.token ? ` · ${r.visit.token}` : ''}
+            {r.visit.token ? ` · ${tokenText(r.visit.token, r.visit.status)}` : ''}
           </span>
         </div>
       ),

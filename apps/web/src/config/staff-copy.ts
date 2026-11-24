@@ -1344,6 +1344,7 @@ export const staffCopy = {
     },
   },
   opd: {
+    tokenCancelled: 'cancelled',
     reports: {
       title: 'Collection report',
       description: 'Money collected and refunded on one day. Refunds are shown on their own.',

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { EmptyState } from '@/components/states/empty-state';
+import { tokenText } from '@/lib/opd/token-label';
 import { Badge, type BadgeVariant } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
@@ -118,7 +119,11 @@ export function VisitsPanel({
     { id: 'date', header: copy.dateCaption, cell: (v) => formatDateOnly(v.visitDate) },
     { id: 'doctor', header: copy.doctorCaption, cell: (v) => v.doctor.name },
     { id: 'type', header: copy.typeCaption, cell: (v) => typeLabel(v.visitType) },
-    { id: 'token', header: copy.tokenCaption, cell: (v) => v.token?.label ?? '—' },
+    {
+      id: 'token',
+      header: copy.tokenCaption,
+      cell: (v) => (v.token ? tokenText(v.token.label, v.status) : '—'),
+    },
     {
       id: 'status',
       header: copy.statusCaption,

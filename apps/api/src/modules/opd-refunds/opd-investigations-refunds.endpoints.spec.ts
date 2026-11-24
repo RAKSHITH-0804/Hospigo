@@ -1552,6 +1552,26 @@ describe('OPD tests ordering, investigations bill, refunds and cancellation (HTT
       expect((await reqRefund(A, 'recv', v.billId, 1)).status).toBe(409);
     });
 
+    it('a cancelled visit keeps its token number on record (shown as cancelled) and the number is never given again', async () => {
+      const v1 = await waiting(A);
+      const before = (await get(A, 'recv', `/opd/visits/${v1.id}`)).body;
+      expect(before.status).toBe('WAITING');
+      const r = await reqCancel(A, 'recv', v1.id);
+      expect((await approve(A, 'admin', r.body.request.id)).status).toBe(200);
+      const after = (await get(A, 'recv', `/opd/visits/${v1.id}`)).body;
+      expect(after.status).toBe('CANCELLED');
+      expect(after.token).toEqual(before.token); // same date, number and label
+      // the next visit of the day gets a new, higher number
+      const v2 = await waiting(A);
+      const next = (await get(A, 'recv', `/opd/visits/${v2.id}`)).body;
+      expect(next.token.date).toBe(before.token.date);
+      expect(next.token.no).toBeGreaterThan(before.token.no);
+      // the cancelled visit is still listed for the patient with its token, so the screen can mark it
+      const history = await get(A, 'recv', `/patients/${before.patient.id}/visits`);
+      const row = history.body.items.find((i: Loose) => i.id === v1.id);
+      expect(row).toMatchObject({ status: 'CANCELLED', token: before.token });
+    });
+
     it('the receptionist may keep part of the fee (a smaller amount, or none)', async () => {
       const v = await waiting(A);
       const r = await reqCancel(A, 'recv', v.id, { amountPaise: 50_000 });
