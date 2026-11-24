@@ -30,3 +30,10 @@ request means this; it is not a bug.
 - Collection 7e accepts a hospital that already has a logo (logos cannot be deleted).
 - The older "Patients registry v2 (P2 Step 3a)" collection is not in this folder (it was never
   committed); it needs a pasted token and is replaced by the patient checks in 3d and 4a.
+
+## One file for all of Phase 2
+
+`hospigo-phase2-all.postman_collection.json` holds all 14 collections above as folders (557
+requests), in order. Import it and press **Run collection** once; logins are throttled by a
+collection script, so a full run takes a few minutes and never hits the 429. Rebuild it after any
+collection changes with `node scripts/build-postman-phase2.mjs`. Do not edit it by hand.
