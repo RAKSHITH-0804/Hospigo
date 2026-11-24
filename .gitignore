@@ -23,7 +23,13 @@ apps/api/src/generated/
 # Jest globalSetup sentinel (hospigo_test rebuild proof)
 apps/api/.hospigo-test-rebuilt
 
-# Postman local workspace artefacts (do not commit)
+# Postman: the collections in postman/collections are committed (Step 9). They hold NO secrets:
+# passwords come from the environment file, which is never committed. Everything else stays local.
 .postman/
-postman/
+postman/*
+!postman/collections/
+postman/collections/*
+!postman/collections/*.postman_collection.json
+!postman/collections/README.md
+*.postman_environment.json
 

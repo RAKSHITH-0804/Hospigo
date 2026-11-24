@@ -1,0 +1,1581 @@
+{
+ "info": {
+  "name": "Hospigo 7e pictures",
+  "description": "Step 7e (API): the hospital logo and the doctor signature or stamp picture. BEFORE RUNNING: (1) npm run prisma:migrate -w @hospigo/api  (2) restart the API on port 3000. Select the Hospigo Local environment (staffPassword and superadminPassword), then Run collection. The pictures are a 30-byte WebP written as text in the request body (every byte is a plain character), so no file has to be chosen. The collection expects the demo hospital to have NO logo and no doctor signature yet, and removes what it makes. Nothing is deleted: the pictures it uploads stay on record (this is by design) and the files stay in the storage folder. About 4 logins count against the login IP limit (20 per minute).",
+  "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+ },
+ "variable": [
+  {
+   "key": "baseUrl",
+   "value": "http://127.0.0.1:3000"
+  },
+  {
+   "key": "superEmail",
+   "value": "superadmin@demo-north.example.test"
+  },
+  {
+   "key": "receptionEmail",
+   "value": "receptionist1@demo-north.example.test"
+  },
+  {
+   "key": "doctorEmail",
+   "value": "doctor3@demo-north.example.test"
+  },
+  {
+   "key": "southSuperEmail",
+   "value": "superadmin@demo-south.example.test"
+  }
+ ],
+ "item": [
+  {
+   "name": "0 Setup",
+   "item": [
+    {
+     "name": "1 Login SuperAdmin (north)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/auth/hospital/login",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "auth",
+        "hospital",
+        "login"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{superEmail}}\",\"password\":\"{{superadminPassword}}\"}",
+       "options": {
+        "raw": {
+         "language": "text"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('select the Hospigo Local environment: staffPassword and superadminPassword must be set', () => { pm.expect(pm.variables.get('staffPassword'), 'staffPassword').to.be.a('string').and.not.empty; pm.expect(pm.variables.get('superadminPassword'), 'superadminPassword').to.be.a('string').and.not.empty; });",
+         "pm.test('login 200', () => pm.response.to.have.status(200));",
+         "const j = pm.response.json();",
+         "pm.test('has a token', () => pm.expect(j.accessToken).to.be.a('string'));",
+         "pm.collectionVariables.set('dSuper', j.accessToken);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "2 Login Receptionist (north main)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/auth/hospital/login",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "auth",
+        "hospital",
+        "login"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{receptionEmail}}\",\"password\":\"{{staffPassword}}\"}",
+       "options": {
+        "raw": {
+         "language": "text"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('login 200', () => pm.response.to.have.status(200));",
+         "const j = pm.response.json();",
+         "pm.test('has a token', () => pm.expect(j.accessToken).to.be.a('string'));",
+         "pm.collectionVariables.set('dRecv', j.accessToken);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "3 Login Doctor North 3",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/auth/hospital/login",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "auth",
+        "hospital",
+        "login"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{doctorEmail}}\",\"password\":\"{{staffPassword}}\"}",
+       "options": {
+        "raw": {
+         "language": "text"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('login 200', () => pm.response.to.have.status(200));",
+         "const j = pm.response.json();",
+         "pm.test('has a token', () => pm.expect(j.accessToken).to.be.a('string'));",
+         "pm.collectionVariables.set('dDoc', j.accessToken);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "4 Login SuperAdmin (south)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/auth/hospital/login",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "auth",
+        "hospital",
+        "login"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"accessCode\":\"demo-south-main\",\"email\":\"{{southSuperEmail}}\",\"password\":\"{{superadminPassword}}\"}",
+       "options": {
+        "raw": {
+         "language": "text"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('login 200', () => pm.response.to.have.status(200));",
+         "const j = pm.response.json();",
+         "pm.test('has a token', () => pm.expect(j.accessToken).to.be.a('string'));",
+         "pm.collectionVariables.set('dSouth', j.accessToken);"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "1 Hospital logo",
+   "item": [
+    {
+     "name": "5 No token = 401",
+     "request": {
+      "method": "GET",
+      "header": [],
+      "url": {
+       "raw": "{{baseUrl}}/settings/branding",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "settings",
+        "branding"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('401', () => pm.response.to.have.status(401));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "6 Anyone signed in can ask what the logo is; the demo hospital has none yet",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/settings/branding",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "settings",
+        "branding"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "const j = pm.response.json();",
+         "pm.test('no logo yet (this collection expects a hospital without one and removes what it makes)', () => pm.expect(j.logo).to.eql(null));",
+         "pm.test('the receptionist may not change it; the limits are sent', () => { pm.expect(j.canWrite).to.eql(false); pm.expect(j.limits.maxBytes).to.be.a('number'); pm.expect(j.limits.types).to.include('image/png'); });"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "7 SuperAdmin may change it",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/settings/branding",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "settings",
+        "branding"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('canWrite', () => pm.expect(pm.response.json().canWrite).to.eql(true));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "8 The receptionist cannot upload a logo (403)",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "multipart/form-data; boundary=pm7e"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/settings/branding/logo",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "settings",
+        "branding",
+        "logo"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "--pm7e\r\nContent-Disposition: form-data; name=\"file\"; filename=\"logo.webp\"\r\nContent-Type: image/webp\r\n\r\nRIFF\u0016\u0000\u0000\u0000WEBPVP8X\n\u0000\u0000\u0000\u0000\u0000\u0000\u0000?\u0000\u0000?\u0000\u0000\r\n--pm7e--\r\n",
+       "options": {
+        "raw": {
+         "language": "text"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('403', () => pm.response.to.have.status(403));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "9 The receptionist cannot remove the logo (403)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/settings/branding/logo/remove",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "settings",
+        "branding",
+        "logo",
+        "remove"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{}",
+       "options": {
+        "raw": {
+         "language": "text"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('403', () => pm.response.to.have.status(403));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "10 No file at all is refused (REQUIRED)",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "multipart/form-data; boundary=pm7e"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/settings/branding/logo",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "settings",
+        "branding",
+        "logo"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "--pm7e--\r\n",
+       "options": {
+        "raw": {
+         "language": "text"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('refused with the field and the reason', () => { const j = pm.response.json(); pm.response.to.have.status(400); pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('file'); pm.expect(j.reason).to.eql('REQUIRED'); });"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "11 A text file with a .png name is refused (NOT_AN_IMAGE): the bytes decide, not the name",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "multipart/form-data; boundary=pm7e"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/settings/branding/logo",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "settings",
+        "branding",
+        "logo"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "--pm7e\r\nContent-Disposition: form-data; name=\"file\"; filename=\"logo.png\"\r\nContent-Type: image/png\r\n\r\nthis is only some text, not a picture\r\n--pm7e--\r\n",
+       "options": {
+        "raw": {
+         "language": "text"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('refused with the field and the reason', () => { const j = pm.response.json(); pm.response.to.have.status(400); pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('file'); pm.expect(j.reason).to.eql('NOT_AN_IMAGE'); });"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "12 An SVG (it can carry scripts) is refused",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "multipart/form-data; boundary=pm7e"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/settings/branding/logo",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "settings",
+        "branding",
+        "logo"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "--pm7e\r\nContent-Disposition: form-data; name=\"file\"; filename=\"logo.png\"\r\nContent-Type: image/png\r\n\r\n<svg xmlns=\"http://www.w3.org/2000/svg\"><script>alert(1)</script></svg>\r\n--pm7e--\r\n",
+       "options": {
+        "raw": {
+         "language": "text"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('refused with the field and the reason', () => { const j = pm.response.json(); pm.response.to.have.status(400); pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('file'); pm.expect(j.reason).to.eql('NOT_AN_IMAGE'); });"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "13 Extra form fields are refused",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "multipart/form-data; boundary=pm7e"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/settings/branding/logo",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "settings",
+        "branding",
+        "logo"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "--pm7e\r\nContent-Disposition: form-data; name=\"tenantId\"\r\n\r\nother\r\n--pm7e\r\nContent-Disposition: form-data; name=\"file\"; filename=\"a.webp\"\r\nContent-Type: image/webp\r\n\r\nRIFF\u0016\u0000\u0000\u0000WEBPVP8X\n\u0000\u0000\u0000\u0000\u0000\u0000\u0000?\u0000\u0000?\u0000\u0000\r\n--pm7e--\r\n",
+       "options": {
+        "raw": {
+         "language": "text"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('400', () => pm.response.to.have.status(400));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "14 A JSON body instead of a file is refused",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/settings/branding/logo",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "settings",
+        "branding",
+        "logo"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"file\": \"abc\"}",
+       "options": {
+        "raw": {
+         "language": "text"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('400', () => pm.response.to.have.status(400));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "15 SuperAdmin uploads a tiny logo",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "multipart/form-data; boundary=pm7e"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/settings/branding/logo",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "settings",
+        "branding",
+        "logo"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "--pm7e\r\nContent-Disposition: form-data; name=\"file\"; filename=\"logo.webp\"\r\nContent-Type: image/webp\r\n\r\nRIFF\u0016\u0000\u0000\u0000WEBPVP8X\n\u0000\u0000\u0000\u0000\u0000\u0000\u0000?\u0000\u0000?\u0000\u0000\r\n--pm7e--\r\n",
+       "options": {
+        "raw": {
+         "language": "text"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "const j = pm.response.json();",
+         "pm.test('judged by its bytes, and only what a screen needs is told', () => { pm.expect(j.contentType).to.eql('image/webp'); pm.expect(j.width).to.eql(64); pm.expect(j.height).to.eql(64); pm.expect(j.byteSize).to.eql(30); pm.expect(Object.keys(j).sort()).to.eql(['byteSize','contentType','createdAt','height','id','width']); });",
+         "pm.collectionVariables.set('logoId', j.id);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "16 The branding answer now carries it",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/settings/branding",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "settings",
+        "branding"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('the same picture', () => pm.expect(pm.response.json().logo.id).to.eql(pm.collectionVariables.get('logoId')));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "17 Anyone signed in can fetch the logo bytes, as a picture only",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/images/{{logoId}}",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "images",
+        "{{logoId}}"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('right type, never run as anything else', () => { pm.expect(pm.response.headers.get('Content-Type')).to.eql('image/webp'); pm.expect(pm.response.headers.get('X-Content-Type-Options')).to.eql('nosniff'); pm.expect(pm.response.headers.get('Content-Disposition')).to.eql('inline'); pm.expect(pm.response.headers.get('Content-Security-Policy')).to.include(\"default-src 'none'\"); });",
+         "pm.test('the whole file', () => pm.expect(Number(pm.response.headers.get('Content-Length'))).to.eql(30));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "18 No token on the picture = 401",
+     "request": {
+      "method": "GET",
+      "header": [],
+      "url": {
+       "raw": "{{baseUrl}}/images/{{logoId}}",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "images",
+        "{{logoId}}"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('401', () => pm.response.to.have.status(401));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "19 The other hospital cannot see it (404)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSouth}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/images/{{logoId}}",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "images",
+        "{{logoId}}"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('404', () => pm.response.to.have.status(404));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "20 An unknown or junk id is 404, never a file path",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/images/..%2F..%2Fetc%2Fpasswd",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "images",
+        "..%2F..%2Fetc%2Fpasswd"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('404', () => pm.response.to.have.status(404));"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "2 Doctor signature or stamp",
+   "item": [
+    {
+     "name": "21 A doctor reads their own profile: no signature yet",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dDoc}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/doctor-profiles/me",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "doctor-profiles",
+        "me"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "const j = pm.response.json();",
+         "pm.collectionVariables.set('dId', j.id);",
+         "pm.test('limits are sent and, in this demo, no picture yet', () => { pm.expect(j.images.maxBytes).to.be.a('number'); pm.expect(j.signature).to.eql(null); });"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "22 The receptionist has no signature to upload (403)",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "multipart/form-data; boundary=pm7e"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/doctor-profiles/me/signature",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "doctor-profiles",
+        "me",
+        "signature"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "--pm7e\r\nContent-Disposition: form-data; name=\"file\"; filename=\"logo.webp\"\r\nContent-Type: image/webp\r\n\r\nRIFF\u0016\u0000\u0000\u0000WEBPVP8X\n\u0000\u0000\u0000\u0000\u0000\u0000\u0000?\u0000\u0000?\u0000\u0000\r\n--pm7e--\r\n",
+       "options": {
+        "raw": {
+         "language": "text"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('403', () => pm.response.to.have.status(403));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "23 The doctor uploads their own",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dDoc}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "multipart/form-data; boundary=pm7e"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/doctor-profiles/me/signature",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "doctor-profiles",
+        "me",
+        "signature"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "--pm7e\r\nContent-Disposition: form-data; name=\"file\"; filename=\"logo.webp\"\r\nContent-Type: image/webp\r\n\r\nRIFF\u0016\u0000\u0000\u0000WEBPVP8X\n\u0000\u0000\u0000\u0000\u0000\u0000\u0000?\u0000\u0000?\u0000\u0000\r\n--pm7e--\r\n",
+       "options": {
+        "raw": {
+         "language": "text"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "const j = pm.response.json();",
+         "pm.test('the profile comes back with the picture', () => { pm.expect(j.id).to.eql(pm.collectionVariables.get('dId')); pm.expect(j.signature.contentType).to.eql('image/webp'); });",
+         "pm.collectionVariables.set('sigId', j.signature.id);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "24 A refused file for the signature says why",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dDoc}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "multipart/form-data; boundary=pm7e"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/doctor-profiles/me/signature",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "doctor-profiles",
+        "me",
+        "signature"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "--pm7e\r\nContent-Disposition: form-data; name=\"file\"; filename=\"logo.png\"\r\nContent-Type: image/png\r\n\r\nthis is only some text, not a picture\r\n--pm7e--\r\n",
+       "options": {
+        "raw": {
+         "language": "text"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('refused with the field and the reason', () => { const j = pm.response.json(); pm.response.to.have.status(400); pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('file'); pm.expect(j.reason).to.eql('NOT_AN_IMAGE'); });"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "25 The doctor can look at it",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dDoc}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/images/{{sigId}}",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "images",
+        "{{sigId}}"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('a picture', () => pm.expect(pm.response.headers.get('Content-Type')).to.eql('image/webp'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "26 SuperAdmin sees it in the doctors list",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/doctor-profiles",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "doctor-profiles"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('the doctor has a signature picture', () => { const d = pm.response.json().items.find(x => x.id === pm.collectionVariables.get('dId')); pm.expect(d.signature.id).to.eql(pm.collectionVariables.get('sigId')); });"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "27 The other hospital cannot see that signature (404)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSouth}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/images/{{sigId}}",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "images",
+        "{{sigId}}"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('404', () => pm.response.to.have.status(404));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "28 The other hospital cannot upload for this doctor (404)",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSouth}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "multipart/form-data; boundary=pm7e"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/doctor-profiles/{{dId}}/signature",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "doctor-profiles",
+        "{{dId}}",
+        "signature"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "--pm7e\r\nContent-Disposition: form-data; name=\"file\"; filename=\"logo.webp\"\r\nContent-Type: image/webp\r\n\r\nRIFF\u0016\u0000\u0000\u0000WEBPVP8X\n\u0000\u0000\u0000\u0000\u0000\u0000\u0000?\u0000\u0000?\u0000\u0000\r\n--pm7e--\r\n",
+       "options": {
+        "raw": {
+         "language": "text"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('404', () => pm.response.to.have.status(404));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "29 The receptionist cannot upload for a doctor (403)",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "multipart/form-data; boundary=pm7e"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/doctor-profiles/{{dId}}/signature",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "doctor-profiles",
+        "{{dId}}",
+        "signature"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "--pm7e\r\nContent-Disposition: form-data; name=\"file\"; filename=\"logo.webp\"\r\nContent-Type: image/webp\r\n\r\nRIFF\u0016\u0000\u0000\u0000WEBPVP8X\n\u0000\u0000\u0000\u0000\u0000\u0000\u0000?\u0000\u0000?\u0000\u0000\r\n--pm7e--\r\n",
+       "options": {
+        "raw": {
+         "language": "text"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('403', () => pm.response.to.have.status(403));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "30 SuperAdmin uploads for the doctor (an Admin in scope may)",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "multipart/form-data; boundary=pm7e"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/doctor-profiles/{{dId}}/signature",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "doctor-profiles",
+        "{{dId}}",
+        "signature"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "--pm7e\r\nContent-Disposition: form-data; name=\"file\"; filename=\"logo.webp\"\r\nContent-Type: image/webp\r\n\r\nRIFF\u0016\u0000\u0000\u0000WEBPVP8X\n\u0000\u0000\u0000\u0000\u0000\u0000\u0000?\u0000\u0000?\u0000\u0000\r\n--pm7e--\r\n",
+       "options": {
+        "raw": {
+         "language": "text"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('a new current picture; the old one is still on record', () => { const j = pm.response.json(); pm.expect(j.signature.id).to.not.eql(pm.collectionVariables.get('sigId')); });",
+         "pm.collectionVariables.set('sigId2', pm.response.json().signature.id);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "31 The first picture can still be fetched (a printed prescription may point at it)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dDoc}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/images/{{sigId}}",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "images",
+        "{{sigId}}"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "32 The doctor still sees only the newest as current",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dDoc}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/doctor-profiles/me",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "doctor-profiles",
+        "me"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('the newest', () => pm.expect(pm.response.json().signature.id).to.eql(pm.collectionVariables.get('sigId2')));"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "3 Put things back (nothing is deleted; the pictures stay on record)",
+   "item": [
+    {
+     "name": "33 SuperAdmin removes the doctor signature",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/doctor-profiles/{{dId}}/signature/remove",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "doctor-profiles",
+        "{{dId}}",
+        "signature",
+        "remove"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{}",
+       "options": {
+        "raw": {
+         "language": "text"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('no current signature', () => pm.expect(pm.response.json().signature).to.eql(null));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "34 Removing again is harmless",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dDoc}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/doctor-profiles/me/signature/remove",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "doctor-profiles",
+        "me",
+        "signature",
+        "remove"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{}",
+       "options": {
+        "raw": {
+         "language": "text"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('still none', () => pm.expect(pm.response.json().signature).to.eql(null));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "35 SuperAdmin removes the logo",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/settings/branding/logo/remove",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "settings",
+        "branding",
+        "logo",
+        "remove"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{}",
+       "options": {
+        "raw": {
+         "language": "text"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('no logo', () => pm.expect(pm.response.json().logo).to.eql(null));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "36 The branding answer has no logo again",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/settings/branding",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "settings",
+        "branding"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('none', () => pm.expect(pm.response.json().logo).to.eql(null));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "37 The old logo can still be fetched (history is kept)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/images/{{logoId}}",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "images",
+        "{{logoId}}"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

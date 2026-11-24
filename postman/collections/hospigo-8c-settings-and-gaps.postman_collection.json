@@ -1,0 +1,3816 @@
+{
+  "info": {
+    "name": "Hospigo 8c settings and gaps",
+    "description": "Step 8c (API): payment modes, vitals fields, bill number series, patient reference fields, doctor leave requests, per-branch print templates and extra print values. BEFORE RUNNING: (1) npm run prisma:migrate -w @hospigo/api (8c adds three migrations: number series protection, doctor leave requests, print values), (2) npm run prisma:seed -w @hospigo/api, (3) restart the API, (4) environment Hospigo Local with staffPassword, superadminPassword and branchAdminPassword. It adds test rows with the fixed codes POSTMAN8C / postman8c (running it again is fine: the second run sees 409 for the add steps) and one far-future leave that it removes again. It never lowers a counter and never deletes anything.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:3000"
+    },
+    {
+      "key": "receptionEmail",
+      "value": "receptionist1@demo-north.example.test"
+    },
+    {
+      "key": "doctorEmail",
+      "value": "doctor2@demo-north.example.test"
+    },
+    {
+      "key": "superEmail",
+      "value": "superadmin@demo-north.example.test"
+    },
+    {
+      "key": "branchAdminEmail",
+      "value": "branchadmin@demo-north.example.test"
+    },
+    {
+      "key": "southEmail",
+      "value": "superadmin@demo-south.example.test"
+    }
+  ],
+  "item": [
+    {
+      "name": "0 Setup",
+      "item": [
+        {
+          "name": "1 Login SuperAdmin (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\": \"demo-north-main\", \"email\": \"{{superEmail}}\", \"password\": \"{{superadminPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('tSA', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 Login Receptionist (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\": \"demo-north-main\", \"email\": \"{{receptionEmail}}\", \"password\": \"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('tRecv', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3 Login Doctor (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\": \"demo-north-main\", \"email\": \"{{doctorEmail}}\", \"password\": \"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('tDoc', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4 Login Branch Admin (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\": \"demo-north-main\", \"email\": \"{{branchAdminEmail}}\", \"password\": \"{{branchAdminPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('tBA', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5 Login SuperAdmin of the other hospital (south main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\": \"demo-south-main\", \"email\": \"{{southEmail}}\", \"password\": \"{{superadminPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('tSouth', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1 Payment modes (opd.masters.write)",
+      "item": [
+        {
+          "name": "6 SuperAdmin lists the modes (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/payment-modes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "payment-modes"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Cash exists', () => pm.expect(pm.response.json().items.some(m => m.code === 'CASH')).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7 Receptionist cannot list them (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/payment-modes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "payment-modes"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8 No token (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/settings/payment-modes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "payment-modes"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9 Add a mode that needs a reference (201, or 409 on a second run)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/payment-modes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "payment-modes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"code\": \"POSTMAN8C\", \"name\": \"Postman test mode\", \"requiresReference\": true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is one of [201, 409]', () => pm.expect([201, 409]).to.include(pm.response.code));",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('modeId', pm.response.json().id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Find the mode id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/payment-modes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "payment-modes"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const m = pm.response.json().items.find(x => x.code === 'POSTMAN8C'); pm.test('the test mode exists', () => pm.expect(m).to.be.an('object')); pm.collectionVariables.set('modeId', m.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 The same code twice is a conflict (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/payment-modes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "payment-modes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"code\": \"POSTMAN8C\", \"name\": \"Again\", \"requiresReference\": false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));",
+                  "pm.test('code MASTER_CONFLICT', () => pm.expect(pm.response.json().code).to.eql('MASTER_CONFLICT'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 A bad code is refused (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/payment-modes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "payment-modes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"code\": \"bad code!\", \"name\": \"X\", \"requiresReference\": false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('code MASTER_INVALID', () => pm.expect(pm.response.json().code).to.eql('MASTER_INVALID'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 Receptionist cannot add (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/payment-modes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "payment-modes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"code\": \"NOPE1\", \"name\": \"No\", \"requiresReference\": false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 Deactivate the test mode (200)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/payment-modes/{{modeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "payment-modes",
+                "{{modeId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"active\": false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('inactive', () => pm.expect(pm.response.json().active).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 Activate it again (200)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/payment-modes/{{modeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "payment-modes",
+                "{{modeId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"active\": true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('active', () => pm.expect(pm.response.json().active).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 Cash cannot be deactivated (409)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/payment-modes/{{cashId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "payment-modes",
+                "{{cashId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"active\": false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({url: pm.collectionVariables.get('baseUrl') + '/settings/payment-modes', method: 'GET', header: {Authorization: 'Bearer ' + pm.collectionVariables.get('tSA')}}, (err, res) => { const c = res.json().items.find(x => x.code === 'CASH'); pm.collectionVariables.set('cashId', c.id); });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));",
+                  "pm.test('code MASTER_CONFLICT', () => pm.expect(pm.response.json().code).to.eql('MASTER_CONFLICT'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 The other hospital cannot change this mode (404)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSouth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/payment-modes/{{modeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "payment-modes",
+                "{{modeId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"active\": false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('code MASTER_NOT_FOUND', () => pm.expect(pm.response.json().code).to.eql('MASTER_NOT_FOUND'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 Vitals fields (opd.masters.write)",
+      "item": [
+        {
+          "name": "18 SuperAdmin lists the fields (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/vitals-fields",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "vitals-fields"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "19 Receptionist cannot list them (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/vitals-fields",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "vitals-fields"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "20 Add a number field with a usual range (201, or 409 on a second run)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/vitals-fields",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "vitals-fields"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"code\": \"postman8c\", \"name\": \"Postman reading\", \"unit\": \"u\", \"valueKind\": \"NUMBER\", \"warnMin\": 1, \"warnMax\": 9}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is one of [201, 409]', () => pm.expect([201, 409]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "21 Find the field id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/vitals-fields",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "vitals-fields"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const f = pm.response.json().items.find(x => x.code === 'postman8c'); pm.test('exists', () => pm.expect(f).to.be.an('object')); pm.collectionVariables.set('fieldId', f.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "22 A lowest value above the highest is refused (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/vitals-fields",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "vitals-fields"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"code\": \"postman8d\", \"name\": \"Bad range\", \"unit\": \"u\", \"valueKind\": \"NUMBER\", \"warnMin\": 9, \"warnMax\": 1}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('code MASTER_INVALID', () => pm.expect(pm.response.json().code).to.eql('MASTER_INVALID'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "23 A text field cannot have a range (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/vitals-fields",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "vitals-fields"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"code\": \"postman8e\", \"name\": \"Text range\", \"unit\": \"u\", \"valueKind\": \"TEXT\", \"warnMin\": 1}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('code MASTER_INVALID', () => pm.expect(pm.response.json().code).to.eql('MASTER_INVALID'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "24 Change the range (200)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/vitals-fields/{{fieldId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "vitals-fields",
+                "{{fieldId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"warnMin\": 2, \"warnMax\": 8}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "25 Deactivate and activate again (200)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/vitals-fields/{{fieldId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "vitals-fields",
+                "{{fieldId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"active\": false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('inactive', () => pm.expect(pm.response.json().active).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "26 Activate again (200)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/vitals-fields/{{fieldId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "vitals-fields",
+                "{{fieldId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"active\": true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "27 Receptionist cannot add (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/vitals-fields",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "vitals-fields"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"code\": \"nope1\", \"name\": \"No\", \"unit\": \"u\", \"valueKind\": \"TEXT\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 Bill numbers (hospital-wide Admin only)",
+      "item": [
+        {
+          "name": "28 SuperAdmin reads the series (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/number-series",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "number-series"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('three series', () => pm.expect(pm.response.json().items.length).to.eql(3));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "29 Branch Admin is refused: money numbering is hospital-wide (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tBA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/number-series",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "number-series"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "30 Receptionist is refused (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/number-series",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "number-series"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "31 A start number of 0 is refused (400)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/number-series/BILL/start-number",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "number-series",
+                "BILL",
+                "start-number"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"startNumber\": 0, \"reason\": \"test\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('code MASTER_INVALID', () => pm.expect(pm.response.json().code).to.eql('MASTER_INVALID'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "32 A start number needs a reason (400)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/number-series/BILL/start-number",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "number-series",
+                "BILL",
+                "start-number"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"startNumber\": 5}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('code MASTER_INVALID', () => pm.expect(pm.response.json().code).to.eql('MASTER_INVALID'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "33 An unknown series is refused",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/number-series/NOPE/start-number",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "number-series",
+                "NOPE",
+                "start-number"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"startNumber\": 5, \"reason\": \"test\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is one of [400, 404]', () => pm.expect([400, 404]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "34 A prefix with a space is refused (400)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/number-series/BILL",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "number-series",
+                "BILL"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"prefix\": \"has space\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('code MASTER_INVALID', () => pm.expect(pm.response.json().code).to.eql('MASTER_INVALID'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "35 An unknown field in the format is refused (400)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/number-series/BILL",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "number-series",
+                "BILL"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"lastNumber\": 1}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('code MASTER_INVALID', () => pm.expect(pm.response.json().code).to.eql('MASTER_INVALID'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4 Patient reference fields",
+      "item": [
+        {
+          "name": "36 Receptionist cannot add the ready-made fields (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/patient-fields/reference-set",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "patient-fields",
+                "reference-set"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "37 SuperAdmin adds the ready-made fields (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/patient-fields/reference-set",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "patient-fields",
+                "reference-set"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json(); pm.test('created plus kept is four', () => pm.expect((b.created||[]).length + (b.kept||[]).length + (b.skipped||[]).length).to.eql(4));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "38 Pressing it again adds nothing new (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/patient-fields/reference-set",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "patient-fields",
+                "reference-set"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('nothing created', () => pm.expect((pm.response.json().created||[]).length).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5 Queue doctor filter",
+      "item": [
+        {
+          "name": "39 Doctor reads the queue (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/queue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "queue"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "40 A made-up doctor id gives an empty queue, not an error",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/queue?doctorProfileId=cnotadoctor0000000000000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "queue"
+              ],
+              "query": [
+                {
+                  "key": "doctorProfileId",
+                  "value": "cnotadoctor0000000000000"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is one of [200, 400]', () => pm.expect([200, 400]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "41 No token (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/opd/queue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "queue"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6 Doctor leave requests",
+      "item": [
+        {
+          "name": "42 Doctor asks for leave (201, waiting)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/me/leave-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "me",
+                "leave-requests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"fromDate\": \"{{leaveFrom}}\", \"toDate\": \"{{leaveTo}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const day = 300 + Math.floor(Math.random() * 200);",
+                  "const d = new Date(Date.now() + day * 86400000);",
+                  "const iso = (x) => x.toISOString().slice(0, 10);",
+                  "pm.collectionVariables.set('leaveFrom', iso(d));",
+                  "pm.collectionVariables.set('leaveTo', iso(new Date(d.getTime() + 86400000)));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json(); pm.test('waiting', () => pm.expect(b.status).to.eql('PENDING')); pm.collectionVariables.set('reqId', b.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "43 The same days again overlap (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/me/leave-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "me",
+                "leave-requests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"fromDate\": \"{{leaveFrom}}\", \"toDate\": \"{{leaveTo}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('overlap', () => pm.expect(pm.response.json().reason).to.eql('LEAVE_OVERLAP'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "44 An end before the start is refused (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/me/leave-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "me",
+                "leave-requests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"fromDate\": \"2030-01-05\", \"toDate\": \"2030-01-01\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "45 A free-text reason is not accepted (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/me/leave-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "me",
+                "leave-requests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"fromDate\": \"2030-03-01\", \"toDate\": \"2030-03-02\", \"reason\": \"holiday\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "46 Receptionist cannot ask for leave (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/me/leave-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "me",
+                "leave-requests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"fromDate\": \"2030-03-01\", \"toDate\": \"2030-03-02\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "47 Doctor sees the request in the own list (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/me/leave-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "me",
+                "leave-requests"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('listed', () => pm.expect(pm.response.json().items.some(r => r.id === pm.collectionVariables.get('reqId'))).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "48 Receptionist cannot see the Admin list (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/leave-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "leave-requests"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "49 Doctor cannot use the Admin list (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/leave-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "leave-requests"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "50 SuperAdmin sees it waiting (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/leave-requests?status=PENDING&pageSize=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "leave-requests"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "100"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json(); pm.test('listed', () => pm.expect(b.items.some(r => r.id === pm.collectionVariables.get('reqId'))).to.eql(true)); pm.test('count', () => pm.expect(b.pendingCount).to.be.at.least(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "51 The other hospital cannot approve it (404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSouth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/leave-requests/{{reqId}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "leave-requests",
+                "{{reqId}}",
+                "approve"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "52 Receptionist cannot approve (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/leave-requests/{{reqId}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "leave-requests",
+                "{{reqId}}",
+                "approve"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "53 SuperAdmin approves (200): the leave is created",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/leave-requests/{{reqId}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "leave-requests",
+                "{{reqId}}",
+                "approve"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json(); pm.test('approved', () => pm.expect(b.status).to.eql('APPROVED')); pm.collectionVariables.set('docProfileId', b.doctor.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "54 A second decision is refused (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/leave-requests/{{reqId}}/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "leave-requests",
+                "{{reqId}}",
+                "reject"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));",
+                  "pm.test('already decided', () => pm.expect(pm.response.json().reason).to.eql('ALREADY_DECIDED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "55 The doctor cannot cancel an approved leave (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/me/leave-requests/{{reqId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "me",
+                "leave-requests",
+                "{{reqId}}",
+                "cancel"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "56 Admin removes the leave again through Availability (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors/{{docProfileId}}/availability",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors",
+                "{{docProfileId}}",
+                "availability"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const l = pm.response.json().leaves.find(x => x.fromDate === pm.collectionVariables.get('leaveFrom')); pm.test('the approved leave exists', () => pm.expect(l).to.be.an('object')); pm.collectionVariables.set('leaveId', l.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "57 Remove that leave (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors/{{docProfileId}}/availability/leave/{{leaveId}}/remove",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors",
+                "{{docProfileId}}",
+                "availability",
+                "leave",
+                "{{leaveId}}",
+                "remove"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "58 A new request can be cancelled by the doctor (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/me/leave-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "me",
+                "leave-requests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"fromDate\": \"{{leaveFrom}}\", \"toDate\": \"{{leaveTo}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('reqId2', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "59 Cancel it (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/me/leave-requests/{{reqId2}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "me",
+                "leave-requests",
+                "{{reqId2}}",
+                "cancel"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('cancelled', () => pm.expect(pm.response.json().status).to.eql('CANCELLED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "60 Cancel it again (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/me/leave-requests/{{reqId2}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "me",
+                "leave-requests",
+                "{{reqId2}}",
+                "cancel"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7 Print templates per branch",
+      "item": [
+        {
+          "name": "61 Reading needs only a login: the receptionist sees what applies (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json(); pm.test('three documents', () => pm.expect(b.items.length).to.eql(3)); pm.test('each says which one applies', () => b.items.forEach(i => pm.expect(['BRANCH','HOSPITAL','DEFAULT']).to.include(i.scope))); pm.test('receptionist cannot change', () => pm.expect(b.canChange).to.eql({branch: false, hospital: false}));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "62 SuperAdmin may change both places (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('both', () => pm.expect(pm.response.json().canChange).to.eql({branch: true, hospital: true}));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "63 Branch Admin may change the branch only (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tBA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('branch only', () => pm.expect(pm.response.json().canChange).to.eql({branch: true, hospital: false}));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "64 Keep the receipt template of this branch",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tBA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates/RECEIPT",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates",
+                "RECEIPT"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const t = pm.response.json(); pm.collectionVariables.set('tplBody', JSON.stringify({enabled: t.enabled, preset: t.preset, paper: t.paper, widthMm: t.widthMm, heightMm: t.heightMm, orientation: t.orientation, margins: t.margins, mode: t.mode, layout: t.layout}));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "65 Receptionist cannot save (403)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=branch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates",
+                "RECEIPT"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "branch"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{tplBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "66 An unknown scope is refused (400)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tBA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=everyone",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates",
+                "RECEIPT"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "everyone"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{tplBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('code PRINT_SCOPE_INVALID', () => pm.expect(pm.response.json().code).to.eql('PRINT_SCOPE_INVALID'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "67 Branch Admin cannot save the hospital-wide template (403)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tBA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=hospital",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates",
+                "RECEIPT"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "hospital"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{tplBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));",
+                  "pm.test('code PRINT_SCOPE_FORBIDDEN', () => pm.expect(pm.response.json().code).to.eql('PRINT_SCOPE_FORBIDDEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "68 No scope means hospital-wide: refused for a Branch Admin (403)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tBA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates/RECEIPT",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates",
+                "RECEIPT"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{tplBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "69 Branch Admin saves the template of their own branch (200)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tBA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=branch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates",
+                "RECEIPT"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "branch"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{tplBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('the branch template applies', () => pm.expect(pm.response.json().scope).to.eql('BRANCH'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "70 The other hospital is not affected (200, not the branch template)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSouth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates/RECEIPT",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates",
+                "RECEIPT"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('not a branch template of north', () => pm.expect(pm.response.json().scope).to.not.eql('BRANCH'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "71 Remove the branch template: back to the hospital one or the default (200)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tBA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=branch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates",
+                "RECEIPT"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "branch"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('no longer the branch template', () => pm.expect(pm.response.json().scope).to.not.eql('BRANCH'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "8 Extra print values",
+      "item": [
+        {
+          "name": "72 Anyone signed in can read the values of the branch (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-values",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-values"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "73 No token (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/print-values",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-values"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "74 Receptionist cannot manage them (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-values/manage",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-values",
+                "manage"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "75 SuperAdmin adds a hospital value (201, or 409 on a second run)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-values?scope=hospital",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-values"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "hospital"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"key\": \"postman8c\", \"label\": \"Postman value\", \"value\": \"Plain text 123\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is one of [201, 409]', () => pm.expect([201, 409]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "76 Find its id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-values/manage",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-values",
+                "manage"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const v = pm.response.json().items.find(x => x.key === 'postman8c' && x.scope === 'HOSPITAL'); pm.test('exists', () => pm.expect(v).to.be.an('object')); pm.collectionVariables.set('valueId', v.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "77 The branch now prints it (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-values",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-values"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('listed', () => pm.expect(pm.response.json().items.some(i => i.key === 'postman8c' && i.field === 'value.postman8c')).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "78 HTML is refused (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-values?scope=hospital",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-values"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "hospital"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"key\": \"postman8d\", \"label\": \"Bad\", \"value\": \"<script>alert(1)</script>\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('code PRINT_VALUE_INVALID', () => pm.expect(pm.response.json().code).to.eql('PRINT_VALUE_INVALID'));",
+                  "pm.test('not plain text', () => pm.expect(pm.response.json().reason).to.eql('NOT_PLAIN_TEXT'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "79 A line break is refused (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-values?scope=hospital",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-values"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "hospital"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"key\": \"postman8d\", \"label\": \"Bad\", \"value\": \"line one\\nline two\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "80 A bad code is refused (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-values?scope=hospital",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-values"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "hospital"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"key\": \"Bad Code\", \"label\": \"Bad\", \"value\": \"x\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('key invalid', () => pm.expect(pm.response.json().reason).to.eql('KEY_INVALID'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "81 The same code twice is a conflict (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-values?scope=hospital",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-values"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "hospital"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"key\": \"postman8c\", \"label\": \"Again\", \"value\": \"x\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));",
+                  "pm.test('code PRINT_VALUE_CONFLICT', () => pm.expect(pm.response.json().code).to.eql('PRINT_VALUE_CONFLICT'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "82 Branch Admin cannot add a hospital-wide value (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tBA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-values?scope=hospital",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-values"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "hospital"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"key\": \"postman8f\", \"label\": \"No\", \"value\": \"x\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));",
+                  "pm.test('code PRINT_SCOPE_FORBIDDEN', () => pm.expect(pm.response.json().code).to.eql('PRINT_SCOPE_FORBIDDEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "83 Branch Admin cannot switch off the hospital-wide value (403)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tBA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-values/{{valueId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-values",
+                "{{valueId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"active\": false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "84 The other hospital cannot change it (404)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSouth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-values/{{valueId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-values",
+                "{{valueId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"active\": false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('code PRINT_VALUE_NOT_FOUND', () => pm.expect(pm.response.json().code).to.eql('PRINT_VALUE_NOT_FOUND'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "85 SuperAdmin deactivates it (200): it is no longer printed",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-values/{{valueId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-values",
+                "{{valueId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"active\": false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('inactive', () => pm.expect(pm.response.json().active).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "86 The branch no longer lists it (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-values",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-values"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('gone', () => pm.expect(pm.response.json().items.some(i => i.key === 'postman8c')).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "87 Activate it again (200)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tSA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-values/{{valueId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-values",
+                "{{valueId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"active\": true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

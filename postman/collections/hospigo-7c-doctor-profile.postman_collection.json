@@ -1,0 +1,1535 @@
+{
+  "info": {
+    "name": "Hospigo 7c doctor profile",
+    "description": "Step 7c (API): doctor profile details (printed name, qualifications, speciality, registration number) and the copy a completed prescription keeps. BEFORE RUNNING: (1) npm run prisma:migrate -w @hospigo/api  (2) re-run the dev seed so the roles get the new permissions: NODE_ENV=development npm run prisma:seed -w @hospigo/api  (3) restart the API on port 3000. Select the Hospigo Local environment (staffPassword and superadminPassword), then Run collection. It uses Doctor North 3, puts that profile back as it was, and makes ONE paid visit and one completed prescription to prove the copy never changes. About 4 logins count against the login IP limit (20 per minute).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0 Setup",
+      "item": [
+        {
+          "name": "1 Login Doctor North 3",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{doctorEmail}}\",\"password\":\"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('select the Hospigo Local environment: staffPassword and superadminPassword must be set', () => { pm.expect(pm.variables.get('staffPassword'), 'staffPassword').to.be.a('string').and.not.empty; pm.expect(pm.variables.get('superadminPassword'), 'superadminPassword').to.be.a('string').and.not.empty; });",
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has a token', () => pm.expect(j.accessToken).to.be.a('string'));",
+                  "pm.collectionVariables.set('dDoc', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 Login Receptionist (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{receptionEmail}}\",\"password\":\"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has a token', () => pm.expect(j.accessToken).to.be.a('string'));",
+                  "pm.collectionVariables.set('dRecv', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3 Login SuperAdmin (north)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{superEmail}}\",\"password\":\"{{superadminPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has a token', () => pm.expect(j.accessToken).to.be.a('string'));",
+                  "pm.collectionVariables.set('dSuper', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4 Login SuperAdmin (south, another hospital)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-south-main\",\"email\":\"{{southSuperEmail}}\",\"password\":\"{{superadminPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has a token', () => pm.expect(j.accessToken).to.be.a('string'));",
+                  "pm.collectionVariables.set('dSouth', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1 My profile",
+      "item": [
+        {
+          "name": "5 The doctor reads their own profile and the original is remembered",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('a profile with limits and the missing list', () => { pm.expect(j.id).to.be.a('string'); pm.expect(j.printName).to.be.a('string'); pm.expect(j.missing).to.be.an('array'); pm.expect(j.limits.registrationNo).to.eql(40); });",
+                  "pm.collectionVariables.set('dId', j.id);",
+                  "pm.collectionVariables.set('dDept', j.department === null ? '' : j.department);",
+                  "pm.collectionVariables.set('dRestore', JSON.stringify({ printedName: j.printedName, qualifications: j.qualifications, speciality: j.speciality, registrationNo: j.registrationNo }));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6 Receptionist has no doctor profile page (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7 SuperAdmin has no profile of their own (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8 No token = 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9 The doctor saves their details",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "me"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"printedName\": \"  Dr.  Pm7c Test \", \"qualifications\": \"MBBS Pm7c\", \"speciality\": \"Pm7c Speciality\", \"registrationNo\": \"PM7C/001\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('tidied and saved', () => { pm.expect(j.printedName).to.eql('Dr. Pm7c Test'); pm.expect(j.printName).to.eql('Dr. Pm7c Test'); pm.expect(j.qualifications).to.eql('MBBS Pm7c'); pm.expect(j.registrationNo).to.eql('PM7C/001'); pm.expect(j.missing).to.eql([]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 A doctor cannot change the department",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "me"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"department\": \"Surgery\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "const j = pm.response.json();",
+                  "pm.test('SETTINGS_INVALID on department', () => { pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('department'); });",
+                  "pm.test('reason NOT_ALLOWED', () => pm.expect(j.reason).to.eql('NOT_ALLOWED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 A registration number with odd characters is refused",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "me"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"registrationNo\": \"<script>1\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "const j = pm.response.json();",
+                  "pm.test('SETTINGS_INVALID on registrationNo', () => { pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('registrationNo'); });",
+                  "pm.test('reason INVALID', () => pm.expect(j.reason).to.eql('INVALID'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 Too long is refused",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "me"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"qualifications\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "const j = pm.response.json();",
+                  "pm.test('SETTINGS_INVALID on qualifications', () => { pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('qualifications'); });",
+                  "pm.test('reason TOO_LONG', () => pm.expect(j.reason).to.eql('TOO_LONG'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 An empty body is refused",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "me"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "const j = pm.response.json();",
+                  "pm.test('SETTINGS_INVALID on body', () => { pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('body'); });",
+                  "pm.test('reason REQUIRED', () => pm.expect(j.reason).to.eql('REQUIRED'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 Admin list and corrections",
+      "item": [
+        {
+          "name": "14 Receptionist cannot list the doctors (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 The doctor cannot list the doctors (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 SuperAdmin lists the doctors with their details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "const mine = j.items.find(d => d.id === pm.collectionVariables.get('dId'));",
+                  "pm.test('the doctor is there with the saved details', () => { pm.expect(mine).to.exist; pm.expect(mine.printName).to.eql('Dr. Pm7c Test'); pm.expect(mine.registrationNo).to.eql('PM7C/001'); pm.expect(mine.branches).to.be.an('array'); });",
+                  "pm.test('write allowed and limits given', () => { pm.expect(j.canWrite).to.eql(true); pm.expect(j.limits.department).to.eql(100); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 The other hospital does not see this doctor",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dSouth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('not in the south list', () => pm.expect(pm.response.json().items.some(d => d.id === pm.collectionVariables.get('dId'))).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "18 SuperAdmin corrects the department",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/{{dId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "{{dId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"department\": \"Pm7c Dept\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('department changed', () => pm.expect(pm.response.json().department).to.eql('Pm7c Dept'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "19 The doctor cannot correct a doctor (403)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/{{dId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "{{dId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"department\": \"Hacked\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "20 Receptionist cannot correct a doctor (403)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/{{dId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "{{dId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"department\": \"Hacked\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "21 Another hospital cannot reach this doctor (404)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dSouth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/{{dId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "{{dId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"department\": \"Hacked\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));",
+                  "pm.test('SETTINGS_NOT_FOUND', () => pm.expect(pm.response.json().code).to.eql('SETTINGS_NOT_FOUND'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "22 An unknown doctor is 404",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/no-such-doctor",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "no-such-doctor"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"department\": \"x\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "23 The department is checked too",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/{{dId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "{{dId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"department\": \"ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "const j = pm.response.json();",
+                  "pm.test('SETTINGS_INVALID on department', () => { pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('department'); });",
+                  "pm.test('reason TOO_LONG', () => pm.expect(j.reason).to.eql('TOO_LONG'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 A completed prescription keeps its copy",
+      "item": [
+        {
+          "name": "24 Find Doctor North 3",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().items.find(x => x.id === pm.collectionVariables.get('dId'));",
+                  "pm.test('the doctor can take visits', () => { pm.expect(d).to.exist; pm.expect(d.available).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "25 Register a patient",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"{{dPtName}}\",\"ageYears\":33,\"phone\":\"{{dPtPhone}}\",\"confirmDuplicate\":true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const n = Date.now() % 1000000000;",
+                  "pm.collectionVariables.set('dPtName', 'Pm7c Patient ' + n);",
+                  "pm.collectionVariables.set('dPtPhone', '9' + String(n).padStart(9, '0'));",
+                  "pm.collectionVariables.set('dKey', 'PM7C-V-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "pm.collectionVariables.set('dPatient', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "26 Reception takes cash for a visit with this doctor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{dPatient}}\",\"doctorProfileId\":\"{{dId}}\",\"visitType\":\"NEW\",\"idempotencyKey\":\"{{dKey}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "const j = pm.response.json();",
+                  "pm.test('paid and waiting', () => { pm.expect(j.status).to.eql('WAITING'); pm.expect(j.bill.paymentStatus).to.eql('PAID'); });",
+                  "pm.collectionVariables.set('dVisit', j.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "27 The doctor starts the consultation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{dVisit}}/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{dVisit}}",
+                "start"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "28 The doctor writes the note",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{dVisit}}/consultation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{dVisit}}",
+                "consultation"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"complaints\": \"Pm7c complaint\", \"diagnosis\": \"Pm7c diagnosis\", \"advice\": \"Rest\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "29 While it is a draft the prescription shows the profile as it is now",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{dVisit}}/consultation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{dVisit}}",
+                "consultation"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().doctorDetails;",
+                  "pm.test('live profile, not a copy', () => { pm.expect(d.fromCompletedCopy).to.eql(false); pm.expect(d.printName).to.eql('Dr. Pm7c Test'); pm.expect(d.department).to.eql('Pm7c Dept'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "30 Complete: the answer carries the copy",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{dVisit}}/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{dVisit}}",
+                "complete"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().doctorDetails;",
+                  "pm.test('a copy with the details of that moment', () => { pm.expect(d.fromCompletedCopy).to.eql(true); pm.expect(d.printName).to.eql('Dr. Pm7c Test'); pm.expect(d.qualifications).to.eql('MBBS Pm7c'); pm.expect(d.registrationNo).to.eql('PM7C/001'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "31 The doctor changes the profile afterwards",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "me"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"printedName\": \"Dr. Pm7c Changed\", \"registrationNo\": \"PM7C/999\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('changed', () => pm.expect(pm.response.json().registrationNo).to.eql('PM7C/999'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "32 The completed prescription still shows the OLD details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{dVisit}}/consultation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{dVisit}}",
+                "consultation"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().doctorDetails;",
+                  "pm.test('still the copy of that moment', () => { pm.expect(d.fromCompletedCopy).to.eql(true); pm.expect(d.printName).to.eql('Dr. Pm7c Test'); pm.expect(d.registrationNo).to.eql('PM7C/001'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4 Put the profile back",
+      "item": [
+        {
+          "name": "33 Restore the doctor details as they were",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "me"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{dRestore}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const o = JSON.parse(pm.collectionVariables.get('dRestore')); const j = pm.response.json();",
+                  "pm.test('as before', () => { pm.expect(j.printedName).to.eql(o.printedName); pm.expect(j.qualifications).to.eql(o.qualifications); pm.expect(j.speciality).to.eql(o.speciality); pm.expect(j.registrationNo).to.eql(o.registrationNo); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "34 Restore the department",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctor-profiles/{{dId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doctor-profiles",
+                "{{dId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"department\":\"{{dDept}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('as before', () => { const was = pm.collectionVariables.get('dDept'); pm.expect(pm.response.json().department).to.eql(was === '' ? null : was); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:3000"
+    },
+    {
+      "key": "receptionEmail",
+      "value": "receptionist1@demo-north.example.test"
+    },
+    {
+      "key": "doctorEmail",
+      "value": "doctor3@demo-north.example.test"
+    },
+    {
+      "key": "superEmail",
+      "value": "superadmin@demo-north.example.test"
+    },
+    {
+      "key": "southSuperEmail",
+      "value": "superadmin@demo-south.example.test"
+    }
+  ]
+}
