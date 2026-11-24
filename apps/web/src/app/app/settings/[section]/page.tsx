@@ -96,7 +96,9 @@ export default async function SettingsSectionPage({
   // Viewing any settings needs hospital.settings.read; without it: the usual no-permission redirect.
   const session = await requirePermission('hospital.settings.read');
   const { section: sectionId } = await params;
-  const sections = visibleSettingsSections(session.permissions);
+  const sections = visibleSettingsSections(session.permissions, {
+    canSwitchBranch: session.canSwitchBranch === true,
+  });
   const section = findSettingsSection(sectionId);
 
   if (!section) {
@@ -205,6 +207,8 @@ export default async function SettingsSectionPage({
         pendingLeaveRequests={
           leaveRequests.status === 'ok' ? leaveRequests.data.pendingCount : null
         }
+        activeBranchName={session.activeBranchName}
+        filterToActiveBranch={session.canSwitchBranch === true}
       />
     );
   }

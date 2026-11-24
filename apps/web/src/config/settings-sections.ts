@@ -38,6 +38,11 @@ export type SettingsSection = {
   route: string;
   /** Permission needed to view the section (changing needs the matching write permission). */
   permission: string;
+  /**
+   * When true, only hospital-wide Admins (session.canSwitchBranch) see the item. Branch Admins
+   * share the permission code but the API refuses them; hiding avoids a dead 403 link.
+   */
+  hospitalWideOnly?: boolean;
 };
 
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
@@ -135,8 +140,9 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     group: 'billing',
     copyKey: 'billNumbers',
     route: `${SETTINGS_BASE_ROUTE}/bill-numbers`,
-    // The API also needs a hospital-wide Admin (money numbering).
+    // Money numbering is hospital-wide only; Branch Admins get 403 from the API.
     permission: 'opd.settings.write',
+    hospitalWideOnly: true,
   },
   {
     id: 'upload-lists',
@@ -151,8 +157,18 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
 /** Sections the user may see, in list order. */
 export function visibleSettingsSections(
   permissions: readonly string[] | undefined,
+  opts?: { canSwitchBranch?: boolean },
 ): SettingsSection[] {
-  return SETTINGS_SECTIONS.filter((section) => permissions?.includes(section.permission));
+  const hospitalWide = opts?.canSwitchBranch === true;
+  return SETTINGS_SECTIONS.filter((section) => {
+    if (!permissions?.includes(section.permission)) {
+      return false;
+    }
+    if (section.hospitalWideOnly && !hospitalWide) {
+      return false;
+    }
+    return true;
+  });
 }
 
 /** The sections under their headings (a heading with nothing to show is left out). */

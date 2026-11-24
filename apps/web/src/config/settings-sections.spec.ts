@@ -55,6 +55,21 @@ describe('the settings menu', () => {
     expect(has(['hospital.settings.read', 'opd.settings.write'])).toBe(true);
   });
 
+  it('Bill numbers need hospital-wide scope, not only the write permission', () => {
+    const perms = ['hospital.settings.read', 'opd.settings.write'];
+    expect(visibleSettingsSections(perms).some((s) => s.id === 'bill-numbers')).toBe(false);
+    expect(
+      visibleSettingsSections(perms, { canSwitchBranch: false }).some(
+        (s) => s.id === 'bill-numbers',
+      ),
+    ).toBe(false);
+    expect(
+      visibleSettingsSections(perms, { canSwitchBranch: true }).some(
+        (s) => s.id === 'bill-numbers',
+      ),
+    ).toBe(true);
+  });
+
   it('Payment modes and Vitals fields are for people who may change the masters only', () => {
     for (const id of ['payment-modes', 'vitals-fields']) {
       const has = (permissions: string[]) =>

@@ -73,8 +73,21 @@ const data = (over: Partial<DoctorsListResponse> = {}): DoctorsListResponse => (
   ...over,
 });
 
-const renderList = (initial: DoctorsListResponse | null = data()) =>
-  render(<DoctorsList initial={initial} initialErrorCode={null} />);
+const renderList = (
+  initial: DoctorsListResponse | null = data(),
+  over: {
+    activeBranchName?: string | null;
+    filterToActiveBranch?: boolean;
+  } = {},
+) =>
+  render(
+    <DoctorsList
+      initial={initial}
+      initialErrorCode={null}
+      activeBranchName={over.activeBranchName}
+      filterToActiveBranch={over.filterToActiveBranch}
+    />,
+  );
 const edit = (name: string) =>
   fireEvent.click(screen.getByRole('button', { name: `${name}: ${copy.edit}` }));
 const panel = () => screen.getByRole('button', { name: copy.save }).closest('form') as HTMLElement;
@@ -94,6 +107,20 @@ describe('DoctorsList', () => {
     expect(screen.getByText('Dr. A. Rao')).toBeTruthy();
     expect(screen.getByText('MBBS, MD')).toBeTruthy();
     expect(screen.getAllByText(copy.notSet).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('a SuperAdmin who switched branch only sees doctors of that branch', () => {
+    renderList(
+      data({
+        items: [
+          doctor({ branches: ['Main Branch'] }),
+          full({ branches: ['East Wing'], name: 'Login East' }),
+        ],
+      }),
+      { activeBranchName: 'East Wing', filterToActiveBranch: true },
+    );
+    expect(screen.getByText('Login East')).toBeTruthy();
+    expect(screen.queryByText('Login Meena')).toBeNull();
   });
 
   it('marks only the doctor whose details are missing', () => {

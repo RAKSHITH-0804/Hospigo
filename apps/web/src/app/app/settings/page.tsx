@@ -14,7 +14,9 @@ export const metadata: Metadata = { title: staffCopy.pageTitles.settings };
  */
 export default async function SettingsIndexPage() {
   const session = await requirePermission('hospital.settings.read');
-  const first = visibleSettingsSections(session.permissions)[0];
+  const first = visibleSettingsSections(session.permissions, {
+    canSwitchBranch: session.canSwitchBranch === true,
+  })[0];
   if (!first) {
     redirect(`${sessionConfig.homeHospital}?notice=no-permission`);
   }

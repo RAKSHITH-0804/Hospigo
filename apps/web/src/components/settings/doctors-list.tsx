@@ -50,11 +50,20 @@ export function DoctorsList({
   initial,
   initialErrorCode,
   pendingLeaveRequests = null,
+  activeBranchName = null,
+  filterToActiveBranch = false,
 }: {
   initial: DoctorsListResponse | null;
   initialErrorCode: string | null;
   /** Waiting leave requests the Admin may decide (null: unknown, the button shows no number). */
   pendingLeaveRequests?: number | null;
+  /** The branch the SuperAdmin switched to (names match doctor.branches). */
+  activeBranchName?: string | null;
+  /**
+   * When true (hospital-wide Admin with a branch switcher), only doctors who work in
+   * activeBranchName are listed. Branch Admins already get a scoped list from the API.
+   */
+  filterToActiveBranch?: boolean;
 }) {
   const [items, setItems] = useState(initial?.items ?? []);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -120,6 +129,10 @@ export function DoctorsList({
   const editingDoctor = items.find((d) => d.id === editingId) ?? null;
   const set = (patch: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...patch } : d));
   const value = (text: string | null) => text ?? copy.notSet;
+  const shown =
+    filterToActiveBranch && activeBranchName
+      ? items.filter((d) => d.branches.includes(activeBranchName))
+      : items;
 
   return (
     <SettingBlock title={copy.title} description={copy.description}>
@@ -143,11 +156,11 @@ export function DoctorsList({
       >
         {message?.text ?? ''}
       </p>
-      {items.length === 0 ? (
+      {shown.length === 0 ? (
         <p className="type-label text-muted-foreground">{copy.empty}</p>
       ) : (
         <ul className="settings-doctors">
-          {items.map((doctor) => (
+          {shown.map((doctor) => (
             <li key={doctor.id} className="settings-doctor">
               <div className="settings-doctor-head">
                 <div className="settings-cell-name">

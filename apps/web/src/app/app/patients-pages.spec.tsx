@@ -624,7 +624,11 @@ describe('patients pages', () => {
       );
       const { unmount } = render(await SettingsSectionPage(section('doctors')));
       expect(fetchMock).toHaveBeenCalledWith('/doctor-profiles');
-      expect(propsOf('doctors-list')).toEqual({ initial: list, initialErrorCode: null });
+      expect(propsOf('doctors-list')).toEqual({
+        initial: list,
+        initialErrorCode: null,
+        filterToActiveBranch: false,
+      });
       const nav = screen.getByRole('navigation', { name: staffCopy.settings.navAria });
       expect(nav.textContent).toContain(staffCopy.settings.sections.doctors);
       unmount();
@@ -646,6 +650,7 @@ describe('patients pages', () => {
         initial: null,
         initialErrorCode: 'UNAVAILABLE',
         pendingLeaveRequests: null,
+        filterToActiveBranch: false,
       });
     });
 
