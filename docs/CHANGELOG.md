@@ -31,7 +31,7 @@
 
 ## 2026-11-23 — Phase 2 Step 8b — Masters setup (starting a real hospital)
 
-- **Commit hash(es):** on `feature/step-8b-masters-setup` (not pushed); see `git log` on the branch.
+- **Commit hash(es):** merged as PR #60, merge commit `2e333ef`.
 - **Added:** doctor availability (Part D, built after the first report on the same branch): switch, weekly times per branch and leave periods, API `/opd/doctors/:id/availability` and an Availability panel on Settings, Doctors; hospital starter script (`hospital:starter`, dry run, idempotent); price change routes and Settings, OPD, Prices screen (history, effective date up to 366 days ahead); Excel upload of tests, doctor fees and medicines (preview, approve, post, cancel; all-or-nothing post) and Settings, OPD, Upload lists screen; new hospital runbook.
 - **Changed:** project rule "undo the whole batch" replaced by cancel-before-post only (prices are append-only). Raw SQL allowlist in the tenant safety-net test gained the imports and prices services.
 - **Removed:** nothing.
@@ -40,7 +40,7 @@
 - **New .env keys (names only):** none.
 - **Tests:** API 857 to 930, web 1581 to 1666.
 - **Decisions:** `docs/decisions/decisions-8b.md`. Later the same day, after Rakshith's manual tests: pop-up dialogs for Availability, doctor Edit and role Add and Edit; Fees link on each doctor; Activate and Deactivate wording for staff and roles; clearer role scope on the staff form; Upload preview with all columns; plan `docs/plans/plan-doctor-leave-requests.md` (not built; moved to Step 8c).
-- **Follow-ups and open items:** orphan files of cancelled uploads; HQ hospital creation is a go-live blocker; 8c moves after Step 9.
+- **Follow-ups and open items:** orphan files of cancelled uploads; HQ hospital creation is a go-live blocker; 8c now comes before Step 9 (decided 24 Nov).
 
 ## 2026-11-23 — Phase 2 — Step 8a: NestJS 12 and the 5 high npm findings (branch `feature/step-8a-nestjs-12`, not pushed)
 
