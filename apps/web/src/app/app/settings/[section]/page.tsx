@@ -9,6 +9,7 @@ import { OpdRulesForm } from '@/components/settings/opd-rules-form';
 import { NumberSeriesScreen } from '@/components/settings/number-series-screen';
 import { PaymentModesScreen } from '@/components/settings/payment-modes-screen';
 import { PricesScreen } from '@/components/settings/prices-screen';
+import { PrintValuesScreen } from '@/components/settings/print-values-screen';
 import { VitalsFieldsScreen } from '@/components/settings/vitals-fields-screen';
 import { ImportsScreen } from '@/components/settings/imports-screen';
 import { RegistrationFields } from '@/components/settings/registration-fields';
@@ -28,6 +29,12 @@ import { API_UHID_START_NUMBER, fetchStaffOnServer, serverErrorCode } from '@/li
 import type { UhidStartNumberResponse } from '@/lib/patients/types';
 import { API_DOCTOR_PROFILES, type DoctorsListResponse } from '@/lib/doctors/types';
 import { API_LEAVE_REQUESTS_ADMIN, type AdminLeaveRequestsResponse } from '@/lib/leave/types';
+import {
+  API_PRINT_VALUES,
+  API_PRINT_VALUES_MANAGE,
+  type EffectivePrintValuesResponse,
+  type PrintValuesManageResponse,
+} from '@/lib/print-values/types';
 import { API_BRANDING, type BrandingResponse } from '@/lib/images/types';
 import { API_IMPORTS, type ImportListResponse } from '@/lib/imports/types';
 import {
@@ -64,6 +71,7 @@ import {
 /** Sections that use the whole width of the screen (two blocks side by side). */
 const WIDE_SECTIONS = [
   'printing',
+  'print-values',
   'patient-registration',
   'patient-numbers',
   'doctors',
@@ -263,6 +271,15 @@ export default async function SettingsSectionPage({
       />
     );
   }
+  if (section.id === 'print-values') {
+    const values = await fetchStaffOnServer<PrintValuesManageResponse>(API_PRINT_VALUES_MANAGE);
+    content = (
+      <PrintValuesScreen
+        initial={values.status === 'ok' ? values.data : null}
+        initialErrorCode={values.status === 'ok' ? null : serverErrorCode(values)}
+      />
+    );
+  }
   if (section.id === 'upload-lists') {
     const batches = await fetchStaffOnServer<ImportListResponse>(API_IMPORTS, {
       page: 1,
@@ -277,10 +294,11 @@ export default async function SettingsSectionPage({
     );
   }
   if (section.id === 'printing') {
-    const [templates, presets, logoImageId] = await Promise.all([
+    const [templates, presets, logoImageId, extraValues] = await Promise.all([
       fetchStaffOnServer<PrintTemplatesResponse>(PRINT_API_PATH),
       fetchStaffOnServer<PrintPresetsResponse>(`${PRINT_API_PATH}/presets`),
       fetchLogoImageId(),
+      fetchStaffOnServer<EffectivePrintValuesResponse>(API_PRINT_VALUES),
     ]);
     if (templates.status !== 'ok') {
       content = (
@@ -301,6 +319,7 @@ export default async function SettingsSectionPage({
           presets={presets.data.items}
           canWrite={session.permissions?.includes('opd.settings.write') ?? false}
           canChange={templates.data.canChange}
+          extraValues={extraValues.status === 'ok' ? extraValues.data.items : []}
           hospitalName={session.hospitalName?.trim() || staffCopy.brand}
           logoImageId={logoImageId}
         />

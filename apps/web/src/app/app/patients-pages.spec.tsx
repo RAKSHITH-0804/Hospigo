@@ -779,6 +779,7 @@ describe('patients pages', () => {
           'payment-modes': 'opd.masters.write',
           'vitals-fields': 'opd.masters.write',
           'bill-numbers': 'opd.settings.write',
+          'print-values': 'opd.settings.write',
         };
         expect(entry.permission).toBe(own[entry.id] ?? 'hospital.settings.read');
       }

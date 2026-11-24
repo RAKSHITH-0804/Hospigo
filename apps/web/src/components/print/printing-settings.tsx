@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { SelectField } from '@/components/ui/field';
 import { printDesignerConfig as C } from '@/config/print';
 import { staffCopy } from '@/config/staff-copy';
+import type { EffectivePrintValue } from '@/lib/print-values/types';
 import { fill } from '@/lib/opd/clinical-format';
 import { errorMessageFor } from '@/lib/patients/client';
 import { resetPrintTemplate, savePrintTemplate } from '@/lib/print/client';
@@ -72,6 +73,7 @@ import {
   type PrintTone,
   type PrintAlign,
   type PrintPaper,
+  type PrintItem,
   type PrintPreset,
   type PrintScope,
   type PrintTemplate,
@@ -94,6 +96,7 @@ export function PrintingSettings({
   presets,
   canWrite,
   canChange: canChangeIn,
+  extraValues = [],
   hospitalName,
   logoImageId,
 }: {
@@ -102,6 +105,8 @@ export function PrintingSettings({
   canWrite: boolean;
   /** What the caller may change: the templates of this branch and the hospital's (from the API). */
   canChange?: { branch: boolean; hospital: boolean };
+  /** The extra print values that apply to this branch (Settings, Print values), insertable like any value. */
+  extraValues?: EffectivePrintValue[];
   hospitalName: string;
   /** The current hospital logo (shown in the preview), or none. */
   logoImageId?: string | null;
@@ -164,7 +169,10 @@ export function PrintingSettings({
     : null;
   const elements = shownForm.layout.elements;
   const selected = elements.find((e) => e.id === selectedId) ?? null;
-  const items = sampleItems(fieldKeys, hospitalName);
+  const items = [
+    ...sampleItems(fieldKeys, hospitalName),
+    ...extraValues.map((e): PrintItem => ({ key: e.field, label: e.label, text: e.text })),
+  ];
   const onPage = fieldsOnPage(form.layout.elements);
   const atMax = form.layout.elements.length >= C.maxElements;
   const mayChange = canWrite && canChange[scope];
@@ -308,7 +316,10 @@ export function PrintingSettings({
       ? { ...commonStyle(richSelected.content), align: commonAlign(richSelected.content) }
       : {};
   const labels = staffCopy.print.fields as Record<string, string>;
-  const valueChoices = fieldKeys.map((key) => ({ key, label: labels[key] ?? key }));
+  const valueChoices = [
+    ...fieldKeys.map((key) => ({ key, label: labels[key] ?? key })),
+    ...extraValues.map((e) => ({ key: e.field, label: e.label })),
+  ];
   /** Changes all the text of the selected box (when it is not being typed in). */
   const editAll = (change: (content: PrintContent) => PrintContent) => {
     if (richSelected?.content) {

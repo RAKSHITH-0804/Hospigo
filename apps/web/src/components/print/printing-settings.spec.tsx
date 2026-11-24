@@ -150,6 +150,7 @@ function renderScreen(
   items = templates(),
   logoImageId: string | null = null,
   canChange?: { branch: boolean; hospital: boolean },
+  extraValues: Array<{ key: string; field: string; label: string; text: string }> = [],
 ) {
   return render(
     <PrintingSettings
@@ -157,6 +158,7 @@ function renderScreen(
       presets={[labelPreset, prePreset]}
       canWrite={canWrite}
       canChange={canChange}
+      extraValues={extraValues}
       hospitalName="Demo Hospital"
       logoImageId={logoImageId}
     />,
@@ -1211,6 +1213,42 @@ describe('templates per branch (Step 8c)', () => {
     expect(screen.queryByLabelText(copy.saveFor)).toBeNull();
     expect((screen.getByRole('button', { name: copy.save }) as HTMLButtonElement).disabled).toBe(
       true,
+    );
+  });
+});
+
+describe('extra print values in the designer (Step 8c)', () => {
+  const extra = [
+    { key: 'helpline', field: 'value.helpline', label: 'Helpline', text: '1800 000 000' },
+  ];
+
+  it('lists the extra values in Insert value and inserts them under their template name', () => {
+    renderScreen(true, templates(), null, undefined, extra);
+    goReceipt();
+    edit('b4');
+    const choose = select(copy.insertValue);
+    expect([...choose.options].map((o) => o.textContent)).toContain('Helpline');
+    fireEvent.change(choose, { target: { value: 'value.helpline' } });
+    expect(mockCommands.insertValue).toHaveBeenLastCalledWith(mockFakeEditor, 'value.helpline');
+  });
+
+  it('shows the real text of an extra value in a box that holds it', () => {
+    const items = templates().map((t) =>
+      t.docType === 'RECEIPT'
+        ? withBoxes(makeTemplate('RECEIPT'), [fieldBox('value.helpline', 'x1', { caption: false })])
+        : t,
+    );
+    renderScreen(true, items, null, undefined, extra);
+    goReceipt();
+    expect(valueOf('x1', 'value.helpline')?.textContent).toBe('1800 000 000');
+  });
+
+  it('without extra values the list has only the built-in ones', () => {
+    renderScreen();
+    goReceipt();
+    edit('b4');
+    expect([...select(copy.insertValue).options].map((o) => o.textContent)).not.toContain(
+      'Helpline',
     );
   });
 });

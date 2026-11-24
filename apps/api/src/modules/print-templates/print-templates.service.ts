@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma';
 import { TenantDb, type TenantTx } from '../../database/tenant-db';
 import { AccessService } from '../access/access.service';
+import { assertMayChangePrint, type PrintScope } from './print-scope';
 import { opdError, OpdErrorCode } from '../opd-visits/opd-visit.errors';
 import type { Actor } from '../opd-visits/opd-visits.service';
 import {
@@ -20,8 +21,7 @@ export const PRINT_TEMPLATE_AUDIT = {
   reset: 'PRINT_TEMPLATE_RESET',
 } as const;
 
-/** Where a template is saved: for the signed-in branch only, or for the whole hospital. */
-export type PrintScope = 'branch' | 'hospital';
+export type { PrintScope };
 
 /** `scope` of a request: nothing given means the whole hospital (as before Step 8c). */
 export function parseScope(raw: unknown): PrintScope {
@@ -142,17 +142,8 @@ export class PrintTemplatesService {
     private readonly access: AccessService,
   ) {}
 
-  /** Hospital-wide templates need the permission in every branch; a branch template only the token's branch. */
-  private async assertMayChange(actor: Actor, scope: PrintScope): Promise<void> {
-    if (scope === 'hospital') {
-      if ((await this.access.hospitalWideBranches('opd.settings.write', 'OPD')).length === 0) {
-        throw opdError(403, OpdErrorCode.PRINT_SCOPE_FORBIDDEN);
-      }
-      return;
-    }
-    if (!(await this.access.can('opd.settings.write', actor.branchId, 'OPD'))) {
-      throw opdError(403, OpdErrorCode.PRINT_SCOPE_FORBIDDEN);
-    }
+  private assertMayChange(actor: Actor, scope: PrintScope): Promise<void> {
+    return assertMayChangePrint(this.access, actor, scope);
   }
 
   /** The built-in presets with what each one gives each document (the screen copies, then adjusts). */

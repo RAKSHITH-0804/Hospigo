@@ -1,5 +1,10 @@
 import { API_BRANDING, type BrandingResponse } from '@/lib/images/types';
 import { fetchStaffOnServer, type ServerFetch } from '@/lib/patients/server';
+import {
+  API_PRINT_VALUES,
+  type EffectivePrintValue,
+  type EffectivePrintValuesResponse,
+} from '@/lib/print-values/types';
 import { PRINT_API_PATH, type PrintDocType, type PrintTemplate } from './types';
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -41,6 +46,16 @@ export function readTemplate(result: ServerFetch<unknown>): PrintTemplate | null
 /** The template a document prints with (the hospital's own, or the built-in default). */
 export async function fetchTemplate(docType: PrintDocType): Promise<ServerFetch<unknown>> {
   return fetchStaffOnServer<unknown>(`${PRINT_API_PATH}/${docType}`);
+}
+
+/**
+ * The extra print values that apply to this branch (Step 8c). A print page must still print when they
+ * cannot be read, so every failure means "no extra values" (a template that uses one prints nothing
+ * for it).
+ */
+export async function fetchPrintValues(): Promise<EffectivePrintValue[]> {
+  const result = await fetchStaffOnServer<EffectivePrintValuesResponse>(API_PRINT_VALUES);
+  return result.status === 'ok' && Array.isArray(result.data.items) ? result.data.items : [];
 }
 
 /**

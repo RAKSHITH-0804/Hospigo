@@ -25,6 +25,7 @@ export type SettingsSection = {
     | 'patientNumbers'
     | 'doctors'
     | 'printing'
+    | 'printValues'
     | 'opdRules'
     | 'staff'
     | 'roles'
@@ -54,6 +55,13 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     copyKey: 'printing',
     route: `${SETTINGS_BASE_ROUTE}/printing`,
     permission: 'hospital.settings.read',
+  },
+  {
+    id: 'print-values',
+    group: 'hospital',
+    copyKey: 'printValues',
+    route: `${SETTINGS_BASE_ROUTE}/print-values`,
+    permission: 'opd.settings.write',
   },
   // People
   {

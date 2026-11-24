@@ -3,7 +3,7 @@ import type { ConsultationResponse, VitalsResponse } from '@/lib/opd/clinical-ty
 import type { VisitTestsResponse } from '@/lib/opd/tests-types';
 import type { VisitView } from '@/lib/opd/types';
 import type { PatientDetail } from '@/lib/patients/types';
-import { prescriptionItems, receiptItems, slipItems } from './documents';
+import { prescriptionItems, receiptItems, slipItems, withExtraValues } from './documents';
 import { DOC_FIELD_ORDER } from './form';
 import type { PrintItem } from './types';
 
@@ -451,5 +451,29 @@ describe('prescriptionItems', () => {
     });
     expect(textOf(items, 'complaints')).toBe('');
     expect(textOf(items, 'followUpDate')).toBe('');
+  });
+});
+
+describe('withExtraValues', () => {
+  const base: PrintItem[] = [{ key: 'patientName', label: 'Patient', text: 'Asha' }];
+
+  it('adds the extra values under their template name, after the built-in ones', () => {
+    const items = withExtraValues(base, [
+      { field: 'value.helpline', label: 'Helpline', text: '1800 000 000' },
+    ]);
+    expect(items.map((i) => i.key)).toEqual(['patientName', 'value.helpline']);
+    expect(textOf(items, 'value.helpline')).toBe('1800 000 000');
+  });
+
+  it('never replaces a built-in value and leaves out a value without text', () => {
+    const items = withExtraValues(base, [
+      { field: 'patientName', label: 'Clash', text: 'Other' },
+      { field: 'value.empty', label: 'Empty', text: '   ' },
+    ]);
+    expect(items).toEqual(base);
+  });
+
+  it('with nothing to add the values are unchanged', () => {
+    expect(withExtraValues(base, [])).toEqual(base);
   });
 });

@@ -22,7 +22,7 @@ describe('the settings menu', () => {
       g.sections.map((s) => s.id),
     ]);
     expect(grouped).toEqual([
-      ['hospital', ['branding', 'printing']],
+      ['hospital', ['branding', 'printing', 'print-values']],
       ['people', ['staff', 'roles', 'doctors']],
       ['patients', ['patient-registration', 'patient-numbers']],
       ['opd', ['opd-rules', 'vitals-fields', 'upload-lists']],
@@ -46,6 +46,13 @@ describe('the settings menu', () => {
       visibleSettingsSections(permissions).some((s) => s.id === 'upload-lists');
     expect(has(['hospital.settings.read'])).toBe(false);
     expect(has(['hospital.settings.read', 'opd.masters.write'])).toBe(true);
+  });
+
+  it('Print values are for people who may change OPD settings only', () => {
+    const has = (permissions: string[]) =>
+      visibleSettingsSections(permissions).some((s) => s.id === 'print-values');
+    expect(has(['hospital.settings.read'])).toBe(false);
+    expect(has(['hospital.settings.read', 'opd.settings.write'])).toBe(true);
   });
 
   it('Payment modes and Vitals fields are for people who may change the masters only', () => {

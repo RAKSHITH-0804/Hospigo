@@ -8,8 +8,13 @@ import { apiConsultationPath, apiVisitTestsPath, apiVisitVitalsPath } from '@/li
 import type { VisitTestsResponse } from '@/lib/opd/tests-types';
 import { errorMessageFor } from '@/lib/patients/client';
 import { fetchStaffOnServer, serverErrorCode } from '@/lib/patients/server';
-import { prescriptionItems } from '@/lib/print/documents';
-import { fetchLogoImageId, fetchTemplate, readTemplate } from '@/lib/print/server';
+import { prescriptionItems, withExtraValues } from '@/lib/print/documents';
+import {
+  fetchLogoImageId,
+  fetchPrintValues,
+  fetchTemplate,
+  readTemplate,
+} from '@/lib/print/server';
 
 const copy = staffCopy.print.prescription;
 
@@ -30,7 +35,7 @@ export default async function PrescriptionPrintPage({
   const permissions = session.permissions ?? [];
   const hospitalName = session.hospitalName?.trim() || staffCopy.brand;
 
-  const [consult, vitals, tests, templateResult, logoImageId] = await Promise.all([
+  const [consult, vitals, tests, templateResult, logoImageId, extraValues] = await Promise.all([
     fetchStaffOnServer<ConsultationResponse>(apiConsultationPath(id)),
     permissions.includes('opd.vitals.read')
       ? fetchStaffOnServer<VitalsResponse>(apiVisitVitalsPath(id))
@@ -40,6 +45,7 @@ export default async function PrescriptionPrintPage({
       : Promise.resolve(null),
     fetchTemplate('PRESCRIPTION'),
     fetchLogoImageId(),
+    fetchPrintValues(),
   ]);
 
   if (consult.status === 'notFound') {
@@ -77,12 +83,15 @@ export default async function PrescriptionPrintPage({
   return (
     <PrintStage
       template={template}
-      items={prescriptionItems({
-        hospitalName,
-        consultation: consult.data,
-        vitals: vitals?.status === 'ok' ? vitals.data : null,
-        tests: tests?.status === 'ok' ? tests.data : null,
-      })}
+      items={withExtraValues(
+        prescriptionItems({
+          hospitalName,
+          consultation: consult.data,
+          vitals: vitals?.status === 'ok' ? vitals.data : null,
+          tests: tests?.status === 'ok' ? tests.data : null,
+        }),
+        extraValues,
+      )}
       // the signature is the one the doctor had when the note was completed, never a newer one
       images={{
         LOGO: logoImageId,

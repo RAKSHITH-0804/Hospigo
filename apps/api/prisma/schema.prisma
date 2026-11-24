@@ -278,6 +278,7 @@ model Hospital {
   refundRequests RefundRequest[]
   refunds Refund[]
   printTemplates PrintTemplate[]
+  printValues PrintValue[]
 
   @@map("hospitals")
   staffCodeSettings StaffCodeSettings?
@@ -318,6 +319,7 @@ model Branch {
   userBranches  UserBranch[]
   roleAssignmentBranches RoleAssignmentBranch[]
   printTemplates PrintTemplate[]
+  printValues PrintValue[]
   auditLogs     AuditLog[]
   authSessions  AuthSession[]
   registeredPatients Patient[]
@@ -420,6 +422,8 @@ model User {
   refundsRecorded Refund[] @relation("RefundRecordedBy")
   printTemplatesCreated PrintTemplate[] @relation("PrintTemplateCreatedBy")
   printTemplatesUpdated PrintTemplate[] @relation("PrintTemplateUpdatedBy")
+  printValuesCreated PrintValue[] @relation("PrintValueCreatedBy")
+  printValuesUpdated PrintValue[] @relation("PrintValueUpdatedBy")
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -1847,6 +1851,31 @@ enum PrintMode {
 /// One template per hospital (or branch) and document type. A hospital without a row uses the
 /// built-in default of the code. The layout is JSON validated in code; the database checks sizes.
 /// One row per (tenant, coalesce(branch, ''), doc type): enforced by a unique index on that expression.
+/// A named plain-text value an Admin can put into a print template (Step 8c). Hospital-wide (no
+/// branch) or one branch; never deleted, only switched off (database triggers).
+model PrintValue {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  branchId  String?  @map("branch_id")
+  key       String
+  label     String
+  value     String
+  active    Boolean  @default(true)
+  createdBy String   @map("created_by")
+  updatedBy String   @map("updated_by")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  branch   Branch?  @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict)
+  creator  User     @relation("PrintValueCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
+  updater  User     @relation("PrintValueUpdatedBy", fields: [tenantId, updatedBy], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, branchId])
+  @@map("print_values")
+}
+
 model PrintTemplate {
   id             String           @id @default(cuid())
   tenantId       String           @map("tenant_id")
