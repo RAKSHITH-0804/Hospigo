@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-24 — Phase 2 Step 8c UI fixes (branch `feature/step-8c-ui-fixes`)
+
+- **Commit hash(es):** unverified (commits land with this entry).
+- **Added:** Cancel visit on waiting OPD queue rows (same refund-request pop-up; loads the visit bill when opened); GET `/api/staff/opd/visits/:id` web proxy for that load.
+- **Changed:** consultation screen uses card sections in an auto-fit grid (vitals/note and prescription/addenda side by side on wide screens); Doctors list for a SuperAdmin follows the switched-to branch via `doctor.branches`; Bill numbers menu item needs hospital-wide scope (`canSwitchBranch`).
+- **Removed:** nothing.
+- **Fixed:** payment-line Remove sits under its row (aligned); cancel/refund form opens in the existing Modal so Visits table rows no longer grow.
+- **Database (migrations, roles, RLS):** none (web and docs only).
+- **New .env keys (names only):** none.
+- **Tests:** unverified until the gate run on this branch.
+- **Decisions:** `docs/decisions/decisions-8c.md` — one-branch Admin stays hospital-wide for print templates and values (kept on purpose).
+- **Follow-ups and open items:** Prices doctor list still ignores the switched branch (no branch on `PriceRow`; needs API). Branch Admin creating roles, per-branch doctor fees, Postman reading vitals field, and Printing tests 13–20 stay deferred as decided.
+
 ## 2026-11-24 — Phase 2 Step 8c — Settings and gaps (branch `feature/step-8c-settings-and-gaps`, not pushed)
 
 - **Commit hash(es):** see `git log` on the branch (one commit group per item, then the docs).

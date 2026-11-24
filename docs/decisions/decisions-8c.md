@@ -139,7 +139,12 @@ Cancelling visits that are not WAITING (changes money and refund rules; the mana
 ## Follow-ups noticed and not fixed
 
 - **`users` DELETE grant** is pre-existing for the application login (a Step 9 hardening candidate); not touched.
-- A **Branch Admin sees "Bill numbers" in the menu** but the API refuses it (money numbering is hospital-wide). The menu could hide it with a hospital-wide check; left as is for now.
 - Print template `reset` still removes the saved row (the audit log keeps the history); a "history of versions" was not asked for.
 - The Admin scope of leave requests follows the doctor's current branches (see the self-review).
 - Number series: a format that is not the editable shape (a custom one) is shown but cannot be edited; nobody asked for a free-form editor.
+
+## UI fixes after 8c (branch `feature/step-8c-ui-fixes`, 24 Nov 2026)
+
+- **A one-branch hospital's Admin counts as hospital-wide for print templates and values. Kept on purpose (Rakshith, 24 Nov 2026).**
+- Bill numbers is hidden from Branch Admins in the settings menu (uses `canSwitchBranch`, the same hospital-wide flag the branch switcher uses). SuperAdmin and a one-branch hospital's Admin still see it.
+- The Prices screen's doctor fees still list every doctor for a SuperAdmin after a branch switch: `PriceRow` has no branch membership, the list is paginated by the API, and filtering one page on the web would lie. Needs an API branch filter (not built; per-branch fees are also not now).
