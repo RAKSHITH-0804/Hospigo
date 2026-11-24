@@ -1436,6 +1436,7 @@ model Bill {
   @@unique([tenantId, billNumber])
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId, branchId, billDate], map: "bills_branch_date_idx")
+  @@index([tenantId, visitId], map: "bills_visit_idx")
   @@map("bills")
 }
 
