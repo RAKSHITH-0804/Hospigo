@@ -879,6 +879,120 @@ describe('Excel upload of the masters (HTTP, hospigo_test)', () => {
     ).toBe(0);
   });
 
+  it('doctor fees: a branch code sets the fee of that branch, blank is hospital-wide, and a Branch Admin may upload rows of their own branch only', async () => {
+    const C = await seedHospital('C');
+    const east = await owner.branch.create({
+      data: { tenantId: C.tenant, code: 'EAST', name: 'East', accessCode: uniq('im-C-e-') },
+    });
+    const opd = await owner.module.findUniqueOrThrow({ where: { code: 'OPD' } });
+    await owner.branchModule.create({
+      data: { tenantId: C.tenant, branchId: east.id, moduleId: opd.id, enabledByIndigo: true },
+    });
+    const link = async (doctor: { id: string }, branches: string[]) => {
+      const profile = await owner.doctorProfile.findUniqueOrThrow({ where: { id: doctor.id } });
+      for (const branchId of branches) {
+        await owner.userBranch.create({
+          data: { tenantId: C.tenant, userId: profile.userId, branchId },
+        });
+      }
+    };
+    const both = await makeDoctor(C, 'brboth');
+    await link(both, [C.main, east.id]);
+    const mainOnly = await makeDoctor(C, 'brmain');
+    await link(mainOnly, [C.main]);
+    // a Branch Admin of Main only (East has the OPD module, so Main alone is not hospital-wide)
+    const { branchAdminRoleId } = await ensureSystemRolesForTenant(owner, C.tenant);
+    const ba = await owner.user.create({
+      data: {
+        tenantId: C.tenant,
+        code: `BA${stamp}${(seq += 1)}`.slice(0, 40),
+        email: `${uniq('ba')}@example.test`,
+        displayName: 'Branch Admin',
+        passwordHash: 'x',
+      },
+    });
+    await owner.userBranch.create({
+      data: { tenantId: C.tenant, userId: ba.id, branchId: C.main },
+    });
+    const assignment = await owner.roleAssignment.create({
+      data: { tenantId: C.tenant, userId: ba.id, roleId: branchAdminRoleId, scopeType: 'BRANCH' },
+    });
+    await owner.roleAssignmentBranch.create({
+      data: { tenantId: C.tenant, assignmentId: assignment.id, branchId: C.main },
+    });
+    const baToken = tokenService.signHospitalAccess({
+      tenantId: C.tenant,
+      userId: ba.id,
+      branchId: C.main,
+    });
+
+    const head = [...FEE_HEAD, 'Branch code'];
+    const file = (rows: unknown[][]) => xlsx([head, ...rows]);
+
+    // 1. the hospital-wide Admin: blank and a code (any case) are fine; unknown branch and a doctor
+    //    who does not work there are exceptions
+    const batch = await uploaded(
+      C.tokens.admin,
+      'DOCTOR_FEES',
+      await file([
+        [both.code, 'NEW', 500, '', ''], // 2 hospital-wide
+        [both.code, 'NEW', 700, '', 'EAST'], // 3 East (same doctor and type: a different scope is no duplicate)
+        [both.code, 'FOLLOW_UP', 400, '', 'east'], // 4 East, code in any case
+        [both.code, 'NEW', 1, '', 'NOPE'], // 5 unknown branch
+        [mainOnly.code, 'NEW', 900, '', 'EAST'], // 6 the doctor does not work in East
+        [both.code, 'NEW', 800, '', 'EAST'], // 7 duplicate of row 3
+      ]),
+      'branch-fees.xlsx',
+    );
+    const bad = reasonsByRow(await rowsOf(C.tokens.admin, batch.id, 'EXCEPTION'));
+    expect(bad).toMatchObject({
+      3: 'DUPLICATE_IN_FILE',
+      5: 'BRANCH_NOT_FOUND',
+      6: 'DOCTOR_NOT_IN_BRANCH',
+      7: 'DUPLICATE_IN_FILE',
+    });
+    expect(Object.keys(bad)).not.toContain('2');
+    expect(Object.keys(bad)).not.toContain('4');
+    later();
+    await approveAndPost(C.tokens.admin, batch.id);
+    const saved = async (doctorId: string) =>
+      (await owner.doctorFee.findMany({ where: { doctorProfileId: doctorId } }))
+        .map((f) => [
+          f.visitType,
+          f.branchId === null ? 'ALL' : f.branchId === east.id ? 'EAST' : 'MAIN',
+          f.amountPaise,
+        ])
+        .sort();
+    // rows 3 and 7 repeat one scope, so neither is saved; row 4 and the hospital-wide row 2 are
+    expect(await saved(both.id)).toEqual([
+      ['FOLLOW_UP', 'EAST', 40_000],
+      ['NEW', 'ALL', 50_000],
+    ]);
+
+    // 2. a Branch Admin of Main: own branch only; blank (hospital-wide) and East are exceptions
+    later();
+    const baBatch = await uploaded(
+      baToken,
+      'DOCTOR_FEES',
+      await file([
+        [both.code, 'NEW', 600, '', 'MAIN'], // 2 ok
+        [both.code, 'NEW', 650, '', 'EAST'], // 3 another branch
+        [both.code, 'FOLLOW_UP', 350, '', ''], // 4 hospital-wide
+      ]),
+      'branch-fees-ba.xlsx',
+    );
+    expect(reasonsByRow(await rowsOf(baToken, baBatch.id, 'EXCEPTION'))).toMatchObject({
+      3: 'BRANCH_SCOPE_FORBIDDEN',
+      4: 'BRANCH_SCOPE_FORBIDDEN',
+    });
+    await approveAndPost(baToken, baBatch.id);
+    expect(await saved(both.id)).toEqual([
+      ['FOLLOW_UP', 'EAST', 40_000],
+      ['NEW', 'ALL', 50_000],
+      ['NEW', 'MAIN', 60_000],
+    ]);
+  });
+
   // -------------------------------------------------------------- the file itself
 
   it('refuses what is not a real xlsx before any batch is made', async () => {

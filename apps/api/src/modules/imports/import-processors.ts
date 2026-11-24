@@ -28,6 +28,9 @@ export type FeeData = {
   visitType: PriceVisitType;
   amountPaise: number;
   startDate: string | null;
+  /** Step 9: the branch the fee is for (null = the doctor's hospital-wide fee). */
+  branchId?: string | null;
+  branchCode?: string;
 };
 export type MedicineData = {
   kind: 'MEDICINES';
@@ -59,7 +62,16 @@ export type ImportContext = {
     { id: string; kind: string; name: string; active: boolean; latest: Latest | null }
   >;
   doctors: Map<string, { id: string; active: boolean }>;
+  /** Latest saved fee per doctor, visit type and scope: `doctorId|TYPE|branchId` (branch id empty = hospital-wide). */
   fees: Map<string, Latest>;
+  /** Doctors who already have a saved new-visit fee in any scope. */
+  newFeeDoctors: Set<string>;
+  /** The hospital's branches by lower-case code. */
+  branches: Map<string, { id: string }>;
+  /** `doctorId|branchId` of every active branch link of the listed doctors. */
+  doctorBranches: Set<string>;
+  /** What the uploader may set: hospital-wide (and any branch), or only these branches. */
+  feeScope: { wide: boolean; branches: ReadonlySet<string> };
   medicines: Map<
     string,
     { id: string; name: string; composition: string | null; form: string | null; active: boolean }
@@ -245,7 +257,8 @@ function prepareFee(row: ParsedSheet['rows'][number], ctx: ImportContext): Prepa
   }
   const type = visitTypeOf(c.visitType ?? null);
   if (!type.ok) return fail('visitType', type.reason, doctorCode.value);
-  const key = `${doctorCode.value}|${type.value}`;
+  const branchKey = textOf(c.branchCode ?? null, IMPORT_LIMITS.codeMax);
+  const key = `${doctorCode.value}|${type.value}|${branchKey.ok ? branchKey.value.toLowerCase() : ''}`;
   const amount = amountOf(c.amount ?? null);
   if (!amount.ok) return fail('amount', amount.reason, key);
   if (amount.value === null) return fail('amount', 'PRICE_REQUIRED', key);
@@ -254,7 +267,25 @@ function prepareFee(row: ParsedSheet['rows'][number], ctx: ImportContext): Prepa
   const doctor = ctx.doctors.get(doctorCode.value);
   if (!doctor) return fail('doctorCode', 'DOCTOR_NOT_FOUND', key);
   if (!doctor.active) return fail('doctorCode', 'DOCTOR_INACTIVE', key);
-  const latest = ctx.fees.get(`${doctor.id}|${type.value}`) ?? null;
+  // Step 9: blank branch code = the hospital-wide fee (hospital-wide Admin only); a code = that branch.
+  const branchCell = textOf(c.branchCode ?? null, IMPORT_LIMITS.codeMax);
+  if (!branchCell.ok) return fail('branchCode', branchCell.reason, key);
+  const branchCode = branchCell.value;
+  let branchId: string | null = null;
+  if (branchCode === '') {
+    if (!ctx.feeScope.wide) return fail('branchCode', 'BRANCH_SCOPE_FORBIDDEN', key);
+  } else {
+    const branch = ctx.branches.get(branchCode.toLowerCase());
+    if (!branch) return fail('branchCode', 'BRANCH_NOT_FOUND', key);
+    if (!ctx.feeScope.wide && !ctx.feeScope.branches.has(branch.id)) {
+      return fail('branchCode', 'BRANCH_SCOPE_FORBIDDEN', key);
+    }
+    if (!ctx.doctorBranches.has(`${doctor.id}|${branch.id}`)) {
+      return fail('branchCode', 'DOCTOR_NOT_IN_BRANCH', key);
+    }
+    branchId = branch.id;
+  }
+  const latest = ctx.fees.get(`${doctor.id}|${type.value}|${branchId ?? ''}`) ?? null;
   const plan = planPriceChange({
     requested: start.value ?? undefined,
     now: ctx.now,
@@ -270,6 +301,8 @@ function prepareFee(row: ParsedSheet['rows'][number], ctx: ImportContext): Prepa
     visitType: type.value,
     amountPaise: amount.value,
     startDate: start.value,
+    branchId,
+    branchCode,
   };
   const action: RowAction = plan.kind === 'unchanged' ? 'NONE' : latest ? 'UPDATE' : 'CREATE';
   return { rowNumber: row.rowNumber, matchKey: key, raw, issue: null, action, data };
@@ -370,7 +403,7 @@ export function prepareRows(
         const doctor = ctx.doctors.get(r.data.doctorCode);
         const hasNew =
           kinds.get(r.data.doctorCode.toLowerCase())?.has('NEW') === true ||
-          (doctor !== undefined && ctx.fees.has(`${doctor.id}|NEW`));
+          (doctor !== undefined && ctx.newFeeDoctors.has(doctor.id));
         if (!hasNew) {
           r.issue = { reason: 'DOCTOR_NEEDS_NEW_FEE', field: 'visitType' };
           r.action = null;
@@ -391,6 +424,7 @@ export async function loadContext(
   type: ImportTypeCode,
   sheet: ParsedSheet,
   now: Date,
+  feeScope: ImportContext['feeScope'] = { wide: true, branches: new Set() },
 ): Promise<ImportContext> {
   const settings = await tx.opdSettings.findUnique({ where: { tenantId } });
   const ctx: ImportContext = {
@@ -399,6 +433,10 @@ export async function loadContext(
     tests: new Map(),
     doctors: new Map(),
     fees: new Map(),
+    newFeeDoctors: new Set(),
+    branches: new Map(),
+    doctorBranches: new Set(),
+    feeScope,
     medicines: new Map(),
   };
   const textCell = (cell: RawCell | undefined): string | null => {
@@ -465,6 +503,7 @@ export async function loadContext(
           orderBy: { effectiveFrom: 'desc' },
           select: {
             doctorProfileId: true,
+            branchId: true,
             visitType: true,
             amountPaise: true,
             effectiveFrom: true,
@@ -472,10 +511,29 @@ export async function loadContext(
         })
       : [];
     for (const f of fees) {
-      const key = `${f.doctorProfileId}|${f.visitType}`;
+      const key = `${f.doctorProfileId}|${f.visitType}|${f.branchId ?? ''}`;
       if (!ctx.fees.has(key)) {
         ctx.fees.set(key, { amountPaise: f.amountPaise, effectiveFrom: f.effectiveFrom });
       }
+      if (f.visitType === 'NEW') {
+        ctx.newFeeDoctors.add(f.doctorProfileId);
+      }
+    }
+    for (const b of await tx.branch.findMany({
+      where: { tenantId },
+      select: { id: true, code: true },
+    })) {
+      ctx.branches.set(b.code.toLowerCase(), { id: b.id });
+    }
+    const links = doctors.length
+      ? await tx.userBranch.findMany({
+          where: { tenantId, isActive: true, userId: { in: doctors.map((d) => d.userId) } },
+          select: { userId: true, branchId: true },
+        })
+      : [];
+    const profileOfUser = new Map(doctors.map((d) => [d.userId, d.id]));
+    for (const l of links) {
+      ctx.doctorBranches.add(`${profileOfUser.get(l.userId)}|${l.branchId}`);
     }
   }
   return ctx;

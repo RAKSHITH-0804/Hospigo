@@ -243,9 +243,10 @@ export class ImportsService {
     try {
       const sheet = await readSheet(buffer, type);
       const now = this.clock.now();
+      const feeScope = await this.feeScopeOf();
       const prepared = await this.tenantDb.withTenant(
         async (tx) => {
-          const ctx = await loadContext(tx, actor.tenantId, type, sheet, now);
+          const ctx = await loadContext(tx, actor.tenantId, type, sheet, now, feeScope);
           const rows = prepareRows(type, sheet, ctx);
           await this.storeRows(tx, actor.tenantId, batchId, rows);
           return rows;
@@ -563,6 +564,17 @@ export class ImportsService {
     return this.getBatch(actor, id);
   }
 
+  /** What the uploader may set as a doctor fee: the hospital-wide fee and any branch, or only own branches. */
+  private async feeScopeOf(): Promise<{ wide: boolean; branches: ReadonlySet<string> }> {
+    const wide = (await this.access.hospitalWideBranches('opd.prices.write', 'OPD')).length > 0;
+    return {
+      wide,
+      branches: wide
+        ? new Set<string>()
+        : new Set(await this.access.permittedBranches('opd.prices.write', 'OPD')),
+    };
+  }
+
   private async runPost(actor: Actor, id: string, type: ImportTypeCode): Promise<void> {
     try {
       const stored = await this.tenantDb.withTenant((tx) =>
@@ -585,6 +597,7 @@ export class ImportsService {
       }
       const sheet = await readSheet(buffer, type);
       const now = this.clock.now();
+      const feeScope = await this.feeScopeOf();
       await this.engine.post(
         {
           tenantId: actor.tenantId,
@@ -593,7 +606,7 @@ export class ImportsService {
           timeoutMs: IMPORT_LIMITS.transactionMs,
         },
         async (tx) => {
-          const ctx = await loadContext(tx, actor.tenantId, type, sheet, now);
+          const ctx = await loadContext(tx, actor.tenantId, type, sheet, now, feeScope);
           const prepared = prepareRows(type, sheet, ctx);
           await this.applyRows(tx, actor, id, type, prepared);
           await tx.importBatch.update({
@@ -756,6 +769,7 @@ export class ImportsService {
           visitType: data.visitType,
           amountPaise: data.amountPaise,
           effectiveFrom: data.startDate ?? undefined,
+          branchId: data.branchId ?? null,
         },
         actor,
       );
