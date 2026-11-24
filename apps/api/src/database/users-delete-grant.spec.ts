@@ -58,6 +58,30 @@ describe('users: the application login cannot delete a person (hospigo_test)', (
     expect(await owner.user.count({ where: { id: userId } })).toBe(1);
   });
 
+  it('has no DELETE on hospitals, branches, roles, assignments or branch links either', async () => {
+    const tables = [
+      'users',
+      'hospitals',
+      'hospital_settings',
+      'hospital_module_subscriptions',
+      'branch_modules',
+      'branches',
+      'roles',
+      'role_permissions',
+      'role_assignments',
+      'role_assignment_branches',
+      'user_branches',
+    ];
+    const rows = await inTenant((c) =>
+      c.query(
+        `SELECT table_name FROM information_schema.role_table_grants
+          WHERE grantee = 'hospigo_app' AND privilege_type = 'DELETE' AND table_name = ANY($1)`,
+        [tables],
+      ),
+    );
+    expect(rows.rows).toEqual([]);
+  });
+
   it('deactivating and reactivating a person still works for the app login', async () => {
     await inTenant((c) => c.query('UPDATE users SET is_active = false WHERE id = $1', [userId]));
     expect((await owner.user.findUniqueOrThrow({ where: { id: userId } })).isActive).toBe(false);
