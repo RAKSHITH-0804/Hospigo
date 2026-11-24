@@ -256,17 +256,15 @@ export function ConsultScreen({
             ? fill(copy.saveStatusSaved, { time: formatClock(status.savedAt) })
             : copy.saveStatusIdle;
 
+  const showClinical = visit.status === 'IN_CONSULTATION' || completed;
+
   return (
     <div className="section-stack content-container-inner">
       <PageHeader title={copy.title} backHref={backHref} />
       <VisitHeader visit={visit} />
-      <VitalsSummary
-        readings={vitals}
-        editHref={canRecordVitals ? vitalsPath(visit.id) : undefined}
-      />
 
       {visit.status === 'WAITING' ? (
-        <div className="flex flex-col gap-[var(--space-2)]">
+        <div className="surface-card flex flex-col gap-[var(--space-2)]">
           <p className="type-label text-muted-foreground">
             {canWrite ? copy.waitingNote : copy.notStartedReadOnly}
           </p>
@@ -285,58 +283,85 @@ export function ConsultScreen({
         </div>
       ) : null}
 
-      {visit.status === 'IN_CONSULTATION' || completed ? (
-        <section className="flex flex-col gap-[var(--space-4)]" aria-label={copy.notesHeading}>
-          <h2 className="section-heading">{copy.notesHeading}</h2>
-          {completed ? (
-            <>
-              <p role="status" className="type-label text-muted-foreground">
-                {copy.completedBanner}
-              </p>
-              <Link
-                href={`/app/opd/visits/${encodeURIComponent(visit.id)}/prescription`}
-                className={cn(buttonVariants({ variant: 'outline' }), 'touch-target w-fit')}
-              >
-                {staffCopy.print.prescription.print}
-              </Link>
-            </>
-          ) : null}
-          {!canWrite && !completed ? (
-            <p className="type-label text-muted-foreground">{copy.readOnlyNote}</p>
-          ) : null}
-          <ConsultNoteFields
-            note={note}
-            onChange={changeNote}
-            readOnly={!editable}
-            calendar={{
-              weekStart: settings.calendarWeekStart,
-              quickDays: settings.followUpQuickDays,
-              minDate: visit.visitDate,
-            }}
-          />
-          <PrescriptionEditor
-            rows={rows}
-            onChange={changeRows}
-            nextId={() => nextRowId.current++}
-            readOnly={!editable}
-            search={settings}
-          />
-          {settings.testsSearch && (canOrderTests || tests.length > 0) ? (
-            <TestsBox
-              chips={tests}
-              onAdd={addTest}
-              onRemove={removeTest}
-              readOnly={!editable || !canOrderTests}
-              search={settings.testsSearch}
+      {showClinical ? (
+        <div className="consult-grid">
+          <section className="consult-card" aria-label={copy.vitalsHeading}>
+            <VitalsSummary
+              readings={vitals}
+              editHref={canRecordVitals ? vitalsPath(visit.id) : undefined}
             />
+          </section>
+          <section className="consult-card" aria-label={copy.notesHeading}>
+            <h2 className="section-heading">{copy.notesHeading}</h2>
+            {completed ? (
+              <>
+                <p role="status" className="type-label text-muted-foreground">
+                  {copy.completedBanner}
+                </p>
+                <Link
+                  href={`/app/opd/visits/${encodeURIComponent(visit.id)}/prescription`}
+                  className={cn(buttonVariants({ variant: 'outline' }), 'touch-target w-fit')}
+                >
+                  {staffCopy.print.prescription.print}
+                </Link>
+              </>
+            ) : null}
+            {!canWrite && !completed ? (
+              <p className="type-label text-muted-foreground">{copy.readOnlyNote}</p>
+            ) : null}
+            <ConsultNoteFields
+              note={note}
+              onChange={changeNote}
+              readOnly={!editable}
+              calendar={{
+                weekStart: settings.calendarWeekStart,
+                quickDays: settings.followUpQuickDays,
+                minDate: visit.visitDate,
+              }}
+            />
+          </section>
+          <section className="consult-card" aria-label={staffCopy.opd.clinical.rx.heading}>
+            <PrescriptionEditor
+              rows={rows}
+              onChange={changeRows}
+              nextId={() => nextRowId.current++}
+              readOnly={!editable}
+              search={settings}
+            />
+            {settings.testsSearch && (canOrderTests || tests.length > 0) ? (
+              <TestsBox
+                chips={tests}
+                onAdd={addTest}
+                onRemove={removeTest}
+                readOnly={!editable || !canOrderTests}
+                search={settings.testsSearch}
+              />
+            ) : null}
+            {editable && incomplete > 0 ? (
+              <p role="status" className="type-small text-destructive">
+                {fill(copy.incompleteRowsHint, { count: incomplete })}
+              </p>
+            ) : null}
+          </section>
+          {completed ? (
+            <section className="consult-card" aria-label={staffCopy.opd.clinical.addenda.heading}>
+              <ConsultAddenda
+                visitId={visit.id}
+                addenda={addenda}
+                canAdd={canWrite}
+                onChange={setAddenda}
+              />
+            </section>
           ) : null}
-          {editable && incomplete > 0 ? (
-            <p role="status" className="type-small text-destructive">
-              {fill(copy.incompleteRowsHint, { count: incomplete })}
-            </p>
-          ) : null}
+        </div>
+      ) : (
+        <section className="consult-card" aria-label={copy.vitalsHeading}>
+          <VitalsSummary
+            readings={vitals}
+            editHref={canRecordVitals ? vitalsPath(visit.id) : undefined}
+          />
         </section>
-      ) : null}
+      )}
 
       {actionError ? (
         <p role="alert" className="type-label text-destructive">
@@ -378,16 +403,7 @@ export function ConsultScreen({
         </div>
       ) : null}
 
-      {completed ? (
-        <ConsultAddenda
-          visitId={visit.id}
-          addenda={addenda}
-          canAdd={canWrite}
-          onChange={setAddenda}
-        />
-      ) : null}
-
-      {children}
+      {children ? <div className="consult-card consult-card-compact">{children}</div> : null}
 
       <div>
         <Link

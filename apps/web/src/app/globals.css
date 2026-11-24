@@ -3186,3 +3186,28 @@
 .print-editor .print-token.ProseMirror-selectednode {
   outline: 2px solid var(--primary);
 }
+
+/* Doctor consultation: cards side by side on a wide screen, stacked on a phone. */
+.consult-grid {
+  display: grid;
+  align-items: start;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--size-column-min)), 1fr));
+}
+
+.consult-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border-radius: var(--radius-card);
+  background: var(--card);
+  color: var(--card-foreground);
+  padding: var(--space-card-padding);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--foreground) 10%, transparent);
+  border-inline-start: 3px solid var(--accent-foreground);
+}
+
+.consult-card-compact {
+  gap: var(--space-1);
+  padding-block: var(--space-2);
+}
