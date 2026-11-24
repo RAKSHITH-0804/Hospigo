@@ -277,7 +277,7 @@
         "exec": [
          "pm.test('200', () => pm.response.to.have.status(200));",
          "const j = pm.response.json();",
-         "pm.test('no logo yet (this collection expects a hospital without one and removes what it makes)', () => pm.expect(j.logo).to.eql(null));",
+         "pm.test('the logo is null or a logo object (logos cannot be deleted, so a demo hospital may already have one)', () => { if (j.logo !== null) { pm.expect(j.logo).to.be.an('object'); } });",
          "pm.test('the receptionist may not change it; the limits are sent', () => { pm.expect(j.canWrite).to.eql(false); pm.expect(j.limits.maxBytes).to.be.a('number'); pm.expect(j.limits.types).to.include('image/png'); });"
         ]
        }

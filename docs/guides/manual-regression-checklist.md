@@ -2,7 +2,7 @@
 
 Click through this once per release, role by role. Each line says what to click and what you should see. Use the demo accounts of `dev-accounts.md` (you log in yourself; passwords live in `.env`). Open the app at `http://127.0.0.1:3001`.
 
-**Before you start:** migrate the dev database, run the seed, restart both servers (`docs/guides/dev-commands.md`). Step 9 added three migrations (the app login loses DELETE on `users` and structure tables, an index on bills, the branch column on doctor fees). Run the Postman collections first (`postman/collections/`, import one, press Run collection; one per step, 3d to 8c; the environment file with the demo passwords stays on your PC).
+**Before you start:** migrate the dev database, run the seed, restart both servers (`docs/guides/dev-commands.md`). Step 9 added three migrations (the app login loses DELETE on `users` and structure tables, an index on bills, the branch column on doctor fees). Run the Postman collections first, one at a time (login is limited to about 20 a minute; a 429 means wait a minute) (`postman/collections/`, import one, press Run collection; one per step, 3d to 8c; the environment file with the demo passwords stays on your PC).
 
 Check on a phone width, a tablet width and a wide screen: nothing may be cut off, hidden behind another block or need sideways scrolling, and every pop-up must fit the screen.
 

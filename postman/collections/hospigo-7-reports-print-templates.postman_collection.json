@@ -146,6 +146,84 @@
               }
             }
           ]
+        },
+        {
+          "name": "3a Setup: remove any leftover branch-level receipt template (SuperAdmin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=branch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates",
+                "RECEIPT"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "branch"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 (nothing left at this level)', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3b Setup: remove any leftover hospital-level receipt template (SuperAdmin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=hospital",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates",
+                "RECEIPT"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "hospital"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 (nothing left at this level)', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -618,7 +696,7 @@
           ]
         },
         {
-          "name": "14 Extra or wrong query values are refused (400)",
+          "name": "14 A branch id the person may not report on is refused (403)",
           "request": {
             "method": "GET",
             "header": [
@@ -655,7 +733,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('400', () => pm.response.to.have.status(400));"
+                  "pm.test('403: not a branch this person may report on (deny by default)', () => pm.response.to.have.status(403));",
+                  "pm.test('code', () => pm.expect(pm.response.json().code).to.eql('REPORT_SCOPE_FORBIDDEN'));"
                 ]
               }
             }
@@ -859,13 +938,19 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/print-templates/RECEIPT",
+              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=hospital",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "print-templates",
                 "RECEIPT"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "hospital"
+                }
               ]
             }
           },
@@ -1012,13 +1097,19 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/print-templates/RECEIPT",
+              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=hospital",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "print-templates",
                 "RECEIPT"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "hospital"
+                }
               ]
             },
             "body": {
@@ -1251,13 +1342,19 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/print-templates/RECEIPT",
+              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=hospital",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "print-templates",
                 "RECEIPT"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "hospital"
+                }
               ]
             }
           },
