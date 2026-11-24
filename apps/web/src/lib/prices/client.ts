@@ -10,12 +10,19 @@ import {
 
 /** Browser calls to the Next route handlers of the Prices screen. Tokens never reach the browser. */
 
-export type PriceListQuery = { q: string; kind: PriceKind | ''; page: number };
+export type PriceListQuery = {
+  q: string;
+  kind: PriceKind | '';
+  page: number;
+  /** The active branch: only doctors who work in it are listed (tests and the registration fee are hospital-wide). */
+  branchId?: string | null;
+};
 
 export function listPrices(query: PriceListQuery): Promise<PatientsApiResult<PricesResponse>> {
   const params = new URLSearchParams();
   if (query.q) params.set('q', query.q);
   if (query.kind) params.set('kind', query.kind);
+  if (query.branchId) params.set('branchId', query.branchId);
   if (query.page > 1) params.set('page', String(query.page));
   const text = params.toString();
   return patientsApi<PricesResponse>(`${PRICES_ROUTES.list}${text ? `?${text}` : ''}`);

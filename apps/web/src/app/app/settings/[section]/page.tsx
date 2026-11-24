@@ -236,6 +236,9 @@ export default async function SettingsSectionPage({
     const startQuery = new URLSearchParams();
     if (startKind) startQuery.set('kind', startKind);
     if (startQ) startQuery.set('q', startQ);
+    // Doctor fees follow the active branch (fees stay per doctor; tests and the registration fee are hospital-wide).
+    const activeBranchId = session.activeBranchId ?? null;
+    if (activeBranchId) startQuery.set('branchId', activeBranchId);
     const startText = startQuery.toString();
     const prices = await fetchStaffOnServer<PricesResponse>(
       startText ? `${API_PRICES}?${startText}` : API_PRICES,
@@ -243,6 +246,7 @@ export default async function SettingsSectionPage({
     content = (
       <PricesScreen
         startQuery={{ q: startQ, kind: startKind }}
+        branchId={activeBranchId}
         initial={prices.status === 'ok' ? prices.data : null}
         initialErrorCode={prices.status === 'ok' ? null : serverErrorCode(prices)}
       />

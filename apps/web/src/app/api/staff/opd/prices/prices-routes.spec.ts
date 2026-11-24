@@ -64,6 +64,14 @@ describe('GET /api/staff/opd/prices and /history', () => {
     });
   });
 
+  it('forwards the branch id of the list (doctor fees of one branch)', async () => {
+    await getList(new Request(`${ORIGIN}/api/staff/opd/prices?kind=DOCTOR_FEE&branchId=b1`));
+    expect(callStaffApiMock).toHaveBeenCalledWith('/opd/prices', {
+      method: 'GET',
+      query: { kind: 'DOCTOR_FEE', branchId: 'b1' },
+    });
+  });
+
   it('returns JSON 401 without the cookie and never calls the API', async () => {
     hasAccessCookie = false;
     expect((await getList(new Request(`${ORIGIN}/api/staff/opd/prices`))).status).toBe(401);

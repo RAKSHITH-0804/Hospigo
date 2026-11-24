@@ -354,6 +354,84 @@ describe('OPD prices: list, history and change (HTTP, hospigo_test)', () => {
 
   // ------------------------------------------------------------------------- list
 
+  it('with branchId lists only doctors who work in that branch (a doctor in two branches shows in both)', async () => {
+    const C = await seedHospital('C');
+    const east = await owner.branch.create({
+      data: { tenantId: C.tenant, code: 'EAST', name: 'East', accessCode: uniq('pr-east-') },
+    });
+    const userOf = async (profile: string) =>
+      (await owner.doctorProfile.findUniqueOrThrow({ where: { id: profile } })).userId;
+    // doc1 works in Main and East; doc3 in East only; doc2 stays in Main only
+    await owner.userBranch.create({
+      data: { tenantId: C.tenant, userId: await userOf(C.doc1), branchId: east.id },
+    });
+    const doc3 = await makeDoctor({ tenant: C.tenant, main: C.main }, 'doc3east');
+    const doc3User = await userOf(doc3);
+    await owner.userBranch.updateMany({
+      where: { tenantId: C.tenant, userId: doc3User, branchId: C.main },
+      data: { isActive: false },
+    });
+    await owner.userBranch.create({
+      data: { tenantId: C.tenant, userId: doc3User, branchId: east.id },
+    });
+
+    const doctorsOf = async (query: string): Promise<string[]> => {
+      const res = await http()
+        .get(`/opd/prices?kind=DOCTOR_FEE&pageSize=100${query}`)
+        .set(auth(C.tokens.admin))
+        .expect(200);
+      return [
+        ...new Set<string>(
+          res.body.items.map((i: { doctorProfileId: string }) => i.doctorProfileId),
+        ),
+      ];
+    };
+
+    const inMain = await doctorsOf(`&branchId=${C.main}`);
+    expect(inMain).toContain(C.doc1);
+    expect(inMain).toContain(C.doc2);
+    expect(inMain).not.toContain(doc3);
+    const inEast = await doctorsOf(`&branchId=${east.id}`);
+    expect(inEast.sort()).toEqual([C.doc1, doc3].sort());
+    // no branchId, or an empty one: everyone, as before
+    for (const q of ['', '&branchId=']) {
+      const everyone = await doctorsOf(q);
+      expect(everyone).toEqual(expect.arrayContaining([C.doc1, C.doc2, doc3]));
+    }
+    // the registration fee and the tests are hospital-wide: not filtered
+    const rest = await http()
+      .get(`/opd/prices?pageSize=100&branchId=${east.id}`)
+      .set(auth(C.tokens.admin))
+      .expect(200);
+    const kinds = new Set(rest.body.items.map((i: { kind: string }) => i.kind));
+    expect(kinds.has('REGISTRATION')).toBe(true);
+    expect(kinds.has('INVESTIGATION')).toBe(true);
+    // a doctor fee is still the doctor's own, whatever the branch
+    const fees = await http()
+      .get(`/opd/prices?kind=DOCTOR_FEE&pageSize=100&branchId=${east.id}`)
+      .set(auth(C.tokens.admin))
+      .expect(200);
+    const doc1New = fees.body.items.find(
+      (i: { doctorProfileId: string; visitType: string }) =>
+        i.doctorProfileId === C.doc1 && i.visitType === 'NEW',
+    );
+    expect(doc1New.currentAmountPaise).toBe(50_000);
+  });
+
+  it('refuses a branch of another hospital or an unknown one (400, nothing leaks)', async () => {
+    for (const branchId of [B.main, 'no-such-branch']) {
+      const res = await http()
+        .get(`/opd/prices?branchId=${branchId}`)
+        .set(auth(A.tokens.admin))
+        .expect(400);
+      expect(res.body).toMatchObject({
+        code: 'PRICE_INVALID',
+        field: 'branchId',
+        reason: 'BRANCH_NOT_FOUND',
+      });
+    }
+  });
+
   it('lists the registration fee, tests and doctor fees with search, filter and pages', async () => {
     const all = await http().get('/opd/prices?pageSize=100').set(auth(A.tokens.admin)).expect(200);
     expect(all.body.today).toBe(today());

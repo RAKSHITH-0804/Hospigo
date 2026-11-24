@@ -84,7 +84,7 @@ export class PricesService {
 
   async list(
     actor: Actor,
-    query: { q?: string; kind?: PriceKind; page: number; pageSize: number },
+    query: { q?: string; kind?: PriceKind; branchId?: string; page: number; pageSize: number },
   ): Promise<{
     items: PriceRowView[];
     total: number;
@@ -100,6 +100,14 @@ export class PricesService {
       ? Prisma.sql`AND (strpos(lower(code), ${q}) > 0 OR strpos(lower(name), ${q}) > 0)`
       : Prisma.empty;
     const kindFilter = query.kind ? Prisma.sql`AND kind = ${query.kind}` : Prisma.empty;
+    // Step 8c: with a branch, only doctors who work in it (fees stay per doctor, never per branch).
+    // The registration fee and the tests are hospital-wide and are not filtered.
+    const doctorBranch = query.branchId
+      ? Prisma.sql`AND EXISTS (
+            SELECT 1 FROM user_branches ub
+             WHERE ub.tenant_id = dp.tenant_id AND ub.user_id = dp.user_id
+               AND ub.branch_id = ${query.branchId} AND ub.is_active)`
+      : Prisma.empty;
 
     const rows = Prisma.sql`
       SELECT * FROM (
@@ -154,11 +162,21 @@ export class PricesService {
              WHERE f.tenant_id = dp.tenant_id AND f.doctor_profile_id = dp.id
                AND f.visit_type = 'NEW'::visit_type AND f.effective_from > ${now}::timestamptz
              ORDER BY f.effective_from ASC LIMIT 1) nxtb ON true
-         WHERE dp.tenant_id = ${tenantId} AND dp.active
+         WHERE dp.tenant_id = ${tenantId} AND dp.active ${doctorBranch}
       ) all_rows
       WHERE true ${kindFilter} ${search}`;
 
     return this.tenantDb.withTenant(async (tx) => {
+      if (query.branchId) {
+        // A branch of another hospital is not visible under row level security: refused like an unknown one.
+        const branch = await tx.branch.findFirst({
+          where: { id: query.branchId, tenantId },
+          select: { id: true },
+        });
+        if (!branch) {
+          priceInvalid('branchId', 'BRANCH_NOT_FOUND');
+        }
+      }
       const counted = await tx.$queryRaw<Array<{ n: bigint }>>(
         Prisma.sql`SELECT count(*)::bigint AS n FROM (${rows}) counted`,
       );

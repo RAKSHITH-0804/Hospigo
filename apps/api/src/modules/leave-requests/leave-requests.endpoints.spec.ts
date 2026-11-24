@@ -408,6 +408,56 @@ describe('Doctor leave requests (HTTP, hospigo_test)', () => {
       .expect(200);
   });
 
+  it('known behaviour: a waiting request follows the doctor, so after a move to another branch only that branch and a hospital-wide Admin can decide it', async () => {
+    const waiting = await ask(A.docMainToken);
+    const listed = async (token: string) =>
+      (
+        (
+          await http()
+            .get('/opd/leave-requests?status=ALL&pageSize=100')
+            .set(auth(token))
+            .expect(200)
+        ).body.items as { id: string }[]
+      ).map((r) => r.id);
+    const where = (branchId: string) => ({
+      tenantId_userId_branchId: { tenantId: A.h.tenant, userId: A.docMainUserId, branchId },
+    });
+    // before the move: the Branch Admin of MAIN sees it
+    expect(await listed(A.branchAdmin)).toContain(waiting.id);
+
+    // the doctor moves from MAIN to EAST (the request itself is not touched)
+    await owner.userBranch.update({ where: where(A.h.main), data: { isActive: false } });
+    await owner.userBranch.upsert({
+      where: where(A.h.east),
+      create: { tenantId: A.h.tenant, userId: A.docMainUserId, branchId: A.h.east },
+      update: { isActive: true },
+    });
+    try {
+      // MAIN's Branch Admin no longer sees it and cannot decide it (looks like it does not exist)
+      expect(await listed(A.branchAdmin)).not.toContain(waiting.id);
+      await http()
+        .post(`/opd/leave-requests/${waiting.id}/approve`)
+        .set(auth(A.branchAdmin))
+        .expect(404);
+      await http()
+        .post(`/opd/leave-requests/${waiting.id}/reject`)
+        .set(auth(A.branchAdmin))
+        .expect(404);
+      expect(
+        (await owner.doctorLeaveRequest.findUniqueOrThrow({ where: { id: waiting.id } })).status,
+      ).toBe('PENDING');
+      // the hospital-wide Admin still sees and decides it
+      expect(await listed(A.admin)).toContain(waiting.id);
+      await http().post(`/opd/leave-requests/${waiting.id}/approve`).set(auth(A.admin)).expect(200);
+      expect(
+        (await owner.doctorLeaveRequest.findUniqueOrThrow({ where: { id: waiting.id } })).status,
+      ).toBe('APPROVED');
+    } finally {
+      await owner.userBranch.update({ where: where(A.h.east), data: { isActive: false } });
+      await owner.userBranch.update({ where: where(A.h.main), data: { isActive: true } });
+    }
+  });
+
   it('list: default is waiting only, count, filter, paging and bad status', async () => {
     const one = await ask(A.docMainToken);
     const two = await ask(A.docMainToken);

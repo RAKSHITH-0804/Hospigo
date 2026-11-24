@@ -120,6 +120,24 @@ describe('PricesScreen', () => {
     await waitFor(() => expect(screen.queryByLabelText(copy.amountLabel)).toBeNull());
   });
 
+  it('asks for the doctor fees of the active branch when the list is made again', async () => {
+    changeMock.mockResolvedValue({
+      ok: true,
+      data: {
+        changed: true,
+        previousAmountPaise: 30_000,
+        price: { id: 'p', amountPaise: 35_050, effectiveFrom: 'x' },
+      },
+    });
+    listMock.mockResolvedValue({ ok: true, data: data([row()]) });
+    render(<PricesScreen initial={data([row()])} initialErrorCode={null} branchId="branch-1" />);
+    fireEvent.click(screen.getByRole('button', { name: `Blood sugar: ${copy.change}` }));
+    fireEvent.change(screen.getByLabelText(copy.amountLabel), { target: { value: '350.50' } });
+    fireEvent.click(screen.getByRole('button', { name: copy.save }));
+    await waitFor(() => expect(listMock).toHaveBeenCalled());
+    expect(listMock.mock.calls[0]![0]).toMatchObject({ branchId: 'branch-1' });
+  });
+
   it('refuses a price that is not rupees and paise before asking the server', () => {
     render(<PricesScreen initial={data([row()])} initialErrorCode={null} />);
     fireEvent.click(screen.getByRole('button', { name: `Blood sugar: ${copy.change}` }));

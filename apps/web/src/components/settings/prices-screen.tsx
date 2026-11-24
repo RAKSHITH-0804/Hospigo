@@ -53,9 +53,12 @@ export function PricesScreen({
   initial,
   initialErrorCode,
   startQuery,
+  branchId,
 }: {
   initial: PricesResponse | null;
   initialErrorCode: string | null;
+  /** The active branch the first list was made for; doctor fees follow it. */
+  branchId?: string | null;
   /** The search and filter the page was opened with (the first list is already for them). */
   startQuery?: { q: string; kind: PriceKind | '' };
 }) {
@@ -97,7 +100,7 @@ export function PricesScreen({
       () => {
         setLoading(true);
         setListError(null);
-        void listPrices({ q: q.trim(), kind, page }).then((result) => {
+        void listPrices({ q: q.trim(), kind, page, branchId }).then((result) => {
           if (!live) {
             return;
           }
@@ -115,7 +118,7 @@ export function PricesScreen({
       live = false;
       clearTimeout(timer);
     };
-  }, [q, kind, page, reloadTick]);
+  }, [q, kind, page, reloadTick, branchId]);
 
   if (!data) {
     return (

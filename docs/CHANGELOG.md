@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-24 — Phase 2 Step 8c-final (prices by branch, leave behaviour, notes)
+
+- **Commit hash(es):** unverified (not committed yet; branch `feature/step-8c-ui-fixes` after `e2d542c`).
+- **Added:** optional `branchId` on `GET /opd/prices`: doctor fees only for doctors who work in that branch (fees stay per doctor, never per branch); the registration fee and tests are not filtered; another hospital's or an unknown branch is refused (400 `PRICE_INVALID`, `BRANCH_NOT_FOUND`).
+- **Changed:** the web Prices screen passes the active branch (first load and every reload); the Next route handler forwards `branchId`.
+- **Removed:** nothing.
+- **Fixed:** nothing (the rule for leave requests was not changed; a test now records it).
+- **Database (migrations, roles, RLS):** none.
+- **New .env keys (names only):** none.
+- **Tests:** API 1025 (was 1022: two price-branch tests, one leave-after-branch-move test), web 1790 (was 1788: route and screen). Lint, format check, both builds green.
+- **Decisions:** `docs/decisions/decisions-8c.md`: prices follow the active branch; leave requests after a doctor changes branch (known behaviour, judged not unsafe); web dates use `WEB_REPORT_TIME_ZONE`, not the hospital time zone (India-only for now).
+- **Follow-ups and open items:** the Fees link of a doctor outside the active branch opens a list without that doctor. Handoff note added: delete and truncate triggers break any test or seed that deletes whole hospitals. Branch Admin creating roles stays deferred.
+
 ## 2026-11-24 — Phase 2 Step 8c UI fixes follow-up (consult layout + hydration)
 
 - **Commit hash(es):** `474a7e5`, `506fd9e`, `ed427d2`.
