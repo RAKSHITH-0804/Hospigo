@@ -1016,6 +1016,15 @@ describe('Excel upload of the masters (HTTP, hospigo_test)', () => {
 
   // ---------------------------------------------------------- cancel, twice, stale
 
+  /** Is the uploaded file of this batch still in storage? */
+  async function fileStored(batchId: string): Promise<boolean> {
+    const row = await owner.importBatch.findUniqueOrThrow({ where: { id: batchId } });
+    const { STORAGE_SERVICE } = await import('../storage/storage.service');
+    return app
+      .get<{ exists(t: string, k: string): Promise<boolean> }>(STORAGE_SERVICE)
+      .exists(row.tenantId, row.fileStorageKey);
+  }
+
   it('a batch can be cancelled before it is posted (nothing is saved), never after', async () => {
     const code = uniq('C');
     const file = await medsFile([[code, 'Never saved', '', '', '']]);
@@ -1026,6 +1035,8 @@ describe('Excel upload of the masters (HTTP, hospigo_test)', () => {
       .expect(200);
     expect(cancelled.body).toMatchObject({ status: 'FAILED', runStatus: 'CANCELLED' });
     expect(await owner.medicine.count({ where: { tenantId: A.tenant, code } })).toBe(0);
+    // Step 9: the stored file of a cancelled batch is deleted
+    expect(await fileStored(batch.id)).toBe(false);
     // a cancelled batch can neither be approved nor cancelled again
     await http().post(`/imports/${batch.id}/approve`).set(auth(A.tokens.admin)).expect(409);
     await http().post(`/imports/${batch.id}/cancel`).set(auth(A.tokens.admin)).expect(409);
@@ -1034,7 +1045,9 @@ describe('Excel upload of the masters (HTTP, hospigo_test)', () => {
     expect(again.status).toBe('PREVIEWED');
     // cancel after approval is allowed too
     await http().post(`/imports/${again.id}/approve`).set(auth(A.tokens.admin)).expect(200);
+    expect(await fileStored(again.id)).toBe(true);
     await http().post(`/imports/${again.id}/cancel`).set(auth(A.tokens.admin)).expect(200);
+    expect(await fileStored(again.id)).toBe(false);
     await http().post(`/imports/${again.id}/post`).set(auth(A.tokens.admin)).expect(409);
     // after posting: final
     const third = await uploaded(
@@ -1045,6 +1058,8 @@ describe('Excel upload of the masters (HTTP, hospigo_test)', () => {
     );
     await approveAndPost(A.tokens.admin, third.id);
     await http().post(`/imports/${third.id}/cancel`).set(auth(A.tokens.admin)).expect(409);
+    // a posted batch keeps its file
+    expect(await fileStored(third.id)).toBe(true);
     expect(await owner.medicine.count({ where: { tenantId: A.tenant, code } })).toBe(1);
   });
 

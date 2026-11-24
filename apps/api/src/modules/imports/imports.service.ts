@@ -325,6 +325,30 @@ export class ImportsService {
       });
     } catch {
       // The batch was cancelled or moved on in the meantime: nothing more to record.
+      return;
+    }
+    await this.deleteStoredFile(actor, batchId);
+  }
+
+  /**
+   * Step 9: the uploaded file of a batch that ended as FAILED or CANCELLED is no longer needed
+   * (nothing was saved; a failed or cancelled batch is never run again), so it is deleted from
+   * storage. Never called for a posted batch, and a batch that is not FAILED keeps its file.
+   * Best effort: a storage error never changes the batch.
+   */
+  private async deleteStoredFile(actor: Actor, batchId: string): Promise<void> {
+    try {
+      const batch = await this.tenantDb.withTenant((tx) =>
+        tx.importBatch.findFirst({
+          where: { id: batchId, tenantId: actor.tenantId, status: 'FAILED' },
+          select: { fileStorageKey: true },
+        }),
+      );
+      if (batch) {
+        await this.storage.delete(actor.tenantId, batch.fileStorageKey);
+      }
+    } catch {
+      // Left in storage; nothing else depends on it.
     }
   }
 
@@ -497,6 +521,7 @@ export class ImportsService {
     } catch (error) {
       throw this.stateError(error);
     }
+    await this.deleteStoredFile(actor, id);
     return this.getBatch(actor, id);
   }
 
