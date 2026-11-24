@@ -259,12 +259,14 @@ export function ConsultScreen({
   const showClinical = visit.status === 'IN_CONSULTATION' || completed;
 
   return (
-    <div className="section-stack content-container-inner">
+    <div className="consult-page content-container-inner">
       <PageHeader title={copy.title} backHref={backHref} />
-      <VisitHeader visit={visit} />
+      <div className="consult-area-header">
+        <VisitHeader visit={visit} />
+      </div>
 
       {visit.status === 'WAITING' ? (
-        <div className="surface-card flex flex-col gap-[var(--space-2)]">
+        <div className="consult-card flex flex-col gap-[var(--space-2)]">
           <p className="type-label text-muted-foreground">
             {canWrite ? copy.waitingNote : copy.notStartedReadOnly}
           </p>
@@ -283,135 +285,145 @@ export function ConsultScreen({
         </div>
       ) : null}
 
-      {showClinical ? (
-        <div className="consult-grid">
-          <section className="consult-card" aria-label={copy.vitalsHeading}>
-            <VitalsSummary
-              readings={vitals}
-              editHref={canRecordVitals ? vitalsPath(visit.id) : undefined}
-            />
-          </section>
-          <section className="consult-card" aria-label={copy.notesHeading}>
-            <h2 className="section-heading">{copy.notesHeading}</h2>
-            {completed ? (
-              <>
-                <p role="status" className="type-label text-muted-foreground">
-                  {copy.completedBanner}
-                </p>
-                <Link
-                  href={`/app/opd/visits/${encodeURIComponent(visit.id)}/prescription`}
-                  className={cn(buttonVariants({ variant: 'outline' }), 'touch-target w-fit')}
-                >
-                  {staffCopy.print.prescription.print}
-                </Link>
-              </>
-            ) : null}
-            {!canWrite && !completed ? (
-              <p className="type-label text-muted-foreground">{copy.readOnlyNote}</p>
-            ) : null}
-            <ConsultNoteFields
-              note={note}
-              onChange={changeNote}
-              readOnly={!editable}
-              calendar={{
-                weekStart: settings.calendarWeekStart,
-                quickDays: settings.followUpQuickDays,
-                minDate: visit.visitDate,
-              }}
-            />
-          </section>
-          <section className="consult-card" aria-label={staffCopy.opd.clinical.rx.heading}>
-            <PrescriptionEditor
-              rows={rows}
-              onChange={changeRows}
-              nextId={() => nextRowId.current++}
-              readOnly={!editable}
-              search={settings}
-            />
-            {settings.testsSearch && (canOrderTests || tests.length > 0) ? (
-              <TestsBox
-                chips={tests}
-                onAdd={addTest}
-                onRemove={removeTest}
-                readOnly={!editable || !canOrderTests}
-                search={settings.testsSearch}
-              />
-            ) : null}
-            {editable && incomplete > 0 ? (
-              <p role="status" className="type-small text-destructive">
-                {fill(copy.incompleteRowsHint, { count: incomplete })}
-              </p>
-            ) : null}
-          </section>
-          {completed ? (
-            <section className="consult-card" aria-label={staffCopy.opd.clinical.addenda.heading}>
-              <ConsultAddenda
-                visitId={visit.id}
-                addenda={addenda}
-                canAdd={canWrite}
-                onChange={setAddenda}
-              />
-            </section>
-          ) : null}
-        </div>
-      ) : (
-        <section className="consult-card" aria-label={copy.vitalsHeading}>
+      <div className="consult-grid">
+        <section className="consult-card consult-area-vitals" aria-label={copy.vitalsHeading}>
           <VitalsSummary
             readings={vitals}
             editHref={canRecordVitals ? vitalsPath(visit.id) : undefined}
           />
         </section>
-      )}
 
-      {actionError ? (
-        <p role="alert" className="type-label text-destructive">
-          {actionError}
-        </p>
-      ) : null}
+        {showClinical ? (
+          <>
+            <section
+              className="consult-card consult-card-fill consult-area-note"
+              aria-label={copy.notesHeading}
+            >
+              <h2 className="section-heading">{copy.notesHeading}</h2>
+              {completed ? (
+                <>
+                  <p role="status" className="type-label text-muted-foreground">
+                    {copy.completedBanner}
+                  </p>
+                  <Link
+                    href={`/app/opd/visits/${encodeURIComponent(visit.id)}/prescription`}
+                    className={cn(buttonVariants({ variant: 'outline' }), 'touch-target w-fit')}
+                  >
+                    {staffCopy.print.prescription.print}
+                  </Link>
+                </>
+              ) : null}
+              {!canWrite && !completed ? (
+                <p className="type-label text-muted-foreground">{copy.readOnlyNote}</p>
+              ) : null}
+              <ConsultNoteFields
+                note={note}
+                onChange={changeNote}
+                readOnly={!editable}
+                calendar={{
+                  weekStart: settings.calendarWeekStart,
+                  quickDays: settings.followUpQuickDays,
+                  minDate: visit.visitDate,
+                }}
+              />
+            </section>
 
-      {editable && !initial.doctorDetails.registrationNo ? (
-        <p role="note" className="settings-reminder type-label">
-          {staffCopy.doctorProfile.consultReminder}{' '}
-          <Link href="/app/profile" className="underline">
-            {staffCopy.doctorProfile.consultReminderLink}
-          </Link>
-        </p>
-      ) : null}
+            <section
+              className="consult-card consult-card-fill consult-area-rx"
+              aria-label={staffCopy.opd.clinical.rx.heading}
+            >
+              <h2 className="section-heading">{staffCopy.opd.clinical.rx.heading}</h2>
+              <PrescriptionEditor
+                rows={rows}
+                onChange={changeRows}
+                nextId={() => nextRowId.current++}
+                readOnly={!editable}
+                search={settings}
+                hideHeading
+              />
+              {settings.testsSearch && (canOrderTests || tests.length > 0) ? (
+                <TestsBox
+                  chips={tests}
+                  onAdd={addTest}
+                  onRemove={removeTest}
+                  readOnly={!editable || !canOrderTests}
+                  search={settings.testsSearch}
+                />
+              ) : null}
+              {editable && incomplete > 0 ? (
+                <p role="status" className="type-small text-destructive">
+                  {fill(copy.incompleteRowsHint, { count: incomplete })}
+                </p>
+              ) : null}
+            </section>
 
-      {editable ? (
-        <div className="flex flex-wrap items-center gap-[var(--space-3)]">
-          <Button
-            type="button"
-            variant="outline"
-            className="touch-target"
-            disabled={completing || status.phase === 'saving'}
-            onClick={() => void autosave.saveNow()}
-          >
-            {copy.saveDraft}
-          </Button>
-          <Button
-            type="button"
-            className="touch-target"
-            disabled={completing}
-            onClick={() => void onComplete()}
-          >
-            {completing ? copy.completing : copy.complete}
-          </Button>
-          <p role="status" className="type-small text-muted-foreground">
-            {saveLine}
+            {completed ? (
+              <section
+                className="consult-card consult-area-addenda"
+                aria-label={staffCopy.opd.clinical.addenda.heading}
+              >
+                <h2 className="section-heading">{staffCopy.opd.clinical.addenda.heading}</h2>
+                <ConsultAddenda
+                  visitId={visit.id}
+                  addenda={addenda}
+                  canAdd={canWrite}
+                  onChange={setAddenda}
+                  hideHeading
+                />
+              </section>
+            ) : null}
+          </>
+        ) : null}
+
+        {actionError ? (
+          <p role="alert" className="type-label text-destructive consult-area-actions">
+            {actionError}
           </p>
+        ) : null}
+
+        {editable && !initial.doctorDetails.registrationNo ? (
+          <p role="note" className="settings-reminder type-label consult-area-actions">
+            {staffCopy.doctorProfile.consultReminder}{' '}
+            <Link href="/app/profile" className="underline">
+              {staffCopy.doctorProfile.consultReminderLink}
+            </Link>
+          </p>
+        ) : null}
+
+        {editable ? (
+          <div className="consult-area-actions consult-actions">
+            <Button
+              type="button"
+              variant="outline"
+              className="touch-target"
+              disabled={completing || status.phase === 'saving'}
+              onClick={() => void autosave.saveNow()}
+            >
+              {copy.saveDraft}
+            </Button>
+            <Button
+              type="button"
+              className="touch-target"
+              disabled={completing}
+              onClick={() => void onComplete()}
+            >
+              {completing ? copy.completing : copy.complete}
+            </Button>
+            <p role="status" className="type-small text-muted-foreground">
+              {saveLine}
+            </p>
+          </div>
+        ) : null}
+
+        <div className="consult-area-footer consult-footer">
+          <div className="consult-footer-previous">{children}</div>
+          <Link
+            href={backHref}
+            className={cn(buttonVariants({ variant: 'outline' }), 'touch-target shrink-0')}
+          >
+            {copy.backToQueue}
+          </Link>
         </div>
-      ) : null}
-
-      {children ? <div className="consult-card consult-card-compact">{children}</div> : null}
-
-      <div>
-        <Link
-          href={backHref}
-          className={cn(buttonVariants({ variant: 'outline' }), 'touch-target')}
-        >
-          {copy.backToQueue}
-        </Link>
       </div>
     </div>
   );

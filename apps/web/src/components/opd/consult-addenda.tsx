@@ -17,11 +17,14 @@ export function ConsultAddenda({
   addenda,
   canAdd,
   onChange,
+  hideHeading = false,
 }: {
   visitId: string;
   addenda: AddendumView[];
   canAdd: boolean;
   onChange: (addenda: AddendumView[]) => void;
+  /** When the parent card already shows "Addenda". */
+  hideHeading?: boolean;
 }) {
   const [text, setText] = useState('');
   const [reason, setReason] = useState('');
@@ -51,7 +54,7 @@ export function ConsultAddenda({
 
   return (
     <section className="flex flex-col gap-[var(--space-3)]" aria-label={copy.heading}>
-      <h2 className="section-heading">{copy.heading}</h2>
+      {hideHeading ? null : <h2 className="section-heading">{copy.heading}</h2>}
       {addenda.length === 0 ? (
         <p className="type-label text-muted-foreground">{copy.empty}</p>
       ) : (
@@ -60,10 +63,8 @@ export function ConsultAddenda({
             <li key={a.id} className="flex flex-col gap-[var(--space-1)]">
               <p className="type-label whitespace-pre-wrap">{a.text}</p>
               <p className="type-small text-muted-foreground">
-                <span suppressHydrationWarning>
-                  {fill(copy.line, { who: a.addedBy.name, when: formatDateTime(a.createdAt) })}
-                </span>{' '}
-                · {fill(copy.reasonLine, { reason: a.reason })}
+                {fill(copy.line, { who: a.addedBy.name, when: formatDateTime(a.createdAt) })} ·{' '}
+                {fill(copy.reasonLine, { reason: a.reason })}
               </p>
             </li>
           ))}
