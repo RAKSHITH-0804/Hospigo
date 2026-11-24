@@ -56,6 +56,9 @@ export const OpdErrorCode = {
   // ---- Step 8b: prices
   PRICE_INVALID: 'PRICE_INVALID',
   PRICE_ITEM_NOT_FOUND: 'PRICE_ITEM_NOT_FOUND',
+  // ---- Step 8c: doctor leave requests
+  LEAVE_REQUEST_NOT_FOUND: 'LEAVE_REQUEST_NOT_FOUND',
+  LEAVE_REQUEST_CONFLICT: 'LEAVE_REQUEST_CONFLICT',
   // ---- Step 8c: masters screens (payment modes, vitals fields, number series, reference fields)
   MASTER_INVALID: 'MASTER_INVALID',
   MASTER_NOT_FOUND: 'MASTER_NOT_FOUND',

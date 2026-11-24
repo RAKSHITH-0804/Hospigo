@@ -17,6 +17,7 @@ import {
   parseLeave,
   parseSwitch,
   parseTimings,
+  type LeavePeriod,
   type Slot,
 } from './availability.rules';
 
@@ -148,6 +149,57 @@ export class DoctorAvailabilityAdminService {
     });
   }
 
+  /**
+   * Adds one leave period on the caller's transaction (the doctor row must already be locked by the
+   * caller). Used by the Admin who adds leave and by the approval of a leave request, so both follow
+   * the same rules: no overlap with other leave and at most the allowed number of periods. The dates
+   * were already checked (real, in order, not over, not too long) by the caller.
+   */
+  async createLeave(
+    tx: TenantTx,
+    actor: Actor,
+    doctorProfileId: string,
+    period: LeavePeriod,
+    requestId?: string,
+  ): Promise<string> {
+    const existing = await tx.doctorLeave.findMany({
+      where: { tenantId: actor.tenantId, doctorProfileId },
+      select: { fromDate: true, toDate: true },
+    });
+    if (existing.length >= C.maxLeavePeriods) {
+      throw opdError(400, OpdErrorCode.AVAILABILITY_INVALID, {
+        field: 'fromDate',
+        reason: 'TOO_MANY_PERIODS',
+      });
+    }
+    if (
+      existing.some((e) =>
+        leavesOverlap(period, { fromDate: dateText(e.fromDate), toDate: dateText(e.toDate) }),
+      )
+    ) {
+      throw opdError(400, OpdErrorCode.AVAILABILITY_INVALID, {
+        field: 'fromDate',
+        reason: 'LEAVE_OVERLAP',
+      });
+    }
+    const created = await tx.doctorLeave.create({
+      data: {
+        tenantId: actor.tenantId,
+        doctorProfileId,
+        fromDate: dateValue(period.fromDate),
+        toDate: dateValue(period.toDate),
+      },
+      select: { id: true },
+    });
+    await this.audit(tx, actor, doctorProfileId, 'LEAVE_ADD', {
+      leaveId: created.id,
+      fromDate: period.fromDate,
+      toDate: period.toDate,
+      ...(requestId ? { requestId } : {}),
+    });
+    return created.id;
+  }
+
   async addLeave(actor: Actor, doctorProfileId: string, body: unknown): Promise<AvailabilityView> {
     const read = await this.scope('opd.doctors.read');
     const write = await this.scope('opd.doctors.write');
@@ -155,40 +207,7 @@ export class DoctorAvailabilityAdminService {
       await this.lockDoctor(tx, actor, doctorProfileId, write);
       const today = await this.today(tx, actor.tenantId);
       const period = parsed(() => parseLeave(body, today));
-      const existing = await tx.doctorLeave.findMany({
-        where: { tenantId: actor.tenantId, doctorProfileId },
-        select: { fromDate: true, toDate: true },
-      });
-      if (existing.length >= C.maxLeavePeriods) {
-        throw opdError(400, OpdErrorCode.AVAILABILITY_INVALID, {
-          field: 'fromDate',
-          reason: 'TOO_MANY_PERIODS',
-        });
-      }
-      if (
-        existing.some((e) =>
-          leavesOverlap(period, { fromDate: dateText(e.fromDate), toDate: dateText(e.toDate) }),
-        )
-      ) {
-        throw opdError(400, OpdErrorCode.AVAILABILITY_INVALID, {
-          field: 'fromDate',
-          reason: 'LEAVE_OVERLAP',
-        });
-      }
-      const created = await tx.doctorLeave.create({
-        data: {
-          tenantId: actor.tenantId,
-          doctorProfileId,
-          fromDate: dateValue(period.fromDate),
-          toDate: dateValue(period.toDate),
-        },
-        select: { id: true },
-      });
-      await this.audit(tx, actor, doctorProfileId, 'LEAVE_ADD', {
-        leaveId: created.id,
-        fromDate: period.fromDate,
-        toDate: period.toDate,
-      });
+      await this.createLeave(tx, actor, doctorProfileId, period);
       return this.viewInTx(tx, actor, doctorProfileId, read, write);
     });
   }

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { AccountPage } from '@/components/account/account-page';
+import { MyLeave } from '@/components/doctors/my-leave';
 import { MyProfileForm } from '@/components/doctors/my-profile-form';
 import { SettingBlock } from '@/components/settings/setting-block';
 import { PageHeader } from '@/components/ui/page-header';
@@ -39,10 +40,13 @@ export default async function MyProfilePage() {
               <p className="type-label text-muted-foreground">{doctor.noProfileTitle}</p>
             </SettingBlock>
           ) : (
-            <MyProfileForm
-              initial={profile.status === 'ok' ? profile.data : null}
-              initialErrorCode={profile.status === 'ok' ? null : serverErrorCode(profile)}
-            />
+            <>
+              <MyProfileForm
+                initial={profile.status === 'ok' ? profile.data : null}
+                initialErrorCode={profile.status === 'ok' ? null : serverErrorCode(profile)}
+              />
+              {profile.status === 'ok' ? <MyLeave /> : null}
+            </>
           )
         ) : null}
       </AccountPage>

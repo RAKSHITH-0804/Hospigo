@@ -27,6 +27,7 @@ import { errorMessageFor } from '@/lib/patients/client';
 import { API_UHID_START_NUMBER, fetchStaffOnServer, serverErrorCode } from '@/lib/patients/server';
 import type { UhidStartNumberResponse } from '@/lib/patients/types';
 import { API_DOCTOR_PROFILES, type DoctorsListResponse } from '@/lib/doctors/types';
+import { API_LEAVE_REQUESTS_ADMIN, type AdminLeaveRequestsResponse } from '@/lib/leave/types';
 import { API_BRANDING, type BrandingResponse } from '@/lib/images/types';
 import { API_IMPORTS, type ImportListResponse } from '@/lib/imports/types';
 import {
@@ -185,11 +186,17 @@ export default async function SettingsSectionPage({
     );
   }
   if (section.id === 'doctors') {
-    const doctors = await fetchStaffOnServer<DoctorsListResponse>(API_DOCTOR_PROFILES);
+    const [doctors, leaveRequests] = await Promise.all([
+      fetchStaffOnServer<DoctorsListResponse>(API_DOCTOR_PROFILES),
+      fetchStaffOnServer<AdminLeaveRequestsResponse>(`${API_LEAVE_REQUESTS_ADMIN}?pageSize=1`),
+    ]);
     content = (
       <DoctorsList
         initial={doctors.status === 'ok' ? doctors.data : null}
         initialErrorCode={doctors.status === 'ok' ? null : serverErrorCode(doctors)}
+        pendingLeaveRequests={
+          leaveRequests.status === 'ok' ? leaveRequests.data.pendingCount : null
+        }
       />
     );
   }

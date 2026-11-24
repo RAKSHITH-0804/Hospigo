@@ -91,6 +91,9 @@ jest.mock('@/components/doctors/my-profile-form', () => ({
     <div data-testid="my-profile" data-props={JSON.stringify(props)} />
   ),
 }));
+jest.mock('@/components/doctors/my-leave', () => ({
+  MyLeave: () => <div data-testid="my-leave" />,
+}));
 jest.mock('@/components/images/logo-card', () => ({
   LogoCard: (props: Record<string, unknown>) => (
     <div data-testid="logo-card" data-props={JSON.stringify(props)} />
@@ -639,7 +642,11 @@ describe('patients pages', () => {
       );
       fetchMock.mockResolvedValue({ status: 'error', code: 'UNAVAILABLE' });
       render(await SettingsSectionPage(section('doctors')));
-      expect(propsOf('doctors-list')).toEqual({ initial: null, initialErrorCode: 'UNAVAILABLE' });
+      expect(propsOf('doctors-list')).toEqual({
+        initial: null,
+        initialErrorCode: 'UNAVAILABLE',
+        pendingLeaveRequests: null,
+      });
     });
 
     it('the Logo section needs the settings permission and reads the logo and limits on the server', async () => {

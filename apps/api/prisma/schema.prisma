@@ -252,6 +252,7 @@ model Hospital {
   doctorProfiles DoctorProfile[]
   doctorTimings DoctorTiming[]
   doctorLeaves DoctorLeave[]
+  doctorLeaveRequests DoctorLeaveRequest[]
   chargeItems ChargeItem[]
   chargeItemPrices ChargeItemPrice[]
   doctorFees DoctorFee[]
@@ -404,6 +405,8 @@ model User {
   doctorProfiles DoctorProfile[]
   chargeItemPricesCreated ChargeItemPrice[] @relation("ChargeItemPriceCreatedBy")
   doctorFeesCreated DoctorFee[] @relation("DoctorFeeCreatedBy")
+  leaveRequestsMade DoctorLeaveRequest[] @relation("LeaveRequestedBy")
+  leaveRequestsDecided DoctorLeaveRequest[] @relation("LeaveDecidedBy")
   opdVisitsCreated OpdVisit[] @relation("OpdVisitCreatedBy")
   billsCreated Bill[] @relation("BillCreatedBy")
   paymentsReceived Payment[] @relation("PaymentReceivedBy")
@@ -1031,6 +1034,7 @@ model DoctorProfile {
   user     User           @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Restrict)
   timings  DoctorTiming[]
   leaves   DoctorLeave[]
+  leaveRequests DoctorLeaveRequest[]
   fees     DoctorFee[]
   opdVisits OpdVisit[]
   consultations Consultation[]
@@ -1080,6 +1084,43 @@ model DoctorLeave {
   @@unique([tenantId, id])
   @@index([tenantId, doctorProfileId])
   @@map("doctor_leave")
+}
+
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+
+  @@map("leave_request_status")
+}
+
+/// A doctor asks for leave; an Admin approves or rejects it. Only an approved request creates a
+/// doctor_leave row (through the API). Closed once, never edited, never deleted (database triggers).
+model DoctorLeaveRequest {
+  id              String             @id @default(cuid())
+  tenantId        String             @map("tenant_id")
+  doctorProfileId String             @map("doctor_profile_id")
+  fromDate        DateTime           @map("from_date") @db.Date
+  toDate          DateTime           @map("to_date") @db.Date
+  status          LeaveRequestStatus @default(PENDING)
+  requestedBy     String             @map("requested_by")
+  requestedAt     DateTime           @default(now()) @map("requested_at") @db.Timestamptz(3)
+  decidedBy       String?            @map("decided_by")
+  decidedAt       DateTime?          @map("decided_at") @db.Timestamptz(3)
+  leaveId         String?            @map("leave_id")
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital  Hospital      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  doctor    DoctorProfile @relation(fields: [tenantId, doctorProfileId], references: [tenantId, id], onDelete: Cascade)
+  requester User          @relation("LeaveRequestedBy", fields: [tenantId, requestedBy], references: [tenantId, id], onDelete: Restrict)
+  decider   User?         @relation("LeaveDecidedBy", fields: [tenantId, decidedBy], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, doctorProfileId, status])
+  @@index([tenantId, status, requestedAt])
+  @@map("doctor_leave_requests")
 }
 
 model ChargeItem {

@@ -2,6 +2,8 @@
 export const settingsScreenConfig = {
   /** How long a "Saved." confirmation stays before it fades away. Errors stay until the next action. */
   savedMessageMs: 3000,
+  /** Rows per page in the Admin leave requests pop-up. */
+  leaveRequestsPageSize: 10,
 } as const;
 
 /** Behaviour numbers of the staff, roles and My profile screens. */

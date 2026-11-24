@@ -8,5 +8,6 @@ import { DoctorAvailabilityAdminService } from './availability.service';
   imports: [AccessModule],
   controllers: [DoctorAvailabilityController],
   providers: [{ provide: CLOCK, useClass: SystemClock }, DoctorAvailabilityAdminService],
+  exports: [DoctorAvailabilityAdminService],
 })
 export class DoctorAvailabilityModule {}

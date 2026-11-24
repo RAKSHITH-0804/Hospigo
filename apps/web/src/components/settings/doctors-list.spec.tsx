@@ -9,6 +9,12 @@ jest.mock('@/lib/doctors/client', () => ({
   saveDoctorProfile: (...args: unknown[]) => saveMock(...args),
 }));
 
+const leaveListMock = jest.fn();
+jest.mock('@/lib/leave/client', () => ({
+  listLeaveRequests: (...args: unknown[]) => leaveListMock(...args),
+  decideLeaveRequest: jest.fn(),
+}));
+
 const availabilityMock = jest.fn();
 jest.mock('@/lib/availability/client', () => ({
   getAvailability: (...args: unknown[]) => availabilityMock(...args),
@@ -277,5 +283,29 @@ describe('DoctorsList', () => {
     empty.unmount();
     render(<DoctorsList initial={null} initialErrorCode="UNAVAILABLE" />);
     expect(screen.getByRole('alert').textContent).toBe(staffCopy.errors.unreachable);
+  });
+
+  it('shows the Leave requests button with the waiting number and opens the approval pop-up', async () => {
+    leaveListMock.mockResolvedValue({
+      ok: true,
+      data: { items: [], total: 0, page: 1, pageSize: 10, pendingCount: 0, today: '2026-11-23' },
+    });
+    render(<DoctorsList initial={data()} initialErrorCode={null} pendingLeaveRequests={3} />);
+    fireEvent.click(
+      screen.getByRole('button', { name: staffCopy.leave.openWithCount.replace('{count}', '3') }),
+    );
+    expect(await screen.findByRole('dialog', { name: staffCopy.leave.dialogTitle })).toBeTruthy();
+    // the pop-up reports the real number back, so the button label follows
+    await waitFor(() => expect(leaveListMock).toHaveBeenCalled());
+  });
+
+  it('shows the plain Leave requests button when the number is unknown, and none when read-only', () => {
+    renderList();
+    expect(screen.getByRole('button', { name: staffCopy.leave.open })).toBeTruthy();
+  });
+
+  it('a read-only viewer has no Leave requests button', () => {
+    renderList(data({ canWrite: false }));
+    expect(screen.queryByRole('button', { name: staffCopy.leave.open })).toBeNull();
   });
 });
