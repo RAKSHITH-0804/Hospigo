@@ -300,6 +300,7 @@ export default async function SettingsSectionPage({
           templates={templates.data.items}
           presets={presets.data.items}
           canWrite={session.permissions?.includes('opd.settings.write') ?? false}
+          canChange={templates.data.canChange}
           hospitalName={session.hospitalName?.trim() || staffCopy.brand}
           logoImageId={logoImageId}
         />

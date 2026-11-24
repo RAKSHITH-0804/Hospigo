@@ -518,6 +518,28 @@ export const staffCopy = {
       docsAria: 'Documents',
       sourceDefault: 'Using the built-in default. Nothing is saved yet.',
       sourceCustom: 'Using your saved template.',
+      scopeBranch: 'This branch uses its own template for this document.',
+      scopeHospital:
+        'This branch uses the hospital template. Save it for this branch to give the branch its own.',
+      saveFor: 'Save for',
+      saveForBranch: 'This branch only',
+      saveForHospital: 'The whole hospital',
+      saveForHint:
+        'The lookup is: this branch own template, then the hospital template, then the built-in default.',
+      onlyBranch:
+        'You can change the template of this branch only. The hospital template is changed by a hospital-wide Admin.',
+      resetBranchConfirm:
+        'This removes the own template of this branch for this document. The hospital template (or the built-in default) is used again.',
+      resetHospitalConfirm:
+        'This removes the hospital template for this document. Branches with their own template keep it.',
+      resetBranch: 'Remove the template of this branch',
+      resetHospital: 'Remove the hospital template',
+      resetBranchDone: 'Removed. This branch now uses the next template in the lookup.',
+      errors: {
+        PRINT_SCOPE_FORBIDDEN:
+          'You cannot change the hospital template. Choose This branch only, or ask a hospital-wide Admin.',
+        PRINT_SCOPE_INVALID: 'That place to save is not valid. Reload the page and try again.',
+      } as Record<string, string>,
       presetLabel: 'Start from',
       presetCustom: 'Custom',
       presetApplied: 'Started from this layout. Undo brings your boxes back.',

@@ -6,6 +6,7 @@ import {
   HttpCode,
   Param,
   Put,
+  Query,
   Req,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -15,7 +16,7 @@ import { TokenKinds } from '../auth/token-kinds.decorator';
 import type { AccessClaims, HospitalAccessClaims } from '../auth/token.types';
 import { isHospitalTokenType } from '../auth/token.types';
 import type { Actor } from '../opd-visits/opd-visits.service';
-import { parseDocType, PrintTemplatesService } from './print-templates.service';
+import { parseDocType, parseScope, PrintTemplatesService } from './print-templates.service';
 
 type HttpReq = { auth?: AccessClaims };
 
@@ -40,7 +41,7 @@ export class PrintTemplatesController {
   @AuthenticatedOnly()
   @ApiOperation({
     summary:
-      'The template of every document (registration slip, receipt, prescription) for this hospital: saved, or the built-in default',
+      'The template that applies to the signed-in branch for every document (registration slip, receipt, prescription): the branch own, else the hospital one, else the built-in default; and what the caller may change',
   })
   async list(@Req() req: HttpReq) {
     return this.templates.list(actorOf(req));
@@ -65,21 +66,34 @@ export class PrintTemplatesController {
   @RequirePermission('opd.settings.write', { module: 'OPD' })
   @ApiOperation({
     summary:
-      'Save the template of one document (replaces it). Paper, margins, mode and layout are checked field by field.',
+      'Save the template of one document (replaces it). scope=branch saves it for the signed-in branch only; scope=hospital (the default) for the whole hospital and needs the permission in every branch. Paper, margins, mode and layout are checked field by field.',
   })
   async save(
     @Req() req: HttpReq,
     @Param('docType') docType: string,
     @Body() body: Record<string, unknown>,
+    @Query('scope') scope?: string,
   ) {
-    return this.templates.saveWithRetry(actorOf(req), parseDocType(docType), body);
+    return this.templates.saveWithRetry(
+      actorOf(req),
+      parseDocType(docType),
+      body,
+      parseScope(scope),
+    );
   }
 
   @Delete('print-templates/:docType')
   @HttpCode(200)
   @RequirePermission('opd.settings.write', { module: 'OPD' })
-  @ApiOperation({ summary: 'Go back to the built-in default of one document' })
-  async reset(@Req() req: HttpReq, @Param('docType') docType: string) {
-    return this.templates.reset(actorOf(req), parseDocType(docType));
+  @ApiOperation({
+    summary:
+      'Remove the saved template of one document in the chosen scope (branch or hospital): the lookup then falls back to the next level',
+  })
+  async reset(
+    @Req() req: HttpReq,
+    @Param('docType') docType: string,
+    @Query('scope') scope?: string,
+  ) {
+    return this.templates.reset(actorOf(req), parseDocType(docType), parseScope(scope));
   }
 }
