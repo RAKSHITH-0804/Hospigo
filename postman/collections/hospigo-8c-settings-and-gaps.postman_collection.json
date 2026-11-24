@@ -712,7 +712,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.sendRequest({url: pm.collectionVariables.get('baseUrl') + '/settings/payment-modes', method: 'GET', header: {Authorization: 'Bearer ' + pm.collectionVariables.get('tSA')}}, (err, res) => { const c = res.json().items.find(x => x.code === 'CASH'); pm.collectionVariables.set('cashId', c.id); });"
+                  "pm.sendRequest({url: pm.variables.get('baseUrl') + '/settings/payment-modes', method: 'GET', header: {Authorization: 'Bearer ' + pm.collectionVariables.get('tSA')}}, (err, res) => { const c = res.json().items.find(x => x.code === 'CASH'); pm.collectionVariables.set('cashId', c.id); });"
                 ]
               }
             },

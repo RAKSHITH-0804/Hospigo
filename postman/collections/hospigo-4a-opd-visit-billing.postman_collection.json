@@ -282,7 +282,7 @@
                   "  const avail = items.filter(d => d.available);",
                   "  const ID = avail[avail.length - 1].id;",
                   "  pm.collectionVariables.set('offDoctorMine', ID);",
-                  "  pm.sendRequest({ url: pm.collectionVariables.get('baseUrl') + '/opd/doctors/' + ID + '/availability/switch', method: 'PUT', header: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + pm.collectionVariables.get('superAccess') }, body: { mode: 'raw', raw: JSON.stringify({ availabilityOn: false }) } }, (err, res) => { pm.test('doctor switch off (200)', () => { pm.expect(err).to.eql(null); pm.expect(res.code).to.eql(200); }); });",
+                  "  pm.sendRequest({ url: pm.variables.get('baseUrl') + '/opd/doctors/' + ID + '/availability/switch', method: 'PUT', header: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + pm.collectionVariables.get('superAccess') }, body: { mode: 'raw', raw: JSON.stringify({ availabilityOn: false }) } }, (err, res) => { pm.test('doctor switch off (200)', () => { pm.expect(err).to.eql(null); pm.expect(res.code).to.eql(200); }); });",
                   "}"
                 ]
               }
@@ -324,7 +324,10 @@
                   "pm.test('200', () => pm.response.to.have.status(200));",
                   "const items = pm.response.json().items;",
                   "const available = items.filter(d => d.available);",
-                  "const off = items.find(d => !d.available);",
+                  "const off = items.find(d => !d.available && d.unavailableReason === 'SWITCH_OFF');",
+                  "// Doctor A is the one this collection signs in as (Doctor North 2), Doctor B any other available doctor",
+                  "const docA = available.find(d => /North 2/.test(d.name)) || available[0];",
+                  "const docB = available.find(d => d.id !== docA.id);",
                   "pm.test('at least two available doctors with fees in paise', () => {",
                   "  pm.expect(available.length).to.be.at.least(2);",
                   "  pm.expect(available[0].feeNewPaise).to.be.a('number');",
@@ -334,10 +337,10 @@
                   "  pm.expect(off.unavailableReason).to.eql('SWITCH_OFF');",
                   "});",
                   "pm.test('no email addresses in the list', () => pm.expect(JSON.stringify(items)).to.not.include('@'));",
-                  "pm.collectionVariables.set('doctorAId', available[0].id);",
-                  "pm.collectionVariables.set('doctorAFee', String(available[0].feeNewPaise));",
-                  "pm.collectionVariables.set('doctorBId', available[1].id);",
-                  "pm.collectionVariables.set('doctorBFee', String(available[1].feeNewPaise));",
+                  "pm.collectionVariables.set('doctorAId', docA.id);",
+                  "pm.collectionVariables.set('doctorAFee', String(docA.feeNewPaise));",
+                  "pm.collectionVariables.set('doctorBId', docB.id);",
+                  "pm.collectionVariables.set('doctorBFee', String(docB.feeNewPaise));",
                   "pm.collectionVariables.set('doctorOffId', off.id);"
                 ]
               }
@@ -1477,7 +1480,7 @@
                   "pm.test('200', () => pm.response.to.have.status(200));",
                   "if (pm.collectionVariables.get('offWasMine') === 'yes') {",
                   "  const ID = pm.collectionVariables.get('offDoctorMine');",
-                  "  pm.sendRequest({ url: pm.collectionVariables.get('baseUrl') + '/opd/doctors/' + ID + '/availability/switch', method: 'PUT', header: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + pm.collectionVariables.get('superAccess') }, body: { mode: 'raw', raw: JSON.stringify({ availabilityOn: true }) } }, (err, res) => { pm.test('doctor switch on (200)', () => { pm.expect(err).to.eql(null); pm.expect(res.code).to.eql(200); }); });",
+                  "  pm.sendRequest({ url: pm.variables.get('baseUrl') + '/opd/doctors/' + ID + '/availability/switch', method: 'PUT', header: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + pm.collectionVariables.get('superAccess') }, body: { mode: 'raw', raw: JSON.stringify({ availabilityOn: true }) } }, (err, res) => { pm.test('doctor switch on (200)', () => { pm.expect(err).to.eql(null); pm.expect(res.code).to.eql(200); }); });",
                   "}"
                 ]
               }
