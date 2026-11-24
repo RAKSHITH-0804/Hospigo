@@ -6,6 +6,7 @@ import { PrintingSettings } from '@/components/print/printing-settings';
 import { UhidStartCard } from '@/components/patients/uhid-start-card';
 import { DoctorsList } from '@/components/settings/doctors-list';
 import { OpdRulesForm } from '@/components/settings/opd-rules-form';
+import { NumberSeriesScreen } from '@/components/settings/number-series-screen';
 import { PaymentModesScreen } from '@/components/settings/payment-modes-screen';
 import { PricesScreen } from '@/components/settings/prices-screen';
 import { VitalsFieldsScreen } from '@/components/settings/vitals-fields-screen';
@@ -29,9 +30,11 @@ import { API_DOCTOR_PROFILES, type DoctorsListResponse } from '@/lib/doctors/typ
 import { API_BRANDING, type BrandingResponse } from '@/lib/images/types';
 import { API_IMPORTS, type ImportListResponse } from '@/lib/imports/types';
 import {
+  API_NUMBER_SERIES,
   API_PAYMENT_MODES,
   API_VITALS_FIELDS,
   type PaymentModesResponse,
+  type SeriesResponse,
   type VitalsFieldsResponse,
 } from '@/lib/masters/types';
 import { API_PRICES, PRICE_KINDS, type PriceKind, type PricesResponse } from '@/lib/prices/types';
@@ -69,6 +72,7 @@ const WIDE_SECTIONS = [
   'upload-lists',
   'payment-modes',
   'vitals-fields',
+  'bill-numbers',
 ];
 
 export const metadata: Metadata = { title: staffCopy.pageTitles.settings };
@@ -231,6 +235,15 @@ export default async function SettingsSectionPage({
       <PaymentModesScreen
         initial={modes.status === 'ok' ? modes.data : null}
         initialErrorCode={modes.status === 'ok' ? null : serverErrorCode(modes)}
+      />
+    );
+  }
+  if (section.id === 'bill-numbers') {
+    const series = await fetchStaffOnServer<SeriesResponse>(API_NUMBER_SERIES);
+    content = (
+      <NumberSeriesScreen
+        initial={series.status === 'ok' ? series.data : null}
+        initialErrorCode={series.status === 'ok' ? null : serverErrorCode(series)}
       />
     );
   }

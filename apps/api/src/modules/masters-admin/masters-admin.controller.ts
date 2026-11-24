@@ -16,6 +16,7 @@ import { TokenKinds } from '../auth/token-kinds.decorator';
 import type { AccessClaims, HospitalAccessClaims } from '../auth/token.types';
 import { isHospitalTokenType } from '../auth/token.types';
 import { MASTERS_CONFIG as C } from './masters.config';
+import { NumberSeriesAdminService } from './number-series-admin.service';
 import { PaymentModesService } from './payment-modes.service';
 import { VitalsFieldsService } from './vitals-fields.service';
 
@@ -50,6 +51,7 @@ export class MastersAdminController {
   constructor(
     private readonly modes: PaymentModesService,
     private readonly vitals: VitalsFieldsService,
+    private readonly series: NumberSeriesAdminService,
   ) {}
 
   // ----------------------------------------------------------------------- payment modes
@@ -113,5 +115,47 @@ export class MastersAdminController {
   })
   async changeVitalsField(@Req() req: HttpReq, @Param('id') id: string, @Body() body: unknown) {
     return this.vitals.update(actorOf(req), idOf(id), body);
+  }
+
+  // ----------------------------------------------------------------------- number series
+
+  @Get('number-series')
+  @RequirePermission('opd.settings.write', { module: 'OPD' })
+  @ApiOperation({
+    summary:
+      'The bill, receipt and refund number series: format, reset rule, whether they are locked and the next number (hospital-wide Admin only)',
+  })
+  async numberSeries(@Req() req: HttpReq) {
+    return this.series.list(actorOf(req));
+  }
+
+  @Put('number-series/:series/start-number')
+  @HttpCode(200)
+  @RequirePermission('opd.settings.write', { module: 'OPD' })
+  @ApiOperation({
+    summary:
+      'Raise the counter of the current period so the next number is the one given (never lowers it; needs a reason)',
+  })
+  async setStartNumber(
+    @Req() req: HttpReq,
+    @Param('series') series: string,
+    @Body() body: unknown,
+  ) {
+    return this.series.setStartNumber(actorOf(req), series, body);
+  }
+
+  @Put('number-series/:series')
+  @HttpCode(200)
+  @RequirePermission('opd.settings.write', { module: 'OPD' })
+  @ApiOperation({
+    summary:
+      'Change the prefix, separator, financial year style and width of a series (only new numbers change); the reset rule and the financial year start only before the first number',
+  })
+  async changeNumberSeries(
+    @Req() req: HttpReq,
+    @Param('series') series: string,
+    @Body() body: unknown,
+  ) {
+    return this.series.update(actorOf(req), series, body);
   }
 }

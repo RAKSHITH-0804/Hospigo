@@ -26,7 +26,7 @@ describe('the settings menu', () => {
       ['people', ['staff', 'roles', 'doctors']],
       ['patients', ['patient-registration', 'patient-numbers']],
       ['opd', ['opd-rules', 'vitals-fields', 'upload-lists']],
-      ['billing', ['prices', 'payment-modes']],
+      ['billing', ['prices', 'payment-modes', 'bill-numbers']],
     ]);
   });
 

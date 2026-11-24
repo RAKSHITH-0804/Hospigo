@@ -32,7 +32,8 @@ export type SettingsSection = {
     | 'prices'
     | 'uploadLists'
     | 'paymentModes'
-    | 'vitalsFields';
+    | 'vitalsFields'
+    | 'billNumbers';
   route: string;
   /** Permission needed to view the section (changing needs the matching write permission). */
   permission: string;
@@ -120,6 +121,14 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     copyKey: 'paymentModes',
     route: `${SETTINGS_BASE_ROUTE}/payment-modes`,
     permission: 'opd.masters.write',
+  },
+  {
+    id: 'bill-numbers',
+    group: 'billing',
+    copyKey: 'billNumbers',
+    route: `${SETTINGS_BASE_ROUTE}/bill-numbers`,
+    // The API also needs a hospital-wide Admin (money numbering).
+    permission: 'opd.settings.write',
   },
   {
     id: 'upload-lists',

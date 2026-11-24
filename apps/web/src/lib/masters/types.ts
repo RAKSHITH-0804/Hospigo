@@ -34,4 +34,28 @@ export const API_VITALS_FIELDS = '/settings/vitals-fields';
 export const MASTERS_ROUTES = {
   paymentModes: '/api/staff/settings/payment-modes',
   vitalsFields: '/api/staff/settings/vitals-fields',
+  numberSeries: '/api/staff/settings/number-series',
 } as const;
+
+export type SeriesKind = 'BILL' | 'RECEIPT' | 'REFUND';
+
+export type SeriesRow = {
+  series: SeriesKind;
+  configured: boolean;
+  /** False when the stored format has another shape than the screen makes: shown, not edited. */
+  editable: boolean;
+  prefix: string;
+  separator: string;
+  fyStyle: 'SHORT' | 'LONG';
+  width: number;
+  resetRule: 'NEVER' | 'FINANCIAL_YEAR';
+  fyStartMonth: number;
+  /** A number of the series exists: the reset rule and the financial year start can no longer change. */
+  locked: boolean;
+  lastNumber: string;
+  next: string;
+};
+
+export type SeriesResponse = { items: SeriesRow[]; today: string };
+
+export const API_NUMBER_SERIES = '/settings/number-series';

@@ -3,6 +3,9 @@ import {
   MASTERS_ROUTES,
   type PaymentModeRow,
   type PaymentModesResponse,
+  type SeriesKind,
+  type SeriesResponse,
+  type SeriesRow,
   type VitalsFieldRow,
   type VitalsFieldsResponse,
 } from './types';
@@ -68,5 +71,36 @@ export function reorderVitalsFields(
   return patientsApi<VitalsFieldsResponse>(`${MASTERS_ROUTES.vitalsFields}/reorder`, {
     method: 'POST',
     body: { ids },
+  });
+}
+
+export function listNumberSeries(): Promise<PatientsApiResult<SeriesResponse>> {
+  return patientsApi<SeriesResponse>(MASTERS_ROUTES.numberSeries);
+}
+
+export function changeNumberSeries(
+  series: SeriesKind,
+  body: {
+    prefix?: string;
+    separator?: string;
+    fyStyle?: 'SHORT' | 'LONG';
+    width?: number;
+    resetRule?: 'NEVER' | 'FINANCIAL_YEAR';
+    fyStartMonth?: number;
+  },
+): Promise<PatientsApiResult<SeriesRow>> {
+  return patientsApi<SeriesRow>(`${MASTERS_ROUTES.numberSeries}/${series}`, {
+    method: 'PUT',
+    body,
+  });
+}
+
+export function raiseStartNumber(
+  series: SeriesKind,
+  body: { startNumber: number; reason: string },
+): Promise<PatientsApiResult<SeriesRow>> {
+  return patientsApi<SeriesRow>(`${MASTERS_ROUTES.numberSeries}/${series}/start-number`, {
+    method: 'PUT',
+    body,
   });
 }
