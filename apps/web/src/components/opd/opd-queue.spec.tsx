@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { OpdQueue } from '@/components/opd/opd-queue';
 import { staffCopy } from '@/config/staff-copy';
@@ -34,6 +34,7 @@ const queue = (over: Partial<QueueResponse> = {}): QueueResponse => ({
   date: '2026-11-19',
   scope: 'OWN',
   total: 2,
+  doctors: [],
   items: [first, second],
   ...over,
 });
@@ -259,6 +260,66 @@ describe('OpdQueue', () => {
     );
     expect(screen.getByText(copy.emptyTitle)).toBeTruthy();
     expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('a nurse or reception can pick one doctor: the queue is asked again for that doctor and the choice stays through refreshes', async () => {
+    const doctors = [
+      { id: 'd1', name: 'Dr Anil' },
+      { id: 'd2', name: 'Dr Rao' },
+    ];
+    fetchMock.mockResolvedValue(json(queue({ scope: 'BRANCH', doctors, items: [second] })));
+    render(
+      <OpdQueue
+        initial={queue({ scope: 'BRANCH', doctors })}
+        refreshSeconds={0}
+        canOpenConsultation={false}
+        canViewNotes={false}
+        canRecordVitals
+      />,
+    );
+    const select = screen.getByLabelText(copy.doctorFilter) as HTMLSelectElement;
+    expect(within(select).getByText(copy.allDoctors)).toBeTruthy();
+    await act(async () => {
+      fireEvent.change(select, { target: { value: 'd2' } });
+    });
+    expect(fetchMock.mock.calls[0]![0]).toBe(`${OPD_QUEUE_API}?doctorProfileId=d2`);
+    expect(screen.queryByText('Ravi Kumar')).toBeNull();
+    expect(screen.getByText('Sita Devi')).toBeTruthy();
+    // the choices stay (they come from the whole branch queue), and Refresh keeps the doctor
+    expect(within(select).getByText('Dr Anil')).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: copy.refresh }));
+    });
+    expect(fetchMock.mock.calls[1]![0]).toBe(`${OPD_QUEUE_API}?doctorProfileId=d2`);
+    // back to everyone
+    await act(async () => {
+      fireEvent.change(select, { target: { value: '' } });
+    });
+    expect(fetchMock.mock.calls[2]![0]).toBe(OPD_QUEUE_API);
+  });
+
+  it('a doctor sees no doctor filter, and neither does a branch with nobody in the queue', () => {
+    const own = render(
+      <OpdQueue
+        initial={queue()}
+        refreshSeconds={0}
+        canOpenConsultation
+        canViewNotes
+        canRecordVitals
+      />,
+    );
+    expect(screen.queryByLabelText(copy.doctorFilter)).toBeNull();
+    own.unmount();
+    render(
+      <OpdQueue
+        initial={queue({ scope: 'BRANCH', doctors: [], items: [] })}
+        refreshSeconds={0}
+        canOpenConsultation={false}
+        canViewNotes={false}
+        canRecordVitals
+      />,
+    );
+    expect(screen.queryByLabelText(copy.doctorFilter)).toBeNull();
   });
 
   it('Refresh loads the queue again and shows the new patient', async () => {

@@ -19,6 +19,30 @@ import { cn } from '@/lib/utils';
 
 const copy = staffCopy.opd.clinical.vitals;
 
+/** The usual range of a field as words, an open end shown as three dots. */
+function rangeOf(field: VitalsField): string {
+  return `${field.warnMin ?? '…'} – ${field.warnMax ?? '…'}`;
+}
+
+/** True when the typed number is below the lowest or above the highest usual value (warn only, never blocks). */
+function outsideRange(field: VitalsField, text: string): boolean {
+  const t = text.trim();
+  if (
+    field.valueKind !== 'NUMBER' ||
+    t === '' ||
+    (field.warnMin === null && field.warnMax === null)
+  ) {
+    return false;
+  }
+  const n = Number(t);
+  if (!Number.isFinite(n)) {
+    return false;
+  }
+  return (
+    (field.warnMin !== null && n < field.warnMin) || (field.warnMax !== null && n > field.warnMax)
+  );
+}
+
 /**
  * Record and correct the vitals of one visit. A blank box is skipped, a value equal to the
  * current reading is skipped, and changing an existing reading asks for a reason (the old reading
@@ -129,6 +153,12 @@ export function VitalsForm({
                           error={problem === 'INVALID' ? copy.invalidValue : undefined}
                           onChange={(e) => setDraft(field.code, { value: e.target.value })}
                         />
+                        {outsideRange(field, draft.value) ? (
+                          <p className="type-small" role="status">
+                            <Badge variant="warning">{copy.outOfRange}</Badge>{' '}
+                            {fill(copy.outOfRangeTyped, { range: rangeOf(field) })}
+                          </p>
+                        ) : null}
                         {needsReason ? (
                           <InputField
                             label={`${field.name}: ${copy.reason}`}
@@ -154,7 +184,7 @@ export function VitalsForm({
                                 value: h.value,
                                 who: h.recordedBy.name,
                               })}{' '}
-                              <span suppressHydrationWarning>{formatDateTime(h.recordedAt)}</span>
+                              <span>{formatDateTime(h.recordedAt)}</span>
                               {h.correctionReason
                                 ? ` · ${fill(copy.historyReason, { reason: h.correctionReason })}`
                                 : ''}

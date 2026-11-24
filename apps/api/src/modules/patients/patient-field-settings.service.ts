@@ -7,6 +7,7 @@ import {
   patientFieldSectionRank,
   type PatientFieldSection,
 } from './patient-field-sections';
+import { codeFromLabel, REFERENCE_FIELD_SET } from './patient-reference-fields';
 
 /** Limits of the "registration fields" settings screen. One place, no magic numbers. */
 export const FIELD_SETTINGS_LIMITS = {
@@ -61,14 +62,7 @@ function readBoolean(value: unknown, field: string): boolean | undefined {
   return value;
 }
 
-/** `cf_` plus the label in lower case letters, digits and underscores. */
-export function codeFromLabel(label: string): string {
-  const slug = label
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-  return `cf_${slug || 'field'}`.slice(0, FIELD_SETTINGS_LIMITS.codeMax - 4);
-}
+export { codeFromLabel };
 
 export type BuiltinFieldRow = {
   key: string;
@@ -283,6 +277,40 @@ export class PatientFieldSettingsService {
       }),
     );
     return this.oneCustom(actor, id);
+  }
+
+  /**
+   * Adds the ready-made reference fields (Referred by, Category, Organisation, Staff number) that
+   * the hospital does not have yet. A field whose name is already used is left exactly as it is;
+   * pressing it twice, or two Admins at the same moment, adds each field once.
+   */
+  async addReferenceSet(
+    actor: Actor,
+  ): Promise<{ created: string[]; kept: string[]; skipped: string[] }> {
+    const created: string[] = [];
+    const kept: string[] = [];
+    const skipped: string[] = [];
+    for (const def of REFERENCE_FIELD_SET) {
+      try {
+        await this.createCustom(actor, {
+          label: def.label,
+          dataType: def.dataType,
+          section: def.section,
+          ...(def.options ? { options: [...def.options] } : {}),
+        });
+        created.push(def.label);
+      } catch (error) {
+        const reason = (error as { response?: { reason?: string } }).response?.reason;
+        if (reason === FieldReason.DUPLICATE) {
+          kept.push(def.label);
+        } else if (reason === FieldReason.TOO_MANY) {
+          skipped.push(def.label);
+        } else {
+          throw error;
+        }
+      }
+    }
+    return { created, kept, skipped };
   }
 
   /** Renames, moves, turns off and on, or makes required. Never deletes: saved answers stay. */

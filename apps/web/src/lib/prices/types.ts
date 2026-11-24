@@ -25,6 +25,8 @@ export type PriceRow = {
   currentFrom: string | null;
   nextAmountPaise: number | null;
   nextFrom: string | null;
+  /** A follow-up fee row with no separate follow-up fee: it costs the same as the new-visit fee. */
+  followsBase: boolean;
 };
 
 export type PricesResponse = {

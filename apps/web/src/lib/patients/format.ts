@@ -1,3 +1,4 @@
+import { opdWebConfig } from '@/config/opd';
 import { PATIENT_PHONE_DISPLAY_GROUPS, patientsWebConfig } from '@/config/patients';
 import { staffCopy } from '@/config/staff-copy';
 
@@ -35,10 +36,11 @@ export function dateOnly(value: string | null | undefined): string {
   return value ? value.slice(0, 10) : EMPTY_VALUE;
 }
 
-/** Format an ISO timestamp for the patients list (locale from config). */
+/** Format an ISO timestamp for the patients list (fixed locale and hospital time zone). */
 export function formatRegisteredOn(
   iso: string | null | undefined,
   locale: string = patientsWebConfig.dateLocale,
+  timeZone: string = opdWebConfig.reportTimeZone,
 ): string {
   if (!iso) {
     return EMPTY_VALUE;
@@ -51,6 +53,7 @@ export function formatRegisteredOn(
     day: '2-digit',
     month: 'short',
     year: 'numeric',
+    timeZone,
   }).format(date);
 }
 

@@ -32,6 +32,8 @@ export type QueueResponse = {
   /** OWN: a doctor's own queue. BRANCH: the whole branch (a nurse). */
   scope: 'OWN' | 'BRANCH';
   total: number;
+  /** The doctors that have visits in the branch queue (empty for a doctor's own queue): the filter choices. */
+  doctors: Array<{ id: string; name: string }>;
   items: QueueItem[];
 };
 

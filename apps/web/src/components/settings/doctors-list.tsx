@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ImagePicker } from '@/components/images/image-picker';
 import { AvailabilityDialog } from '@/components/settings/availability-panel';
+import { LeaveRequestsDialog } from '@/components/settings/leave-requests-dialog';
 import { SettingBlock } from '@/components/settings/setting-block';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
@@ -22,6 +23,7 @@ import { settingsErrorMessage } from '@/lib/settings/errors';
 const copy = staffCopy.settings.doctors;
 const pictures = staffCopy.pictures.signature;
 const availability = staffCopy.availability;
+const leave = staffCopy.leave;
 
 type Draft = {
   printedName: string;
@@ -47,14 +49,28 @@ const draftOf = (d: DoctorProfile): Draft => ({
 export function DoctorsList({
   initial,
   initialErrorCode,
+  pendingLeaveRequests = null,
+  activeBranchName = null,
+  filterToActiveBranch = false,
 }: {
   initial: DoctorsListResponse | null;
   initialErrorCode: string | null;
+  /** Waiting leave requests the Admin may decide (null: unknown, the button shows no number). */
+  pendingLeaveRequests?: number | null;
+  /** The branch the SuperAdmin switched to (names match doctor.branches). */
+  activeBranchName?: string | null;
+  /**
+   * When true (hospital-wide Admin with a branch switcher), only doctors who work in
+   * activeBranchName are listed. Branch Admins already get a scoped list from the API.
+   */
+  filterToActiveBranch?: boolean;
 }) {
   const [items, setItems] = useState(initial?.items ?? []);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [availabilityId, setAvailabilityId] = useState<string | null>(null);
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [pending, setPending] = useState<number | null>(pendingLeaveRequests);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const busy = useRef(false);
@@ -113,21 +129,38 @@ export function DoctorsList({
   const editingDoctor = items.find((d) => d.id === editingId) ?? null;
   const set = (patch: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...patch } : d));
   const value = (text: string | null) => text ?? copy.notSet;
+  const shown =
+    filterToActiveBranch && activeBranchName
+      ? items.filter((d) => d.branches.includes(activeBranchName))
+      : items;
 
   return (
     <SettingBlock title={copy.title} description={copy.description}>
       {!canWrite ? <p className="type-label text-muted-foreground">{copy.readOnly}</p> : null}
+      {canWrite ? (
+        <div className="cluster-end">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-haspopup="dialog"
+            onClick={() => setLeaveOpen(true)}
+          >
+            {pending ? leave.openWithCount.replace('{count}', String(pending)) : leave.open}
+          </Button>
+        </div>
+      ) : null}
       <p
         role={message?.kind === 'error' ? 'alert' : 'status'}
         className={`settings-flash settings-flash-lazy type-label ${message?.kind === 'error' ? 'text-destructive' : 'text-foreground'}`}
       >
         {message?.text ?? ''}
       </p>
-      {items.length === 0 ? (
+      {shown.length === 0 ? (
         <p className="type-label text-muted-foreground">{copy.empty}</p>
       ) : (
         <ul className="settings-doctors">
-          {items.map((doctor) => (
+          {shown.map((doctor) => (
             <li key={doctor.id} className="settings-doctor">
               <div className="settings-doctor-head">
                 <div className="settings-cell-name">
@@ -296,6 +329,9 @@ export function DoctorsList({
             </div>
           </form>
         </Modal>
+      ) : null}
+      {leaveOpen ? (
+        <LeaveRequestsDialog onClose={() => setLeaveOpen(false)} onPendingChange={setPending} />
       ) : null}
       {availabilityDoctor ? (
         <AvailabilityDialog

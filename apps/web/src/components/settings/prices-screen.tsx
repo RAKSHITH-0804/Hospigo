@@ -31,6 +31,14 @@ const paging = staffCopy.pagination;
 type Flash = { kind: 'ok' | 'error'; text: string } | null;
 type TableRow = PriceRow & { id: string };
 
+/** The words on the row button: set the first price, set a separate follow-up fee, or change the price. */
+function actionText(row: PriceRow): string {
+  if (row.followsBase && row.currentAmountPaise !== null) {
+    return copy.setSeparate;
+  }
+  return row.currentAmountPaise === null ? copy.setFirst : copy.change;
+}
+
 function typeText(row: PriceRow): string {
   return copy.types[row.kind === 'DOCTOR_FEE' ? (row.visitType ?? '') : row.kind] ?? row.kind;
 }
@@ -45,9 +53,12 @@ export function PricesScreen({
   initial,
   initialErrorCode,
   startQuery,
+  branchId,
 }: {
   initial: PricesResponse | null;
   initialErrorCode: string | null;
+  /** The active branch the first list was made for; doctor fees follow it. */
+  branchId?: string | null;
   /** The search and filter the page was opened with (the first list is already for them). */
   startQuery?: { q: string; kind: PriceKind | '' };
 }) {
@@ -89,7 +100,7 @@ export function PricesScreen({
       () => {
         setLoading(true);
         setListError(null);
-        void listPrices({ q: q.trim(), kind, page }).then((result) => {
+        void listPrices({ q: q.trim(), kind, page, branchId }).then((result) => {
           if (!live) {
             return;
           }
@@ -107,7 +118,7 @@ export function PricesScreen({
       live = false;
       clearTimeout(timer);
     };
-  }, [q, kind, page, reloadTick]);
+  }, [q, kind, page, reloadTick, branchId]);
 
   if (!data) {
     return (
@@ -187,6 +198,11 @@ export function PricesScreen({
       cell: (row) =>
         row.currentAmountPaise === null ? (
           <Badge variant="warning">{copy.noPrice}</Badge>
+        ) : row.followsBase ? (
+          <span>
+            {formatPaise(row.currentAmountPaise)}{' '}
+            <span className="type-small text-muted-foreground">({copy.sameAsNew})</span>
+          </span>
         ) : (
           formatPaise(row.currentAmountPaise)
         ),
@@ -218,10 +234,10 @@ export function PricesScreen({
             type="button"
             size="sm"
             variant="outline"
-            aria-label={`${row.name}: ${row.currentAmountPaise === null ? copy.setFirst : copy.change}`}
+            aria-label={`${row.name}: ${actionText(row)}`}
             onClick={() => openEditor(row)}
           >
-            {row.currentAmountPaise === null ? copy.setFirst : copy.change}
+            {actionText(row)}
           </Button>
           <Button
             type="button"
@@ -280,7 +296,12 @@ export function PricesScreen({
       {editing ? (
         <form className="surface-card section-stack" onSubmit={onSubmit} noValidate>
           <h3 className="type-label-strong">
-            {(firstPrice ? copy.setTitle : copy.changeTitle).replace('{name}', editing.name)}
+            {(editing.followsBase && editing.currentAmountPaise !== null
+              ? copy.setSeparateTitle
+              : firstPrice
+                ? copy.setTitle
+                : copy.changeTitle
+            ).replace('{name}', editing.name)}
           </h3>
           <p className="type-small text-muted-foreground">
             {copy.typeLine.replace('{type}', typeText(editing)).replace('{code}', editing.code)}
@@ -288,6 +309,9 @@ export function PricesScreen({
               ? ` · ${copy.currentLine.replace('{amount}', formatPaise(editing.currentAmountPaise))}`
               : ''}
           </p>
+          {editing.kind === 'DOCTOR_FEE' && editing.visitType === 'FOLLOW_UP' ? (
+            <p className="type-small text-muted-foreground">{copy.followUpNote}</p>
+          ) : null}
           <div className="cluster-top">
             <InputField
               label={copy.amountLabel}
@@ -347,7 +371,9 @@ export function PricesScreen({
               {copy.historyLoadError}
             </p>
           ) : history.length === 0 ? (
-            <p className="type-label text-muted-foreground">{copy.historyEmpty}</p>
+            <p className="type-label text-muted-foreground">
+              {historyRow.followsBase ? copy.historyFollowsBase : copy.historyEmpty}
+            </p>
           ) : (
             <DataTable<PriceVersion>
               ariaLabel={copy.history}

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { ChargeItemPrice, DoctorFee, VisitType } from '../../generated/prisma';
 import { TenantDb } from '../../database/tenant-db';
 import { requireContext } from '../../common/request-context';
+import { resolveDoctorFee } from './doctor-fee';
 
 @Injectable()
 export class PriceService {
@@ -28,15 +29,7 @@ export class PriceService {
   ): Promise<DoctorFee | null> {
     return this.tenantDb.withTenant(async (tx) => {
       const ctx = requireContext();
-      return tx.doctorFee.findFirst({
-        where: {
-          tenantId: ctx.tenantId!,
-          doctorProfileId,
-          visitType,
-          effectiveFrom: { lte: at },
-        },
-        orderBy: { effectiveFrom: 'desc' },
-      });
+      return (await resolveDoctorFee(tx, ctx.tenantId!, doctorProfileId, visitType, at)).fee;
     });
   }
 

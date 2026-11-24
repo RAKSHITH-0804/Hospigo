@@ -4,10 +4,12 @@ import Link from 'next/link';
 import { RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { EmptyState } from '@/components/states/empty-state';
+import { RefundRequestAction } from '@/components/opd/refund-request-action';
 import { CLINICAL_STATUS_VARIANT, ageText } from '@/components/opd/visit-header';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
+import { SelectField } from '@/components/ui/field';
 import { PageHeader } from '@/components/ui/page-header';
 import { staffCopy } from '@/config/staff-copy';
 import { consultPath, loadQueue, vitalsPath } from '@/lib/opd/clinical-client';
@@ -47,12 +49,15 @@ export function OpdQueue({
   canOpenConsultation,
   canViewNotes,
   canRecordVitals,
+  canRequestCancel = false,
 }: {
   initial: QueueResponse;
   refreshSeconds: number;
   canOpenConsultation: boolean;
   canViewNotes: boolean;
   canRecordVitals: boolean;
+  /** Reception may ask to cancel a waiting visit (opd.refunds.request). */
+  canRequestCancel?: boolean;
 }) {
   const [data, setData] = useState<QueueResponse>(initial);
   const [updatedAt, setUpdatedAt] = useState<Date>(() => new Date());
@@ -61,7 +66,9 @@ export function OpdQueue({
   const [filter, setFilter] = useState<Filter>(
     canOpenConsultation || canRecordVitals ? 'WAITING' : 'ALL',
   );
+  const [doctorId, setDoctorId] = useState('');
   const inFlight = useRef(false);
+  const doctorRef = useRef('');
 
   const refresh = useCallback(async () => {
     if (inFlight.current) {
@@ -69,7 +76,7 @@ export function OpdQueue({
     }
     inFlight.current = true;
     setRefreshing(true);
-    const result = await loadQueue();
+    const result = await loadQueue(undefined, doctorRef.current || undefined);
     inFlight.current = false;
     setRefreshing(false);
     if (result.ok) {
@@ -92,6 +99,12 @@ export function OpdQueue({
     }, refreshSeconds * 1000);
     return () => clearInterval(timer);
   }, [refreshSeconds, refresh]);
+
+  function chooseDoctor(id: string) {
+    doctorRef.current = id;
+    setDoctorId(id);
+    void refresh();
+  }
 
   const waiting = data.items.filter((i) => i.status === 'WAITING').length;
   const inConsultation = data.items.filter((i) => i.status === 'IN_CONSULTATION').length;
@@ -138,7 +151,7 @@ export function OpdQueue({
             {STATUS_LABEL[v.status as keyof typeof STATUS_LABEL] ?? v.status}
           </Badge>
           {v.status === 'COMPLETED' && v.completedAt ? (
-            <span className="type-small text-muted-foreground" suppressHydrationWarning>
+            <span className="type-small text-muted-foreground">
               {fill(copy.completedAt, { time: formatClock(new Date(v.completedAt)) })}
             </span>
           ) : null}
@@ -198,6 +211,9 @@ export function OpdQueue({
                 {copy.vitals}
               </Link>
             ) : null}
+            {canRequestCancel && v.status === 'WAITING' ? (
+              <RefundRequestAction kind="CANCEL" visitId={v.id} onSent={() => void refresh()} />
+            ) : null}
           </div>
         );
       },
@@ -252,6 +268,23 @@ export function OpdQueue({
           {fill(copy.updatedAt, { time: formatClock(updatedAt) })}
         </p>
       </div>
+      {data.scope === 'BRANCH' && (data.doctors.length > 0 || doctorId) ? (
+        <div className="cluster">
+          <SelectField
+            label={copy.doctorFilter}
+            value={doctorId}
+            narrow
+            onChange={(event) => chooseDoctor(event.target.value)}
+          >
+            <option value="">{copy.allDoctors}</option>
+            {data.doctors.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </SelectField>
+        </div>
+      ) : null}
       {refreshFailed ? (
         <p role="alert" className="type-label text-destructive">
           {copy.refreshFailed}

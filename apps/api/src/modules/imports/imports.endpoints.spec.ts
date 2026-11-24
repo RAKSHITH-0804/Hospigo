@@ -831,12 +831,13 @@ describe('Excel upload of the masters (HTTP, hospigo_test)', () => {
     ).toBe(1);
   });
 
-  it("doctor fees: one type only, unknown or inactive doctor, bad type, duplicates and another hospital's doctor are exceptions", async () => {
+  it("doctor fees: the new-visit fee is required and the follow-up fee optional; unknown or inactive doctor, bad type, duplicates and another hospital's doctor are exceptions", async () => {
     const solo = await makeDoctor(A, 'solo');
+    const fupOnly = await makeDoctor(A, 'fupo');
     const pair = await makeDoctor(A, 'pair');
     const dup = await makeDoctor(A, 'dup');
     const rows = await feesFile([
-      [solo.code, 'NEW', 500, ''], // 2: only one type
+      [fupOnly.code, 'FOLLOW_UP', 300, ''], // 2: a follow-up fee without a new-visit fee
       [pair.code, 'NEW', 500, ''], // 3 ok
       [pair.code, 'FOLLOW_UP', 300, ''], // 4 ok
       ['NO_SUCH_DOCTOR', 'NEW', 500, ''], // 5
@@ -848,28 +849,32 @@ describe('Excel upload of the masters (HTTP, hospigo_test)', () => {
       [B.doc1.code, 'NEW', 500, ''], // 11 the other hospital's doctor
       [B.doc1.code, 'FOLLOW_UP', 300, ''], // 12
       [pair.code.toLowerCase(), 'NEW', 1, ''], // 13 a different code (codes match exactly)
+      [solo.code, 'NEW', 500, ''], // 14 ok: the follow-up fee is optional
     ]);
     const batch = await uploaded(A.tokens.admin, 'DOCTOR_FEES', rows, 'fees-bad.xlsx');
     const bad = reasonsByRow(await rowsOf(A.tokens.admin, batch.id, 'EXCEPTION'));
     expect(bad).toMatchObject({
-      2: 'DOCTOR_NEEDS_BOTH_TYPES',
+      2: 'DOCTOR_NEEDS_NEW_FEE',
       5: 'DOCTOR_NOT_FOUND',
       6: 'DOCTOR_INACTIVE',
       7: 'VISIT_TYPE_INVALID',
       8: 'DUPLICATE_IN_FILE',
       9: 'DUPLICATE_IN_FILE',
-      10: 'DOCTOR_NEEDS_BOTH_TYPES',
+      10: 'DOCTOR_NEEDS_NEW_FEE',
       11: 'DOCTOR_NOT_FOUND',
       12: 'DOCTOR_NOT_FOUND',
       13: 'DOCTOR_NOT_FOUND',
     });
     expect(Object.keys(bad)).not.toContain('3');
     expect(Object.keys(bad)).not.toContain('4');
+    expect(Object.keys(bad)).not.toContain('14');
     await approveAndPost(A.tokens.admin, batch.id);
     expect(await owner.doctorFee.count({ where: { doctorProfileId: pair.id } })).toBe(2);
+    // a doctor with only a new-visit fee is fine: no follow-up row is made
+    expect(await owner.doctorFee.count({ where: { doctorProfileId: solo.id } })).toBe(1);
     expect(
       await owner.doctorFee.count({
-        where: { doctorProfileId: { in: [solo.id, dup.id, B.doc1.id] } },
+        where: { doctorProfileId: { in: [fupOnly.id, dup.id, B.doc1.id] } },
       }),
     ).toBe(0);
   });

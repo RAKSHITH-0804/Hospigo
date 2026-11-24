@@ -29,9 +29,59 @@
 
 ## Unreleased
 
+## 2026-11-24 — Phase 2 Step 8c-final (prices by branch, leave behaviour, notes)
+
+- **Commit hash(es):** unverified (not committed yet; branch `feature/step-8c-ui-fixes` after `e2d542c`).
+- **Added:** optional `branchId` on `GET /opd/prices`: doctor fees only for doctors who work in that branch (fees stay per doctor, never per branch); the registration fee and tests are not filtered; another hospital's or an unknown branch is refused (400 `PRICE_INVALID`, `BRANCH_NOT_FOUND`).
+- **Changed:** the web Prices screen passes the active branch (first load and every reload); the Next route handler forwards `branchId`.
+- **Removed:** nothing.
+- **Fixed:** nothing (the rule for leave requests was not changed; a test now records it).
+- **Database (migrations, roles, RLS):** none.
+- **New .env keys (names only):** none.
+- **Tests:** API 1025 (was 1022: two price-branch tests, one leave-after-branch-move test), web 1790 (was 1788: route and screen). Lint, format check, both builds green.
+- **Decisions:** `docs/decisions/decisions-8c.md`: prices follow the active branch; leave requests after a doctor changes branch (known behaviour, judged not unsafe); web dates use `WEB_REPORT_TIME_ZONE`, not the hospital time zone (India-only for now).
+- **Follow-ups and open items:** the Fees link of a doctor outside the active branch opens a list without that doctor. Handoff note added: delete and truncate triggers break any test or seed that deletes whole hospitals. Branch Admin creating roles stays deferred.
+
+## 2026-11-24 — Phase 2 Step 8c UI fixes follow-up (consult layout + hydration)
+
+- **Commit hash(es):** `474a7e5`, `506fd9e`, `ed427d2`.
+- **Changed:** consultation page uses a named CSS grid (vitals strip full width; Note and Prescription equal columns from 1100px; actions and previous visits on their own rows); prescription row fields keep full labels via larger mins and container wrap.
+- **Fixed:** Settings, Staff last-login used `toLocaleString()` and mismatched server HTML (hydration error). Shared `@/lib/format-datetime` now formats instants with the configured locale and hospital time zone; a scan test refuses viewer-locale date formatting in components.
+- **Database (migrations, roles, RLS):** none.
+- **New .env keys (names only):** none.
+- **Tests:** web 1788 (was 1783), API 1022 (unchanged).
+- **Decisions:** none new.
+- **Follow-ups and open items:** none for this follow-up.
+
+## 2026-11-24 — Phase 2 Step 8c UI fixes (branch `feature/step-8c-ui-fixes`)
+
+- **Commit hash(es):** `3c7395f`, `2b46d09`, `b5344ae`, `d9916c2`, `d01589f`.
+- **Added:** Cancel visit on waiting OPD queue rows (same refund-request pop-up; loads the visit bill when opened); GET `/api/staff/opd/visits/:id` web proxy for that load.
+- **Changed:** consultation screen uses card sections in an auto-fit grid (vitals/note and prescription/addenda side by side on wide screens); Doctors list for a SuperAdmin follows the switched-to branch via `doctor.branches`; Bill numbers menu item needs hospital-wide scope (`canSwitchBranch`).
+- **Removed:** nothing.
+- **Fixed:** payment-line Remove sits under its row (aligned); cancel/refund form opens in the existing Modal so Visits table rows no longer grow.
+- **Database (migrations, roles, RLS):** none (web and docs only).
+- **New .env keys (names only):** none.
+- **Tests:** web 1783 (was 1780), API 1022 (unchanged).
+- **Decisions:** `docs/decisions/decisions-8c.md` — one-branch Admin stays hospital-wide for print templates and values (kept on purpose).
+- **Follow-ups and open items:** Prices doctor list still ignores the switched branch (no branch on `PriceRow`; needs API). Branch Admin creating roles, per-branch doctor fees, Postman reading vitals field, and Printing tests 13–20 stay deferred as decided.
+
+## 2026-11-24 — Phase 2 Step 8c — Settings and gaps (branch `feature/step-8c-settings-and-gaps`, not pushed)
+
+- **Commit hash(es):** see `git log` on the branch (one commit group per item, then the docs).
+- **Added:** doctor fee fallback (a follow-up with no fee of its own costs the new-visit fee) and the "Set separate follow-up fee" screen; OPD queue doctor filter; Payment modes screen and API; Vitals fields screen and API with a warning while typing; Bill numbers screen and API (format with live preview, locked count rule, raise-only start number); patient reference field set (one click, starter `--reference-fields`); "T7 cancelled" token marker; doctor leave requests (My leave, Leave requests pop-up, approval creates the leave through the Availability rules); print templates per branch (lookup branch, hospital, default; Save for this branch or the whole hospital); extra print values (Settings, Print values; inserted from the designer; printed on slip, receipt and prescription); `docs/guides/manual-regression-checklist.md`; Postman 8c collection (git-ignored, not run); a test kit for HTTP specs.
+- **Changed:** the Excel row reason `DOCTOR_NEEDS_BOTH_TYPES` became `DOCTOR_NEEDS_NEW_FEE` (follow-up fee optional); the settings menu has a Billing group (Prices, Payment modes, Bill numbers) and Print values under Hospital; hospital-wide print templates now need the settings permission in every branch; the new-hospital runbook mentions the reference fields and the new settings.
+- **Removed:** nothing.
+- **Fixed:** counters could be deleted, emptied, re-keyed, and the count rule changed after numbers existed; now refused by the database.
+- **Database (migrations, roles, RLS):** `20261127100000_number_series_protection`, `20261127110000_doctor_leave_requests` (forced RLS, no delete or truncate, close-once guard), `20261127120000_print_values` (forced RLS, plain-text checks, no delete or truncate, identity guard); applied to `hospigo_test` only.
+- **New .env keys (names only):** none.
+- **Tests:** API 930 to 1022, web 1666 to 1780.
+- **Decisions:** `docs/decisions/decisions-8c.md` (includes the self-review and what was not built).
+- **Follow-ups and open items:** Rakshith migrates the dev database and runs Postman 8c and the manual regression checklist; hide Bill numbers from a Branch Admin?; `users` DELETE grant (Step 9); the full manual test belongs in Step 9.
+
 ## 2026-11-23 — Phase 2 Step 8b — Masters setup (starting a real hospital)
 
-- **Commit hash(es):** on `feature/step-8b-masters-setup` (not pushed); see `git log` on the branch.
+- **Commit hash(es):** merged as PR #60, merge commit `2e333ef`.
 - **Added:** doctor availability (Part D, built after the first report on the same branch): switch, weekly times per branch and leave periods, API `/opd/doctors/:id/availability` and an Availability panel on Settings, Doctors; hospital starter script (`hospital:starter`, dry run, idempotent); price change routes and Settings, OPD, Prices screen (history, effective date up to 366 days ahead); Excel upload of tests, doctor fees and medicines (preview, approve, post, cancel; all-or-nothing post) and Settings, OPD, Upload lists screen; new hospital runbook.
 - **Changed:** project rule "undo the whole batch" replaced by cancel-before-post only (prices are append-only). Raw SQL allowlist in the tenant safety-net test gained the imports and prices services.
 - **Removed:** nothing.
@@ -40,7 +90,7 @@
 - **New .env keys (names only):** none.
 - **Tests:** API 857 to 930, web 1581 to 1666.
 - **Decisions:** `docs/decisions/decisions-8b.md`. Later the same day, after Rakshith's manual tests: pop-up dialogs for Availability, doctor Edit and role Add and Edit; Fees link on each doctor; Activate and Deactivate wording for staff and roles; clearer role scope on the staff form; Upload preview with all columns; plan `docs/plans/plan-doctor-leave-requests.md` (not built; moved to Step 8c).
-- **Follow-ups and open items:** orphan files of cancelled uploads; HQ hospital creation is a go-live blocker; 8c moves after Step 9.
+- **Follow-ups and open items:** orphan files of cancelled uploads; HQ hospital creation is a go-live blocker; 8c now comes before Step 9 (decided 24 Nov).
 
 ## 2026-11-23 — Phase 2 — Step 8a: NestJS 12 and the 5 high npm findings (branch `feature/step-8a-nestjs-12`, not pushed)
 

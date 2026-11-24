@@ -5,6 +5,7 @@ import { TenantDb, type TenantTx } from '../../database/tenant-db';
 import { AccessService } from '../access/access.service';
 import { NumberSeriesService } from '../numbering/number-series.service';
 import { TokenCounterService } from '../numbering/token-counter.service';
+import { resolveDoctorFee } from '../opd-masters/doctor-fee';
 import { DoctorAvailabilityService } from '../opd-masters/doctor-availability.service';
 import { OPD_SETTINGS_DEFAULTS } from '../opd-masters/opd-settings.defaults';
 import { zonedParts } from '../patients/uhid.util';
@@ -274,6 +275,11 @@ export class OpdVisitsService {
         );
         const feeFor = (type: 'NEW' | 'FOLLOW_UP') =>
           fees.find((f) => f.doctorProfileId === profile.id && f.visitType === type)?.amountPaise ??
+          // no separate follow-up fee: a follow-up costs the new-visit fee
+          (type === 'FOLLOW_UP'
+            ? fees.find((f) => f.doctorProfileId === profile.id && f.visitType === 'NEW')
+                ?.amountPaise
+            : undefined) ??
           null;
         items.push({
           id: profile.id,
@@ -625,15 +631,7 @@ export class OpdVisitsService {
     }
 
     // ---- prices (the amount is never taken from the request)
-    const fee = await tx.doctorFee.findFirst({
-      where: {
-        tenantId,
-        doctorProfileId: doctor.id,
-        visitType: input.visitType,
-        effectiveFrom: { lte: now },
-      },
-      orderBy: { effectiveFrom: 'desc' },
-    });
+    const { fee } = await resolveDoctorFee(tx, tenantId, doctor.id, input.visitType, now);
     if (!fee) {
       throw opdError(409, OpdErrorCode.FEE_NOT_CONFIGURED, { what: 'CONSULTATION' });
     }

@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { SelectField } from '@/components/ui/field';
 import { printDesignerConfig as C } from '@/config/print';
 import { staffCopy } from '@/config/staff-copy';
+import type { EffectivePrintValue } from '@/lib/print-values/types';
 import { fill } from '@/lib/opd/clinical-format';
 import { errorMessageFor } from '@/lib/patients/client';
 import { resetPrintTemplate, savePrintTemplate } from '@/lib/print/client';
@@ -72,7 +73,9 @@ import {
   type PrintTone,
   type PrintAlign,
   type PrintPaper,
+  type PrintItem,
   type PrintPreset,
+  type PrintScope,
   type PrintTemplate,
   type PrintTemplateInput,
 } from '@/lib/print/types';
@@ -92,12 +95,18 @@ export function PrintingSettings({
   templates,
   presets,
   canWrite,
+  canChange: canChangeIn,
+  extraValues = [],
   hospitalName,
   logoImageId,
 }: {
   templates: PrintTemplate[];
   presets: PrintPreset[];
   canWrite: boolean;
+  /** What the caller may change: the templates of this branch and the hospital's (from the API). */
+  canChange?: { branch: boolean; hospital: boolean };
+  /** The extra print values that apply to this branch (Settings, Print values), insertable like any value. */
+  extraValues?: EffectivePrintValue[];
   hospitalName: string;
   /** The current hospital logo (shown in the preview), or none. */
   logoImageId?: string | null;
@@ -116,6 +125,9 @@ export function PrintingSettings({
   const [zoom, setZoom] = useState<ZoomChoice>(ZOOM_FIT_PAGE);
   const [snapMm, setSnapMm] = useState<number>(C.snapDefaultMm);
   const [view, setView] = useState<'edit' | 'preview'>('edit');
+  const canChange = canChangeIn ?? { branch: canWrite, hospital: canWrite };
+  /** Where Save and Remove act: a Branch Admin can only pick this branch. */
+  const [scope, setScope] = useState<PrintScope>(canChange.hospital ? 'hospital' : 'branch');
   const [busy, setBusy] = useState<'save' | 'reset' | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
@@ -157,10 +169,17 @@ export function PrintingSettings({
     : null;
   const elements = shownForm.layout.elements;
   const selected = elements.find((e) => e.id === selectedId) ?? null;
-  const items = sampleItems(fieldKeys, hospitalName);
+  const items = [
+    ...sampleItems(fieldKeys, hospitalName),
+    ...extraValues.map((e): PrintItem => ({ key: e.field, label: e.label, text: e.text })),
+  ];
   const onPage = fieldsOnPage(form.layout.elements);
   const atMax = form.layout.elements.length >= C.maxElements;
-  const readOnly = !canWrite || busy !== null;
+  const mayChange = canWrite && canChange[scope];
+  const readOnly = !mayChange || busy !== null;
+  const shownScope = current.scope ?? (current.source === 'CUSTOM' ? 'HOSPITAL' : 'DEFAULT');
+  /** Remove acts on the template of the chosen place, so it is offered only when that one applies. */
+  const removable = scope === 'branch' ? shownScope === 'BRANCH' : shownScope === 'HOSPITAL';
 
   function setHistory(next: History<PrintTemplateInput>) {
     setHistories((all) => ({ ...all, [docType]: next }));
@@ -297,7 +316,10 @@ export function PrintingSettings({
       ? { ...commonStyle(richSelected.content), align: commonAlign(richSelected.content) }
       : {};
   const labels = staffCopy.print.fields as Record<string, string>;
-  const valueChoices = fieldKeys.map((key) => ({ key, label: labels[key] ?? key }));
+  const valueChoices = [
+    ...fieldKeys.map((key) => ({ key, label: labels[key] ?? key })),
+    ...extraValues.map((e) => ({ key: e.field, label: e.label })),
+  ];
   /** Changes all the text of the selected box (when it is not being typed in). */
   const editAll = (change: (content: PrintContent) => PrintContent) => {
     if (richSelected?.content) {
@@ -312,7 +334,7 @@ export function PrintingSettings({
     inFlight.current = true;
     setBusy('save');
     setMessage(null);
-    const result = await savePrintTemplate(docType, toPayload(form!));
+    const result = await savePrintTemplate(docType, toPayload(form!), scope);
     inFlight.current = false;
     setBusy(null);
     if (result.ok) {
@@ -326,7 +348,7 @@ export function PrintingSettings({
         text:
           result.code === 'PRINT_TEMPLATE_INVALID'
             ? invalidMessage(result)
-            : errorMessageFor(result.code),
+            : (copy.errors[result.code] ?? errorMessageFor(result.code)),
       });
     }
   }
@@ -338,7 +360,7 @@ export function PrintingSettings({
     inFlight.current = true;
     setBusy('reset');
     setMessage(null);
-    const result = await resetPrintTemplate(docType);
+    const result = await resetPrintTemplate(docType, scope);
     inFlight.current = false;
     setBusy(null);
     setConfirmReset(false);
@@ -347,9 +369,15 @@ export function PrintingSettings({
       setHistory(startHistory(toInput(result.data)));
       setDraft(null);
       setSelectedId(null);
-      setMessage({ kind: 'ok', text: copy.resetDone });
+      setMessage({
+        kind: 'ok',
+        text:
+          result.data.scope === 'BRANCH' || result.data.scope === 'HOSPITAL'
+            ? copy.resetBranchDone
+            : copy.resetDone,
+      });
     } else {
-      setMessage({ kind: 'error', text: errorMessageFor(result.code) });
+      setMessage({ kind: 'error', text: copy.errors[result.code] ?? errorMessageFor(result.code) });
     }
   }
 
@@ -378,9 +406,34 @@ export function PrintingSettings({
       </div>
 
       <p className="type-label text-muted-foreground">
-        {current.source === 'CUSTOM' ? copy.sourceCustom : copy.sourceDefault}
+        {current.scope === 'BRANCH'
+          ? copy.scopeBranch
+          : current.scope === 'HOSPITAL'
+            ? copy.scopeHospital
+            : current.source === 'CUSTOM'
+              ? copy.sourceCustom
+              : copy.sourceDefault}
       </p>
       {canWrite ? null : <p className="type-label text-muted-foreground">{copy.readOnly}</p>}
+      {canWrite && canChange.branch && canChange.hospital ? (
+        <div className="settings-field-medium">
+          <SelectField
+            label={copy.saveFor}
+            hint={copy.saveForHint}
+            value={scope}
+            disabled={busy !== null}
+            onChange={(event) => {
+              setScope(event.target.value as PrintScope);
+              setConfirmReset(false);
+            }}
+          >
+            <option value="hospital">{copy.saveForHospital}</option>
+            <option value="branch">{copy.saveForBranch}</option>
+          </SelectField>
+        </div>
+      ) : canWrite && canChange.branch ? (
+        <p className="type-label text-muted-foreground">{copy.onlyBranch}</p>
+      ) : null}
 
       <div className="printing-designer">
         <fieldset disabled={readOnly} className="printing-form printing-side">
@@ -728,12 +781,12 @@ export function PrintingSettings({
             <Button
               type="button"
               className="touch-target"
-              disabled={!canWrite || busy !== null}
+              disabled={!mayChange || busy !== null}
               onClick={save}
             >
               {busy === 'save' ? copy.saving : copy.save}
             </Button>
-            {canWrite && current.source === 'CUSTOM' && !confirmReset ? (
+            {mayChange && removable && !confirmReset ? (
               <Button
                 type="button"
                 variant="outline"
@@ -741,12 +794,22 @@ export function PrintingSettings({
                 disabled={busy !== null}
                 onClick={() => setConfirmReset(true)}
               >
-                {copy.reset}
+                {canChangeIn
+                  ? scope === 'branch'
+                    ? copy.resetBranch
+                    : copy.resetHospital
+                  : copy.reset}
               </Button>
             ) : null}
             {confirmReset ? (
               <>
-                <span className="type-label">{copy.resetConfirm}</span>
+                <span className="type-label">
+                  {canChangeIn
+                    ? scope === 'branch'
+                      ? copy.resetBranchConfirm
+                      : copy.resetHospitalConfirm
+                    : copy.resetConfirm}
+                </span>
                 <Button
                   type="button"
                   variant="destructive"

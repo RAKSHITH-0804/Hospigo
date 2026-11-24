@@ -8,7 +8,9 @@ import { settingsScreenConfig } from '@/config/settings';
 import { staffCopy } from '@/config/staff-copy';
 import { errorMessageFor, type PatientsApiResult } from '@/lib/patients/client';
 import {
+  addReferenceSet,
   createCustomField,
+  loadPatientFields,
   saveBuiltinField,
   saveCustomOptions,
   updateCustomField,
@@ -97,6 +99,39 @@ export function RegistrationFields({
     apply(result.data);
     setMessage({ kind: 'ok', text: copy.saved, where });
     return true;
+  }
+
+  /** The ready-made reference fields: added in one click, nothing that exists is changed. */
+  async function addReferenceFields() {
+    if (lock.current) {
+      return;
+    }
+    lock.current = true;
+    setBusy(true);
+    setMessage(null);
+    const added = await addReferenceSet();
+    if (!added.ok) {
+      lock.current = false;
+      setBusy(false);
+      setMessage({ kind: 'error', text: settingsErrorMessage(added), where: 'custom' });
+      return;
+    }
+    const fresh = await loadPatientFields();
+    lock.current = false;
+    setBusy(false);
+    if (fresh.ok) {
+      setBuiltin(fresh.data.builtin);
+      setCustom(fresh.data.custom);
+    }
+    const parts = [
+      added.data.created.length > 0
+        ? copy.referenceAdded.replace('{names}', added.data.created.join(', '))
+        : copy.referenceNothingNew,
+      added.data.skipped.length > 0
+        ? copy.referenceSkipped.replace('{names}', added.data.skipped.join(', '))
+        : '',
+    ];
+    setMessage({ kind: 'ok', text: parts.filter(Boolean).join(' '), where: 'custom' });
   }
 
   const replaceBuiltin = (row: BuiltinField) =>
@@ -293,6 +328,15 @@ export function RegistrationFields({
             <div className="settings-actions">
               <Button type="button" variant="outline" onClick={() => setAdding(true)}>
                 {copy.addButton}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                title={copy.referenceHint}
+                onClick={() => void addReferenceFields()}
+              >
+                {copy.referenceButton}
               </Button>
               <span className="type-small text-muted-foreground">
                 {copy.limitNote.replace('{max}', String(limits.maxCustomFields))}

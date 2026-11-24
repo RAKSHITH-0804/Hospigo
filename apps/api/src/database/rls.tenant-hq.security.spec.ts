@@ -509,6 +509,18 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
     });
     sampleB.doctor_leave = leave.id;
 
+    // Step 8c: a leave request of the sample doctor of hospital B.
+    const leaveRequest = await prisma.doctorLeaveRequest.create({
+      data: {
+        tenantId: tenantB,
+        doctorProfileId: doctorProfile.id,
+        fromDate: new Date('2030-02-01T00:00:00.000Z'),
+        toDate: new Date('2030-02-02T00:00:00.000Z'),
+        requestedBy: sampleB.users!,
+      },
+    });
+    sampleB.doctor_leave_requests = leaveRequest.id;
+
     const chargeItem = await prisma.chargeItem.create({
       data: {
         tenantId: tenantB,
@@ -929,6 +941,19 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
       },
     });
     sampleB.print_templates = printTemplate.id;
+
+    // Step 8c: an extra print value of hospital B (never deleted, only its text columns change).
+    const printValue = await prisma.printValue.create({
+      data: {
+        tenantId: tenantB,
+        key: 'iso_value',
+        label: 'Iso',
+        value: 'iso',
+        createdBy: sampleB.users!,
+        updatedBy: sampleB.users!,
+      },
+    });
+    sampleB.print_values = printValue.id;
 
     // Step 7d: the staff code settings of hospital B (one row per hospital, the hospital id is the key).
     await prisma.staffCodeSettings.create({ data: { tenantId: tenantB } });

@@ -16,16 +16,17 @@ describe('the settings menu', () => {
     }
   });
 
-  it('lists the sections under Hospital, People, Patients and OPD, in that order', () => {
+  it('lists the sections under Hospital, People, Patients, OPD and Billing, in that order', () => {
     const grouped = groupSettingsSections(SETTINGS_SECTIONS).map((g) => [
       g.group,
       g.sections.map((s) => s.id),
     ]);
     expect(grouped).toEqual([
-      ['hospital', ['branding', 'printing']],
+      ['hospital', ['branding', 'printing', 'print-values']],
       ['people', ['staff', 'roles', 'doctors']],
       ['patients', ['patient-registration', 'patient-numbers']],
-      ['opd', ['opd-rules', 'prices', 'upload-lists']],
+      ['opd', ['opd-rules', 'vitals-fields', 'upload-lists']],
+      ['billing', ['prices', 'payment-modes', 'bill-numbers']],
     ]);
   });
 
@@ -45,6 +46,37 @@ describe('the settings menu', () => {
       visibleSettingsSections(permissions).some((s) => s.id === 'upload-lists');
     expect(has(['hospital.settings.read'])).toBe(false);
     expect(has(['hospital.settings.read', 'opd.masters.write'])).toBe(true);
+  });
+
+  it('Print values are for people who may change OPD settings only', () => {
+    const has = (permissions: string[]) =>
+      visibleSettingsSections(permissions).some((s) => s.id === 'print-values');
+    expect(has(['hospital.settings.read'])).toBe(false);
+    expect(has(['hospital.settings.read', 'opd.settings.write'])).toBe(true);
+  });
+
+  it('Bill numbers need hospital-wide scope, not only the write permission', () => {
+    const perms = ['hospital.settings.read', 'opd.settings.write'];
+    expect(visibleSettingsSections(perms).some((s) => s.id === 'bill-numbers')).toBe(false);
+    expect(
+      visibleSettingsSections(perms, { canSwitchBranch: false }).some(
+        (s) => s.id === 'bill-numbers',
+      ),
+    ).toBe(false);
+    expect(
+      visibleSettingsSections(perms, { canSwitchBranch: true }).some(
+        (s) => s.id === 'bill-numbers',
+      ),
+    ).toBe(true);
+  });
+
+  it('Payment modes and Vitals fields are for people who may change the masters only', () => {
+    for (const id of ['payment-modes', 'vitals-fields']) {
+      const has = (permissions: string[]) =>
+        visibleSettingsSections(permissions).some((s) => s.id === id);
+      expect(has(['hospital.settings.read'])).toBe(false);
+      expect(has(['hospital.settings.read', 'opd.masters.write'])).toBe(true);
+    }
   });
 
   it('leaves out a heading with nothing under it, and keeps every section once', () => {

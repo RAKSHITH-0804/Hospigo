@@ -184,6 +184,8 @@
   --size-calendar-day: 2.125rem;
   --size-vitals-card: 15rem;
   --size-rx-medicine: 13rem;
+  --size-rx-field: 6.5rem;
+  --size-rx-instructions: 8rem;
   --size-button-height: 2rem;
   --size-touch: 2.75rem;
   --size-control: 2rem;
@@ -2315,14 +2317,18 @@
     grid-template-columns: repeat(auto-fill, minmax(var(--size-vitals-card), 1fr));
   }
 
-  /* Prescription: one line per medicine; stacks on narrow screens. */
+  /* Prescription: Medicine wider; Dose / Frequency / Duration / Instructions keep full labels. */
   .rx-head,
   .rx-row {
     display: grid;
     gap: var(--space-2);
     align-items: start;
     grid-template-columns:
-      minmax(var(--size-rx-medicine), 2fr) repeat(3, minmax(0, 1fr)) minmax(0, 2fr)
+      minmax(var(--size-rx-medicine), 2.2fr)
+      minmax(var(--size-rx-field), 1fr)
+      minmax(var(--size-rx-field), 1fr)
+      minmax(var(--size-rx-field), 1fr)
+      minmax(var(--size-rx-instructions), 1.4fr)
       var(--size-icon-button);
   }
 
@@ -2330,13 +2336,41 @@
     padding-bottom: var(--space-1);
   }
 
-  @media (width < 64rem) {
+  .rx-row .field-control,
+  .rx-row input {
+    min-width: 0;
+  }
+
+  /* Inside a consult card: wrap when the column is too narrow for five fields. */
+  .consult-card {
+    container-type: inline-size;
+  }
+
+  @container (max-width: 36rem) {
     .rx-head {
       display: none;
     }
 
     .rx-row {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns:
+        repeat(2, minmax(var(--size-rx-field), 1fr))
+        var(--size-icon-button);
+    }
+
+    .rx-row > .rx-medicine {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (width < 48rem) {
+    .rx-head {
+      display: none;
+    }
+
+    .rx-row {
+      grid-template-columns:
+        repeat(2, minmax(var(--size-rx-field), 1fr))
+        var(--size-icon-button);
     }
 
     .rx-row > .rx-medicine {
@@ -3185,4 +3219,157 @@
 .print-editor .ProseMirror-selectednode.print-token,
 .print-editor .print-token.ProseMirror-selectednode {
   outline: 2px solid var(--primary);
+}
+
+/* Doctor consultation: named areas; Note and Prescription equal columns from 1100px up. */
+.consult-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.consult-grid {
+  display: grid;
+  align-items: stretch;
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    'vitals'
+    'note'
+    'rx'
+    'addenda'
+    'actions'
+    'footer';
+}
+
+.consult-grid:not(:has(.consult-area-note)) {
+  grid-template-areas:
+    'vitals'
+    'actions'
+    'footer';
+}
+
+@media (width >= 68.75rem) {
+  .consult-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      'vitals vitals'
+      'note rx'
+      'addenda addenda'
+      'actions actions'
+      'footer footer';
+  }
+
+  .consult-grid:not(:has(.consult-area-note)) {
+    grid-template-areas:
+      'vitals vitals'
+      'actions actions'
+      'footer footer';
+  }
+}
+
+.consult-area-header {
+  min-width: 0;
+}
+
+.consult-area-vitals {
+  grid-area: vitals;
+}
+
+.consult-area-note {
+  grid-area: note;
+}
+
+.consult-area-rx {
+  grid-area: rx;
+}
+
+.consult-area-addenda {
+  grid-area: addenda;
+}
+
+.consult-area-actions {
+  grid-area: actions;
+}
+
+.consult-area-footer {
+  grid-area: footer;
+}
+
+.consult-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  height: 100%;
+  border-radius: var(--radius-card);
+  background: var(--card);
+  color: var(--card-foreground);
+  padding: var(--space-card-padding);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--foreground) 10%, transparent);
+  border-inline-start: 3px solid var(--accent-foreground);
+}
+
+.consult-card-fill > .note-grid {
+  flex: 1 1 auto;
+  align-content: stretch;
+}
+
+.consult-card-fill .note-grid > * {
+  min-height: 0;
+}
+
+.consult-card-fill .note-grid textarea {
+  min-height: var(--size-textarea-min);
+  height: 100%;
+}
+
+.consult-vitals-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.consult-vitals-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+}
+
+.consult-vitals-values {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.consult-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.consult-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.consult-footer-previous {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.consult-footer-previous .section-heading {
+  margin: 0;
 }

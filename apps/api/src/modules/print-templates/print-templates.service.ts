@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma';
 import { TenantDb, type TenantTx } from '../../database/tenant-db';
+import { AccessService } from '../access/access.service';
+import { assertMayChangePrint, type PrintScope } from './print-scope';
 import { opdError, OpdErrorCode } from '../opd-visits/opd-visit.errors';
 import type { Actor } from '../opd-visits/opd-visits.service';
 import {
@@ -19,10 +21,25 @@ export const PRINT_TEMPLATE_AUDIT = {
   reset: 'PRINT_TEMPLATE_RESET',
 } as const;
 
+export type { PrintScope };
+
+/** `scope` of a request: nothing given means the whole hospital (as before Step 8c). */
+export function parseScope(raw: unknown): PrintScope {
+  if (raw === undefined || raw === '') {
+    return 'hospital';
+  }
+  if (raw === 'branch' || raw === 'hospital') {
+    return raw;
+  }
+  throw opdError(400, OpdErrorCode.PRINT_SCOPE_INVALID);
+}
+
 export type EffectiveTemplate = PrintTemplateInput & {
   docType: PrintDocType;
-  /** CUSTOM: the hospital saved it. DEFAULT: nothing saved, the built-in default applies. */
+  /** CUSTOM: a branch or the hospital saved it. DEFAULT: nothing saved, the built-in default applies. */
   source: 'CUSTOM' | 'DEFAULT';
+  /** Which one applies: the branch's own, the hospital's, or the built-in default. */
+  scope: 'BRANCH' | 'HOSPITAL' | 'DEFAULT';
   /** The real page size in millimetres (a landscape A4 is 297 wide). */
   pageWidthMm: number;
   pageHeightMm: number;
@@ -93,13 +110,14 @@ function rowToInput(
 function effective(
   docType: PrintDocType,
   input: PrintTemplateInput,
-  source: 'CUSTOM' | 'DEFAULT',
+  scope: 'BRANCH' | 'HOSPITAL' | 'DEFAULT',
   updatedAt: Date | null,
 ): EffectiveTemplate {
   const page = pageSizeMm(input);
   return {
     docType,
-    source,
+    source: scope === 'DEFAULT' ? 'DEFAULT' : 'CUSTOM',
+    scope,
     ...input,
     pageWidthMm: page.widthMm,
     pageHeightMm: page.heightMm,
@@ -108,15 +126,25 @@ function effective(
 }
 
 /**
- * Step 7-3: print templates. Every signed-in staff member can READ the template of a document (the
- * print screens need it) and the hospital's settings permission can CHANGE it. A hospital that never
- * saved a template gets the built-in default of the code. Hospital-wide only for now (the branch
- * column of the table is for later). Every change is audited with the names of what changed, never
- * the header or footer text itself.
+ * Step 7-3 and Step 8c: print templates. Every signed-in staff member can READ the template of a
+ * document (the print screens need it). What applies to a branch is looked up in this order: the
+ * branch's own template, then the hospital's, then the built-in default of the code. The settings
+ * permission can CHANGE a template: the template of the SIGNED-IN branch (scope branch, the branch
+ * comes from the token, never from the request) or, only for a person who holds the permission in
+ * every branch (a SuperAdmin), the hospital's template (scope hospital). Resetting removes only the
+ * template of the chosen scope. Every change is audited with the names of what changed, never the
+ * header or footer text itself.
  */
 @Injectable()
 export class PrintTemplatesService {
-  constructor(private readonly tenantDb: TenantDb) {}
+  constructor(
+    private readonly tenantDb: TenantDb,
+    private readonly access: AccessService,
+  ) {}
+
+  private assertMayChange(actor: Actor, scope: PrintScope): Promise<void> {
+    return assertMayChangePrint(this.access, actor, scope);
+  }
 
   /** The built-in presets with what each one gives each document (the screen copies, then adjusts). */
   presets() {
@@ -134,25 +162,41 @@ export class PrintTemplatesService {
     };
   }
 
-  async list(actor: Actor): Promise<{ items: EffectiveTemplate[] }> {
+  async list(actor: Actor): Promise<{
+    items: EffectiveTemplate[];
+    /** What the caller may change here: this branch's templates, and the hospital's. */
+    canChange: { branch: boolean; hospital: boolean };
+  }> {
+    const [canBranch, canHospital] = await Promise.all([
+      this.access.can('opd.settings.write', actor.branchId, 'OPD'),
+      this.access
+        .hospitalWideBranches('opd.settings.write', 'OPD')
+        .then((branches) => branches.length > 0),
+    ]);
     return this.tenantDb.withTenant(async (tx) => {
-      const rows = await tx.printTemplate.findMany({
-        where: { tenantId: actor.tenantId, branchId: null },
-      });
+      const rows = await this.rowsFor(tx, actor);
       return {
-        items: PRINT_DOC_TYPES.map((docType) => this.effectiveIn(docType, rows)),
+        items: PRINT_DOC_TYPES.map((docType) => this.effectiveIn(docType, rows, actor.branchId)),
+        canChange: { branch: canBranch, hospital: canHospital },
       };
     });
   }
 
   async getOne(actor: Actor, docType: PrintDocType): Promise<EffectiveTemplate> {
-    return this.tenantDb.withTenant((tx) => this.readOne(tx, actor.tenantId, docType));
+    return this.tenantDb.withTenant((tx) => this.readOne(tx, actor, docType));
   }
 
-  async save(actor: Actor, docType: PrintDocType, body: unknown): Promise<EffectiveTemplate> {
+  async save(
+    actor: Actor,
+    docType: PrintDocType,
+    body: unknown,
+    scope: PrintScope = 'hospital',
+  ): Promise<EffectiveTemplate> {
+    await this.assertMayChange(actor, scope);
     const input = validateTemplate(docType, body);
+    const branchId = scope === 'branch' ? actor.branchId : null;
     return this.tenantDb.withTenant(async (tx) => {
-      const where = { tenantId: actor.tenantId, branchId: null, docType };
+      const where = { tenantId: actor.tenantId, branchId, docType };
       const existing = await tx.printTemplate.findFirst({ where });
       const data = this.toData(input, actor.userId);
       let created = false;
@@ -164,10 +208,16 @@ export class PrintTemplatesService {
       } else {
         created = true;
         await tx.printTemplate.create({
-          data: { tenantId: actor.tenantId, docType, createdBy: actor.userId, ...data },
+          data: { tenantId: actor.tenantId, branchId, docType, createdBy: actor.userId, ...data },
         });
       }
-      const before = existing ? rowToInput(existing, docType) : defaultInput(docType);
+      // What a change means is judged against the template that applied to that scope before: its own
+      // saved one, else (for a branch) the hospital's, else the built-in default.
+      const rows = await this.rowsFor(tx, actor);
+      const previous =
+        existing ??
+        (branchId ? rows.find((r) => r.docType === docType && r.branchId === null) : undefined);
+      const before = previous ? rowToInput(previous, docType) : defaultInput(docType);
       const changed = TOP_LEVEL.filter(
         (key) => JSON.stringify(before[key]) !== JSON.stringify(input[key]),
       );
@@ -180,10 +230,10 @@ export class PrintTemplatesService {
           entityType: 'print_template',
           entityId: docType,
           // Names of what changed, never the texts typed into the header or footer.
-          metadata: { docType, created, changed },
+          metadata: { docType, scope, created, changed },
         },
       });
-      return this.readOne(tx, actor.tenantId, docType);
+      return this.readOne(tx, actor, docType);
     });
   }
 
@@ -192,22 +242,33 @@ export class PrintTemplatesService {
     actor: Actor,
     docType: PrintDocType,
     body: unknown,
+    scope: PrintScope = 'hospital',
   ): Promise<EffectiveTemplate> {
     try {
-      return await this.save(actor, docType, body);
+      return await this.save(actor, docType, body, scope);
     } catch (error) {
       if (!isUniqueViolation(error)) {
         throw error;
       }
-      return this.save(actor, docType, body);
+      return this.save(actor, docType, body, scope);
     }
   }
 
-  /** Goes back to the built-in default (the saved row is removed; the audit log keeps the history). */
-  async reset(actor: Actor, docType: PrintDocType): Promise<EffectiveTemplate> {
+  /**
+   * Removes the saved template of the chosen scope only (the audit log keeps the history). Resetting a
+   * branch falls back to the hospital's template; resetting the hospital's falls back to the built-in
+   * default (branches with their own template keep it).
+   */
+  async reset(
+    actor: Actor,
+    docType: PrintDocType,
+    scope: PrintScope = 'hospital',
+  ): Promise<EffectiveTemplate> {
+    await this.assertMayChange(actor, scope);
+    const branchId = scope === 'branch' ? actor.branchId : null;
     return this.tenantDb.withTenant(async (tx) => {
       const removed = await tx.printTemplate.deleteMany({
-        where: { tenantId: actor.tenantId, branchId: null, docType },
+        where: { tenantId: actor.tenantId, branchId, docType },
       });
       if (removed.count > 0) {
         await tx.auditLog.create({
@@ -218,29 +279,53 @@ export class PrintTemplatesService {
             action: PRINT_TEMPLATE_AUDIT.reset,
             entityType: 'print_template',
             entityId: docType,
-            metadata: { docType },
+            metadata: { docType, scope },
           },
         });
       }
-      return this.readOne(tx, actor.tenantId, docType);
+      return this.readOne(tx, actor, docType);
     });
   }
 
   // ------------------------------------------------------------------------------- helpers
 
-  private async readOne(tx: TenantTx, tenantId: string, docType: PrintDocType) {
-    const rows = await tx.printTemplate.findMany({ where: { tenantId, branchId: null, docType } });
-    return this.effectiveIn(docType, rows);
+  /** The hospital's templates and the ones of the signed-in branch (never another branch's). */
+  private rowsFor(tx: TenantTx, actor: Actor) {
+    return tx.printTemplate.findMany({
+      where: {
+        tenantId: actor.tenantId,
+        OR: [{ branchId: null }, { branchId: actor.branchId }],
+      },
+    });
   }
 
+  private async readOne(tx: TenantTx, actor: Actor, docType: PrintDocType) {
+    const rows = await tx.printTemplate.findMany({
+      where: {
+        tenantId: actor.tenantId,
+        docType,
+        OR: [{ branchId: null }, { branchId: actor.branchId }],
+      },
+    });
+    return this.effectiveIn(docType, rows, actor.branchId);
+  }
+
+  /** The lookup: the branch's own template, then the hospital's, then the built-in default. */
   private effectiveIn(
     docType: PrintDocType,
     rows: Array<Prisma.PrintTemplateGetPayload<object>>,
+    branchId: string,
   ): EffectiveTemplate {
-    const row = rows.find((r) => r.docType === docType);
-    return row
-      ? effective(docType, rowToInput(row, docType), 'CUSTOM', row.updatedAt)
-      : effective(docType, defaultInput(docType), 'DEFAULT', null);
+    const ofDoc = rows.filter((r) => r.docType === docType);
+    const own = ofDoc.find((r) => r.branchId === branchId);
+    const wide = ofDoc.find((r) => r.branchId === null);
+    if (own) {
+      return effective(docType, rowToInput(own, docType), 'BRANCH', own.updatedAt);
+    }
+    if (wide) {
+      return effective(docType, rowToInput(wide, docType), 'HOSPITAL', wide.updatedAt);
+    }
+    return effective(docType, defaultInput(docType), 'DEFAULT', null);
   }
 
   private toData(input: PrintTemplateInput, userId: string) {

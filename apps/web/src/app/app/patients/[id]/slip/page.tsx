@@ -15,8 +15,13 @@ import {
 } from '@/lib/patients/server';
 import { relativeLine } from '@/lib/patients/relative';
 import type { FormConfigResponse, PatientDetail } from '@/lib/patients/types';
-import { slipItems } from '@/lib/print/documents';
-import { fetchLogoImageId, fetchTemplate, readTemplate } from '@/lib/print/server';
+import { slipItems, withExtraValues } from '@/lib/print/documents';
+import {
+  fetchLogoImageId,
+  fetchPrintValues,
+  fetchTemplate,
+  readTemplate,
+} from '@/lib/print/server';
 
 export const metadata: Metadata = { title: staffCopy.pageTitles.patientSlip };
 
@@ -24,11 +29,12 @@ export default async function PatientSlipPage({ params }: { params: Promise<{ id
   const session = await requirePermission('patients.registry.read');
   const { id } = await params;
   const hospitalName = session.hospitalName?.trim() || staffCopy.brand;
-  const [detail, templateResult, logoImageId, formConfig] = await Promise.all([
+  const [detail, templateResult, logoImageId, formConfig, extraValues] = await Promise.all([
     fetchStaffOnServer<PatientDetail>(`${API_PATIENTS}/${encodeURIComponent(id)}`),
     fetchTemplate('REGISTRATION_SLIP'),
     fetchLogoImageId(),
     fetchStaffOnServer<FormConfigResponse>(API_PATIENT_FORM_CONFIG),
+    fetchPrintValues(),
   ]);
   const formFields = formConfig.status === 'ok' ? formConfig.data.fields : [];
 
@@ -55,7 +61,10 @@ export default async function PatientSlipPage({ params }: { params: Promise<{ id
     return (
       <PrintStage
         template={template}
-        items={slipItems(detail.data, session.activeBranchName ?? null, hospitalName, formFields)}
+        items={withExtraValues(
+          slipItems(detail.data, session.activeBranchName ?? null, hospitalName, formFields),
+          extraValues,
+        )}
         images={{ LOGO: logoImageId }}
         title={staffCopy.patients.slip.title}
         backHref={`/app/patients/${encodeURIComponent(detail.data.id)}`}

@@ -54,6 +54,47 @@ beforeEach(() => {
 });
 
 describe('VitalsForm', () => {
+  it('warns while typing a number outside the usual range, never blocks, and still saves it', async () => {
+    fetchMock.mockResolvedValue(
+      json({
+        recorded: ['pulse'],
+        corrected: [],
+        unchanged: [],
+        visit: makeVisit(),
+        fields: [makeReading({ value: 140 })],
+      }),
+    );
+    renderForm();
+    const label = `${PULSE.name}: ${copy.newValue}`;
+    // inside the range (50 to 120): no warning
+    type(label, '80');
+    expect(screen.queryByText(copy.outOfRange)).toBeNull();
+    // above and below it: a warning with the usual range, as words
+    type(label, '140');
+    expect(screen.getByText(copy.outOfRange)).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toContain(
+      copy.outOfRangeTyped.replace('{range}', '50 – 120'),
+    );
+    type(label, '30');
+    expect(screen.getByText(copy.outOfRange)).toBeTruthy();
+    // an empty box and text that is not a number give no warning
+    type(label, '');
+    expect(screen.queryByText(copy.outOfRange)).toBeNull();
+    type(label, 'abc');
+    expect(screen.queryByText(copy.outOfRange)).toBeNull();
+    // the reading outside the range is still sent
+    type(label, '140');
+    await save();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(posted()).toEqual({ readings: [{ fieldCode: 'pulse', value: 140 }] });
+  });
+
+  it('a field without a usual range, and a text field, never warn', () => {
+    renderForm();
+    type(`${POSTURE.name}: ${copy.newValue}`, '999');
+    expect(screen.queryByText(copy.outOfRange)).toBeNull();
+  });
+
   it('shows each field with its current value, the warning flag and the correction history', () => {
     const who = { id: 'u2', name: 'Nurse Two' };
     renderForm([

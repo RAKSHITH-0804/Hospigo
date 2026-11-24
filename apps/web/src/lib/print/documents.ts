@@ -54,6 +54,21 @@ function billLineName(kind: string, description: string, note: string | null): s
   return `${base} (${note === REPEAT_VISIT_NOTE ? receiptCopy.freeRepeatVisit : receiptCopy.freeFollowUp})`;
 }
 
+/**
+ * Adds the extra print values (Step 8c) to the values of a document, under their template name
+ * (value.<code>). A built-in value is never replaced, and a value without text is left out.
+ */
+export function withExtraValues(
+  items: PrintItem[],
+  extra: ReadonlyArray<{ field: string; label: string; text: string }>,
+): PrintItem[] {
+  const taken = new Set(items.map((i) => i.key));
+  const added = extra
+    .filter((e) => e.text.trim() !== '' && !taken.has(e.field))
+    .map((e): PrintItem => ({ key: e.field, label: e.label, text: e.text }));
+  return [...items, ...added];
+}
+
 export function receiptItems(visit: VisitView, hospitalName: string): PrintItem[] {
   const bill = visit.bill ?? null;
   const payments = bill?.payments ?? [];

@@ -85,13 +85,22 @@ export type PrintTemplate = PrintTemplateInput & {
   docType: PrintDocType;
   /** CUSTOM: the hospital saved it. DEFAULT: nothing saved, the built-in default applies. */
   source: 'CUSTOM' | 'DEFAULT';
+  /** Which one applies to this branch: its own, the hospital's, or the built-in default (Step 8c). */
+  scope?: 'BRANCH' | 'HOSPITAL' | 'DEFAULT';
   /** The real page size (a landscape A4 is 297 wide). */
   pageWidthMm: number;
   pageHeightMm: number;
   updatedAt: string | null;
 };
 
-export type PrintTemplatesResponse = { items: PrintTemplate[] };
+/** Where a template is saved: the signed-in branch only, or the whole hospital. */
+export type PrintScope = 'branch' | 'hospital';
+
+export type PrintTemplatesResponse = {
+  items: PrintTemplate[];
+  /** What the caller may change here (Step 8c): this branch's templates, and the hospital's. */
+  canChange?: { branch: boolean; hospital: boolean };
+};
 
 export type PrintPreset = {
   key: string;

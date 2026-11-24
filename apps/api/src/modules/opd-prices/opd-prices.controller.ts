@@ -68,12 +68,13 @@ export class OpdPricesController {
   @RequirePermission('opd.prices.write', { module: 'OPD' })
   @ApiOperation({
     summary:
-      'Current prices (registration fee, tests, doctor fees for new and follow-up visits), with the next scheduled price; searchable and paged',
+      'Current prices (registration fee, tests, doctor fees for new and follow-up visits), with the next scheduled price; searchable and paged. Optional branchId: only doctors who work in that branch (fees stay per doctor)',
   })
   async list(
     @Req() req: HttpReq,
     @Query('q') q?: string,
     @Query('kind') kind?: string,
+    @Query('branchId') branchId?: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
   ) {
@@ -83,6 +84,7 @@ export class OpdPricesController {
     return this.prices.list(actorOf(req), {
       q,
       kind: kind ? (kind as PriceKind) : undefined,
+      branchId: branchId && branchId.trim() !== '' ? branchId.trim() : undefined,
       page: positiveInt(page, 1, Number.MAX_SAFE_INTEGER),
       pageSize: positiveInt(pageSize, C.listDefaultPageSize, C.listMaxPageSize),
     });

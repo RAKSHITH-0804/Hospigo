@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -20,6 +21,9 @@ import { ConsultationService } from './consultation.service';
 import { AddendumDto, RecordVitalsDto, SaveNoteDto, SavePrescriptionDto } from './dto/clinical.dto';
 import { OPD_CLINICAL_CONFIG as C } from './opd-clinical.config';
 import { VitalsService } from './vitals.service';
+
+/** An id as the database makes them (letters, digits, dash, underscore). */
+const ID = /^[A-Za-z0-9_-]{1,64}$/;
 
 type HttpReq = { auth?: AccessClaims };
 
@@ -66,10 +70,13 @@ export class OpdClinicalController {
   @RequirePermission('opd.queue.read', { module: 'OPD' })
   @ApiOperation({
     summary:
-      "Today's waiting and in-consultation visits of the active branch in payment order. A doctor sees only their own queue.",
+      "Today's waiting and in-consultation visits of the active branch in payment order. A doctor sees only their own queue; others may narrow it with doctorProfileId.",
   })
-  async queue(@Req() req: HttpReq) {
-    return this.consultations.queue(actorOf(req));
+  async queue(@Req() req: HttpReq, @Query('doctorProfileId') doctorProfileId?: string) {
+    if (doctorProfileId !== undefined && doctorProfileId !== '' && !ID.test(doctorProfileId)) {
+      throw new BadRequestException('doctorProfileId is not valid');
+    }
+    return this.consultations.queue(actorOf(req), doctorProfileId || undefined);
   }
 
   @Post('opd/visits/:id/start')

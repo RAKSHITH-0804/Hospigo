@@ -26,8 +26,12 @@ export function vitalsPath(visitId: string): string {
   return `/app/opd/visits/${encodeURIComponent(visitId)}/vitals`;
 }
 
-export function loadQueue(signal?: AbortSignal): Promise<PatientsApiResult<QueueResponse>> {
-  return patientsApi<QueueResponse>(OPD_QUEUE_API, { signal });
+export function loadQueue(
+  signal?: AbortSignal,
+  doctorProfileId?: string,
+): Promise<PatientsApiResult<QueueResponse>> {
+  const query = doctorProfileId ? `?doctorProfileId=${encodeURIComponent(doctorProfileId)}` : '';
+  return patientsApi<QueueResponse>(`${OPD_QUEUE_API}${query}`, { signal });
 }
 
 export function startConsultation(visitId: string): Promise<PatientsApiResult<StartResponse>> {

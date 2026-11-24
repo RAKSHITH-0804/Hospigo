@@ -64,3 +64,8 @@ export function createVisit(
 ): Promise<PatientsApiResult<VisitView>> {
   return patientsApi<VisitView>(OPD_VISITS_API, { method: 'POST', body: choice });
 }
+
+/** One visit of the active branch (with its bill when the caller may read money). */
+export function loadVisit(visitId: string): Promise<PatientsApiResult<VisitView>> {
+  return patientsApi<VisitView>(`${OPD_VISITS_API}/${encodeURIComponent(visitId)}`);
+}

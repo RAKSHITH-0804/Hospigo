@@ -13,6 +13,25 @@ function badDocType(): NextResponse {
   );
 }
 
+/** The scope of the URL: none, branch or hospital. Anything else is refused here already. */
+function scopeOf(request: Request): { ok: true; query: string } | { ok: false } {
+  const all = new URL(request.url).searchParams.getAll('scope');
+  if (all.length === 0) {
+    return { ok: true, query: '' };
+  }
+  if (all.length === 1 && (all[0] === 'branch' || all[0] === 'hospital')) {
+    return { ok: true, query: `?scope=${all[0]}` };
+  }
+  return { ok: false };
+}
+
+function badScope(): NextResponse {
+  return NextResponse.json(
+    { code: 'PRINT_SCOPE_INVALID' },
+    { status: 400, headers: { 'Cache-Control': 'no-store' } },
+  );
+}
+
 async function docTypeOf(context: Context): Promise<PrintDocType | null> {
   const { docType } = await context.params;
   return (PRINT_DOC_TYPES as readonly string[]).includes(docType)
@@ -21,18 +40,23 @@ async function docTypeOf(context: Context): Promise<PrintDocType | null> {
 }
 
 /**
- * PUT /api/staff/print-templates/:docType: save the template of one document. The API checks the
- * permission (opd.settings.write), the OPD module and every value; the answer is the saved template.
+ * PUT /api/staff/print-templates/:docType?scope=branch|hospital: save the template of one document.
+ * The API checks the permission (opd.settings.write, and for the hospital scope the permission in
+ * every branch), the OPD module and every value; the answer is the template that applies afterwards.
  */
 export async function PUT(request: Request, context: Context) {
   const docType = await docTypeOf(context);
   if (!docType) {
     return badDocType();
   }
-  return proxyOpdWrite(request, 'PUT', `/print-templates/${docType}`);
+  const scope = scopeOf(request);
+  if (!scope.ok) {
+    return badScope();
+  }
+  return proxyOpdWrite(request, 'PUT', `/print-templates/${docType}${scope.query}`);
 }
 
-/** DELETE /api/staff/print-templates/:docType: back to the built-in default (the answer is that default). */
+/** DELETE /api/staff/print-templates/:docType?scope=...: removes the template of that scope (the answer is what applies next). */
 export async function DELETE(request: Request, context: Context) {
   const docType = await docTypeOf(context);
   if (!docType) {
@@ -42,5 +66,13 @@ export async function DELETE(request: Request, context: Context) {
   if (originError) {
     return originError;
   }
-  return staffRoute({ method: 'DELETE', request, path: `/print-templates/${docType}` });
+  const scope = scopeOf(request);
+  if (!scope.ok) {
+    return badScope();
+  }
+  return staffRoute({
+    method: 'DELETE',
+    request,
+    path: `/print-templates/${docType}${scope.query}`,
+  });
 }

@@ -16,6 +16,8 @@ import { HospitalSettingsModule } from './modules/hospital-settings/hospital-set
 import { OpdMastersModule } from './modules/opd-masters/opd-masters.module';
 import { OpdClinicalModule } from './modules/opd-clinical/opd-clinical.module';
 import { OpdInvestigationsModule } from './modules/opd-investigations/opd-investigations.module';
+import { LeaveRequestsModule } from './modules/leave-requests/leave-requests.module';
+import { MastersAdminModule } from './modules/masters-admin/masters-admin.module';
 import { DoctorAvailabilityModule } from './modules/doctor-availability/availability.module';
 import { OpdPricesModule } from './modules/opd-prices/opd-prices.module';
 import { OpdRefundsModule } from './modules/opd-refunds/opd-refunds.module';
@@ -54,6 +56,8 @@ import { StorageModule } from './modules/storage/storage.module';
     OpdRefundsModule,
     OpdPricesModule,
     DoctorAvailabilityModule,
+    MastersAdminModule,
+    LeaveRequestsModule,
     OpdReportsModule,
     PrintTemplatesModule,
   ],

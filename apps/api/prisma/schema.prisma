@@ -252,6 +252,7 @@ model Hospital {
   doctorProfiles DoctorProfile[]
   doctorTimings DoctorTiming[]
   doctorLeaves DoctorLeave[]
+  doctorLeaveRequests DoctorLeaveRequest[]
   chargeItems ChargeItem[]
   chargeItemPrices ChargeItemPrice[]
   doctorFees DoctorFee[]
@@ -277,6 +278,7 @@ model Hospital {
   refundRequests RefundRequest[]
   refunds Refund[]
   printTemplates PrintTemplate[]
+  printValues PrintValue[]
 
   @@map("hospitals")
   staffCodeSettings StaffCodeSettings?
@@ -317,6 +319,7 @@ model Branch {
   userBranches  UserBranch[]
   roleAssignmentBranches RoleAssignmentBranch[]
   printTemplates PrintTemplate[]
+  printValues PrintValue[]
   auditLogs     AuditLog[]
   authSessions  AuthSession[]
   registeredPatients Patient[]
@@ -404,6 +407,8 @@ model User {
   doctorProfiles DoctorProfile[]
   chargeItemPricesCreated ChargeItemPrice[] @relation("ChargeItemPriceCreatedBy")
   doctorFeesCreated DoctorFee[] @relation("DoctorFeeCreatedBy")
+  leaveRequestsMade DoctorLeaveRequest[] @relation("LeaveRequestedBy")
+  leaveRequestsDecided DoctorLeaveRequest[] @relation("LeaveDecidedBy")
   opdVisitsCreated OpdVisit[] @relation("OpdVisitCreatedBy")
   billsCreated Bill[] @relation("BillCreatedBy")
   paymentsReceived Payment[] @relation("PaymentReceivedBy")
@@ -417,6 +422,8 @@ model User {
   refundsRecorded Refund[] @relation("RefundRecordedBy")
   printTemplatesCreated PrintTemplate[] @relation("PrintTemplateCreatedBy")
   printTemplatesUpdated PrintTemplate[] @relation("PrintTemplateUpdatedBy")
+  printValuesCreated PrintValue[] @relation("PrintValueCreatedBy")
+  printValuesUpdated PrintValue[] @relation("PrintValueUpdatedBy")
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -1031,6 +1038,7 @@ model DoctorProfile {
   user     User           @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Restrict)
   timings  DoctorTiming[]
   leaves   DoctorLeave[]
+  leaveRequests DoctorLeaveRequest[]
   fees     DoctorFee[]
   opdVisits OpdVisit[]
   consultations Consultation[]
@@ -1080,6 +1088,43 @@ model DoctorLeave {
   @@unique([tenantId, id])
   @@index([tenantId, doctorProfileId])
   @@map("doctor_leave")
+}
+
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+
+  @@map("leave_request_status")
+}
+
+/// A doctor asks for leave; an Admin approves or rejects it. Only an approved request creates a
+/// doctor_leave row (through the API). Closed once, never edited, never deleted (database triggers).
+model DoctorLeaveRequest {
+  id              String             @id @default(cuid())
+  tenantId        String             @map("tenant_id")
+  doctorProfileId String             @map("doctor_profile_id")
+  fromDate        DateTime           @map("from_date") @db.Date
+  toDate          DateTime           @map("to_date") @db.Date
+  status          LeaveRequestStatus @default(PENDING)
+  requestedBy     String             @map("requested_by")
+  requestedAt     DateTime           @default(now()) @map("requested_at") @db.Timestamptz(3)
+  decidedBy       String?            @map("decided_by")
+  decidedAt       DateTime?          @map("decided_at") @db.Timestamptz(3)
+  leaveId         String?            @map("leave_id")
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital  Hospital      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  doctor    DoctorProfile @relation(fields: [tenantId, doctorProfileId], references: [tenantId, id], onDelete: Cascade)
+  requester User          @relation("LeaveRequestedBy", fields: [tenantId, requestedBy], references: [tenantId, id], onDelete: Restrict)
+  decider   User?         @relation("LeaveDecidedBy", fields: [tenantId, decidedBy], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, doctorProfileId, status])
+  @@index([tenantId, status, requestedAt])
+  @@map("doctor_leave_requests")
 }
 
 model ChargeItem {
@@ -1806,6 +1851,31 @@ enum PrintMode {
 /// One template per hospital (or branch) and document type. A hospital without a row uses the
 /// built-in default of the code. The layout is JSON validated in code; the database checks sizes.
 /// One row per (tenant, coalesce(branch, ''), doc type): enforced by a unique index on that expression.
+/// A named plain-text value an Admin can put into a print template (Step 8c). Hospital-wide (no
+/// branch) or one branch; never deleted, only switched off (database triggers).
+model PrintValue {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  branchId  String?  @map("branch_id")
+  key       String
+  label     String
+  value     String
+  active    Boolean  @default(true)
+  createdBy String   @map("created_by")
+  updatedBy String   @map("updated_by")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  branch   Branch?  @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict)
+  creator  User     @relation("PrintValueCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
+  updater  User     @relation("PrintValueUpdatedBy", fields: [tenantId, updatedBy], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, branchId])
+  @@map("print_values")
+}
+
 model PrintTemplate {
   id             String           @id @default(cuid())
   tenantId       String           @map("tenant_id")

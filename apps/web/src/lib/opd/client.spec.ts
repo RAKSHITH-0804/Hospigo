@@ -5,6 +5,7 @@ import {
   OPD_PREVIEW_API,
   OPD_VISITS_API,
   createVisit,
+  loadVisit,
   loadDoctors,
   newIdempotencyKey,
   newVisitPath,
@@ -107,6 +108,13 @@ describe('OPD client helpers', () => {
         idempotencyKey: 'KEY-12345678',
         expectedTotalPaise: 0,
       });
+    });
+
+    it('loadVisit GETs one visit by id', async () => {
+      fetchMock.mockResolvedValue(jsonResponse({ id: 'v1' }));
+      await loadVisit('v/1');
+      expect(String(fetchMock.mock.calls[0]![0])).toBe(`${OPD_VISITS_API}/v%2F1`);
+      expect((fetchMock.mock.calls[0]![1] as RequestInit).method ?? 'GET').toBe('GET');
     });
 
     it('carries the facts a screen needs to explain a refusal', async () => {

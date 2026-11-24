@@ -1,4 +1,5 @@
 import { opdError, OpdErrorCode } from '../opd-visits/opd-visit.errors';
+import { isPrintValueField } from './print-values.rules';
 import {
   buildElements,
   toRichElements,
@@ -481,6 +482,15 @@ export function validateTemplate(docType: PrintDocType, raw: unknown): PrintTemp
   };
 }
 
+/**
+ * A field a template may use: one of the built-in values of the document, or an extra print value
+ * (value.<key>, Step 8c). An extra value is only a name here: a template that names one that is
+ * switched off or missing prints nothing for it, so a template never breaks.
+ */
+function isKnownField(docType: PrintDocType, field: string): boolean {
+  return PRINT_FIELDS[docType].includes(field) || isPrintValueField(field);
+}
+
 /** True when some box of the layout holds the value (a mail-merge field) of this field. */
 function layoutShowsField(layout: PrintLayout, field: string): boolean {
   return layout.elements.some((element) =>
@@ -710,7 +720,7 @@ function validateElement(
   const out: PrintElement = { id: raw.id, type, xMm, yMm, widthMm, heightMm };
 
   if (type === 'FIELD') {
-    if (typeof raw.field !== 'string' || !PRINT_FIELDS[docType].includes(raw.field)) {
+    if (typeof raw.field !== 'string' || !isKnownField(docType, raw.field)) {
       throw printError(`${f}.field`, 'UNKNOWN_FIELD');
     }
     out.field = raw.field;
@@ -883,7 +893,7 @@ function validateRun(docType: PrintDocType, raw: unknown, f: string): RichRun {
   }
   if (raw.t === 'field') {
     onlyKeys(f, raw, ['t', 'field', 'style']);
-    if (typeof raw.field !== 'string' || !PRINT_FIELDS[docType].includes(raw.field)) {
+    if (typeof raw.field !== 'string' || !isKnownField(docType, raw.field)) {
       throw printError(`${f}.field`, 'UNKNOWN_FIELD');
     }
     const style = validateStyle(`${f}.style`, raw.style);

@@ -16,7 +16,10 @@ jest.mock('next/link', () => {
 
 const groups = staffCopy.settings.groups;
 const labels = staffCopy.settings.sections;
-const all = visibleSettingsSections(SETTINGS_SECTIONS.map((s) => s.permission));
+const all = visibleSettingsSections(
+  SETTINGS_SECTIONS.map((s) => s.permission),
+  { canSwitchBranch: true },
+);
 const heading = (name: string) => screen.getByRole('button', { name });
 const link = (name: string) => screen.queryByRole('link', { name });
 

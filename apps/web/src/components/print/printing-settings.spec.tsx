@@ -145,12 +145,20 @@ const prePreset: PrintPreset = {
   },
 };
 
-function renderScreen(canWrite = true, items = templates(), logoImageId: string | null = null) {
+function renderScreen(
+  canWrite = true,
+  items = templates(),
+  logoImageId: string | null = null,
+  canChange?: { branch: boolean; hospital: boolean },
+  extraValues: Array<{ key: string; field: string; label: string; text: string }> = [],
+) {
   return render(
     <PrintingSettings
       templates={items}
       presets={[labelPreset, prePreset]}
       canWrite={canWrite}
+      canChange={canChange}
+      extraValues={extraValues}
       hospitalName="Demo Hospital"
       logoImageId={logoImageId}
     />,
@@ -1064,7 +1072,7 @@ describe('going back to the default', () => {
     click(copy.reset);
     click(copy.resetYes);
     await waitFor(() => expect(screen.getByRole('status').textContent).toBe(copy.resetDone));
-    expect(resetMock).toHaveBeenCalledWith('RECEIPT');
+    expect(resetMock).toHaveBeenCalledWith('RECEIPT', 'hospital');
     expect(screen.getByText(copy.sourceDefault)).toBeTruthy();
     expect(screen.queryByRole('button', { name: copy.reset })).toBeNull();
   });
@@ -1123,5 +1131,124 @@ describe('zoom to the room there is', () => {
     expect(frame().dataset.zoom).toBe('200');
     drag('b2', 10, 0).up();
     expect(box('b2').style.left).toBe('25mm');
+  });
+});
+
+describe('templates per branch (Step 8c)', () => {
+  const sa = { branch: true, hospital: true };
+  const branchAdmin = { branch: true, hospital: false };
+  const withScope = (scope: 'BRANCH' | 'HOSPITAL'): PrintTemplate[] =>
+    templates().map((t) => (t.docType === 'RECEIPT' ? receipt({ source: 'CUSTOM', scope }) : t));
+
+  it('a hospital-wide Admin chooses where to save; the default is the whole hospital', async () => {
+    saveMock.mockResolvedValue({
+      ok: true,
+      data: receipt({ source: 'CUSTOM', scope: 'HOSPITAL' }),
+    });
+    renderScreen(true, templates(), null, sa);
+    goReceipt();
+    expect((select(copy.saveFor) as HTMLSelectElement).value).toBe('hospital');
+    click(copy.save);
+    await waitFor(() => expect(saveMock).toHaveBeenCalled());
+    expect(saveMock.mock.calls[0]![2]).toBe('hospital');
+    saveMock.mockClear();
+    fireEvent.change(select(copy.saveFor), { target: { value: 'branch' } });
+    click(copy.save);
+    await waitFor(() => expect(saveMock).toHaveBeenCalled());
+    expect(saveMock.mock.calls[0]![2]).toBe('branch');
+  });
+
+  it('a Branch Admin has no choice: this branch only, with a note', async () => {
+    saveMock.mockResolvedValue({ ok: true, data: receipt({ source: 'CUSTOM', scope: 'BRANCH' }) });
+    renderScreen(true, templates(), null, branchAdmin);
+    goReceipt();
+    expect(screen.queryByLabelText(copy.saveFor)).toBeNull();
+    expect(screen.getByText(copy.onlyBranch)).toBeTruthy();
+    click(copy.save);
+    await waitFor(() => expect(saveMock).toHaveBeenCalled());
+    expect(saveMock.mock.calls[0]![2]).toBe('branch');
+  });
+
+  it('says which template the branch uses, and offers Remove only for the chosen place', () => {
+    const view = renderScreen(true, withScope('HOSPITAL'), null, sa);
+    goReceipt();
+    expect(screen.getByText(copy.scopeHospital)).toBeTruthy();
+    expect(screen.getByRole('button', { name: copy.resetHospital })).toBeTruthy();
+    // the branch has no template of its own, so there is nothing to remove for the branch
+    fireEvent.change(select(copy.saveFor), { target: { value: 'branch' } });
+    expect(screen.queryByRole('button', { name: copy.resetBranch })).toBeNull();
+    view.unmount();
+    renderScreen(true, withScope('BRANCH'), null, branchAdmin);
+    goReceipt();
+    expect(screen.getByText(copy.scopeBranch)).toBeTruthy();
+    expect(screen.getByRole('button', { name: copy.resetBranch })).toBeTruthy();
+  });
+
+  it('removing the branch template asks twice and sends the branch scope', async () => {
+    resetMock.mockResolvedValue({
+      ok: true,
+      data: receipt({ source: 'CUSTOM', scope: 'HOSPITAL' }),
+    });
+    renderScreen(true, withScope('BRANCH'), null, branchAdmin);
+    goReceipt();
+    click(copy.resetBranch);
+    expect(screen.getByText(copy.resetBranchConfirm)).toBeTruthy();
+    click(copy.resetYes);
+    await waitFor(() => expect(resetMock).toHaveBeenCalledWith('RECEIPT', 'branch'));
+    expect(await screen.findByText(copy.resetBranchDone)).toBeTruthy();
+    expect(screen.getByText(copy.scopeHospital)).toBeTruthy();
+  });
+
+  it('a refused hospital save shows the calm sentence', async () => {
+    saveMock.mockResolvedValue({ ok: false, status: 403, code: 'PRINT_SCOPE_FORBIDDEN' });
+    renderScreen(true, templates(), null, sa);
+    goReceipt();
+    click(copy.save);
+    expect((await screen.findByRole('alert')).textContent).toBe(copy.errors.PRINT_SCOPE_FORBIDDEN);
+  });
+
+  it('a reader sees no place to save and cannot save', () => {
+    renderScreen(false, templates(), null, { branch: false, hospital: false });
+    goReceipt();
+    expect(screen.queryByLabelText(copy.saveFor)).toBeNull();
+    expect((screen.getByRole('button', { name: copy.save }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+  });
+});
+
+describe('extra print values in the designer (Step 8c)', () => {
+  const extra = [
+    { key: 'helpline', field: 'value.helpline', label: 'Helpline', text: '1800 000 000' },
+  ];
+
+  it('lists the extra values in Insert value and inserts them under their template name', () => {
+    renderScreen(true, templates(), null, undefined, extra);
+    goReceipt();
+    edit('b4');
+    const choose = select(copy.insertValue);
+    expect([...choose.options].map((o) => o.textContent)).toContain('Helpline');
+    fireEvent.change(choose, { target: { value: 'value.helpline' } });
+    expect(mockCommands.insertValue).toHaveBeenLastCalledWith(mockFakeEditor, 'value.helpline');
+  });
+
+  it('shows the real text of an extra value in a box that holds it', () => {
+    const items = templates().map((t) =>
+      t.docType === 'RECEIPT'
+        ? withBoxes(makeTemplate('RECEIPT'), [fieldBox('value.helpline', 'x1', { caption: false })])
+        : t,
+    );
+    renderScreen(true, items, null, undefined, extra);
+    goReceipt();
+    expect(valueOf('x1', 'value.helpline')?.textContent).toBe('1800 000 000');
+  });
+
+  it('without extra values the list has only the built-in ones', () => {
+    renderScreen();
+    goReceipt();
+    edit('b4');
+    expect([...select(copy.insertValue).options].map((o) => o.textContent)).not.toContain(
+      'Helpline',
+    );
   });
 });

@@ -35,6 +35,10 @@ Number series BILL, RECEIPT, REFUND (default: FY short, "/", 5 digits, e.g. 2627
   --fy-start-month N     1 to 12 (default 4)
   --prefix-bill TEXT, --prefix-receipt TEXT, --prefix-refund TEXT   fixed text before the year
 
+Registration form:
+  --reference-fields     also add the ready-made fields Referred by, Category, Organisation and
+                         Staff number (a field whose name already exists is left as it is)
+
 Patient number (UHID) format:
   --uhid-prefix TEXT     fixed text before the number (default none)
   --uhid-width N         running number width (default 5)
@@ -44,6 +48,7 @@ Patient number (UHID) format:
 function parseArgs(argv: string[]): StarterOptions | null {
   const values = new Map<string, string>();
   let dryRun = false;
+  let referenceFields = false;
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i]!;
     if (arg === '--help' || arg === '-h') {
@@ -51,6 +56,10 @@ function parseArgs(argv: string[]): StarterOptions | null {
     }
     if (arg === '--dry-run') {
       dryRun = true;
+      continue;
+    }
+    if (arg === '--reference-fields') {
+      referenceFields = true;
       continue;
     }
     if (!arg.startsWith('--')) {
@@ -94,6 +103,7 @@ function parseArgs(argv: string[]): StarterOptions | null {
   };
   if (values.has('--fy-style')) o.fyStyle = values.get('--fy-style') as StarterOptions['fyStyle'];
   if (values.has('--separator')) o.separator = values.get('--separator')!;
+  o.referenceFields = referenceFields;
   o.width = num('--width', o.width);
   if (values.has('--reset')) o.resetRule = values.get('--reset') as StarterOptions['resetRule'];
   o.fyStartMonth = num('--fy-start-month', o.fyStartMonth);

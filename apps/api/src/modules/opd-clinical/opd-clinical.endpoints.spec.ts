@@ -590,6 +590,35 @@ describe('OPD clinical endpoints: queue, note, prescription, vitals (HTTP)', () 
       expect(otherHospital.body.items.map((i: Loose) => i.id)).not.toContain(a);
     });
 
+    it('a nurse can narrow the queue to one doctor; the answer lists the doctors in the queue; a doctor can never widen theirs', async () => {
+      const one = await waiting(A, A.doc1);
+      const three = await waiting(A, A.doc3);
+      const all = await get(A, 'nurse', '/opd/queue');
+      expect(all.body.doctors.map((d: Loose) => d.id)).toEqual(
+        expect.arrayContaining([A.doc1, A.doc3]),
+      );
+      const only3 = await get(A, 'nurse', `/opd/queue?doctorProfileId=${A.doc3}`);
+      expect(only3.status).toBe(200);
+      const ids = only3.body.items.map((i: Loose) => i.id);
+      expect(ids).toContain(three);
+      expect(ids).not.toContain(one);
+      // the list of doctors does not shrink with the filter
+      expect(only3.body.doctors.map((d: Loose) => d.id)).toEqual(
+        expect.arrayContaining([A.doc1, A.doc3]),
+      );
+      // a doctor asking for another doctor still gets only their own, and no doctor list
+      const sneaky = await get(A, 'doc3', `/opd/queue?doctorProfileId=${A.doc1}`);
+      expect(sneaky.body.items.map((i: Loose) => i.id)).not.toContain(one);
+      expect(sneaky.body.items.map((i: Loose) => i.id)).toContain(three);
+      expect(sneaky.body.doctors).toEqual([]);
+      // an unknown doctor gives an empty list, a malformed id is refused, another hospital's doctor shows nothing
+      expect((await get(A, 'nurse', '/opd/queue?doctorProfileId=nobody')).body.items).toEqual([]);
+      expect((await get(A, 'nurse', '/opd/queue?doctorProfileId=a%2Fb')).status).toBe(400);
+      expect((await get(A, 'nurse', `/opd/queue?doctorProfileId=${B.doc1}`)).body.items).toEqual(
+        [],
+      );
+    });
+
     it('started visits stay; a visit completed today stays in the list marked COMPLETED, after the open ones', async () => {
       const id = await started(A, 'doc3', A.doc3);
       let q = await get(A, 'doc3', '/opd/queue');

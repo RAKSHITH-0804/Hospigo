@@ -5,6 +5,7 @@ import { formatPaise } from '@/config/money';
 import { staffCopy } from '@/config/staff-copy';
 import { formatDateOnly } from '@/lib/patients/format';
 import { REPEAT_VISIT_NOTE, type BillView, type VisitView } from '@/lib/opd/types';
+import { tokenText } from '@/lib/opd/token-label';
 
 const copy = staffCopy.opd.receipt;
 
@@ -77,7 +78,7 @@ export function VisitReceipt({ visit, hospitalName }: { visit: VisitView; hospit
           <div className="visit-receipt-token-box">
             <span className="type-label text-muted-foreground">{copy.token}</span>
             <span className="visit-receipt-token" data-testid="receipt-token">
-              {visit.token.label}
+              {tokenText(visit.token.label, visit.status)}
             </span>
           </div>
         ) : null}

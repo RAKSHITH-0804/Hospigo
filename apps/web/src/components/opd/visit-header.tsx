@@ -4,6 +4,7 @@ import { staffCopy } from '@/config/staff-copy';
 import type { ClinicalVisit, ClinicalVisitStatus } from '@/lib/opd/clinical-types';
 import { fill } from '@/lib/opd/clinical-format';
 import { EMPTY_VALUE, formatDateOnly, genderLabel } from '@/lib/patients/format';
+import { tokenText } from '@/lib/opd/token-label';
 
 const copy = staffCopy.opd.clinical;
 
@@ -38,7 +39,7 @@ export function VisitHeader({ visit }: { visit: ClinicalVisit }) {
         <div className="flex items-center gap-[var(--space-3)]">
           {visit.token ? (
             <span className="type-stat font-medium" aria-label={copy.patient.token}>
-              {visit.token.label}
+              {tokenText(visit.token.label, visit.status)}
             </span>
           ) : null}
           <Badge variant={CLINICAL_STATUS_VARIANT[visit.status]}>

@@ -91,6 +91,9 @@ jest.mock('@/components/doctors/my-profile-form', () => ({
     <div data-testid="my-profile" data-props={JSON.stringify(props)} />
   ),
 }));
+jest.mock('@/components/doctors/my-leave', () => ({
+  MyLeave: () => <div data-testid="my-leave" />,
+}));
 jest.mock('@/components/images/logo-card', () => ({
   LogoCard: (props: Record<string, unknown>) => (
     <div data-testid="logo-card" data-props={JSON.stringify(props)} />
@@ -621,7 +624,11 @@ describe('patients pages', () => {
       );
       const { unmount } = render(await SettingsSectionPage(section('doctors')));
       expect(fetchMock).toHaveBeenCalledWith('/doctor-profiles');
-      expect(propsOf('doctors-list')).toEqual({ initial: list, initialErrorCode: null });
+      expect(propsOf('doctors-list')).toEqual({
+        initial: list,
+        initialErrorCode: null,
+        filterToActiveBranch: false,
+      });
       const nav = screen.getByRole('navigation', { name: staffCopy.settings.navAria });
       expect(nav.textContent).toContain(staffCopy.settings.sections.doctors);
       unmount();
@@ -639,7 +646,12 @@ describe('patients pages', () => {
       );
       fetchMock.mockResolvedValue({ status: 'error', code: 'UNAVAILABLE' });
       render(await SettingsSectionPage(section('doctors')));
-      expect(propsOf('doctors-list')).toEqual({ initial: null, initialErrorCode: 'UNAVAILABLE' });
+      expect(propsOf('doctors-list')).toEqual({
+        initial: null,
+        initialErrorCode: 'UNAVAILABLE',
+        pendingLeaveRequests: null,
+        filterToActiveBranch: false,
+      });
     });
 
     it('the Logo section needs the settings permission and reads the logo and limits on the server', async () => {
@@ -769,6 +781,10 @@ describe('patients pages', () => {
           roles: 'role.read',
           prices: 'opd.prices.write',
           'upload-lists': 'opd.masters.write',
+          'payment-modes': 'opd.masters.write',
+          'vitals-fields': 'opd.masters.write',
+          'bill-numbers': 'opd.settings.write',
+          'print-values': 'opd.settings.write',
         };
         expect(entry.permission).toBe(own[entry.id] ?? 'hospital.settings.read');
       }

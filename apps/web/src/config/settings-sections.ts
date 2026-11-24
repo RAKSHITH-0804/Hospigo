@@ -11,7 +11,7 @@
 export const SETTINGS_BASE_ROUTE = '/app/settings';
 
 /** The headings of the settings menu, in the order they are shown. */
-export const SETTINGS_GROUPS = ['hospital', 'people', 'patients', 'opd'] as const;
+export const SETTINGS_GROUPS = ['hospital', 'people', 'patients', 'opd', 'billing'] as const;
 export type SettingsGroup = (typeof SETTINGS_GROUPS)[number];
 
 export type SettingsSection = {
@@ -25,15 +25,24 @@ export type SettingsSection = {
     | 'patientNumbers'
     | 'doctors'
     | 'printing'
+    | 'printValues'
     | 'opdRules'
     | 'staff'
     | 'roles'
     | 'branding'
     | 'prices'
-    | 'uploadLists';
+    | 'uploadLists'
+    | 'paymentModes'
+    | 'vitalsFields'
+    | 'billNumbers';
   route: string;
   /** Permission needed to view the section (changing needs the matching write permission). */
   permission: string;
+  /**
+   * When true, only hospital-wide Admins (session.canSwitchBranch) see the item. Branch Admins
+   * share the permission code but the API refuses them; hiding avoids a dead 403 link.
+   */
+  hospitalWideOnly?: boolean;
 };
 
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
@@ -51,6 +60,13 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     copyKey: 'printing',
     route: `${SETTINGS_BASE_ROUTE}/printing`,
     permission: 'hospital.settings.read',
+  },
+  {
+    id: 'print-values',
+    group: 'hospital',
+    copyKey: 'printValues',
+    route: `${SETTINGS_BASE_ROUTE}/print-values`,
+    permission: 'opd.settings.write',
   },
   // People
   {
@@ -98,12 +114,35 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     permission: 'hospital.settings.read',
   },
   {
-    id: 'prices',
+    id: 'vitals-fields',
     group: 'opd',
+    copyKey: 'vitalsFields',
+    route: `${SETTINGS_BASE_ROUTE}/vitals-fields`,
+    permission: 'opd.masters.write',
+  },
+  {
+    id: 'prices',
+    group: 'billing',
     copyKey: 'prices',
     route: `${SETTINGS_BASE_ROUTE}/prices`,
     // Prices are shown and changed by Admin and SuperAdmin only.
     permission: 'opd.prices.write',
+  },
+  {
+    id: 'payment-modes',
+    group: 'billing',
+    copyKey: 'paymentModes',
+    route: `${SETTINGS_BASE_ROUTE}/payment-modes`,
+    permission: 'opd.masters.write',
+  },
+  {
+    id: 'bill-numbers',
+    group: 'billing',
+    copyKey: 'billNumbers',
+    route: `${SETTINGS_BASE_ROUTE}/bill-numbers`,
+    // Money numbering is hospital-wide only; Branch Admins get 403 from the API.
+    permission: 'opd.settings.write',
+    hospitalWideOnly: true,
   },
   {
     id: 'upload-lists',
@@ -118,8 +157,18 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
 /** Sections the user may see, in list order. */
 export function visibleSettingsSections(
   permissions: readonly string[] | undefined,
+  opts?: { canSwitchBranch?: boolean },
 ): SettingsSection[] {
-  return SETTINGS_SECTIONS.filter((section) => permissions?.includes(section.permission));
+  const hospitalWide = opts?.canSwitchBranch === true;
+  return SETTINGS_SECTIONS.filter((section) => {
+    if (!permissions?.includes(section.permission)) {
+      return false;
+    }
+    if (section.hospitalWideOnly && !hospitalWide) {
+      return false;
+    }
+    return true;
+  });
 }
 
 /** The sections under their headings (a heading with nothing to show is left out). */

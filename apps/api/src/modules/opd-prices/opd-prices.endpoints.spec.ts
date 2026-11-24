@@ -354,6 +354,84 @@ describe('OPD prices: list, history and change (HTTP, hospigo_test)', () => {
 
   // ------------------------------------------------------------------------- list
 
+  it('with branchId lists only doctors who work in that branch (a doctor in two branches shows in both)', async () => {
+    const C = await seedHospital('C');
+    const east = await owner.branch.create({
+      data: { tenantId: C.tenant, code: 'EAST', name: 'East', accessCode: uniq('pr-east-') },
+    });
+    const userOf = async (profile: string) =>
+      (await owner.doctorProfile.findUniqueOrThrow({ where: { id: profile } })).userId;
+    // doc1 works in Main and East; doc3 in East only; doc2 stays in Main only
+    await owner.userBranch.create({
+      data: { tenantId: C.tenant, userId: await userOf(C.doc1), branchId: east.id },
+    });
+    const doc3 = await makeDoctor({ tenant: C.tenant, main: C.main }, 'doc3east');
+    const doc3User = await userOf(doc3);
+    await owner.userBranch.updateMany({
+      where: { tenantId: C.tenant, userId: doc3User, branchId: C.main },
+      data: { isActive: false },
+    });
+    await owner.userBranch.create({
+      data: { tenantId: C.tenant, userId: doc3User, branchId: east.id },
+    });
+
+    const doctorsOf = async (query: string): Promise<string[]> => {
+      const res = await http()
+        .get(`/opd/prices?kind=DOCTOR_FEE&pageSize=100${query}`)
+        .set(auth(C.tokens.admin))
+        .expect(200);
+      return [
+        ...new Set<string>(
+          res.body.items.map((i: { doctorProfileId: string }) => i.doctorProfileId),
+        ),
+      ];
+    };
+
+    const inMain = await doctorsOf(`&branchId=${C.main}`);
+    expect(inMain).toContain(C.doc1);
+    expect(inMain).toContain(C.doc2);
+    expect(inMain).not.toContain(doc3);
+    const inEast = await doctorsOf(`&branchId=${east.id}`);
+    expect(inEast.sort()).toEqual([C.doc1, doc3].sort());
+    // no branchId, or an empty one: everyone, as before
+    for (const q of ['', '&branchId=']) {
+      const everyone = await doctorsOf(q);
+      expect(everyone).toEqual(expect.arrayContaining([C.doc1, C.doc2, doc3]));
+    }
+    // the registration fee and the tests are hospital-wide: not filtered
+    const rest = await http()
+      .get(`/opd/prices?pageSize=100&branchId=${east.id}`)
+      .set(auth(C.tokens.admin))
+      .expect(200);
+    const kinds = new Set(rest.body.items.map((i: { kind: string }) => i.kind));
+    expect(kinds.has('REGISTRATION')).toBe(true);
+    expect(kinds.has('INVESTIGATION')).toBe(true);
+    // a doctor fee is still the doctor's own, whatever the branch
+    const fees = await http()
+      .get(`/opd/prices?kind=DOCTOR_FEE&pageSize=100&branchId=${east.id}`)
+      .set(auth(C.tokens.admin))
+      .expect(200);
+    const doc1New = fees.body.items.find(
+      (i: { doctorProfileId: string; visitType: string }) =>
+        i.doctorProfileId === C.doc1 && i.visitType === 'NEW',
+    );
+    expect(doc1New.currentAmountPaise).toBe(50_000);
+  });
+
+  it('refuses a branch of another hospital or an unknown one (400, nothing leaks)', async () => {
+    for (const branchId of [B.main, 'no-such-branch']) {
+      const res = await http()
+        .get(`/opd/prices?branchId=${branchId}`)
+        .set(auth(A.tokens.admin))
+        .expect(400);
+      expect(res.body).toMatchObject({
+        code: 'PRICE_INVALID',
+        field: 'branchId',
+        reason: 'BRANCH_NOT_FOUND',
+      });
+    }
+  });
+
   it('lists the registration fee, tests and doctor fees with search, filter and pages', async () => {
     const all = await http().get('/opd/prices?pageSize=100').set(auth(A.tokens.admin)).expect(200);
     expect(all.body.today).toBe(today());
@@ -799,5 +877,81 @@ describe('OPD prices: list, history and change (HTTP, hospigo_test)', () => {
     expect(lines.map((l) => l.lineTotalPaise).sort((x, y) => x - y)).toEqual([10_000, 50_000]);
     const bill = await owner.bill.findUniqueOrThrow({ where: { id: first.body.bill.id } });
     expect(bill.totalPaise).toBe(60_000);
+  });
+
+  // ------------------------------------------- the follow-up fee is optional (Step 8c)
+
+  it('a doctor with only a new-visit fee: the follow-up fee is the same price until a separate one is set, and then it stays put', async () => {
+    const doctor = await makeDoctor(A, 'fallback');
+    const code = (await owner.doctorProfile.findUniqueOrThrow({ where: { id: doctor } })).code;
+    const rows = async () =>
+      (
+        await http()
+          .get(`/opd/prices?kind=DOCTOR_FEE&q=${code}`)
+          .set(auth(A.tokens.admin))
+          .expect(200)
+      ).body.items as Array<{
+        visitType: string;
+        currentAmountPaise: number | null;
+        followsBase: boolean;
+      }>;
+    const pick = async (type: string) => (await rows()).find((r) => r.visitType === type)!;
+    const doctorsList = async () =>
+      (await http().get('/opd/doctors').set(auth(A.tokens.recv)).expect(200)).body.items.find(
+        (d: { id: string }) => d.id === doctor,
+      ) as { feeNewPaise: number | null; feeFollowUpPaise: number | null };
+
+    // nothing set yet
+    expect(await pick('FOLLOW_UP')).toMatchObject({ currentAmountPaise: null, followsBase: true });
+
+    // only the new-visit fee: the follow-up row shows the same price, marked as following it
+    await http()
+      .post('/opd/prices/doctor-fees')
+      .set(auth(A.tokens.admin))
+      .send({ doctorProfileId: doctor, visitType: 'NEW', amountPaise: 40_000 })
+      .expect(200);
+    expect(await pick('NEW')).toMatchObject({ currentAmountPaise: 40_000, followsBase: false });
+    expect(await pick('FOLLOW_UP')).toMatchObject({
+      currentAmountPaise: 40_000,
+      followsBase: true,
+    });
+    expect(await doctorsList()).toMatchObject({ feeNewPaise: 40_000, feeFollowUpPaise: 40_000 });
+
+    // a later change of the new-visit fee is followed by the follow-up fee
+    clock.set(new Date(clock.now().getTime() + 120_000));
+    await http()
+      .post('/opd/prices/doctor-fees')
+      .set(auth(A.tokens.admin))
+      .send({ doctorProfileId: doctor, visitType: 'NEW', amountPaise: 45_000 })
+      .expect(200);
+    expect(await pick('FOLLOW_UP')).toMatchObject({
+      currentAmountPaise: 45_000,
+      followsBase: true,
+    });
+
+    // a separate follow-up fee: its own price from now on
+    clock.set(new Date(clock.now().getTime() + 120_000));
+    await http()
+      .post('/opd/prices/doctor-fees')
+      .set(auth(A.tokens.admin))
+      .send({ doctorProfileId: doctor, visitType: 'FOLLOW_UP', amountPaise: 25_000 })
+      .expect(200);
+    expect(await pick('FOLLOW_UP')).toMatchObject({
+      currentAmountPaise: 25_000,
+      followsBase: false,
+    });
+
+    // ... and it no longer follows later changes of the new-visit fee
+    clock.set(new Date(clock.now().getTime() + 120_000));
+    await http()
+      .post('/opd/prices/doctor-fees')
+      .set(auth(A.tokens.admin))
+      .send({ doctorProfileId: doctor, visitType: 'NEW', amountPaise: 50_000 })
+      .expect(200);
+    expect(await pick('FOLLOW_UP')).toMatchObject({
+      currentAmountPaise: 25_000,
+      followsBase: false,
+    });
+    expect(await doctorsList()).toMatchObject({ feeNewPaise: 50_000, feeFollowUpPaise: 25_000 });
   });
 });

@@ -46,6 +46,7 @@ export default async function OpdPage() {
       canOpenConsultation={permissions.includes('opd.notes.write')}
       canViewNotes={permissions.includes('opd.notes.read')}
       canRecordVitals={permissions.includes('opd.vitals.write')}
+      canRequestCancel={permissions.includes('opd.refunds.request')}
     />
   );
 }

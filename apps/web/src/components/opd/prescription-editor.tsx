@@ -148,12 +148,15 @@ export function PrescriptionEditor({
   nextId,
   readOnly,
   search,
+  hideHeading = false,
 }: {
   rows: RxDraft[];
   onChange: (rows: RxDraft[]) => void;
   nextId: () => number;
   readOnly: boolean;
   search: MedicineSearchSettings;
+  /** When the parent card already shows "Prescription". */
+  hideHeading?: boolean;
 }) {
   const [focusRow, setFocusRow] = useState<number | null>(null);
 
@@ -189,7 +192,7 @@ export function PrescriptionEditor({
     const shown = rows.filter((r) => rxRowState(r) === 'complete');
     return (
       <section className="flex flex-col gap-[var(--space-2)]" aria-label={copy.heading}>
-        <h2 className="section-heading">{copy.heading}</h2>
+        {hideHeading ? null : <h2 className="section-heading">{copy.heading}</h2>}
         {shown.length === 0 ? (
           <p className="type-label text-muted-foreground">{copy.readOnlyEmpty}</p>
         ) : (
@@ -205,7 +208,7 @@ export function PrescriptionEditor({
 
   return (
     <section className="flex flex-col gap-[var(--space-2)]" aria-label={copy.heading}>
-      <h2 className="section-heading">{copy.heading}</h2>
+      {hideHeading ? null : <h2 className="section-heading">{copy.heading}</h2>}
       {rows.length === 0 ? <p className="type-label text-muted-foreground">{copy.empty}</p> : null}
       {rows.length > 0 ? (
         <div className="rx-head type-small text-muted-foreground" aria-hidden="true">

@@ -6,6 +6,7 @@ import type {
   CustomField,
   FieldSection,
   OpdRules,
+  PatientFieldsResponse,
   UhidFormat,
   UhidFormatResponse,
 } from './types';
@@ -16,6 +17,18 @@ export const saveOpdRules = (
   body: Partial<Pick<OpdRules, 'followUpFreeDays' | 'repeatVisitFreeHours'>>,
 ): Promise<PatientsApiResult<OpdRules>> =>
   patientsApi<OpdRules>(SETTINGS_ROUTES.opdRules, { method: 'PUT', body });
+
+export const loadPatientFields = (): Promise<PatientsApiResult<PatientFieldsResponse>> =>
+  patientsApi<PatientFieldsResponse>(SETTINGS_ROUTES.patientFields);
+
+/** Adds the ready-made reference fields that are not there yet (existing ones are left as they are). */
+export const addReferenceSet = (): Promise<
+  PatientsApiResult<{ created: string[]; kept: string[]; skipped: string[] }>
+> =>
+  patientsApi<{ created: string[]; kept: string[]; skipped: string[] }>(
+    `${SETTINGS_ROUTES.patientFields}/reference-set`,
+    { method: 'POST', body: {} },
+  );
 
 export const saveBuiltinField = (
   key: string,

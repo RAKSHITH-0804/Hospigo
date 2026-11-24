@@ -153,3 +153,49 @@ describe('DELETE /api/staff/print-templates/:docType', () => {
     expect(callStaffApiMock).not.toHaveBeenCalled();
   });
 });
+
+describe('the scope of a template (Step 8c)', () => {
+  const scoped = (method: string, scope: string, body?: unknown) =>
+    new Request(`${URL_OF('RECEIPT')}${scope}`, {
+      method,
+      headers: {
+        Origin: ORIGIN,
+        'x-hospigo-branch': 'branch-1',
+        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+
+  it('passes scope=branch and scope=hospital on to the API for save and for remove', async () => {
+    for (const scope of ['branch', 'hospital']) {
+      callStaffApiMock.mockClear();
+      await PUT(scoped('PUT', `?scope=${scope}`, template), ctx('RECEIPT'));
+      expect(callStaffApiMock).toHaveBeenCalledWith(
+        `/print-templates/RECEIPT?scope=${scope}`,
+        expect.objectContaining({ method: 'PUT', body: template }),
+      );
+      callStaffApiMock.mockClear();
+      await DELETE(scoped('DELETE', `?scope=${scope}`), ctx('RECEIPT'));
+      expect(callStaffApiMock).toHaveBeenCalledWith(
+        `/print-templates/RECEIPT?scope=${scope}`,
+        expect.objectContaining({ method: 'DELETE' }),
+      );
+    }
+  });
+
+  it('refuses any other scope, or two scopes, without calling the API', async () => {
+    for (const q of [
+      '?scope=all',
+      '?scope=BRANCH',
+      '?scope=',
+      '?scope=branch&scope=hospital',
+      '?scope=branch%0d',
+    ]) {
+      const put = await PUT(scoped('PUT', q, template), ctx('RECEIPT'));
+      const del = await DELETE(scoped('DELETE', q), ctx('RECEIPT'));
+      expect({ q, put: put.status, del: del.status }).toEqual({ q, put: 400, del: 400 });
+      expect((await put.json()).code).toBe('PRINT_SCOPE_INVALID');
+    }
+    expect(callStaffApiMock).not.toHaveBeenCalled();
+  });
+});
