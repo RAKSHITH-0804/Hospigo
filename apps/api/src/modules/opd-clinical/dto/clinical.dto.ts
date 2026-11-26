@@ -139,3 +139,49 @@ export class RecordVitalsDto {
   @Type(() => VitalsReadingDto)
   readings!: VitalsReadingDto[];
 }
+
+/**
+ * A change of a COMPLETED consultation (Step 2.1b): the reason is required, and every other field
+ * is optional (only what is sent changes). The result is saved as a new version; the original stays.
+ */
+export class AmendConsultationDto {
+  @ApiProperty({ description: 'Why the note is changed (3 to 500 characters)' })
+  @IsString()
+  @MinLength(C.amendReasonMinLength)
+  @MaxLength(C.amendReasonMaxLength)
+  reason!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(C.noteTextMaxLength)
+  complaints?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(C.noteTextMaxLength)
+  diagnosis?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(C.noteTextMaxLength)
+  advice?: string;
+
+  @ApiPropertyOptional({ description: 'YYYY-MM-DD, or an empty text to clear' })
+  @IsOptional()
+  @IsString()
+  followUpDate?: string;
+
+  @ApiPropertyOptional({
+    type: [PrescriptionItemDto],
+    description: 'The whole prescription as it should be',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(C.maxPrescriptionItems)
+  @ValidateNested({ each: true })
+  @Type(() => PrescriptionItemDto)
+  prescription?: PrescriptionItemDto[];
+}

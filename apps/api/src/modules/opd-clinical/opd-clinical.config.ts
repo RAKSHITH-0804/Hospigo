@@ -8,6 +8,9 @@ export const OPD_CLINICAL_CONFIG = {
   noteTextMaxLength: 4000,
   addendumTextMaxLength: 4000,
   addendumReasonMaxLength: 500,
+  /** A change of a completed note needs a reason of this length (Step 2.1b). */
+  amendReasonMinLength: 3,
+  amendReasonMaxLength: 500,
   /** Prescription. */
   maxPrescriptionItems: 30,
   medicineNameMaxLength: 200,
@@ -40,5 +43,6 @@ export const OPD_CLINICAL_AUDIT = {
   visitCompleted: 'OPD_VISIT_COMPLETE',
   noteRead: 'OPD_NOTE_READ',
   addendumAdded: 'OPD_NOTE_ADDENDUM',
+  noteAmended: 'OPD_NOTE_AMEND',
   vitalsRecorded: 'OPD_VITALS_RECORD',
 } as const;

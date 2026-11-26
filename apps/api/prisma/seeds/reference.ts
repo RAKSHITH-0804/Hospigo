@@ -86,7 +86,7 @@ export const ADMIN_EXCLUDED_PERMISSION_CODES: readonly string[] = [
   'opd.queue.read',
   'opd.vitals.read',
   'opd.vitals.write',
-  'opd.notes.read',
+  // Step 2.1b: an Admin READS notes (to change a completed one as a new version) but never writes a new one
   'opd.notes.write',
   'opd.investigations.order',
   'opd.investigations.bill',

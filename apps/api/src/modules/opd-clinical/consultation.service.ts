@@ -15,6 +15,7 @@ import {
 } from './clinical-visit';
 import type {
   AddendumDto,
+  AmendConsultationDto,
   PrescriptionItemDto,
   SaveNoteDto,
   SavePrescriptionDto,
@@ -33,6 +34,10 @@ const NOTE_INCLUDE = {
   addenda: {
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     include: { author: { select: { id: true, displayName: true } } },
+  },
+  versions: {
+    orderBy: { versionNo: 'asc' },
+    include: { editor: { select: { id: true, displayName: true } } },
   },
 } satisfies Prisma.ConsultationInclude;
 
@@ -116,22 +121,30 @@ async function loadDoctorDetails(
   };
 }
 
-function toNoteView(note: NoteRow | null) {
-  if (!note) {
-    return { consultation: null, prescription: [], addenda: [] };
-  }
+/** What a version holds: the whole text of the note and the prescription as they became. */
+export type NoteSnapshot = {
+  complaints: string | null;
+  diagnosis: string | null;
+  advice: string | null;
+  followUpDate: string | null;
+  prescription: Array<{
+    lineNo: number;
+    medicineId: string | null;
+    medicineName: string;
+    isUnlisted: boolean;
+    dose: string;
+    frequency: string;
+    duration: string;
+    instructions: string | null;
+  }>;
+};
+
+function snapshotOfOriginal(note: NoteRow): NoteSnapshot {
   return {
-    consultation: {
-      id: note.id,
-      status: note.status,
-      complaints: note.complaints,
-      diagnosis: note.diagnosis,
-      advice: note.advice,
-      followUpDate: note.followUpDate ? isoDate(note.followUpDate) : null,
-      completedAt: note.completedAt ? note.completedAt.toISOString() : null,
-      createdAt: note.createdAt.toISOString(),
-      updatedAt: note.updatedAt.toISOString(),
-    },
+    complaints: note.complaints,
+    diagnosis: note.diagnosis,
+    advice: note.advice,
+    followUpDate: note.followUpDate ? isoDate(note.followUpDate) : null,
     prescription: note.prescriptionItems.map((i) => ({
       lineNo: i.lineNo,
       medicineId: i.medicineId,
@@ -141,6 +154,57 @@ function toNoteView(note: NoteRow | null) {
       frequency: i.frequency,
       duration: i.duration,
       instructions: i.instructions,
+    })),
+  };
+}
+
+/** The note as it is NOW: the latest version when there is one, else the original. */
+function effectiveSnapshot(note: NoteRow): NoteSnapshot {
+  const latest = note.versions[note.versions.length - 1];
+  return latest ? (latest.snapshot as unknown as NoteSnapshot) : snapshotOfOriginal(note);
+}
+
+/** The same for a note read with its versions and prescription rows (the all-patients history). */
+export function effectiveSnapshotOf(
+  note: Pick<
+    NoteRow,
+    'complaints' | 'diagnosis' | 'advice' | 'followUpDate' | 'prescriptionItems'
+  > & {
+    versions: Array<{ snapshot: unknown }>;
+  },
+): NoteSnapshot {
+  const latest = note.versions[note.versions.length - 1];
+  return latest
+    ? (latest.snapshot as NoteSnapshot)
+    : snapshotOfOriginal(note as unknown as NoteRow);
+}
+
+function toNoteView(note: NoteRow | null) {
+  if (!note) {
+    return { consultation: null, prescription: [], addenda: [], versions: [] };
+  }
+  const now = effectiveSnapshot(note);
+  return {
+    consultation: {
+      id: note.id,
+      status: note.status,
+      complaints: now.complaints,
+      diagnosis: now.diagnosis,
+      advice: now.advice,
+      followUpDate: now.followUpDate,
+      /** true once an Admin has changed the completed note; the original stays in the history. */
+      amended: note.versions.length > 0,
+      currentVersion: note.versions.length,
+      completedAt: note.completedAt ? note.completedAt.toISOString() : null,
+      createdAt: note.createdAt.toISOString(),
+      updatedAt: note.updatedAt.toISOString(),
+    },
+    prescription: now.prescription,
+    versions: note.versions.map((v) => ({
+      versionNo: v.versionNo,
+      reason: v.reason,
+      editedBy: { id: v.editor.id, name: v.editor.displayName },
+      at: v.createdAt.toISOString(),
     })),
     addenda: note.addenda.map((a) => ({
       id: a.id,
@@ -440,35 +504,88 @@ export class ConsultationService {
 
   // ------------------------------------------------------------------------------ addendum
 
-  /** A correction of a COMPLETED note: new text, who, when and why. The note itself stays frozen. */
-  async addAddendum(visitId: string, body: AddendumDto, actor: Actor) {
+  /**
+   * RETIRED (Step 2.1b): nobody adds an addendum any more, not even the doctor. A completed note is
+   * changed by an Admin as a new version (amend). The addenda already written stay as history.
+   */
+  async addAddendum(_visitId: string, _body: AddendumDto, _actor: Actor): Promise<never> {
+    throw clinicalError(409, E.ADDENDUM_RETIRED);
+  }
+
+  /**
+   * Changes a COMPLETED note as a new version: who, when and a required reason. Only what is sent
+   * changes; the version holds the whole text as it became and the original stays untouched (the
+   * database refuses to edit or delete a version). Billed tests are never touched. Needs the
+   * permission opd.notes.amend (Admin, Super Admin, Indigo Owner), not being the doctor.
+   */
+  async amend(visitId: string, body: AmendConsultationDto, actor: Actor) {
+    const reason = clean(body.reason);
+    if (reason === null || reason.length < C.amendReasonMinLength) {
+      throw clinicalError(400, E.AMEND_REASON_REQUIRED);
+    }
     return this.tenantDb.withTenant(async (tx) => {
-      const { visit } = await this.doctorContext(tx, actor, visitId);
-      const text = clean(body.text);
-      const reason = clean(body.reason);
-      if (text === null || reason === null) {
-        throw clinicalError(400, E.ADDENDUM_INVALID);
-      }
+      await lockVisit(tx, actor, visitId, null);
+      const visit = await findClinicalVisit(tx, actor, visitId, null);
+      const { prefix, today } = await this.dayInfo(tx, actor);
       const note = await this.findNote(tx, actor, visit.id);
       if (!note || note.status !== 'COMPLETED' || visit.status !== 'COMPLETED') {
-        throw clinicalError(409, E.ADDENDUM_NEEDS_COMPLETED_NOTE);
+        throw clinicalError(409, E.AMEND_NEEDS_COMPLETED_NOTE);
       }
-      const addendum = await tx.consultationAddendum.create({
+      const before = effectiveSnapshot(note);
+      const after: NoteSnapshot = {
+        complaints: body.complaints === undefined ? before.complaints : clean(body.complaints),
+        diagnosis: body.diagnosis === undefined ? before.diagnosis : clean(body.diagnosis),
+        advice: body.advice === undefined ? before.advice : clean(body.advice),
+        followUpDate:
+          body.followUpDate === undefined
+            ? before.followUpDate
+            : (() => {
+                const parsed = this.parseFollowUp(body.followUpDate, visit.visitDate);
+                return parsed ? isoDate(parsed) : null;
+              })(),
+        prescription:
+          body.prescription === undefined
+            ? before.prescription
+            : (await this.resolvePrescription(tx, actor, body.prescription)).map((r, index) => ({
+                lineNo: index + 1,
+                ...r,
+              })),
+      };
+      const changed = (
+        ['complaints', 'diagnosis', 'advice', 'followUpDate', 'prescription'] as const
+      ).filter((key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]));
+      if (changed.length === 0) {
+        throw clinicalError(409, E.AMEND_NOTHING_CHANGED);
+      }
+      if (after.complaints === null && after.diagnosis === null) {
+        throw clinicalError(400, E.NOTE_EMPTY);
+      }
+      const versionNo = note.versions.length + 1;
+      const version = await tx.consultationVersion.create({
         data: {
           tenantId: actor.tenantId,
           branchId: actor.branchId,
           consultationId: note.id,
           visitId: visit.id,
-          addendumText: text,
+          versionNo,
           reason,
-          addedBy: actor.userId,
+          snapshot: after as unknown as Prisma.InputJsonValue,
+          editedBy: actor.userId,
         },
       });
-      await this.audit(tx, actor, AUDIT.addendumAdded, 'consultation_addendum', addendum.id, {
+      // Audit: which parts changed and the version number, never the words.
+      await this.audit(tx, actor, AUDIT.noteAmended, 'consultation_version', version.id, {
         visitId: visit.id,
         consultationId: note.id,
+        versionNo,
+        changed,
       });
-      return toNoteView(await this.findNote(tx, actor, visit.id));
+      const fresh = await this.findNote(tx, actor, visit.id);
+      return {
+        visit: toVisitSummary(visit, prefix, today),
+        doctorDetails: await loadDoctorDetails(tx, actor, visit.doctorProfileId, fresh),
+        ...toNoteView(fresh),
+      };
     });
   }
 

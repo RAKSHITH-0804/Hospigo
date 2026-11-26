@@ -68,8 +68,9 @@ const NURSE_PERMS = [
   'opd.vitals.write',
   'opd.notes.read',
 ] as const;
-const DOCTOR_PERMS = [...NURSE_PERMS, 'opd.notes.write'] as const;
-const ALL_CLINICAL = [...new Set([...RECEPTION_PERMS, ...DOCTOR_PERMS])];
+const DOCTOR_PERMS = [...NURSE_PERMS, 'opd.notes.write', 'patients.history.view_all'] as const;
+const AMEND_PERMS = ['opd.visits.read', 'opd.notes.read', 'opd.notes.amend'] as const;
+const ALL_CLINICAL = [...new Set([...RECEPTION_PERMS, ...DOCTOR_PERMS, ...AMEND_PERMS])];
 
 /** JSON bodies of the HTTP responses are checked field by field in these tests. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -263,6 +264,9 @@ describe('OPD clinical endpoints: queue, note, prescription, vitals (HTTP)', () 
     await makeUser('admin', ['opd.visits.read', 'opd.billing.read'], [main]);
     await makeUser('docNoProfile', DOCTOR_PERMS, [main]);
     await makeUser('nobody', [], [main]);
+    // Step 2.1b: an Admin who may change a completed note (read + amend), in Main or in East only
+    await makeUser('amender', AMEND_PERMS, [main]);
+    await makeUser('amenderEast', AMEND_PERMS, [east]);
 
     async function makeDoctor(key: string) {
       const u = await makeUser(key, DOCTOR_PERMS, [main]);
@@ -857,7 +861,6 @@ describe('OPD clinical endpoints: queue, note, prescription, vitals (HTTP)', () 
         await saveNote(A, 'doc2', id, { diagnosis: 'overwrite' }),
         await put(A, 'doc2', `/opd/visits/${id}/prescription`, { items: [] }),
         await complete(A, 'doc2', id),
-        await post(A, 'doc2', `/opd/visits/${id}/consultation/addenda`, { text: 'a', reason: 'b' }),
       ]) {
         expect(res.status).toBe(404);
         expect(res.body.code).toBe('VISIT_NOT_FOUND');
@@ -1026,60 +1029,273 @@ describe('OPD clinical endpoints: queue, note, prescription, vitals (HTTP)', () 
     });
   });
 
-  // ------------------------------------------------------------------------------- addendum
+  // ------------------------------------------------------- addenda are retired, notes are amended
 
-  describe('addendum', () => {
-    it('needs a completed note; then records who, when and why and leaves the note untouched', async () => {
-      const id = await started(A);
-      await saveNote(A, 'doc1', id, { diagnosis: 'original' });
-      const early = await post(A, 'doc1', `/opd/visits/${id}/consultation/addenda`, {
+  describe('addendum (retired) and amend (Step 2.1b)', () => {
+    const amendUrl = (id: string) => `/opd/visits/${id}/consultation/amend`;
+
+    async function completedWithMedicine(h: Hospital): Promise<string> {
+      const id = await started(h);
+      await saveNote(h, 'doc1', id, { complaints: 'cough', diagnosis: 'original', advice: 'rest' });
+      await put(h, 'doc1', `/opd/visits/${id}/prescription`, {
+        items: [{ medicineId: h.medicine, dose: '1 tab', frequency: 'twice', duration: '3 days' }],
+      });
+      await complete(h, 'doc1', id);
+      return id;
+    }
+
+    it('nobody adds an addendum any more, not even the doctor of a completed visit', async () => {
+      const id = await completedWithMedicine(A);
+      const res = await post(A, 'doc1', `/opd/visits/${id}/consultation/addenda`, {
         text: 'a',
         reason: 'b',
       });
-      expect(early.status).toBe(409);
-      expect(early.body.code).toBe('ADDENDUM_NEEDS_COMPLETED_NOTE');
-      await complete(A, 'doc1', id);
-      const res = await post(A, 'doc1', `/opd/visits/${id}/consultation/addenda`, {
-        text: ' Allergy to penicillin noted ',
-        reason: 'missed during consultation',
-      });
-      expect(res.status).toBe(201);
-      expect(res.body.consultation.diagnosis).toBe('original');
-      expect(res.body.addenda).toHaveLength(1);
-      expect(res.body.addenda[0]).toMatchObject({
-        text: 'Allergy to penicillin noted',
-        reason: 'missed during consultation',
-        addedBy: { id: A.users.doc1 },
-      });
-      expect(res.body.addenda[0].createdAt).toEqual(expect.any(String));
-      await post(A, 'doc1', `/opd/visits/${id}/consultation/addenda`, {
-        text: 'second',
-        reason: 'again',
-      });
-      const read = await get(A, 'nurse', `/opd/visits/${id}/consultation`);
-      expect(read.body.addenda.map((a: Loose) => a.text)).toEqual([
-        'Allergy to penicillin noted',
-        'second',
-      ]);
-      expect(await auditRows(A, 'OPD_NOTE_ADDENDUM')).not.toHaveLength(0);
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe('ADDENDUM_RETIRED');
+      expect(await owner.consultationAddendum.count({ where: { visitId: id } })).toBe(0);
     });
 
-    it('refuses blank text or reason and extra fields', async () => {
-      const id = await started(A);
-      await saveNote(A, 'doc1', id, { diagnosis: 'x' });
-      await complete(A, 'doc1', id);
-      const url = `/opd/visits/${id}/consultation/addenda`;
-      expect((await post(A, 'doc1', url, { text: '  ', reason: 'b' })).body.code).toBe(
-        'ADDENDUM_INVALID',
+    it('a doctor cannot change a completed note, a prescription or amend it', async () => {
+      const id = await completedWithMedicine(A);
+      expect((await saveNote(A, 'doc1', id, { diagnosis: 'rewritten' })).status).toBe(409);
+      expect((await put(A, 'doc1', `/opd/visits/${id}/prescription`, { items: [] })).status).toBe(
+        409,
       );
-      expect((await post(A, 'doc1', url, { text: 'a', reason: '  ' })).body.code).toBe(
-        'ADDENDUM_INVALID',
-      );
-      expect((await post(A, 'doc1', url, { text: 'a' })).status).toBe(400);
       expect(
-        (await post(A, 'doc1', url, { text: 'a', reason: 'b', addedBy: A.users.doc2 })).status,
+        (await post(A, 'doc1', amendUrl(id), { reason: 'my own change', diagnosis: 'x' })).status,
+      ).toBe(403);
+      const note = await owner.consultation.findFirstOrThrow({ where: { visitId: id } });
+      expect(note.diagnosis).toBe('original');
+    });
+
+    it('an Admin changes it as a version with a reason; the original stays and the read shows the latest', async () => {
+      const id = await completedWithMedicine(A);
+      const first = await post(A, 'amender', amendUrl(id), {
+        reason: 'wrong diagnosis typed',
+        diagnosis: 'corrected diagnosis',
+      });
+      expect(first.status).toBe(201);
+      expect(first.body.consultation).toMatchObject({
+        diagnosis: 'corrected diagnosis',
+        complaints: 'cough',
+        advice: 'rest',
+        amended: true,
+        currentVersion: 1,
+      });
+      expect(first.body.prescription).toHaveLength(1);
+      expect(first.body.versions).toEqual([
+        expect.objectContaining({
+          versionNo: 1,
+          reason: 'wrong diagnosis typed',
+          editedBy: { id: A.users.amender, name: expect.any(String) },
+        }),
+      ]);
+      // the original is untouched in its own table
+      const original = await owner.consultation.findFirstOrThrow({ where: { visitId: id } });
+      expect(original.diagnosis).toBe('original');
+      expect(await owner.prescriptionItem.count({ where: { consultationId: original.id } })).toBe(
+        1,
+      );
+      // a second version builds on the first and can change the prescription
+      const second = await post(A, 'amender', amendUrl(id), {
+        reason: 'dose corrected after a call',
+        prescription: [
+          { medicineId: A.medicine, dose: '2 tabs', frequency: 'once', duration: '5 days' },
+          { medicineName: 'Cough syrup', dose: '5 ml', frequency: 'thrice', duration: '3 days' },
+        ],
+      });
+      expect(second.status).toBe(201);
+      expect(second.body.consultation).toMatchObject({
+        diagnosis: 'corrected diagnosis',
+        currentVersion: 2,
+      });
+      expect(second.body.prescription.map((p: Loose) => p.dose)).toEqual(['2 tabs', '5 ml']);
+      // a doctor or a nurse reading the visit now sees the latest, marked as amended
+      const read = await get(A, 'nurse', `/opd/visits/${id}/consultation`);
+      expect(read.body.consultation).toMatchObject({ amended: true, currentVersion: 2 });
+      expect(read.body.versions.map((v: Loose) => v.versionNo)).toEqual([1, 2]);
+      // the audit holds the version number and the names of what changed, never the words
+      const audits = await auditRows(A, 'OPD_NOTE_AMEND');
+      expect(audits.length).toBeGreaterThanOrEqual(2);
+      expect(JSON.stringify(audits.map((r) => r.metadata))).not.toMatch(
+        /corrected diagnosis|Cough syrup/,
+      );
+      expect(audits.some((r) => (r.metadata as Loose).changed?.includes('prescription'))).toBe(
+        true,
+      );
+    });
+
+    it('needs a reason, a completed note and a real change; the visit of another branch is 404', async () => {
+      const waitingId = await started(A);
+      await saveNote(A, 'doc1', waitingId, { diagnosis: 'draft' });
+      const early = await post(A, 'amender', amendUrl(waitingId), {
+        reason: 'too early',
+        diagnosis: 'x',
+      });
+      expect(early.status).toBe(409);
+      expect(early.body.code).toBe('AMEND_NEEDS_COMPLETED_NOTE');
+      const id = await completedWithMedicine(A);
+      expect((await post(A, 'amender', amendUrl(id), { diagnosis: 'x' })).status).toBe(400);
+      expect(
+        (await post(A, 'amender', amendUrl(id), { reason: '  ', diagnosis: 'x' })).status,
       ).toBe(400);
-      expect(await owner.consultationAddendum.count({ where: { visitId: id } })).toBe(0);
+      expect(
+        (await post(A, 'amender', amendUrl(id), { reason: 'ab', diagnosis: 'x' })).status,
+      ).toBe(400);
+      const same = await post(A, 'amender', amendUrl(id), {
+        reason: 'no real change',
+        diagnosis: 'original',
+      });
+      expect(same.status).toBe(409);
+      expect(same.body.code).toBe('AMEND_NOTHING_CHANGED');
+      const emptied = await post(A, 'amender', amendUrl(id), {
+        reason: 'empty it',
+        complaints: '',
+        diagnosis: '',
+      });
+      expect(emptied.status).toBe(400);
+      expect(
+        (
+          await post(A, 'amender', amendUrl(id), {
+            reason: 'extra field',
+            diagnosis: 'x',
+            editedBy: 'someone',
+          })
+        ).status,
+      ).toBe(400);
+      expect(
+        (await post(A, 'amenderEast', amendUrl(id), { reason: 'wrong branch', diagnosis: 'x' }))
+          .status,
+      ).toBe(404);
+      expect(await owner.consultationVersion.count({ where: { visitId: id } })).toBe(0);
+    });
+
+    it('other people and other hospitals cannot amend', async () => {
+      const id = await completedWithMedicine(A);
+      for (const who of ['nurse', 'recv', 'nobody', 'admin']) {
+        expect(
+          (await post(A, who, amendUrl(id), { reason: 'not allowed', diagnosis: 'x' })).status,
+        ).toBe(403);
+      }
+      expect(
+        (await post(B, 'amender', amendUrl(id), { reason: 'other hospital', diagnosis: 'x' }))
+          .status,
+      ).toBe(404);
+      expect(await owner.consultationVersion.count({ where: { visitId: id } })).toBe(0);
+    });
+
+    it('a version can never be edited or deleted, not even by the owner login of the database', async () => {
+      const id = await completedWithMedicine(A);
+      await post(A, 'amender', amendUrl(id), {
+        reason: 'keep the history',
+        diagnosis: 'history',
+      }).expect(201);
+      await expect(
+        owner.consultationVersion.updateMany({
+          where: { visitId: id },
+          data: { reason: 'edited' },
+        }),
+      ).rejects.toThrow(/append-only/);
+      await expect(
+        owner.consultationVersion.deleteMany({ where: { visitId: id } }),
+      ).rejects.toThrow(/append-only/);
+      expect(await owner.consultationVersion.count({ where: { visitId: id } })).toBe(1);
+    });
+  });
+
+  // -------------------------------------------------- doctors see all patients (Step 2.1b)
+
+  describe('the clinical history of any patient (read-only, logged)', () => {
+    const historyUrl = (patientId: string) => `/patients/${patientId}/clinical-history`;
+    const patientOf = async (visitId: string) =>
+      (await owner.opdVisit.findUniqueOrThrow({ where: { id: visitId } })).patientId;
+    const logRows = (patientId: string) =>
+      owner.patientViewLog.findMany({ where: { patientId }, orderBy: { createdAt: 'asc' } });
+
+    it('another doctor reads a patient seen only by doctor 1, with the whole history, and the view is logged', async () => {
+      const id = await started(A);
+      await saveNote(A, 'doc1', id, { complaints: 'fever', diagnosis: 'viral' });
+      await complete(A, 'doc1', id);
+      const patientId = await patientOf(id);
+      const res = await get(A, 'doc2', historyUrl(patientId));
+      expect(res.status).toBe(200);
+      expect(res.body.logged).toBe(true);
+      const visit = res.body.visits.find((v: Loose) => v.visitId === id);
+      expect(visit).toMatchObject({
+        status: 'COMPLETED',
+        doctor: { id: A.doc1 },
+        consultation: { diagnosis: 'viral', complaints: 'fever', completed: true, amended: false },
+      });
+      const rows = await logRows(patientId);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ viewerUserId: A.users.doc2, patientId, tenantId: A.tenant });
+      // ids only: the log row has no text columns at all
+      expect(Object.keys(rows[0]!).sort()).toEqual(
+        ['branchId', 'createdAt', 'id', 'patientId', 'tenantId', 'viewerUserId'].sort(),
+      );
+      // and the doctor's queue still shows only the doctor's own patients
+      const queue = await get(A, 'doc2', '/opd/queue');
+      expect(JSON.stringify(queue.body)).not.toContain(patientId);
+    });
+
+    it('at most one log row an hour for the same reader and patient; another hour, another row', async () => {
+      const id = await started(A);
+      const patientId = await patientOf(id);
+      await get(A, 'doc2', historyUrl(patientId)).expect(200);
+      const again = await get(A, 'doc2', historyUrl(patientId));
+      expect(again.body.logged).toBe(false);
+      expect(await logRows(patientId)).toHaveLength(1);
+      clock.set(new Date(Date.now() + 61 * 60 * 1000));
+      const later = await get(A, 'doc2', historyUrl(patientId));
+      expect(later.body.logged).toBe(true);
+      expect(await logRows(patientId)).toHaveLength(2);
+    });
+
+    it('the assigned doctor with an open visit of that patient is not logged', async () => {
+      const id = await started(A);
+      const patientId = await patientOf(id);
+      const res = await get(A, 'doc1', historyUrl(patientId));
+      expect(res.status).toBe(200);
+      expect(res.body.logged).toBe(false);
+      expect(await logRows(patientId)).toHaveLength(0);
+    });
+
+    it('shows the latest version of an amended note, and who may read at all', async () => {
+      const id = await started(A);
+      await saveNote(A, 'doc1', id, { diagnosis: 'before' });
+      await complete(A, 'doc1', id);
+      await post(A, 'amender', `/opd/visits/${id}/consultation/amend`, {
+        reason: 'fix it',
+        diagnosis: 'after',
+      }).expect(201);
+      const patientId = await patientOf(id);
+      const res = await get(A, 'doc2', historyUrl(patientId));
+      expect(res.body.visits.find((v: Loose) => v.visitId === id).consultation).toMatchObject({
+        diagnosis: 'after',
+        amended: true,
+      });
+      // people without the permission are refused, and another hospital never sees the patient
+      for (const who of ['nurse', 'recv', 'admin', 'nobody', 'amender']) {
+        expect((await get(A, who, historyUrl(patientId))).status).toBe(403);
+      }
+      expect((await get(B, 'doc1', historyUrl(patientId))).status).toBe(404);
+      expect((await get(A, 'doc2', historyUrl('does-not-exist'))).status).toBe(404);
+    });
+
+    it('the view log can never be edited or deleted', async () => {
+      const id = await started(A);
+      const patientId = await patientOf(id);
+      await get(A, 'doc2', historyUrl(patientId)).expect(200);
+      await expect(
+        owner.patientViewLog.updateMany({
+          where: { patientId },
+          data: { viewerUserId: A.users.doc1 },
+        }),
+      ).rejects.toThrow(/append-only/);
+      await expect(owner.patientViewLog.deleteMany({ where: { patientId } })).rejects.toThrow(
+        /append-only/,
+      );
+      expect(await logRows(patientId)).toHaveLength(1);
     });
   });
 
@@ -1545,7 +1761,6 @@ describe('OPD clinical endpoints: queue, note, prescription, vitals (HTTP)', () 
         put(B, 'doc1', `/opd/visits/${id}/consultation`, { diagnosis: 'hijack' }),
         put(B, 'doc1', `/opd/visits/${id}/prescription`, { items: [] }),
         post(B, 'doc1', `/opd/visits/${id}/complete`),
-        post(B, 'doc1', `/opd/visits/${id}/consultation/addenda`, { text: 'a', reason: 'b' }),
         get(B, 'nurse', `/opd/visits/${id}/vitals`),
         post(B, 'nurse', `/opd/visits/${id}/vitals`, {
           readings: [{ fieldCode: 'PULSE', value: 1 }],

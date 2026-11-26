@@ -18,7 +18,13 @@ import type { AccessClaims, HospitalAccessClaims } from '../auth/token.types';
 import { isHospitalTokenType } from '../auth/token.types';
 import type { Actor } from '../opd-visits/opd-visits.service';
 import { ConsultationService } from './consultation.service';
-import { AddendumDto, RecordVitalsDto, SaveNoteDto, SavePrescriptionDto } from './dto/clinical.dto';
+import {
+  AddendumDto,
+  AmendConsultationDto,
+  RecordVitalsDto,
+  SaveNoteDto,
+  SavePrescriptionDto,
+} from './dto/clinical.dto';
 import { OPD_CLINICAL_CONFIG as C } from './opd-clinical.config';
 import { VitalsService } from './vitals.service';
 
@@ -132,9 +138,22 @@ export class OpdClinicalController {
   @Post('opd/visits/:id/consultation/addenda')
   @HttpCode(201)
   @RequirePermission('opd.notes.write', { module: 'OPD' })
-  @ApiOperation({ summary: 'Correct a completed note with an addendum (who, when, why)' })
+  @ApiOperation({
+    summary: 'RETIRED in Step 2.1b: always refused. Use consultation/amend (Admin) instead.',
+  })
   async addendum(@Req() req: HttpReq, @Param('id') id: string, @Body() body: AddendumDto) {
     return this.consultations.addAddendum(id, body, actorOf(req));
+  }
+
+  @Post('opd/visits/:id/consultation/amend')
+  @HttpCode(201)
+  @RequirePermission('opd.notes.amend', { module: 'OPD' })
+  @ApiOperation({
+    summary:
+      'Change a COMPLETED consultation as a new version (who, when, a required reason). The original stays. Admin, Super Admin and Indigo Owner only.',
+  })
+  async amend(@Req() req: HttpReq, @Param('id') id: string, @Body() body: AmendConsultationDto) {
+    return this.consultations.amend(id, body, actorOf(req));
   }
 
   // ----------------------------------------------------------------------------- vitals
