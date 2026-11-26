@@ -60,6 +60,7 @@ function renderScreen(
     vitals?: VitalsReadingView[];
     canWrite?: boolean;
     canRecordVitals?: boolean;
+    canAmend?: boolean;
   } = {},
 ) {
   return render(
@@ -68,6 +69,7 @@ function renderScreen(
       vitals={over.vitals ?? []}
       canWrite={over.canWrite ?? true}
       canRecordVitals={over.canRecordVitals ?? true}
+      canAmend={over.canAmend ?? false}
       settings={settings}
       backHref="/app/opd"
     >
@@ -501,38 +503,22 @@ describe('after completion', () => {
     expect(screen.queryByRole('link', { name: staffCopy.print.prescription.print })).toBeNull();
   });
 
-  it('the doctor can add an addendum; it needs both text and reason', async () => {
-    api({
-      [`POST ${url('/consultation/addenda')}`]: (body) =>
-        json({
-          ...completedConsult(),
-          addenda: [
-            ...completedConsult().addenda,
-            {
-              id: 'a2',
-              text: String(body.text),
-              reason: String(body.reason),
-              addedBy: { id: 'u1', name: 'Dr Meena' },
-              createdAt: '2026-11-19T06:00:00.000Z',
-            },
-          ],
-        }),
-    });
+  it('addenda are retired: the doctor sees the old ones but gets no form to add one (Step 2.1b)', () => {
     renderScreen({ initial: completedConsult() });
-    const add = () =>
-      screen.getByRole('button', { name: staffCopy.opd.clinical.addenda.add }) as HTMLButtonElement;
-    expect(add().disabled).toBe(true);
-    type(staffCopy.opd.clinical.addenda.text, 'Also diabetic');
-    expect(add().disabled).toBe(true);
-    type(staffCopy.opd.clinical.addenda.reason, 'history updated');
-    await act(async () => {
-      fireEvent.click(add());
-    });
-    expect(bodyOf(0)).toEqual({ text: 'Also diabetic', reason: 'history updated' });
-    expect(screen.getByText('Also diabetic')).toBeTruthy();
-    expect(
-      (screen.getByLabelText(staffCopy.opd.clinical.addenda.text) as HTMLTextAreaElement).value,
-    ).toBe('');
+    expect(screen.getByText('Allergy to penicillin')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: staffCopy.opd.clinical.addenda.add })).toBeNull();
+    expect(screen.queryByLabelText(staffCopy.opd.clinical.addenda.text)).toBeNull();
+  });
+
+  it('an Admin who may amend gets the form to change the completed note as a new version', () => {
+    renderScreen({ initial: completedConsult(), canWrite: false, canAmend: true });
+    expect(screen.getByText(staffCopy.opd.clinical.amend.formTitle)).toBeTruthy();
+    expect(screen.getByRole('button', { name: staffCopy.opd.clinical.amend.save })).toBeTruthy();
+  });
+
+  it('a doctor without the amend permission sees no change form', () => {
+    renderScreen({ initial: completedConsult() });
+    expect(screen.queryByText(staffCopy.opd.clinical.amend.formTitle)).toBeNull();
   });
 
   it('a reader (no write permission) sees the addenda but no form', () => {

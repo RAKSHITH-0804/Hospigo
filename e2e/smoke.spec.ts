@@ -64,7 +64,7 @@ test('the nurse records vitals', async ({ browser }) => {
   await expect(nurse.locator('main')).toContainText('Current: 82 bpm');
 });
 
-test('the doctor writes a consultation, completes it, and the prescription print opens', async ({
+test('the doctor writes a consultation, completes it, and both prints open (report and prescription)', async ({
   browser,
 }) => {
   const doctor = await sharedSession(browser, 'doctor');
@@ -79,13 +79,21 @@ test('the doctor writes a consultation, completes it, and the prescription print
   await doctor.getByLabel('Diagnosis').fill('Viral fever');
   await doctor.getByRole('button', { name: 'Complete consultation' }).click();
   await expect(doctor.locator('main')).toContainText('This consultation is completed');
-  const printHref = await doctor
+  // the patient report (the patient's copy, with the diagnosis) and the slim prescription (pharmacy)
+  const reportHref = await doctor
+    .getByRole('link', { name: 'Print patient report' })
+    .getAttribute('href');
+  expect(reportHref).toBeTruthy();
+  const rxHref = await doctor
     .getByRole('link', { name: 'Print prescription' })
     .getAttribute('href');
-  expect(printHref).toBeTruthy();
-  await doctor.goto(printHref!);
+  expect(rxHref).toBeTruthy();
+  await doctor.goto(reportHref!);
   await expect(doctor.locator('body')).toContainText(patientName);
   await expect(doctor.locator('body')).toContainText('Viral fever');
+  await doctor.goto(rxHref!);
+  await expect(doctor.locator('body')).toContainText(patientName);
+  await expect(doctor.locator('body')).not.toContainText('Viral fever');
 });
 
 test('reception asks to cancel a visit and an Admin approves it', async ({ browser }) => {

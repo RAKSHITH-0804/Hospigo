@@ -298,6 +298,7 @@ describe('patients pages', () => {
       // Step 6b: reception actions for tests and refunds follow their own permissions
       canRequestRefund: false,
       canSeeTests: false,
+      canViewHistory: false,
       visitsTab: { status: 'noAccess' },
     });
   });

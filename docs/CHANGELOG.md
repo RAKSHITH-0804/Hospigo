@@ -29,6 +29,14 @@
 
 ## Unreleased
 
+## 2026-11-26 — Phase 2.1 Step 2.1b — Roles and access (branch `feature/step-2-1b-roles-access`, not pushed)
+
+- **What changed:** the system role is shown as Admin and a multi-branch Admin gets a switcher limited to his branches (`hospitalWide` flag in `/auth/me`); one sign-in form, a blank access code signs in an Indigo person; `/admin` lists the REAL hospitals with Enter; Indigo Owner (`TENANT_ADMIN`) and Employee (`INDIGO_EMPLOYEE`) roles, entry through a hidden flagged user, access log; amend (versions) of a completed consultation, addenda retired, Amended mark on prints; doctor clinical history of any patient with a view log; templates and logos need `print.templates.manage` (Indigo Owner only).
+- **Files:** API `auth` (Indigo services, controller, log), `opd-clinical` (amend, history), `staff`, `print-templates`, `images`, seeds, schema; web login, admin hospitals, consult screen, patient page; Postman and e2e.
+- **Tests:** API 1065 to 1091, web 1816 to 1827; lint, format check, both builds green; Newman (combined collection, isolated stack) all passed; browser tests 20 passed.
+- **Decisions:** `docs/decisions/decisions-2-1.md` (Step 2.1b table and the security gate).
+- **Follow-ups and open items:** a dedicated test of every list and report for a two-branch Admin; screens to create Employees and assign hospitals (2.1e); the demo Indigo people need `SEED_INDIGO_PASSWORD` in `.env` and the Postman environment variable `indigoPassword`; existing hospitals need the seed run once for the new roles and permissions.
+
 ## 2026-11-26 — Phase 2.1 Step 2.1a — Quick wins and clinical flow (branch `feature/step-2-1a-quick-wins`, not pushed)
 
 - **What changed:** eye button on every password input; default paper A5 (hospital setting); Symptoms label and `opd_visits.reception_symptoms` (reception types it, doctor sees it, prints it); Prescription (slim, pharmacy) and Patient report (full) are separate print types, saved prescription templates copied to the report and retired; patient card label print (`PATIENT_CARD`); date of birth is the default entry, age takes years, months and days, live age display; receptionist name on receipt, slip and card.

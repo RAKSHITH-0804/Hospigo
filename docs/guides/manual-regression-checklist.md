@@ -138,6 +138,16 @@ Tick a line only when you saw the result. If a line fails, write the line number
 7. Register a patient: **Date of birth** is the first choice; choose **Age** and enter 0 years 5 months 12 days: the patient shows "~5 m 12 d"; a patient with a real date of birth shows for example "26 y".
 8. The receipt, slip and card show the receptionist's name (in templates saved before this step, add the Receptionist box in the designer).
 
+## I. Phase 2.1b (roles and access)
+
+1. Sign-in page: there is one form and no Indigo HQ tab. With the access code of a hospital the hospital staff sign in as before.
+2. Add `SEED_INDIGO_PASSWORD` to `.env`, run the dev seed. Sign in with an EMPTY access code as `owner@indigo-demo.example.test`: the page **Hospitals** lists the real hospitals. Press **Enter hospital** on Demo North: you are inside, your name shows with "(Indigo)", and Settings, Printing is not read-only.
+3. Sign out. As the hospital SuperAdmin of Demo North: Settings, Staff does not list the Indigo person; Settings, Printing says printouts are set up by Indigo and cannot be changed.
+4. As `employee@indigo-demo.example.test` only Demo North is listed; inside you can use Staff, Roles, Prices and Excel uploads but not the Patients page.
+5. As an Admin of two branches (give one person two branches in Settings, Staff): the branch switcher shows only those two branches.
+6. Doctor: complete a consultation. As the SuperAdmin or an Admin open the same visit's consultation page: **Changes to this note** shows the form; change the diagnosis, write a reason, save: the page shows **Amended (version 1)**, the history shows who and why, and the printed patient report and prescription show Amended. The doctor can no longer change the note.
+7. Doctor: open a patient another doctor saw: press **Show the history**: every visit in every branch is listed, read-only. (Opening it is recorded; the hospital SuperAdmin can read the Indigo log through the API.)
+
 ## F. After the checklist
 
 Write down every line that failed, with the role, the page and what you saw. Do not fix by hand in the database. Open a new step in the tracker for each real problem.

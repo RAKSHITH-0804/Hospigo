@@ -115,3 +115,12 @@ After Step 5b the dev Receptionist role also holds `opd.queue.read`: reception s
 ## Step 7e additions
 
 - After `npm run prisma:migrate -w @hospigo/api` and a restart (no seed change): the SuperAdmin of a demo hospital uploads the logo (Settings, Logo); Doctors upload their own signature or stamp in My profile; Receptionist and Nurse can only see the logo through the printed documents. Test pictures made by the Postman 7e collection are removed at its end (they stay on record).
+
+## Indigo people (Step 2.1b; the sign-in form with an EMPTY access code)
+
+When `SEED_INDIGO_PASSWORD` is set in `.env`, the dev seed creates two fake Indigo accounts (never in production):
+
+- `owner@indigo-demo.example.test`: Indigo Owner, may enter every hospital with full power.
+- `employee@indigo-demo.example.test`: Indigo Employee, assigned to Demo North only; configuration and data loading, no patient data.
+
+Both use the password in `SEED_INDIGO_PASSWORD`. Sign in with the access code left empty, choose a hospital on the Hospitals page. In Postman add `indigoPassword` to the Hospigo Local environment.

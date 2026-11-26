@@ -2034,11 +2034,15 @@ describe('OPD visits and billing endpoints (HTTP)', () => {
       for (const code of FLOOR_READS) {
         expect(superCodes).toContain(code);
       }
-      // the Branch Admin does not: only the hospital-wide controller does
+      // the Admin does not read the queue or vitals (Step 2.1b: he DOES read notes, to change a
+      // completed one as a new version, but never writes a note)
       const branchCodes = await codesOf(branchAdminRoleId);
-      for (const code of FLOOR_READS) {
+      for (const code of FLOOR_READS.filter((c) => c !== 'opd.notes.read')) {
         expect(branchCodes).not.toContain(code);
       }
+      expect(branchCodes).toContain('opd.notes.read');
+      expect(branchCodes).toContain('opd.notes.amend');
+      expect(branchCodes).not.toContain('opd.notes.write');
     });
 
     it('a SuperAdmin made by the older seed (without the reads) gets them on the next seed run', async () => {
