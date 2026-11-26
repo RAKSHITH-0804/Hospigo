@@ -88,6 +88,7 @@ export default async function PatientReportPrintPage({
         patientReportItems({
           hospitalName,
           consultation: consult.data,
+          amended: consult.data.consultation?.amended === true,
           vitals: vitals?.status === 'ok' ? vitals.data : null,
           tests: tests?.status === 'ok' ? tests.data : null,
         }),

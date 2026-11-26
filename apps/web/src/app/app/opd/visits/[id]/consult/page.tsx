@@ -54,6 +54,7 @@ export default async function ConsultPage({ params }: { params: Promise<{ id: st
       vitals={vitals && vitals.status === 'ok' ? vitals.data.fields : []}
       canWrite={permissions.includes('opd.notes.write')}
       canRecordVitals={permissions.includes('opd.vitals.write')}
+      canAmend={permissions.includes('opd.notes.amend')}
       canOrderTests={canOrderTests}
       initialTests={tests && tests.status === 'ok' ? tests.data.orders : []}
       settings={{

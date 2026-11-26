@@ -79,6 +79,7 @@ export default async function PrescriptionPrintPage({
         prescriptionItems({
           hospitalName,
           consultation: consult.data,
+          amended: consult.data.consultation?.amended === true,
         }),
         extraValues,
       )}

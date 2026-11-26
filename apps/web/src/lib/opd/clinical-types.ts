@@ -54,6 +54,16 @@ export type NoteView = {
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** true once an Admin has changed the completed note (Step 2.1b); the original is kept. */
+  amended?: boolean;
+  currentVersion?: number;
+};
+
+export type NoteVersionView = {
+  versionNo: number;
+  reason: string;
+  editedBy: { id: string; name: string };
+  at: string;
 };
 
 export type PrescriptionRowView = {
@@ -82,6 +92,8 @@ export type ConsultationResponse = {
   consultation: NoteView | null;
   prescription: PrescriptionRowView[];
   addenda: AddendumView[];
+  /** Changes of a completed note, oldest first (Step 2.1b). */
+  versions?: NoteVersionView[];
 };
 
 export type StartResponse = { replayed: boolean; visit: ClinicalVisit };

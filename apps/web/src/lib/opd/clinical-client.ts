@@ -77,6 +77,23 @@ export function addAddendum(
   });
 }
 
+/** An Admin changes a COMPLETED note as a new version (a reason is required). */
+export function amendConsultation(
+  visitId: string,
+  body: {
+    reason: string;
+    complaints?: string;
+    diagnosis?: string;
+    advice?: string;
+    followUpDate?: string;
+  },
+): Promise<PatientsApiResult<ConsultationResponse>> {
+  return patientsApi<ConsultationResponse>(visitApi(visitId, '/consultation/amend'), {
+    method: 'POST',
+    body,
+  });
+}
+
 export function recordVitals(
   visitId: string,
   readings: VitalsReadingPayload[],

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PatientClinicalHistory } from '@/components/patients/patient-clinical-history';
 import { PageHeader } from '@/components/ui/page-header';
 import { patientsWebConfig } from '@/config/patients';
 import { staffCopy } from '@/config/staff-copy';
@@ -98,6 +99,7 @@ export function PatientRecord({
   canReadBills = false,
   canRequestRefund = false,
   canSeeTests = false,
+  canViewHistory = false,
   visitsTab = { status: 'noAccess' },
   initialTab,
 }: {
@@ -111,6 +113,8 @@ export function PatientRecord({
   canReadBills?: boolean;
   canRequestRefund?: boolean;
   canSeeTests?: boolean;
+  /** A doctor (or the Indigo Owner) may open the whole history of any patient, read-only (logged). */
+  canViewHistory?: boolean;
   /** The patient's visits for the active branch (page already fetched on the server). */
   visitsTab?: VisitsTabData;
   initialTab?: string;
@@ -219,6 +223,7 @@ export function PatientRecord({
           />
         }
       />
+      {canViewHistory ? <PatientClinicalHistory patientId={patient.id} /> : null}
     </div>
   );
 }

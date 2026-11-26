@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ConsultAddenda } from '@/components/opd/consult-addenda';
+import { ConsultAmendPanel } from '@/components/opd/consult-amend-panel';
 import { ConsultNoteFields } from '@/components/opd/consult-note-fields';
 import {
   PrescriptionEditor,
@@ -67,6 +68,7 @@ export function ConsultScreen({
   vitals,
   canWrite,
   canRecordVitals,
+  canAmend = false,
   initialTests = [],
   canOrderTests = false,
   settings,
@@ -77,6 +79,8 @@ export function ConsultScreen({
   vitals: VitalsReadingView[];
   canWrite: boolean;
   canRecordVitals: boolean;
+  /** An Admin may change a completed note as a new version (permission opd.notes.amend). */
+  canAmend?: boolean;
   /** The tests already ordered for this visit (doctors with the ordering permission). */
   initialTests?: OrderView[];
   canOrderTests?: boolean;
@@ -93,6 +97,8 @@ export function ConsultScreen({
     return saved.length > 0 ? saved : [emptyRxRow(1)];
   });
   const [addenda, setAddenda] = useState<AddendumView[]>(initial.addenda);
+  const [versions, setVersions] = useState(initial.versions ?? []);
+  const [noteView, setNoteView] = useState(initial.consultation);
   const [tests, setTests] = useState<TestChip[]>(() => chipsFromOrders(initialTests));
   const testsRef = useRef(tests);
   testsRef.current = tests;
@@ -239,6 +245,8 @@ export function ConsultScreen({
     }
     setVisit(result.data.visit);
     setAddenda(result.data.addenda);
+    setNoteView(result.data.consultation);
+    setVersions(result.data.versions ?? []);
     setNote(noteFromView(result.data.consultation));
     setRows(rxFromView(result.data.prescription));
   }
@@ -381,9 +389,36 @@ export function ConsultScreen({
                 <ConsultAddenda
                   visitId={visit.id}
                   addenda={addenda}
-                  canAdd={canWrite}
+                  canAdd={false}
                   onChange={setAddenda}
                   hideHeading
+                />
+              </section>
+            ) : null}
+
+            {completed && noteView ? (
+              <section
+                className="consult-card consult-area-addenda"
+                aria-label={staffCopy.opd.clinical.amend.heading}
+              >
+                <h2 className="section-heading">
+                  {staffCopy.opd.clinical.amend.heading}
+                  {noteView?.amended
+                    ? ` · ${fill(staffCopy.opd.clinical.amend.amendedMark, { version: noteView.currentVersion ?? 0 })}`
+                    : ''}
+                </h2>
+                <ConsultAmendPanel
+                  visitId={visit.id}
+                  key={noteView.currentVersion ?? 0}
+                  note={noteView}
+                  versions={versions}
+                  canAmend={canAmend}
+                  onAmended={(result) => {
+                    setNoteView(result.consultation);
+                    setVersions(result.versions ?? []);
+                    setNote(noteFromView(result.consultation));
+                    setRows(rxFromView(result.prescription));
+                  }}
                 />
               </section>
             ) : null}

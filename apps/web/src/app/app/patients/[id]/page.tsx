@@ -98,6 +98,7 @@ export default async function PatientRecordPage({
       canReadBills={canReadBills}
       canRequestRefund={permissions.includes('opd.refunds.request')}
       canSeeTests={permissions.includes('opd.investigations.bill')}
+      canViewHistory={permissions.includes('patients.history.view_all')}
       visitsTab={visitsTab}
       initialTab={initialTab}
     />
