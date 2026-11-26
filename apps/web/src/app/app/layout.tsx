@@ -5,11 +5,14 @@ import { shellNavFromEnabledModules, type ShellNavItem } from '@/config/modules'
 import { staffCopy } from '@/config/staff-copy';
 import { requireKind } from '@/lib/auth/guards';
 import { hospitalTerms, termOr } from '@/lib/terminology/server';
+import { enterTerms } from '@/lib/terminology/terms-server';
+import { TermsProvider } from '@/components/shell/terms-provider';
 
 export default async function StaffLayout({ children }: { children: ReactNode }) {
   const session = await requireKind('HOSPITAL');
   // the hospital's own words for a few menu entries (Indigo sets them; standard words otherwise)
   const terms = await hospitalTerms(session.id);
+  enterTerms(terms);
   const moduleItems = shellNavFromEnabledModules(session.enabledModules ?? []).map((item) =>
     item.href === '/app/opd' ? { ...item, label: termOr(terms, 'queue', item.label) } : item,
   );
@@ -41,25 +44,27 @@ export default async function StaffLayout({ children }: { children: ReactNode })
   const branchName = session.activeBranchName?.trim() || '—';
 
   return (
-    <PendingApprovalsProvider enabled={canApprove}>
-      <div className="viewport-fill">
-        <AppShell
-          brandLabel={staffCopy.brand}
-          title={hospitalTitle}
-          groups={[{ label: '', items: navItems }]}
-          branchName={branchName}
-          activeBranchId={session.activeBranchId}
-          canSwitchBranch={session.canSwitchBranch === true}
-          userDisplayName={session.displayName}
-          userEmail={session.email}
-          roleCodes={session.roleCodes ?? []}
-          hospitalName={hospitalTitle}
-          profileHref="/app/profile"
-          canApprove={canApprove}
-        >
-          {children}
-        </AppShell>
-      </div>
-    </PendingApprovalsProvider>
+    <TermsProvider terms={terms}>
+      <PendingApprovalsProvider enabled={canApprove}>
+        <div className="viewport-fill">
+          <AppShell
+            brandLabel={staffCopy.brand}
+            title={hospitalTitle}
+            groups={[{ label: '', items: navItems }]}
+            branchName={branchName}
+            activeBranchId={session.activeBranchId}
+            canSwitchBranch={session.canSwitchBranch === true}
+            userDisplayName={session.displayName}
+            userEmail={session.email}
+            roleCodes={session.roleCodes ?? []}
+            hospitalName={hospitalTitle}
+            profileHref="/app/profile"
+            canApprove={canApprove}
+          >
+            {children}
+          </AppShell>
+        </div>
+      </PendingApprovalsProvider>
+    </TermsProvider>
   );
 }

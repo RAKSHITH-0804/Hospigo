@@ -1,9 +1,10 @@
+import { withTerms } from '@/lib/terminology/terms-core';
 /**
  * Typed defaults for staff (/app, /admin) UI copy.
  * Pages read from here; components take labels as props.
  */
 
-export const staffCopy = {
+const baseCopy = {
   brand: 'Hospigo',
   brandMark: 'H',
   hqTitle: 'HQ',
@@ -3034,7 +3035,14 @@ export const staffCopy = {
   },
 } as const;
 
-export type StaffCopy = typeof staffCopy;
+/**
+ * The central copy accessor. Every screen and every print caption reads its words from here; the
+ * hospital's own words for the 24 terms (Step 2.1g) are applied on the way out, the standard words
+ * stay as the fallback.
+ */
+export const staffCopy: typeof baseCopy = withTerms(baseCopy, baseCopy.terms.keys);
+
+export type StaffCopy = typeof baseCopy;
 
 /** Map a role code to human wording; unknown codes are title-cased. */
 export function formatRoleLabel(code: string): string {
