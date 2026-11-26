@@ -8,21 +8,35 @@ import { seedShowcase } from './showcase';
 loadEnv({ path: path.resolve(__dirname, '../../../../../.env') });
 
 /**
- * npm run prisma:seed-showcase -w @hospigo/api
- * Two fictional hospitals with 75 days of history (SHOWCASE_DAYS, SHOWCASE_VISITS_PER_DAY to change).
- * Development only. SHOWCASE_DEACTIVATE_DEMO=1 also switches off the older demo hospitals.
+ * Started by scripts/seed-showcase.ts (npm run prisma:seed-showcase -w @hospigo/api), which points
+ * every database URL at the separate showcase database `hospigo_demo`. Two guards here as well:
+ * the database must be named hospigo_demo, and it must not hold any test hospital (a test database
+ * such as hospigo_test is never a showcase database). Development only.
+ * SHOWCASE_DAYS and SHOWCASE_VISITS_PER_DAY change the amount of history.
  */
+export const SHOWCASE_DATABASE = 'hospigo_demo';
+
 async function main(): Promise<void> {
-  const url = process.env.DATABASE_URL_OWNER || process.env.DATABASE_URL;
+  const url = process.env.DATABASE_URL_OWNER;
   if (!url) {
-    throw new Error('DATABASE_URL_OWNER (or DATABASE_URL) is required for seeding');
+    throw new Error(
+      'DATABASE_URL_OWNER is required (start this through npm run prisma:seed-showcase)',
+    );
+  }
+  const name = new URL(url).pathname.replace(/^\//u, '');
+  if (name !== SHOWCASE_DATABASE) {
+    throw new Error(`The showcase seed runs only against ${SHOWCASE_DATABASE}, not "${name}"`);
   }
   const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
   try {
+    if ((await prisma.hospital.count({ where: { isTest: true } })) > 0) {
+      throw new Error(
+        'Refusing: this database holds test hospitals, so it is not a showcase database',
+      );
+    }
     await seedShowcase(prisma, {
-      historyDays: Number(process.env.SHOWCASE_DAYS ?? 75),
-      visitsPerDay: Number(process.env.SHOWCASE_VISITS_PER_DAY ?? 14),
-      deactivateDemoHospitals: process.env.SHOWCASE_DEACTIVATE_DEMO === '1',
+      historyDays: Number(process.env.SHOWCASE_DAYS ?? 60),
+      visitsPerDay: Number(process.env.SHOWCASE_VISITS_PER_DAY ?? 12),
     });
   } finally {
     await prisma.$disconnect();

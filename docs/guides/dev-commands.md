@@ -62,6 +62,23 @@ NODE_ENV=development npm run prisma:seed -w @hospigo/api
 - The migrate command applies pending migrations (it prints "No pending migrations to apply" when up to date).
 - The seed needs `NODE_ENV=development`. It is safe to run twice: the patient seed skips when a hospital already has 60 patients.
 
+### Showcase database (hospigo_demo)
+
+The showcase hospitals (Nandavana, Sagarika, fictional) live in their OWN database, never in `hospigo_test` (Jest, Newman and the browser tests) and never in your real data. One time:
+
+```powershell
+node scripts/db/create-demo-db.mjs
+```
+
+That creates and hardens `hospigo_demo` and writes `DATABASE_URL_DEMO` and `DATABASE_URL_OWNER_DEMO` into `.env`. To migrate and fill it (also after every new migration):
+
+```powershell
+$env:DATABASE_URL_OWNER=$env:DATABASE_URL_OWNER_DEMO; npm run prisma:migrate -w @hospigo/api
+$env:NODE_ENV="development"; npm run prisma:seed-showcase -w @hospigo/api
+```
+
+(Open a new terminal afterwards: the first line changes the variable for that terminal.) The seed refuses any database not named `hospigo_demo` and any database that holds a test hospital. To run the API and web on it, start them with `DATABASE_URL` and `DATABASE_URL_HQ` pointing at `hospigo_demo`.
+
 ## 8. Tests, lint, format
 
 ```

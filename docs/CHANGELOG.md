@@ -35,7 +35,7 @@
 - **Files:** API `database/showcase/*`, `modules/dashboard/*`, `package.json` script; web `components/dashboard/*`, `lib/dashboard/types.ts`, route `api/staff/dashboard/summary`, copy, CSS tokens.
 - **Tests:** API 1 (summary counts, permission blocks, other branch and hospital), web 3 (numbers, hidden blocks, empty and error).
 - **Decisions:** `docs/decisions/decisions-2-1.md` (Step 2.1d).
-- **Follow-ups and open items:** designed sample print templates and logos are NOT built; the showcase seed does not deactivate the old demo hospitals unless `SHOWCASE_DEACTIVATE_DEMO=1` (it would break Postman and e2e); the dashboard asks the API once on open (no live refresh).
+- **Follow-ups and open items:** designed sample print templates and logos are NOT built; the showcase moved to its own database `hospigo_demo` in Step 2.1f; the dashboard asks the API once on open (no live refresh).
 
 ## 2026-11-26 — Phase 2.1 Step 2.1c — Approvals badge and notification (branch `feature/step-2-1c-approvals`, not pushed)
 

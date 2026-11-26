@@ -38,8 +38,6 @@ import {
 
 export type ShowcaseOptions = {
   historyDays: number;
-  /** Deactivate the older demo hospitals (never deletes). Off by default: Postman and the browser tests use them. */
-  deactivateDemoHospitals: boolean;
   /** Visits per weekday: a base number that grows a little over the period. */
   visitsPerDay: number;
 };
@@ -670,13 +668,6 @@ export async function seedShowcase(prisma: PrismaClient, options: ShowcaseOption
     }
   } finally {
     await app.close();
-  }
-  if (options.deactivateDemoHospitals) {
-    const done = await prisma.hospital.updateMany({
-      where: { code: { in: ['DEMO_NORTH', 'DEMO_SOUTH'] } },
-      data: { isActive: false },
-    });
-    console.log(`Older demo hospitals switched off (not deleted): ${done.count}`);
   }
 }
 
