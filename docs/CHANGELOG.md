@@ -29,6 +29,14 @@
 
 ## Unreleased
 
+## 2026-11-26 — Phase 2.1 Step 2.1f — Finish: demo database, template library, terminology, console setup, amend and access log screens (branch `feature/step-2-1f-finish`, not pushed)
+
+- **What changed:** `hospigo_demo` database for the showcase (create script, guards); designed sample templates and logos; template library in the Indigo console and Print designs for hospitals; terminology overrides; prescription in the amend form; Indigo access screen; branch module switch and starter from the console; dashboard counts visits by visit date; age and gender on the bill.
+- **Files:** API `print-templates` (samples, library service and controller), `indigo` (library, setup), `terminology`, `dashboard`, migration `20261129095000_print_library_terminology`; web `components/admin/indigo-library`, `indigo-terminology`, `components/settings/print-library-screen`, `indigo-access-screen`, `lib/terminology`; scripts `db/create-demo-db.mjs`, `seed-showcase.ts`, `e2e/showcase-screens.mjs`; Postman `hospigo-2-1f-library`.
+- **Tests:** API 1113, web 1857, Newman and e2e green on the isolated stack.
+- **Decisions:** `docs/decisions/decisions-2-1.md` (Step 2.1f).
+- **Follow-ups and open items:** terminology is used by two menu entries only; no Sl No column on the bill; adding tests through an amend; template editing detaches a chosen design from the library; patient lists of a two-branch Admin were not tested.
+
 ## 2026-11-26 — Phase 2.1 Step 2.1d — Showcase data and real dashboards (branch `feature/step-2-1d-showcase`, not pushed)
 
 - **What changed:** showcase seed (fictional hospitals, doctors, masters and history through the real routes); `GET /dashboard/summary`; dashboard on `/app` with KPI cards, bar, line and donut charts from theme tokens.

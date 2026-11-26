@@ -126,7 +126,7 @@ const library = [
     tests: [
       status(200),
       'const t = pm.response.json().templates;',
-      "for (const d of ['REGISTRATION_SLIP','RECEIPT','PRESCRIPTION','PATIENT_REPORT','PATIENT_CARD']) { const n = t.filter(x => x.docType === d && !x.retired && x.key !== undefined && !x.key.startsWith('custom-')).length; pm.test(d + ' has 2 to 3 samples', () => pm.expect(n).to.be.within(2, 3)); }",
+      "for (const d of ['REGISTRATION_SLIP','RECEIPT','PRESCRIPTION','PATIENT_REPORT','PATIENT_CARD']) { const n = t.filter(x => x.docType === d && !x.retired && x.key !== undefined && /^(slip|bill|rx|report|card)-/.test(x.key)).length; pm.test(d + ' has 2 to 3 samples', () => pm.expect(n).to.be.within(2, 3)); }",
       "const bill = t.find(x => x.key === 'bill-classic'); const bill2 = t.find(x => x.key === 'bill-modern');",
       "pm.collectionVariables.set('xTplBill', bill.id); pm.collectionVariables.set('xTplBill2', bill2.id);",
     ],

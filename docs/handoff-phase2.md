@@ -4,6 +4,8 @@
 
 Everything below this section is history. Where it disagrees with this section, this section is right. **Do not redo anything listed as done.**
 
+**Phase 2.1 Step 2.1f (Finish: demo database, template library, terminology, console setup, amend and access log screens) is BUILT on `feature/step-2-1f-finish` (stacked on `feature/step-2-1d-showcase`), NOT pushed** (2026-11-26). Done: all items of the 2.1f brief (see decisions-2-1). NOT done or partial: terminology applied to the menu only; no serial-number column on the bill. NEXT: Rakshith creates and migrates `hospigo_demo` (`node scripts/db/create-demo-db.mjs`), runs the seed and the showcase seed, runs Postman and e2e, then pushes the six stacked branches in order (2.1a, 2.1b, 2.1e, 2.1c, 2.1d, 2.1f).
+
 **Phase 2.1 Step 2.1d (Showcase data and real dashboards) is BUILT on `feature/step-2-1d-showcase` (stacked on `feature/step-2-1c-approvals`), NOT pushed** (2026-11-26). Done: showcase seed, dashboard summary API and dashboard with charts. NOT done: sample print templates, screenshot review rounds. NEXT: Rakshith runs migrate, the seeds, the showcase seed, Postman and e2e, then pushes the five stacked branches in order (2.1a, 2.1b, 2.1e, 2.1c, 2.1d).
 
 **Phase 2.1 Step 2.1c (Approvals badge and notification) is BUILT on `feature/step-2-1c-approvals` (stacked on `feature/step-2-1e-indigo-console`), NOT pushed** (2026-11-26). Done: item 7 (poll every 20 seconds, no WebSocket). NEXT: Step 2.1d (showcase) on `feature/step-2-1d-showcase`.
