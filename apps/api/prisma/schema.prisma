@@ -125,8 +125,8 @@ model HqAuthSession {
   ip           String?
   userAgent    String?   @map("user_agent")
 
-  user       HqUser         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  replacedBy HqAuthSession? @relation("HqSessionReplacement", fields: [replacedById], references: [id], onDelete: SetNull)
+  user       HqUser          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replacedBy HqAuthSession?  @relation("HqSessionReplacement", fields: [replacedById], references: [id], onDelete: SetNull)
   replaces   HqAuthSession[] @relation("HqSessionReplacement")
 
   @@index([tokenHash])
@@ -174,16 +174,16 @@ model PatientAccount {
 
 /// OTP challenges. Store code_hmac only — never the plaintext code.
 model PatientOtpChallenge {
-  id                 String            @id @default(cuid())
-  phoneE164          String            @map("phone_e164")
-  purpose            PatientOtpPurpose
-  codeHmac           String            @map("code_hmac")
-  channel            PatientOtpChannel
-  expiresAt          DateTime          @map("expires_at") @db.Timestamptz(3)
-  attempts           Int               @default(0)
-  consumedAt         DateTime?         @map("consumed_at") @db.Timestamptz(3)
-  resendAvailableAt  DateTime          @map("resend_available_at") @db.Timestamptz(3)
-  createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  id                String            @id @default(cuid())
+  phoneE164         String            @map("phone_e164")
+  purpose           PatientOtpPurpose
+  codeHmac          String            @map("code_hmac")
+  channel           PatientOtpChannel
+  expiresAt         DateTime          @map("expires_at") @db.Timestamptz(3)
+  attempts          Int               @default(0)
+  consumedAt        DateTime?         @map("consumed_at") @db.Timestamptz(3)
+  resendAvailableAt DateTime          @map("resend_available_at") @db.Timestamptz(3)
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
 
   @@index([phoneE164, createdAt])
   @@map("patient_otp_challenges")
@@ -203,8 +203,8 @@ model PatientAuthSession {
   ip           String?
   userAgent    String?   @map("user_agent")
 
-  account    PatientAccount      @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  replacedBy PatientAuthSession? @relation("PatientSessionReplacement", fields: [replacedById], references: [id], onDelete: SetNull)
+  account    PatientAccount       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  replacedBy PatientAuthSession?  @relation("PatientSessionReplacement", fields: [replacedById], references: [id], onDelete: SetNull)
   replaces   PatientAuthSession[] @relation("PatientSessionReplacement")
 
   @@index([tokenHash])
@@ -225,12 +225,12 @@ enum PatientFieldSection {
 
 /// Global system field catalog (no tenant). Defaults only — hospitals override via patient_field_settings.
 model PatientFieldCatalog {
-  key            String               @id
-  defaultLabel   String               @map("default_label")
-  dataType       String               @map("data_type")
-  canDisable     Boolean              @map("can_disable")
-  alwaysRequired Boolean              @map("always_required")
-  defaultSection PatientFieldSection  @default(OTHER) @map("default_section")
+  key            String              @id
+  defaultLabel   String              @map("default_label")
+  dataType       String              @map("data_type")
+  canDisable     Boolean             @map("can_disable")
+  alwaysRequired Boolean             @map("always_required")
+  defaultSection PatientFieldSection @default(OTHER) @map("default_section")
 
   settings PatientFieldSetting[]
 
@@ -248,89 +248,91 @@ enum HospitalStatus {
 }
 
 model Hospital {
-  hqUserHospitals HqUserHospital[]
-  indigoAccessLogs IndigoAccessLog[]
+  hqUserHospitals      HqUserHospital[]
+  indigoAccessLogs     IndigoAccessLog[]
   consultationVersions ConsultationVersion[]
-  patientViewLogs PatientViewLog[]
-  id         String         @id @default(cuid())
-  code       String         @unique
-  name       String
-  status     HospitalStatus @default(ACTIVE)
-  isTest     Boolean        @default(false) @map("is_test")
-  isActive   Boolean        @default(true) @map("is_active")
-  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt  DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  patientViewLogs      PatientViewLog[]
+  id                   String                @id @default(cuid())
+  code                 String                @unique
+  name                 String
+  status               HospitalStatus        @default(ACTIVE)
+  isTest               Boolean               @default(false) @map("is_test")
+  isActive             Boolean               @default(true) @map("is_active")
+  createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  settings      HospitalSetting[]
-  branches      Branch[]
-  subscriptions HospitalModuleSubscription[]
-  branchModules BranchModule[]
-  users         User[]
-  userBranches  UserBranch[]
-  roles         Role[]
-  rolePermissions RolePermission[]
-  roleAssignments RoleAssignment[]
-  roleAssignmentBranches RoleAssignmentBranch[]
-  auditLogs     AuditLog[]
-  authSessions  AuthSession[]
-  actionTokens  AuthActionToken[]
-  patients      Patient[]
-  patientIdentifiers PatientIdentifier[]
-  patientCustomFields PatientCustomField[]
+  settings                  HospitalSetting[]
+  branches                  Branch[]
+  subscriptions             HospitalModuleSubscription[]
+  branchModules             BranchModule[]
+  users                     User[]
+  userBranches              UserBranch[]
+  roles                     Role[]
+  rolePermissions           RolePermission[]
+  roleAssignments           RoleAssignment[]
+  roleAssignmentBranches    RoleAssignmentBranch[]
+  auditLogs                 AuditLog[]
+  authSessions              AuthSession[]
+  actionTokens              AuthActionToken[]
+  patients                  Patient[]
+  patientIdentifiers        PatientIdentifier[]
+  patientCustomFields       PatientCustomField[]
   patientCustomFieldOptions PatientCustomFieldOption[]
-  patientCustomFieldValues PatientCustomFieldValue[]
-  patientFieldSettings PatientFieldSetting[]
-  uhidFormatConfigs UhidFormatConfig[]
-  uhidFormatBlocks UhidFormatBlock[]
-  uhidCounters UhidCounter[]
-  importBatches ImportBatch[]
-  importBatchRows ImportBatchRow[]
-  importExceptions ImportException[]
-  doctorProfiles DoctorProfile[]
-  doctorTimings DoctorTiming[]
-  doctorLeaves DoctorLeave[]
-  doctorLeaveRequests DoctorLeaveRequest[]
-  chargeItems ChargeItem[]
-  chargeItemPrices ChargeItemPrice[]
-  doctorFees DoctorFee[]
-  medicines Medicine[]
-  vitalsFields VitalsField[]
-  paymentModes PaymentMode[]
-  opdSettings OpdSettings[]
-  numberSeriesSettings NumberSeriesSettings[]
-  numberSeries NumberSeries[]
-  tokenCounters TokenCounter[]
-  opdVisits OpdVisit[]
-  bills Bill[]
-  billLines BillLine[]
-  payments Payment[]
-  receipts Receipt[]
-  ledgerEntries LedgerEntry[]
-  patientRegistrationFees PatientRegistrationFee[]
-  consultations Consultation[]
-  consultationAddenda ConsultationAddendum[]
-  visitVitals VisitVitals[]
-  prescriptionItems PrescriptionItem[]
-  investigationOrders InvestigationOrder[]
-  refundRequests RefundRequest[]
-  refunds Refund[]
-  printTemplates PrintTemplate[]
-  printValues PrintValue[]
+  patientCustomFieldValues  PatientCustomFieldValue[]
+  patientFieldSettings      PatientFieldSetting[]
+  uhidFormatConfigs         UhidFormatConfig[]
+  uhidFormatBlocks          UhidFormatBlock[]
+  uhidCounters              UhidCounter[]
+  importBatches             ImportBatch[]
+  importBatchRows           ImportBatchRow[]
+  importExceptions          ImportException[]
+  doctorProfiles            DoctorProfile[]
+  doctorTimings             DoctorTiming[]
+  doctorLeaves              DoctorLeave[]
+  doctorLeaveRequests       DoctorLeaveRequest[]
+  chargeItems               ChargeItem[]
+  chargeItemPrices          ChargeItemPrice[]
+  doctorFees                DoctorFee[]
+  medicines                 Medicine[]
+  vitalsFields              VitalsField[]
+  paymentModes              PaymentMode[]
+  opdSettings               OpdSettings[]
+  numberSeriesSettings      NumberSeriesSettings[]
+  numberSeries              NumberSeries[]
+  tokenCounters             TokenCounter[]
+  opdVisits                 OpdVisit[]
+  bills                     Bill[]
+  billLines                 BillLine[]
+  payments                  Payment[]
+  receipts                  Receipt[]
+  ledgerEntries             LedgerEntry[]
+  patientRegistrationFees   PatientRegistrationFee[]
+  consultations             Consultation[]
+  consultationAddenda       ConsultationAddendum[]
+  visitVitals               VisitVitals[]
+  prescriptionItems         PrescriptionItem[]
+  investigationOrders       InvestigationOrder[]
+  refundRequests            RefundRequest[]
+  refunds                   Refund[]
+  printTemplates            PrintTemplate[]
+  printValues               PrintValue[]
+  staffCodeSettings         StaffCodeSettings?
+  storedImages              StoredImage[]
+  printLibraryAssignments   PrintLibraryAssignment[]
+  terminologyOverrides      TerminologyOverride[]
 
   @@map("hospitals")
-  staffCodeSettings StaffCodeSettings?
-  storedImages      StoredImage[]
 }
 
 model HospitalSetting {
-  id           String   @id @default(cuid())
-  tenantId     String   @map("tenant_id")
-  key          String
-  value        Json
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  key           String
+  value         Json
   effectiveFrom DateTime @map("effective_from") @db.Timestamptz(3)
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -342,30 +344,30 @@ model HospitalSetting {
 
 model Branch {
   patientViewLogs PatientViewLog[]
-  id         String   @id @default(cuid())
-  tenantId   String   @map("tenant_id")
-  code       String
-  name       String
-  accessCode String   @map("access_code")
-  isMain     Boolean  @default(false) @map("is_main")
-  isActive   Boolean  @default(true) @map("is_active")
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id              String           @id @default(cuid())
+  tenantId        String           @map("tenant_id")
+  code            String
+  name            String
+  accessCode      String           @map("access_code")
+  isMain          Boolean          @default(false) @map("is_main")
+  isActive        Boolean          @default(true) @map("is_active")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  hospital      Hospital       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branchModules BranchModule[]
-  userBranches  UserBranch[]
+  hospital               Hospital               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchModules          BranchModule[]
+  userBranches           UserBranch[]
   roleAssignmentBranches RoleAssignmentBranch[]
-  printTemplates PrintTemplate[]
-  printValues PrintValue[]
-  doctorFees DoctorFee[]
-  auditLogs     AuditLog[]
-  authSessions  AuthSession[]
-  registeredPatients Patient[]
-  importBatches ImportBatch[]
-  doctorTimings DoctorTiming[]
-  tokenCounters TokenCounter[]
-  opdVisits OpdVisit[]
+  printTemplates         PrintTemplate[]
+  printValues            PrintValue[]
+  doctorFees             DoctorFee[]
+  auditLogs              AuditLog[]
+  authSessions           AuthSession[]
+  registeredPatients     Patient[]
+  importBatches          ImportBatch[]
+  doctorTimings          DoctorTiming[]
+  tokenCounters          TokenCounter[]
+  opdVisits              OpdVisit[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -381,8 +383,8 @@ model HospitalModuleSubscription {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  module   Module   @relation(fields: [moduleId], references: [id], onDelete: Restrict)
+  hospital      Hospital       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  module        Module         @relation(fields: [moduleId], references: [id], onDelete: Restrict)
   branchModules BranchModule[]
 
   @@unique([tenantId, id])
@@ -431,42 +433,42 @@ model User {
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  hospital        Hospital         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  userBranches    UserBranch[]
-  roleAssignments RoleAssignment[]
-  authSessions    AuthSession[]
-  actionTokens    AuthActionToken[]
-  auditLogs       AuditLog[]       @relation("AuditActor")
-  createdPatients Patient[]        @relation("PatientCreatedBy")
-  uhidFormatConfigs UhidFormatConfig[] @relation("UhidConfigCreatedBy")
-  patientFieldSettingsChanged PatientFieldSetting[] @relation("FieldSettingChangedBy")
-  importBatchesCreated ImportBatch[] @relation("ImportBatchCreatedBy")
-  importBatchesApproved ImportBatch[] @relation("ImportBatchApprovedBy")
-  importBatchesUndone ImportBatch[] @relation("ImportBatchUndoneBy")
-  importExceptionsResolved ImportException[] @relation("ImportExceptionResolvedBy")
-  storedImagesMade StoredImage[] @relation("StoredImageCreator")
-  doctorProfiles DoctorProfile[]
-  chargeItemPricesCreated ChargeItemPrice[] @relation("ChargeItemPriceCreatedBy")
-  doctorFeesCreated DoctorFee[] @relation("DoctorFeeCreatedBy")
-  consultationVersionsEdited ConsultationVersion[] @relation("ConsultationVersionEditor")
-  patientViewsLogged PatientViewLog[] @relation("PatientViewLogViewer")
-  leaveRequestsMade DoctorLeaveRequest[] @relation("LeaveRequestedBy")
-  leaveRequestsDecided DoctorLeaveRequest[] @relation("LeaveDecidedBy")
-  opdVisitsCreated OpdVisit[] @relation("OpdVisitCreatedBy")
-  billsCreated Bill[] @relation("BillCreatedBy")
-  paymentsReceived Payment[] @relation("PaymentReceivedBy")
-  receiptsIssued Receipt[] @relation("ReceiptIssuedBy")
-  addendaWritten ConsultationAddendum[] @relation("AddendumAddedBy")
-  vitalsRecorded VisitVitals[] @relation("VitalsRecordedBy")
-  investigationsOrdered InvestigationOrder[] @relation("InvestigationOrderedBy")
-  investigationsResolved InvestigationOrder[] @relation("InvestigationResolvedBy")
-  refundsRequested RefundRequest[] @relation("RefundRequestedBy")
-  refundsDecided RefundRequest[] @relation("RefundDecidedBy")
-  refundsRecorded Refund[] @relation("RefundRecordedBy")
-  printTemplatesCreated PrintTemplate[] @relation("PrintTemplateCreatedBy")
-  printTemplatesUpdated PrintTemplate[] @relation("PrintTemplateUpdatedBy")
-  printValuesCreated PrintValue[] @relation("PrintValueCreatedBy")
-  printValuesUpdated PrintValue[] @relation("PrintValueUpdatedBy")
+  hospital                    Hospital               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userBranches                UserBranch[]
+  roleAssignments             RoleAssignment[]
+  authSessions                AuthSession[]
+  actionTokens                AuthActionToken[]
+  auditLogs                   AuditLog[]             @relation("AuditActor")
+  createdPatients             Patient[]              @relation("PatientCreatedBy")
+  uhidFormatConfigs           UhidFormatConfig[]     @relation("UhidConfigCreatedBy")
+  patientFieldSettingsChanged PatientFieldSetting[]  @relation("FieldSettingChangedBy")
+  importBatchesCreated        ImportBatch[]          @relation("ImportBatchCreatedBy")
+  importBatchesApproved       ImportBatch[]          @relation("ImportBatchApprovedBy")
+  importBatchesUndone         ImportBatch[]          @relation("ImportBatchUndoneBy")
+  importExceptionsResolved    ImportException[]      @relation("ImportExceptionResolvedBy")
+  storedImagesMade            StoredImage[]          @relation("StoredImageCreator")
+  doctorProfiles              DoctorProfile[]
+  chargeItemPricesCreated     ChargeItemPrice[]      @relation("ChargeItemPriceCreatedBy")
+  doctorFeesCreated           DoctorFee[]            @relation("DoctorFeeCreatedBy")
+  consultationVersionsEdited  ConsultationVersion[]  @relation("ConsultationVersionEditor")
+  patientViewsLogged          PatientViewLog[]       @relation("PatientViewLogViewer")
+  leaveRequestsMade           DoctorLeaveRequest[]   @relation("LeaveRequestedBy")
+  leaveRequestsDecided        DoctorLeaveRequest[]   @relation("LeaveDecidedBy")
+  opdVisitsCreated            OpdVisit[]             @relation("OpdVisitCreatedBy")
+  billsCreated                Bill[]                 @relation("BillCreatedBy")
+  paymentsReceived            Payment[]              @relation("PaymentReceivedBy")
+  receiptsIssued              Receipt[]              @relation("ReceiptIssuedBy")
+  addendaWritten              ConsultationAddendum[] @relation("AddendumAddedBy")
+  vitalsRecorded              VisitVitals[]          @relation("VitalsRecordedBy")
+  investigationsOrdered       InvestigationOrder[]   @relation("InvestigationOrderedBy")
+  investigationsResolved      InvestigationOrder[]   @relation("InvestigationResolvedBy")
+  refundsRequested            RefundRequest[]        @relation("RefundRequestedBy")
+  refundsDecided              RefundRequest[]        @relation("RefundDecidedBy")
+  refundsRecorded             Refund[]               @relation("RefundRecordedBy")
+  printTemplatesCreated       PrintTemplate[]        @relation("PrintTemplateCreatedBy")
+  printTemplatesUpdated       PrintTemplate[]        @relation("PrintTemplateUpdatedBy")
+  printValuesCreated          PrintValue[]           @relation("PrintValueCreatedBy")
+  printValuesUpdated          PrintValue[]           @relation("PrintValueUpdatedBy")
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -511,10 +513,10 @@ model AuthSession {
   ip           String?
   userAgent    String?   @map("user_agent")
 
-  hospital   Hospital     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user       User         @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Cascade)
-  branch     Branch       @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Cascade)
-  replacedBy AuthSession? @relation("AuthSessionReplacement", fields: [tenantId, replacedById], references: [tenantId, id], onDelete: SetNull)
+  hospital   Hospital      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User          @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Cascade)
+  branch     Branch        @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Cascade)
+  replacedBy AuthSession?  @relation("AuthSessionReplacement", fields: [tenantId, replacedById], references: [tenantId, id], onDelete: SetNull)
   replaces   AuthSession[] @relation("AuthSessionReplacement")
 
   @@unique([tenantId, id])
@@ -630,16 +632,16 @@ model RoleAssignmentBranch {
 }
 
 model AuditLog {
-  id         String   @id @default(cuid())
-  tenantId   String   @map("tenant_id")
-  actorUserId String? @map("actor_user_id")
-  branchId   String?  @map("branch_id")
-  action     String
-  entityType String   @map("entity_type")
-  entityId   String?  @map("entity_id")
-  reason     String?
-  metadata   Json?
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  actorUserId String?  @map("actor_user_id")
+  branchId    String?  @map("branch_id")
+  action      String
+  entityType  String   @map("entity_type")
+  entityId    String?  @map("entity_id")
+  reason      String?
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   actor    User?    @relation("AuditActor", fields: [tenantId, actorUserId], references: [tenantId, id], onDelete: SetNull)
@@ -653,35 +655,35 @@ model AuditLog {
 // --- Patients (Step 3b-1). Consultant belongs on visits later. ---
 
 model Patient {
-  viewLogs PatientViewLog[]
-  id                 String    @id @default(cuid())
-  tenantId           String    @map("tenant_id")
+  viewLogs           PatientViewLog[]
+  id                 String           @id @default(cuid())
+  tenantId           String           @map("tenant_id")
   uhid               String
-  registeredBranchId String    @map("registered_branch_id")
+  registeredBranchId String           @map("registered_branch_id")
   name               String
   gender             String?
-  dateOfBirth        DateTime? @map("date_of_birth") @db.Date
-  dobIsEstimated     Boolean   @default(false) @map("dob_is_estimated")
+  dateOfBirth        DateTime?        @map("date_of_birth") @db.Date
+  dobIsEstimated     Boolean          @default(false) @map("dob_is_estimated")
   phone              String?
   email              String?
-  addressStreet      String?   @map("address_street")
-  addressCross       String?   @map("address_cross")
-  addressArea        String?   @map("address_area")
-  addressCity        String?   @map("address_city")
-  addressState       String?   @map("address_state")
-  addressPincode     String?   @map("address_pincode")
-  isActive           Boolean   @default(true) @map("is_active")
-  createdBy          String    @map("created_by")
-  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  addressStreet      String?          @map("address_street")
+  addressCross       String?          @map("address_cross")
+  addressArea        String?          @map("address_area")
+  addressCity        String?          @map("address_city")
+  addressState       String?          @map("address_state")
+  addressPincode     String?          @map("address_pincode")
+  isActive           Boolean          @default(true) @map("is_active")
+  createdBy          String           @map("created_by")
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  hospital           Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  registeredBranch   Branch   @relation(fields: [tenantId, registeredBranchId], references: [tenantId, id], onDelete: Restrict)
-  creator            User     @relation("PatientCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
-  identifiers        PatientIdentifier[]
-  customFieldValues  PatientCustomFieldValue[]
-  opdVisits          OpdVisit[]
-  registrationFees   PatientRegistrationFee[]
+  hospital          Hospital                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  registeredBranch  Branch                    @relation(fields: [tenantId, registeredBranchId], references: [tenantId, id], onDelete: Restrict)
+  creator           User                      @relation("PatientCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
+  identifiers       PatientIdentifier[]
+  customFieldValues PatientCustomFieldValue[]
+  opdVisits         OpdVisit[]
+  registrationFees  PatientRegistrationFee[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, uhid])
@@ -753,8 +755,8 @@ model PatientCustomFieldOption {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  hospital Hospital           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  field    PatientCustomField @relation(fields: [tenantId, fieldId], references: [tenantId, id], onDelete: Cascade)
+  hospital Hospital                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  field    PatientCustomField        @relation(fields: [tenantId, fieldId], references: [tenantId, id], onDelete: Cascade)
   values   PatientCustomFieldValue[]
 
   @@unique([tenantId, id])
@@ -763,20 +765,20 @@ model PatientCustomFieldOption {
 }
 
 model PatientCustomFieldValue {
-  id         String    @id @default(cuid())
-  tenantId   String    @map("tenant_id")
-  patientId  String    @map("patient_id")
-  fieldId    String    @map("field_id")
-  valueText  String?   @map("value_text")
-  valueNumber Decimal? @map("value_number") @db.Decimal(18, 4)
-  valueDate  DateTime? @map("value_date") @db.Date
-  optionId   String?   @map("option_id")
-  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id          String    @id @default(cuid())
+  tenantId    String    @map("tenant_id")
+  patientId   String    @map("patient_id")
+  fieldId     String    @map("field_id")
+  valueText   String?   @map("value_text")
+  valueNumber Decimal?  @map("value_number") @db.Decimal(18, 4)
+  valueDate   DateTime? @map("value_date") @db.Date
+  optionId    String?   @map("option_id")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  hospital Hospital                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  patient  Patient                 @relation(fields: [tenantId, patientId], references: [tenantId, id], onDelete: Cascade)
-  field    PatientCustomField      @relation(fields: [tenantId, fieldId], references: [tenantId, id], onDelete: Cascade)
+  hospital Hospital                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patient  Patient                   @relation(fields: [tenantId, patientId], references: [tenantId, id], onDelete: Cascade)
+  field    PatientCustomField        @relation(fields: [tenantId, fieldId], references: [tenantId, id], onDelete: Cascade)
   option   PatientCustomFieldOption? @relation(fields: [tenantId, optionId], references: [tenantId, id], onDelete: SetNull)
 
   @@unique([tenantId, id])
@@ -856,15 +858,15 @@ model UhidFormatConfig {
 }
 
 model UhidFormatBlock {
-  id         String        @id @default(cuid())
-  tenantId   String        @map("tenant_id")
-  configId   String        @map("config_id")
-  position   Int
-  blockType  UhidBlockType @map("block_type")
-  textValue  String?       @map("text_value")
-  fyStyle    UhidFyStyle?  @map("fy_style")
-  minWidth   Int?          @map("min_width")
-  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  id        String        @id @default(cuid())
+  tenantId  String        @map("tenant_id")
+  configId  String        @map("config_id")
+  position  Int
+  blockType UhidBlockType @map("block_type")
+  textValue String?       @map("text_value")
+  fyStyle   UhidFyStyle?  @map("fy_style")
+  minWidth  Int?          @map("min_width")
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
 
   hospital Hospital         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   config   UhidFormatConfig @relation(fields: [tenantId, configId], references: [tenantId, id], onDelete: Cascade)
@@ -876,9 +878,9 @@ model UhidFormatBlock {
 }
 
 model UhidCounter {
-  tenantId    String @map("tenant_id")
-  periodYear  Int    @map("period_year")
-  lastNumber  BigInt @map("last_number")
+  tenantId   String @map("tenant_id")
+  periodYear Int    @map("period_year")
+  lastNumber BigInt @map("last_number")
 
   hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -1007,22 +1009,22 @@ model ImportBatchRow {
 }
 
 model ImportException {
-  id             String                 @id @default(cuid())
-  tenantId       String                 @map("tenant_id")
-  batchId        String                 @map("batch_id")
-  rowId          String                 @map("row_id")
-  reasonCode     String                 @map("reason_code")
+  id             String                @id @default(cuid())
+  tenantId       String                @map("tenant_id")
+  batchId        String                @map("batch_id")
+  rowId          String                @map("row_id")
+  reasonCode     String                @map("reason_code")
   message        String
-  status         ImportExceptionStatus  @default(OPEN)
-  resolvedBy     String?                @map("resolved_by")
-  resolvedAt     DateTime?              @map("resolved_at") @db.Timestamptz(3)
-  resolutionNote String?                @map("resolution_note")
-  createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  status         ImportExceptionStatus @default(OPEN)
+  resolvedBy     String?               @map("resolved_by")
+  resolvedAt     DateTime?             @map("resolved_at") @db.Timestamptz(3)
+  resolutionNote String?               @map("resolution_note")
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  hospital Hospital      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  batch    ImportBatch   @relation(fields: [tenantId, batchId], references: [tenantId, id], onDelete: Cascade)
+  hospital Hospital       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  batch    ImportBatch    @relation(fields: [tenantId, batchId], references: [tenantId, id], onDelete: Cascade)
   row      ImportBatchRow @relation(fields: [tenantId, rowId], references: [tenantId, id], onDelete: Cascade)
-  resolver User?         @relation("ImportExceptionResolvedBy", fields: [tenantId, resolvedBy], references: [tenantId, id], onDelete: Restrict)
+  resolver User?          @relation("ImportExceptionResolvedBy", fields: [tenantId, resolvedBy], references: [tenantId, id], onDelete: Restrict)
 
   @@unique([tenantId, id])
   @@index([tenantId, batchId])
@@ -1062,32 +1064,32 @@ enum NumberSeriesKind {
 }
 
 model DoctorProfile {
-  id              String   @id @default(cuid())
-  tenantId        String   @map("tenant_id")
-  userId          String   @map("user_id")
-  code            String
-  department      String?
+  id             String   @id @default(cuid())
+  tenantId       String   @map("tenant_id")
+  userId         String   @map("user_id")
+  code           String
+  department     String?
   /// How the name prints on a prescription (for example Dr. A. Rao); the login name when empty.
-  printedName     String?  @map("printed_name")
-  qualifications  String?
-  speciality      String?
+  printedName    String?  @map("printed_name")
+  qualifications String?
+  speciality     String?
   /// Medical council registration number, typed by the doctor (not verified).
-  registrationNo  String?  @map("registration_no")
-  availabilityOn  Boolean  @default(true) @map("availability_on")
-  active          Boolean  @default(true)
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  registrationNo String?  @map("registration_no")
+  availabilityOn Boolean  @default(true) @map("availability_on")
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  hospital Hospital       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user     User           @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Restrict)
-  timings  DoctorTiming[]
-  leaves   DoctorLeave[]
-  leaveRequests DoctorLeaveRequest[]
-  fees     DoctorFee[]
-  opdVisits OpdVisit[]
-  consultations Consultation[]
+  hospital            Hospital             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                User                 @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Restrict)
+  timings             DoctorTiming[]
+  leaves              DoctorLeave[]
+  leaveRequests       DoctorLeaveRequest[]
+  fees                DoctorFee[]
+  opdVisits           OpdVisit[]
+  consultations       Consultation[]
   investigationOrders InvestigationOrder[]
-  storedImages StoredImage[]
+  storedImages        StoredImage[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, userId])
@@ -1183,9 +1185,9 @@ model ChargeItem {
   createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  hospital Hospital          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  prices   ChargeItemPrice[]
-  billLines BillLine[]
+  hospital            Hospital             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  prices              ChargeItemPrice[]
+  billLines           BillLine[]
   investigationOrders InvestigationOrder[]
 
   @@unique([tenantId, id])
@@ -1195,13 +1197,13 @@ model ChargeItem {
 }
 
 model ChargeItemPrice {
-  id           String   @id @default(cuid())
-  tenantId     String   @map("tenant_id")
-  chargeItemId String   @map("charge_item_id")
-  amountPaise  Int      @map("amount_paise")
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  chargeItemId  String   @map("charge_item_id")
+  amountPaise   Int      @map("amount_paise")
   effectiveFrom DateTime @map("effective_from") @db.Timestamptz(3)
-  createdBy    String   @map("created_by")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  createdBy     String   @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   hospital   Hospital   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   chargeItem ChargeItem @relation(fields: [tenantId, chargeItemId], references: [tenantId, id], onDelete: Restrict)
@@ -1248,7 +1250,7 @@ model Medicine {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  hospital          Hospital           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   prescriptionItems PrescriptionItem[]
 
   @@unique([tenantId, id])
@@ -1258,20 +1260,20 @@ model Medicine {
 }
 
 model VitalsField {
-  id           String         @id @default(cuid())
-  tenantId     String         @map("tenant_id")
+  id           String          @id @default(cuid())
+  tenantId     String          @map("tenant_id")
   code         String
   name         String
   unit         String
   valueKind    VitalsValueKind @map("value_kind")
-  displayOrder Int            @default(0) @map("display_order")
-  warnMin      Decimal?       @map("warn_min") @db.Decimal(10, 2)
-  warnMax      Decimal?       @map("warn_max") @db.Decimal(10, 2)
-  active       Boolean        @default(true)
-  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  displayOrder Int             @default(0) @map("display_order")
+  warnMin      Decimal?        @map("warn_min") @db.Decimal(10, 2)
+  warnMax      Decimal?        @map("warn_max") @db.Decimal(10, 2)
+  active       Boolean         @default(true)
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  hospital Hospital      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   readings VisitVitals[]
 
   @@unique([tenantId, id])
@@ -1301,22 +1303,22 @@ model PaymentMode {
 }
 
 model OpdSettings {
-  id                 String   @id @default(cuid())
-  tenantId           String   @map("tenant_id")
-  followUpFreeDays   Int      @default(7) @map("follow_up_free_days")
-  repeatVisitFreeHours Int    @default(0) @map("repeat_visit_free_hours")
-  tokenPrefix        String   @default("T") @map("token_prefix")
-  timezone           String   @default("Asia/Kolkata")
-  taxEnabled         Boolean  @default(false) @map("tax_enabled")
-  taxName            String?  @map("tax_name")
-  taxRegistrationNo  String?  @map("tax_registration_no")
-  taxInclusive       Boolean  @default(false) @map("tax_inclusive")
+  id                   String   @id @default(cuid())
+  tenantId             String   @map("tenant_id")
+  followUpFreeDays     Int      @default(7) @map("follow_up_free_days")
+  repeatVisitFreeHours Int      @default(0) @map("repeat_visit_free_hours")
+  tokenPrefix          String   @default("T") @map("token_prefix")
+  timezone             String   @default("Asia/Kolkata")
+  taxEnabled           Boolean  @default(false) @map("tax_enabled")
+  taxName              String?  @map("tax_name")
+  taxRegistrationNo    String?  @map("tax_registration_no")
+  taxInclusive         Boolean  @default(false) @map("tax_inclusive")
   /// Default paper of new slip, receipt, prescription and report templates (A4 or A5).
-  defaultPrintPaper  String   @default("A5") @map("default_print_paper")
+  defaultPrintPaper    String   @default("A5") @map("default_print_paper")
   /// Print the patient card (label) automatically after payment (off by default).
-  patientCardAutoPrint Boolean @default(false) @map("patient_card_auto_print")
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  patientCardAutoPrint Boolean  @default(false) @map("patient_card_auto_print")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -1326,14 +1328,14 @@ model OpdSettings {
 }
 
 model NumberSeriesSettings {
-  id          String           @id @default(cuid())
-  tenantId    String           @map("tenant_id")
-  series      NumberSeriesKind
-  format      Json
-  resetRule   UhidResetRule    @map("reset_rule")
-  fyStartMonth Int             @default(4) @map("fy_start_month")
-  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id           String           @id @default(cuid())
+  tenantId     String           @map("tenant_id")
+  series       NumberSeriesKind
+  format       Json
+  resetRule    UhidResetRule    @map("reset_rule")
+  fyStartMonth Int              @default(4) @map("fy_start_month")
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -1432,18 +1434,18 @@ model OpdVisit {
   createdAt             DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt             DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  hospital      Hospital      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  branch        Branch        @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict)
-  patient       Patient       @relation(fields: [tenantId, patientId], references: [tenantId, id], onDelete: Restrict)
-  doctor        DoctorProfile @relation(fields: [tenantId, doctorProfileId], references: [tenantId, id], onDelete: Restrict)
-  previousVisit OpdVisit?     @relation("OpdVisitPrevious", fields: [tenantId, previousVisitId], references: [tenantId, id], onDelete: Restrict)
-  followUps     OpdVisit[]    @relation("OpdVisitPrevious")
-  creator       User          @relation("OpdVisitCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
-  bills         Bill[]
-  consultation  Consultation?
-  vitals        VisitVitals[]
+  hospital            Hospital             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  branch              Branch               @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict)
+  patient             Patient              @relation(fields: [tenantId, patientId], references: [tenantId, id], onDelete: Restrict)
+  doctor              DoctorProfile        @relation(fields: [tenantId, doctorProfileId], references: [tenantId, id], onDelete: Restrict)
+  previousVisit       OpdVisit?            @relation("OpdVisitPrevious", fields: [tenantId, previousVisitId], references: [tenantId, id], onDelete: Restrict)
+  followUps           OpdVisit[]           @relation("OpdVisitPrevious")
+  creator             User                 @relation("OpdVisitCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
+  bills               Bill[]
+  consultation        Consultation?
+  vitals              VisitVitals[]
   investigationOrders InvestigationOrder[]
-  refundRequests RefundRequest[]
+  refundRequests      RefundRequest[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, id, branchId])
@@ -1473,15 +1475,15 @@ model Bill {
   createdBy      String        @map("created_by")
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  hospital      Hospital      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  visit         OpdVisit      @relation(fields: [tenantId, visitId, branchId], references: [tenantId, id, branchId], onDelete: Restrict)
-  creator       User          @relation("BillCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
-  lines         BillLine[]
-  payments      Payment[]
-  receipts      Receipt[]
-  ledgerEntries LedgerEntry[]
+  hospital       Hospital        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  visit          OpdVisit        @relation(fields: [tenantId, visitId, branchId], references: [tenantId, id, branchId], onDelete: Restrict)
+  creator        User            @relation("BillCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
+  lines          BillLine[]
+  payments       Payment[]
+  receipts       Receipt[]
+  ledgerEntries  LedgerEntry[]
   refundRequests RefundRequest[]
-  refunds       Refund[]
+  refunds        Refund[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, id, branchId])
@@ -1510,11 +1512,11 @@ model BillLine {
   pricingNote         String?        @map("pricing_note")
   createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  hospital        Hospital                @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  bill            Bill                    @relation(fields: [tenantId, billId], references: [tenantId, id], onDelete: Restrict)
-  chargeItem      ChargeItem?             @relation(fields: [tenantId, chargeItemId], references: [tenantId, id], onDelete: Restrict)
-  doctorFee       DoctorFee?              @relation(fields: [tenantId, doctorFeeId], references: [tenantId, id], onDelete: Restrict)
-  registrationFee PatientRegistrationFee?
+  hospital           Hospital                @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  bill               Bill                    @relation(fields: [tenantId, billId], references: [tenantId, id], onDelete: Restrict)
+  chargeItem         ChargeItem?             @relation(fields: [tenantId, chargeItemId], references: [tenantId, id], onDelete: Restrict)
+  doctorFee          DoctorFee?              @relation(fields: [tenantId, doctorFeeId], references: [tenantId, id], onDelete: Restrict)
+  registrationFee    PatientRegistrationFee?
   investigationOrder InvestigationOrder?
 
   @@unique([tenantId, id])
@@ -1647,26 +1649,26 @@ model ConsultationAddendum {
 
 /// Append-only, versioned vitals: a correction is a NEW version with a reason; the latest counts.
 model VisitVitals {
-  id               String           @id @default(cuid())
-  tenantId         String           @map("tenant_id")
-  branchId         String           @map("branch_id")
-  visitId          String           @map("visit_id")
-  vitalsFieldId    String           @map("vitals_field_id")
+  id               String          @id @default(cuid())
+  tenantId         String          @map("tenant_id")
+  branchId         String          @map("branch_id")
+  visitId          String          @map("visit_id")
+  vitalsFieldId    String          @map("vitals_field_id")
   version          Int
-  fieldCode        String           @map("field_code")
-  fieldName        String           @map("field_name")
+  fieldCode        String          @map("field_code")
+  fieldName        String          @map("field_name")
   unit             String
-  valueKind        VitalsValueKind  @map("value_kind")
-  valueNumber      Decimal?         @map("value_number") @db.Decimal(10, 2)
-  valueText        String?          @map("value_text")
-  correctionReason String?          @map("correction_reason")
-  recordedBy       String           @map("recorded_by")
-  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  valueKind        VitalsValueKind @map("value_kind")
+  valueNumber      Decimal?        @map("value_number") @db.Decimal(10, 2)
+  valueText        String?         @map("value_text")
+  correctionReason String?         @map("correction_reason")
+  recordedBy       String          @map("recorded_by")
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  hospital   Hospital    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  visit      OpdVisit    @relation(fields: [tenantId, visitId, branchId], references: [tenantId, id, branchId], onDelete: Restrict)
-  field      VitalsField @relation(fields: [tenantId, vitalsFieldId], references: [tenantId, id], onDelete: Restrict)
-  recorder   User        @relation("VitalsRecordedBy", fields: [tenantId, recordedBy], references: [tenantId, id], onDelete: Restrict)
+  hospital Hospital    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  visit    OpdVisit    @relation(fields: [tenantId, visitId, branchId], references: [tenantId, id, branchId], onDelete: Restrict)
+  field    VitalsField @relation(fields: [tenantId, vitalsFieldId], references: [tenantId, id], onDelete: Restrict)
+  recorder User        @relation("VitalsRecordedBy", fields: [tenantId, recordedBy], references: [tenantId, id], onDelete: Restrict)
 
   @@unique([tenantId, id])
   @@unique([tenantId, visitId, vitalsFieldId, version], map: "visit_vitals_version_key")
@@ -1974,33 +1976,36 @@ model PatientViewLog {
 }
 
 model PrintTemplate {
-  id             String           @id @default(cuid())
-  tenantId       String           @map("tenant_id")
-  branchId       String?          @map("branch_id")
-  docType        PrintDocType     @map("doc_type")
-  enabled        Boolean          @default(true)
-  paper          PrintPaper
-  widthMm        Decimal?         @map("width_mm") @db.Decimal(6, 1)
-  heightMm       Decimal?         @map("height_mm") @db.Decimal(6, 1)
-  orientation    PrintOrientation @default(PORTRAIT)
-  marginTopMm    Decimal          @default(0) @map("margin_top_mm") @db.Decimal(5, 1)
-  marginRightMm  Decimal          @default(0) @map("margin_right_mm") @db.Decimal(5, 1)
-  marginBottomMm Decimal          @default(0) @map("margin_bottom_mm") @db.Decimal(5, 1)
-  marginLeftMm   Decimal          @default(0) @map("margin_left_mm") @db.Decimal(5, 1)
-  mode           PrintMode        @default(FULL)
-  preset         String?
-  layout         Json             @default("{}")
+  id                String           @id @default(cuid())
+  tenantId          String           @map("tenant_id")
+  branchId          String?          @map("branch_id")
+  docType           PrintDocType     @map("doc_type")
+  enabled           Boolean          @default(true)
+  paper             PrintPaper
+  widthMm           Decimal?         @map("width_mm") @db.Decimal(6, 1)
+  heightMm          Decimal?         @map("height_mm") @db.Decimal(6, 1)
+  orientation       PrintOrientation @default(PORTRAIT)
+  marginTopMm       Decimal          @default(0) @map("margin_top_mm") @db.Decimal(5, 1)
+  marginRightMm     Decimal          @default(0) @map("margin_right_mm") @db.Decimal(5, 1)
+  marginBottomMm    Decimal          @default(0) @map("margin_bottom_mm") @db.Decimal(5, 1)
+  marginLeftMm      Decimal          @default(0) @map("margin_left_mm") @db.Decimal(5, 1)
+  mode              PrintMode        @default(FULL)
+  preset            String?
+  layout            Json             @default("{}")
   /// Set when a template is replaced by a newer design (Step 2.1a); a retired row is never read.
-  retiredAt      DateTime?        @map("retired_at") @db.Timestamptz(3)
-  createdBy      String           @map("created_by")
-  updatedBy      String           @map("updated_by")
-  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  retiredAt         DateTime?        @map("retired_at") @db.Timestamptz(3)
+  /// The library template this one was chosen from (Step 2.1f), if any.
+  libraryTemplateId String?          @map("library_template_id")
+  createdBy         String           @map("created_by")
+  updatedBy         String           @map("updated_by")
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  branch   Branch?  @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict)
-  creator  User     @relation("PrintTemplateCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
-  updater  User     @relation("PrintTemplateUpdatedBy", fields: [tenantId, updatedBy], references: [tenantId, id], onDelete: Restrict)
+  hospital        Hospital              @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  libraryTemplate PrintLibraryTemplate? @relation(fields: [libraryTemplateId], references: [id], onDelete: SetNull)
+  branch          Branch?               @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict)
+  creator         User                  @relation("PrintTemplateCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
+  updater         User                  @relation("PrintTemplateUpdatedBy", fields: [tenantId, updatedBy], references: [tenantId, id], onDelete: Restrict)
 
   @@unique([tenantId, id])
   @@map("print_templates")
@@ -2042,4 +2047,69 @@ model StoredImage {
 
   @@unique([tenantId, id])
   @@map("stored_images")
+}
+
+/// Step 2.1f: a designed template owned by Indigo (global; a hospital sees only what is assigned to it).
+model PrintLibraryTemplate {
+  id          String       @id @default(cuid())
+  docType     PrintDocType @map("doc_type")
+  key         String       @unique
+  name        String
+  description String       @default("")
+  input       Json
+  createdBy   String?      @map("created_by")
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  retiredAt   DateTime?    @map("retired_at") @db.Timestamptz(3)
+
+  assignments PrintLibraryAssignment[]
+  chosenBy    PrintTemplate[]
+
+  @@map("print_library_templates")
+}
+
+/// Step 2.1f: a logo of the library (a small picture kept in the database).
+model PrintLibraryLogo {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  contentType String   @map("content_type")
+  byteSize    Int      @map("byte_size")
+  width       Int
+  height      Int
+  data        Bytes
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  assignments PrintLibraryAssignment[]
+
+  @@map("print_library_logos")
+}
+
+/// Step 2.1f: which library entries a hospital may choose from.
+model PrintLibraryAssignment {
+  id         String   @id @default(cuid())
+  tenantId   String   @map("tenant_id")
+  templateId String?  @map("template_id")
+  logoId     String?  @map("logo_id")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  hospital Hospital              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  template PrintLibraryTemplate? @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  logo     PrintLibraryLogo?     @relation(fields: [logoId], references: [id], onDelete: Cascade)
+
+  @@map("print_library_assignments")
+}
+
+/// Step 2.1f: the words a hospital prefers for a few terms (set by Indigo only).
+model TerminologyOverride {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  key       String
+  text      String
+  updatedBy String?  @map("updated_by")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, key])
+  @@map("terminology_overrides")
 }

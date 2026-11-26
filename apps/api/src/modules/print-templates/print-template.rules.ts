@@ -98,6 +98,8 @@ export const PRINT_FIELDS: Record<PrintDocType, readonly string[]> = {
     'token',
     'patientName',
     'uhid',
+    'age',
+    'gender',
     'doctorName',
     'visitDate',
     'branchName',

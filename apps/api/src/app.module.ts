@@ -23,6 +23,7 @@ import { DoctorAvailabilityModule } from './modules/doctor-availability/availabi
 import { OpdPricesModule } from './modules/opd-prices/opd-prices.module';
 import { OpdRefundsModule } from './modules/opd-refunds/opd-refunds.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { TerminologyModule } from './modules/terminology/terminology.controller';
 import { OpdReportsModule } from './modules/opd-reports/opd-reports.module';
 import { PrintTemplatesModule } from './modules/print-templates/print-templates.module';
 import { OpdVisitsModule } from './modules/opd-visits/opd-visits.module';
@@ -58,6 +59,7 @@ import { StorageModule } from './modules/storage/storage.module';
     OpdInvestigationsModule,
     OpdRefundsModule,
     DashboardModule,
+    TerminologyModule,
     OpdPricesModule,
     DoctorAvailabilityModule,
     MastersAdminModule,

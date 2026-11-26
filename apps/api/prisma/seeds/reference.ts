@@ -68,6 +68,11 @@ const PERMISSIONS = [
   },
   { code: 'indigo.access.read', description: 'Read who from Indigo entered this hospital' },
   {
+    code: 'print.templates.choose',
+    description:
+      'Choose a print template or a logo from the Indigo library for this hospital or branch',
+  },
+  {
     code: 'print.templates.manage',
     description: 'Make and change print templates and logos (Indigo Owner only)',
   },

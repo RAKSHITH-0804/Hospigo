@@ -71,6 +71,7 @@ export const INDIGO_EMPLOYEE_EXCLUDED_PREFIXES: readonly string[] = [
   'opd.reports.',
   'opd.doctors.own',
   'print.templates.manage',
+  'print.templates.choose',
   'indigo.access.read',
 ];
 

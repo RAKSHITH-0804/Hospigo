@@ -156,8 +156,12 @@ export class PrintTemplatesService {
     private readonly access: AccessService,
   ) {}
 
-  private assertMayChange(actor: Actor, scope: PrintScope): Promise<void> {
-    return assertMayChangePrint(this.access, actor, scope, 'print.templates.manage');
+  private assertMayChange(
+    actor: Actor,
+    scope: PrintScope,
+    code = 'print.templates.manage',
+  ): Promise<void> {
+    return assertMayChangePrint(this.access, actor, scope, code);
   }
 
   /** The built-in presets with what each one gives each document (the screen copies, then adjusts). */
@@ -208,14 +212,19 @@ export class PrintTemplatesService {
     docType: PrintDocType,
     body: unknown,
     scope: PrintScope = 'hospital',
+    /** Step 2.1f: a template chosen from the library (needs the choose permission, remembers where it came from). */
+    from?: { libraryTemplateId: string },
   ): Promise<EffectiveTemplate> {
-    await this.assertMayChange(actor, scope);
+    await this.assertMayChange(actor, scope, from ? 'print.templates.choose' : undefined);
     const input = validateTemplate(docType, body);
     const branchId = scope === 'branch' ? actor.branchId : null;
     return this.tenantDb.withTenant(async (tx) => {
       const where = { tenantId: actor.tenantId, branchId, docType, retiredAt: null };
       const existing = await tx.printTemplate.findFirst({ where });
-      const data = this.toData(input, actor.userId);
+      const data = {
+        ...this.toData(input, actor.userId),
+        libraryTemplateId: from?.libraryTemplateId ?? null,
+      };
       let created = false;
       if (existing) {
         await tx.printTemplate.updateMany({
@@ -249,7 +258,13 @@ export class PrintTemplatesService {
           entityType: 'print_template',
           entityId: docType,
           // Names of what changed, never the texts typed into the header or footer.
-          metadata: { docType, scope, created, changed },
+          metadata: {
+            docType,
+            scope,
+            created,
+            changed,
+            ...(from ? { libraryTemplateId: from.libraryTemplateId } : {}),
+          },
         },
       });
       return this.readOne(tx, actor, docType);
@@ -262,14 +277,15 @@ export class PrintTemplatesService {
     docType: PrintDocType,
     body: unknown,
     scope: PrintScope = 'hospital',
+    from?: { libraryTemplateId: string },
   ): Promise<EffectiveTemplate> {
     try {
-      return await this.save(actor, docType, body, scope);
+      return await this.save(actor, docType, body, scope, from);
     } catch (error) {
       if (!isUniqueViolation(error)) {
         throw error;
       }
-      return this.save(actor, docType, body, scope);
+      return this.save(actor, docType, body, scope, from);
     }
   }
 

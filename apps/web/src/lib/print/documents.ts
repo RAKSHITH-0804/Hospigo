@@ -81,6 +81,8 @@ export function receiptItems(visit: VisitView, hospitalName: string): PrintItem[
     text('token', visit.token?.label),
     text('patientName', visit.patient.name),
     text('uhid', visit.patient.uhid),
+    text('age', visit.patient.ageYears === null ? '' : ageDisplay(visit.patient)),
+    text('gender', visit.patient.gender ? genderLabel(visit.patient.gender) : ''),
     text('doctorName', visit.doctor.name),
     text('visitDate', formatDateOnly(visit.visitDate)),
     text('branchName', visit.branch.name),
