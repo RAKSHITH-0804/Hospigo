@@ -80,14 +80,44 @@ async function backdate(ownerUrl: string): Promise<void> {
   }
 }
 
+/**
+ * In the development database the old fake hospitals get realistic (fictional) names so no screen says
+ * "Demo". Only the display names change: codes, access codes and logins stay, so Postman and the tests
+ * keep working.
+ */
+async function renameDemoHospitals(ownerUrl: string): Promise<void> {
+  const client = new pg.Client({ connectionString: ownerUrl });
+  await client.connect();
+  try {
+    const names: Array<[string, string]> = [
+      ['DEMO_NORTH', 'Mandara Family Hospital'],
+      ['DEMO_SOUTH', 'Taranga Health Centre'],
+    ];
+    for (const [code, name] of names) {
+      await client.query('UPDATE hospitals SET name = $1 WHERE code = $2', [name, code]);
+    }
+    const left = await client.query(
+      "SELECT name FROM hospitals WHERE name ~* '(demo|mock|test|seed)' UNION ALL SELECT name FROM branches WHERE name ~* '(demo|mock|test|seed)'",
+    );
+    console.log(
+      'Hospitals renamed. Names still containing demo/mock/test/seed: ' + (left.rowCount ?? 0),
+    );
+  } finally {
+    await client.end();
+  }
+}
+
 async function main(): Promise<void> {
   if (process.env.NODE_ENV !== 'development') {
     throw new Error('The showcase seed runs only with NODE_ENV=development');
   }
-  const app = need('DATABASE_URL_DEMO');
-  const owner = need('DATABASE_URL_OWNER_DEMO');
-  if (dbName(app) !== DB || dbName(owner) !== DB) {
-    throw new Error(`DATABASE_URL_DEMO and DATABASE_URL_OWNER_DEMO must point at ${DB}`);
+  // SHOWCASE_TARGET=dev puts the realistic hospitals into the development database `hospigo` (npm run showcase:dev)
+  const dev = process.env.SHOWCASE_TARGET === 'dev';
+  const app = need(dev ? 'DATABASE_URL' : 'DATABASE_URL_DEMO');
+  const owner = need(dev ? 'DATABASE_URL_OWNER' : 'DATABASE_URL_OWNER_DEMO');
+  const wanted = dev ? 'hospigo' : DB;
+  if (dbName(app) !== wanted || dbName(owner) !== wanted) {
+    throw new Error(`The database URLs must point at ${wanted}`);
   }
   const env = {
     ...process.env,
@@ -95,12 +125,13 @@ async function main(): Promise<void> {
     DATABASE_URL_OWNER: owner,
     DATABASE_URL_TEST: app,
     DATABASE_URL_OWNER_TEST: owner,
-    DATABASE_URL_HQ: inDemo(need('DATABASE_URL_HQ')),
-    DATABASE_URL_PATIENT: inDemo(need('DATABASE_URL_PATIENT')),
+    DATABASE_URL_HQ: dev ? need('DATABASE_URL_HQ') : inDemo(need('DATABASE_URL_HQ')),
+    DATABASE_URL_PATIENT: dev ? need('DATABASE_URL_PATIENT') : inDemo(need('DATABASE_URL_PATIENT')),
+    ...(dev ? { SHOWCASE_ALLOW_DEV: '1' } : {}),
   };
   const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: owner }) });
   try {
-    if ((await prisma.hospital.count({ where: { isTest: true } })) > 0) {
+    if (!dev && (await prisma.hospital.count({ where: { isTest: true } })) > 0) {
       throw new Error(
         'Refusing: this database holds test hospitals, so it is not a showcase database',
       );
@@ -119,6 +150,9 @@ async function main(): Promise<void> {
     }
   }
   await backdate(owner);
+  if (dev) {
+    await renameDemoHospitals(owner);
+  }
   console.log('Written-at moments of the history set to the visit days.');
 }
 
