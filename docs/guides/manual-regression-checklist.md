@@ -163,6 +163,13 @@ Tick a line only when you saw the result. If a line fails, write the line number
 3. Approve or reject it: within 20 seconds the number goes down, and disappears at zero.
 4. As the receptionist or a nurse there is no bell and no number.
 
+## L. Phase 2.1d (showcase and dashboards)
+
+1. Run `npm run prisma:seed-showcase -w @hospigo/api` once on the dev database (never on production). Sign in with the access code printed at the end.
+2. Open **Dashboard** as the SuperAdmin or Admin: cards for visits, waiting, seen, new patients, money collected, requests waiting; charts for visits and money over 14 days, how patients paid and the busiest doctors. The numbers match the OPD queue and the reports.
+3. As a receptionist there is no approvals card; as a doctor you see your own waiting and seen counts; as a nurse you see the vitals card and no money.
+4. Narrow the window to a phone width: cards and charts stack, nothing scrolls sideways.
+
 ## F. After the checklist
 
 Write down every line that failed, with the role, the page and what you saw. Do not fix by hand in the database. Open a new step in the tracker for each real problem.

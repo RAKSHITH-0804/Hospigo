@@ -29,6 +29,13 @@
 
 ## Unreleased
 
+## 2026-11-26 — Phase 2.1 Step 2.1d — Showcase data and real dashboards (branch `feature/step-2-1d-showcase`, not pushed)
+- **What changed:** showcase seed (fictional hospitals, doctors, masters and history through the real routes); `GET /dashboard/summary`; dashboard on `/app` with KPI cards, bar, line and donut charts from theme tokens.
+- **Files:** API `database/showcase/*`, `modules/dashboard/*`, `package.json` script; web `components/dashboard/*`, `lib/dashboard/types.ts`, route `api/staff/dashboard/summary`, copy, CSS tokens.
+- **Tests:** API 1 (summary counts, permission blocks, other branch and hospital), web 3 (numbers, hidden blocks, empty and error).
+- **Decisions:** `docs/decisions/decisions-2-1.md` (Step 2.1d).
+- **Follow-ups and open items:** designed sample print templates and logos are NOT built; the showcase seed does not deactivate the old demo hospitals unless `SHOWCASE_DEACTIVATE_DEMO=1` (it would break Postman and e2e); the dashboard asks the API once on open (no live refresh).
+
 ## 2026-11-26 — Phase 2.1 Step 2.1c — Approvals badge and notification (branch `feature/step-2-1c-approvals`, not pushed)
 
 - **What changed:** pending-approvals count endpoint and badge, bell and message for people who may approve.

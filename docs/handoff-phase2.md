@@ -4,6 +4,8 @@
 
 Everything below this section is history. Where it disagrees with this section, this section is right. **Do not redo anything listed as done.**
 
+**Phase 2.1 Step 2.1d (Showcase data and real dashboards) is BUILT on `feature/step-2-1d-showcase` (stacked on `feature/step-2-1c-approvals`), NOT pushed** (2026-11-26). Done: showcase seed, dashboard summary API and dashboard with charts. NOT done: sample print templates, screenshot review rounds. NEXT: Rakshith runs migrate, the seeds, the showcase seed, Postman and e2e, then pushes the five stacked branches in order (2.1a, 2.1b, 2.1e, 2.1c, 2.1d).
+
 **Phase 2.1 Step 2.1c (Approvals badge and notification) is BUILT on `feature/step-2-1c-approvals` (stacked on `feature/step-2-1e-indigo-console`), NOT pushed** (2026-11-26). Done: item 7 (poll every 20 seconds, no WebSocket). NEXT: Step 2.1d (showcase) on `feature/step-2-1d-showcase`.
 
 **Phase 2.1 Step 2.1e (Indigo console) is BUILT on `feature/step-2-1e-indigo-console` (stacked on `feature/step-2-1b-roles-access`), NOT pushed** (2026-11-26). Done: hospitals list, onboarding, module switches, Indigo employees (see decisions-2-1). NOT done: template library, terminology overrides, per-branch modules, starter from the console. NEXT: Step 2.1c (approvals badge) on `feature/step-2-1c-approvals`, then 2.1d.
