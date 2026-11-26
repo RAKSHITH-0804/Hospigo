@@ -20,7 +20,7 @@ export async function seedApprovals(
   setups: ApprovalSetup[],
 ): Promise<void> {
   for (const s of setups) {
-    if ((await prisma.refundRequest.count({ where: { tenantId: s.tenantId } })) > 0) {
+    if ((await prisma.refundRequest.count({ where: { tenantId: s.tenantId } })) >= 10) {
       continue;
     }
     const token = (id: string) =>
@@ -32,28 +32,41 @@ export async function seedApprovals(
         [method](path)
         .set('Authorization', `Bearer ${bearer}`)
         .send(body);
-    const log = (what: string, status: number) => {
-      if (status !== 200 && status !== 201) {
-        throw new Error(`Approvals seed: ${what} failed with ${status}`);
+    const failures: string[] = [];
+    const log = (what: string, res: { status: number; text: string }): boolean => {
+      if (res.status === 200 || res.status === 201) {
+        return true;
       }
+      failures.push(`${what}: ${res.status} ${res.text.slice(0, 120)}`);
+      return false;
     };
-    const bills = await prisma.bill.findMany({
-      where: {
-        tenantId: s.tenantId,
-        branchId: s.mainBranchId,
-        totalPaise: { gte: 20_000 },
-        visit: { status: 'COMPLETED' },
-      },
+    // fresh paid, waiting visits through the real reception route: money-back and cancellation requests
+    // are only possible before the consultation starts
+    const patients = await prisma.patient.findMany({
+      where: { tenantId: s.tenantId },
       orderBy: { createdAt: 'desc' },
-      take: 12,
+      take: 15,
       select: { id: true },
     });
-    const open = await prisma.opdVisit.findMany({
-      where: { tenantId: s.tenantId, branchId: s.mainBranchId, status: 'WAITING' },
-      orderBy: { createdAt: 'desc' },
+    const doctors = await prisma.doctorProfile.findMany({
+      where: { tenantId: s.tenantId },
       take: 4,
       select: { id: true },
     });
+    const made: Array<{ visitId: string; billId: string }> = [];
+    for (const [i, patient] of patients.entries()) {
+      const res = await call('post', '/opd/visits', recv, {
+        patientId: patient.id,
+        doctorProfileId: doctors[i % doctors.length]!.id,
+        visitType: 'NEW',
+        idempotencyKey: `SHOWAP-${s.hospital.code}-V-${i}`,
+      });
+      if (log('new visit', res)) {
+        made.push({ visitId: res.body.id as string, billId: res.body.bill.id as string });
+      }
+    }
+    const bills = made.slice(0, 11).map((m) => ({ id: m.billId }));
+    const open = made.slice(11, 15).map((m) => ({ id: m.visitId }));
     let n = 0;
     const key = (kind: string) => `SHOWAP-${s.hospital.code}-${kind}-${(n += 1)}`;
     // decide: 4 approved, 3 rejected, 4 waiting
@@ -65,18 +78,16 @@ export async function seedApprovals(
         ],
         idempotencyKey: key('RF'),
       });
-      log('refund request', asked.status);
+      if (!log('refund request', asked)) {
+        continue;
+      }
       const id = asked.body.request.id as string;
       if (index < 4) {
-        log(
-          'approve',
-          (await call('post', `/opd/refund-requests/${id}/approve`, admin, {})).status,
-        );
+        log('approve', await call('post', `/opd/refund-requests/${id}/approve`, admin, {}));
       } else if (index < 7) {
         log(
           'reject',
-          (await call('post', `/opd/refund-requests/${id}/reject`, admin, { note: 'Not valid' }))
-            .status,
+          await call('post', `/opd/refund-requests/${id}/reject`, admin, { note: 'Not valid' }),
         );
       }
     }
@@ -86,23 +97,24 @@ export async function seedApprovals(
         reason: 'Patient left before the consultation',
         idempotencyKey: key('CX'),
       });
-      log('cancel request', asked.status);
+      if (!log('cancel request', asked)) {
+        continue;
+      }
       const id = asked.body.request.id as string;
       if (index === 0) {
-        log(
-          'approve cancel',
-          (await call('post', `/opd/refund-requests/${id}/approve`, admin, {})).status,
-        );
+        log('approve cancel', await call('post', `/opd/refund-requests/${id}/approve`, admin, {}));
       } else if (index === 1) {
         log(
           'reject cancel',
-          (
-            await call('post', `/opd/refund-requests/${id}/reject`, admin, {
-              note: 'Patient is waiting',
-            })
-          ).status,
+          await call('post', `/opd/refund-requests/${id}/reject`, admin, {
+            note: 'Patient is waiting',
+          }),
         );
       }
+    }
+    console.log(`${s.hospital.name}: requests made, ${failures.length} refused.`);
+    for (const f of failures.slice(0, 3)) {
+      console.log('  ' + f);
     }
   }
 }
