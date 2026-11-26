@@ -1529,6 +1529,8 @@ describe('OPD tests ordering, investigations bill, refunds and cancellation (HTT
         return res.body;
       };
       const before = await summary(A, 'admin');
+      const beforeEast = await summary(A, 'adminEast');
+      const beforeB = await summary(B, 'admin');
       await waiting(A);
       const after = await summary(A, 'admin');
       expect(after.today.visits).toBe(before.today.visits + 1);
@@ -1545,8 +1547,8 @@ describe('OPD tests ordering, investigations bill, refunds and cancellation (HTT
       );
       // another branch and another hospital are counted on their own
       const east = await summary(A, 'adminEast');
-      expect(east.today.visits).toBe(0);
-      expect((await summary(B, 'admin')).today.visits).toBe(0);
+      expect(east.today.visits).toBe(beforeEast.today.visits);
+      expect((await summary(B, 'admin')).today.visits).toBe(beforeB.today.visits);
       expect((await http().get('/dashboard/summary')).status).toBe(401);
     });
 
