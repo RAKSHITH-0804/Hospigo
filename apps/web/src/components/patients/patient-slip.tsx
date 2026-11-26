@@ -1,6 +1,6 @@
 import { PageHeader } from '@/components/ui/page-header';
 import { staffCopy } from '@/config/staff-copy';
-import { ageLabel, genderLabel, textOrEmpty } from '@/lib/patients/format';
+import { ageDisplay, genderLabel, textOrEmpty } from '@/lib/patients/format';
 import type { PatientDetail } from '@/lib/patients/types';
 import { PrintButton } from './print-button';
 
@@ -26,7 +26,7 @@ export function PatientSlip({
     [copy.slip.uhid, patient.uhid],
     ...(relative ? ([[copy.slip.relative, relative]] as Array<[string, string]>) : []),
     [copy.slip.gender, genderLabel(patient.gender)],
-    [copy.slip.age, ageLabel(patient.ageYears)],
+    [copy.slip.age, patient.ageYears === null ? '—' : ageDisplay(patient)],
     [copy.slip.phone, textOrEmpty(patient.phone)],
   ];
 

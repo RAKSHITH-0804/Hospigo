@@ -72,7 +72,7 @@ describe('PatientRecord', () => {
     render(<PatientRecord patient={detail} labels={labels} canWrite={false} />);
     expect(screen.getByText(copy.form.dateOfBirth)).toBeTruthy();
     expect(screen.getByText('15 Jan 1990')).toBeTruthy();
-    expect(screen.getByText(`36 ${copy.record.ageYearsSuffix}`)).toBeTruthy();
+    expect(screen.getByText('36 y')).toBeTruthy();
     expect(screen.queryByText(/approx/)).toBeNull();
   });
 
@@ -84,8 +84,8 @@ describe('PatientRecord', () => {
         canWrite={false}
       />,
     );
-    expect(screen.getByText(copy.record.ageApproximate.replace('{age}', '33'))).toBeTruthy();
-    expect(screen.getByText('33 years (approx.)')).toBeTruthy();
+    expect(screen.getByText(copy.record.ageApproximateShort.replace('{age}', '33 y'))).toBeTruthy();
+    expect(screen.getByText('About 33 y')).toBeTruthy();
     expect(screen.queryByText(/^Age 33/)).toBeNull();
     expect(screen.queryByText(copy.form.dateOfBirth)).toBeNull();
     expect(screen.queryByText(/1990|Jan/)).toBeNull();

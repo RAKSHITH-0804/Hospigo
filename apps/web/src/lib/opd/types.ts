@@ -97,6 +97,11 @@ export type VisitView = {
   token: { date: string; no: number; label: string } | null;
   queuedAt: string | null;
   createdAt: string;
+  /** What the patient told reception (editable until the doctor starts) and who billed the visit. */
+  receptionSymptoms?: string | null;
+  createdByName?: string;
+  /** The hospital's setting: show the patient card button after payment (single visit read only). */
+  patientCardAutoPrint?: boolean;
   /** Absent for callers without opd.billing.read. */
   bill?: BillView | null;
   replayed?: boolean;

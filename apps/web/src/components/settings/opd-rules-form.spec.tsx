@@ -55,6 +55,29 @@ describe('OpdRulesForm', () => {
     expect(screen.queryByRole('status')).toBeNull();
   });
 
+  it('sends the default paper and the patient card setting only when they changed', async () => {
+    saveMock.mockResolvedValue({
+      ok: true,
+      data: rules({ defaultPrintPaper: 'A4', patientCardAutoPrint: true }),
+    });
+    render(
+      <OpdRulesForm
+        initial={rules({ defaultPrintPaper: 'A5', patientCardAutoPrint: false })}
+        canWrite
+      />,
+    );
+    fireEvent.change(screen.getByLabelText(copy.paperLabel), { target: { value: 'A4' } });
+    fireEvent.click(screen.getByLabelText(copy.cardLabel));
+    save();
+    await waitFor(() => expect(saveMock).toHaveBeenCalledTimes(1));
+    expect(saveMock).toHaveBeenCalledWith({
+      followUpFreeDays: 7,
+      repeatVisitFreeHours: 0,
+      defaultPrintPaper: 'A4',
+      patientCardAutoPrint: true,
+    });
+  });
+
   it('accepts the smallest and the largest allowed numbers', async () => {
     saveMock.mockResolvedValue({ ok: true, data: rules() });
     render(<OpdRulesForm initial={rules()} canWrite />);

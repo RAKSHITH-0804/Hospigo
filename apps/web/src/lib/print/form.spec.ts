@@ -69,6 +69,8 @@ describe('presets and the page', () => {
       RECEIPT: makeTemplate('RECEIPT', { paper: 'LABEL', widthMm: 100, heightMm: 50 }),
       REGISTRATION_SLIP: makeTemplate('REGISTRATION_SLIP'),
       PRESCRIPTION: makeTemplate('PRESCRIPTION'),
+      PATIENT_REPORT: makeTemplate('PATIENT_REPORT'),
+      PATIENT_CARD: makeTemplate('PATIENT_CARD'),
     },
   };
 
@@ -109,9 +111,11 @@ describe('the values of each document', () => {
   // The values each document can show, in the API's order (PRINT_FIELDS of print-template.rules.ts).
   it('are pinned to the API lists, the hospital name first', () => {
     expect(DOC_FIELD_ORDER.RECEIPT[0]).toBe('hospitalName');
-    expect(DOC_FIELD_ORDER.REGISTRATION_SLIP).toHaveLength(10);
-    expect(DOC_FIELD_ORDER.RECEIPT).toHaveLength(15);
-    expect(DOC_FIELD_ORDER.PRESCRIPTION).toHaveLength(20);
+    expect(DOC_FIELD_ORDER.REGISTRATION_SLIP).toHaveLength(11);
+    expect(DOC_FIELD_ORDER.RECEIPT).toHaveLength(16);
+    expect(DOC_FIELD_ORDER.PRESCRIPTION).toHaveLength(15);
+    expect(DOC_FIELD_ORDER.PATIENT_REPORT).toHaveLength(22);
+    expect(DOC_FIELD_ORDER.PATIENT_CARD).toHaveLength(9);
     for (const keys of Object.values(DOC_FIELD_ORDER)) {
       for (const key of keys) {
         expect({ key, caption: staffCopy.print.fields[key] }).toEqual({

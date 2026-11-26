@@ -1,9 +1,13 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
+import { ReceptionSymptomsEditor } from '@/components/opd/reception-symptoms-editor';
 import { VisitReceipt } from '@/components/opd/visit-receipt';
 import { PrintStage } from '@/components/print/print-sheet';
 import { EmptyState } from '@/components/states/empty-state';
 import { opdWebConfig } from '@/config/opd';
+import { buttonVariants } from '@/components/ui/button';
 import { staffCopy } from '@/config/staff-copy';
+import { cn } from '@/lib/utils';
 import { requirePermission } from '@/lib/auth/guards';
 import { apiVisitPath } from '@/lib/opd/server';
 import type { VisitView } from '@/lib/opd/types';
@@ -50,17 +54,38 @@ export default async function VisitReceiptPage({ params }: { params: Promise<{ i
   // The hospital's receipt template decides the paper and layout. Without a usable template (or
   // when the hospital switched it off, or there is no bill) the older simple receipt is shown.
   const template = readTemplate(templateResult);
+  const symptomsEditor =
+    visit.data.status === 'WAITING' && (session.permissions ?? []).includes('opd.visits.create') ? (
+      <ReceptionSymptomsEditor
+        visitId={visit.data.id}
+        initial={visit.data.receptionSymptoms ?? null}
+      />
+    ) : null;
   if (template?.enabled && visit.data.bill) {
     return (
-      <PrintStage
-        template={template}
-        items={withExtraValues(receiptItems(visit.data, hospitalName), extraValues)}
-        images={{ LOGO: logoImageId }}
-        title={staffCopy.opd.receipt.title}
-        description={`${visit.data.patient.name} · ${visit.data.patient.uhid}`}
-        backHref={`/app/patients/${encodeURIComponent(visit.data.patient.id)}`}
-        printLabel={staffCopy.opd.receipt.print}
-      />
+      <>
+        {symptomsEditor}
+        <PrintStage
+          template={template}
+          items={withExtraValues(receiptItems(visit.data, hospitalName), extraValues)}
+          images={{ LOGO: logoImageId }}
+          title={staffCopy.opd.receipt.title}
+          description={`${visit.data.patient.name} · ${visit.data.patient.uhid}`}
+          backHref={`/app/patients/${encodeURIComponent(visit.data.patient.id)}`}
+          printLabel={staffCopy.opd.receipt.print}
+          extraActions={
+            // the hospital has switched the patient card on: one click opens it and its print window
+            visit.data.patientCardAutoPrint ? (
+              <Link
+                href={`/app/patients/${encodeURIComponent(visit.data.patient.id)}/card?auto=1`}
+                className={cn(buttonVariants({ variant: 'outline' }), 'touch-target')}
+              >
+                {staffCopy.print.patientCard.printAfterPayment}
+              </Link>
+            ) : null
+          }
+        />
+      </>
     );
   }
 
@@ -68,6 +93,7 @@ export default async function VisitReceiptPage({ params }: { params: Promise<{ i
     <>
       {/* @page cannot use CSS variables reliably, so the size is injected from config. */}
       <style>{slipPageRule(opdWebConfig.receiptPaperSize, opdWebConfig.receiptPageMargin)}</style>
+      {symptomsEditor}
       <VisitReceipt visit={visit.data} hospitalName={hospitalName} />
     </>
   );

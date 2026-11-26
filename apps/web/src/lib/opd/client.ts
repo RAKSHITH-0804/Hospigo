@@ -65,6 +65,20 @@ export function createVisit(
   return patientsApi<VisitView>(OPD_VISITS_API, { method: 'POST', body: choice });
 }
 
+/** Reception sets or clears the symptoms of a visit (allowed until the doctor starts). */
+export function saveReceptionSymptoms(
+  visitId: string,
+  receptionSymptoms: string,
+): Promise<PatientsApiResult<VisitView>> {
+  return patientsApi<VisitView>(
+    `${OPD_VISITS_API}/${encodeURIComponent(visitId)}/reception-symptoms`,
+    {
+      method: 'PUT',
+      body: { receptionSymptoms },
+    },
+  );
+}
+
 /** One visit of the active branch (with its bill when the caller may read money). */
 export function loadVisit(visitId: string): Promise<PatientsApiResult<VisitView>> {
   return patientsApi<VisitView>(`${OPD_VISITS_API}/${encodeURIComponent(visitId)}`);

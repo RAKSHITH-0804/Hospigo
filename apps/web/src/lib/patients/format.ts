@@ -3,6 +3,7 @@ import { PATIENT_PHONE_DISPLAY_GROUPS, patientsWebConfig } from '@/config/patien
 import { staffCopy } from '@/config/staff-copy';
 
 const { form } = staffCopy.patients;
+const ageUnits = staffCopy.patients.ageUnits;
 
 /** Placeholder for a missing value (same glyph staffCopy uses elsewhere). */
 export const EMPTY_VALUE = '—';
@@ -21,6 +22,42 @@ export function genderLabel(code: string | null | undefined): string {
       return raw ? raw : EMPTY_VALUE;
     }
   }
+}
+
+/**
+ * How an age is shown (Step 2.1a): 26 y; 2 y 3 m (under 5 years); 5 m 12 d (under 1 year); 12 d (under
+ * 1 month). An age that comes from an estimated date of birth is marked with a leading ~ so nobody
+ * mistakes it for a birth certificate.
+ */
+export function ageDisplay(patient: {
+  age?: { years: number; months: number; days: number } | null;
+  ageYears?: number | null;
+  dobIsEstimated?: boolean;
+}): string {
+  const mark = patient.dobIsEstimated ? '~' : '';
+  const a = patient.age;
+  if (!a) {
+    return patient.ageYears === null || patient.ageYears === undefined
+      ? EMPTY_VALUE
+      : `${mark}${patient.ageYears} ${ageUnits.year}`;
+  }
+  let text: string;
+  if (a.years >= 5) {
+    text = `${a.years} ${ageUnits.year}`;
+  } else if (a.years >= 1) {
+    text =
+      a.months > 0
+        ? `${a.years} ${ageUnits.year} ${a.months} ${ageUnits.month}`
+        : `${a.years} ${ageUnits.year}`;
+  } else if (a.months >= 1) {
+    text =
+      a.days > 0
+        ? `${a.months} ${ageUnits.month} ${a.days} ${ageUnits.day}`
+        : `${a.months} ${ageUnits.month}`;
+  } else {
+    text = `${a.days} ${ageUnits.day}`;
+  }
+  return `${mark}${text}`;
 }
 
 export function ageLabel(ageYears: number | null | undefined): string {

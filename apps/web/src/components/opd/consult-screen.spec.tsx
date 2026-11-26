@@ -108,6 +108,27 @@ afterEach(() => {
 });
 
 describe('starting', () => {
+  it('shows what reception wrote as "<name>: <text>" (read-only) above the own symptoms box of the doctor', () => {
+    renderScreen({
+      initial: makeConsult({
+        visit: {
+          ...started(),
+          receptionSymptoms: 'Cold cough with fever since yesterday',
+          receptionistName: 'Asha Rao',
+        },
+        consultation: makeNote(),
+      }),
+    });
+    expect(screen.getByText('Asha Rao: Cold cough with fever since yesterday')).toBeTruthy();
+    // the doctor's own free-text box is still there and empty
+    expect((screen.getByLabelText('Symptoms') as HTMLTextAreaElement).tagName).toBe('TEXTAREA');
+  });
+
+  it('shows no reception line when nothing was entered at reception', () => {
+    renderScreen();
+    expect(screen.queryByText(/Asha Rao:/)).toBeNull();
+  });
+
   it('a waiting visit shows Start; clicking it opens the note for typing', async () => {
     api({ [`POST ${url('/start')}`]: () => json({ replayed: false, visit: started() }) });
     renderScreen({ initial: makeConsult() });

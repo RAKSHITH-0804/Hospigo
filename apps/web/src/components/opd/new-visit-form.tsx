@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { PaymentLines } from '@/components/opd/payment-lines';
 import { EmptyState } from '@/components/states/empty-state';
 import { formatPaise, paiseToRupeesText } from '@/config/money';
+import { TextareaField } from '@/components/ui/field';
 import { staffCopy } from '@/config/staff-copy';
 import {
   createVisit,
@@ -74,6 +75,7 @@ export function NewVisitForm({
   const router = useRouter();
   const [doctorId, setDoctorId] = useState<string | null>(null);
   const [visitType, setVisitType] = useState<VisitType>('NEW');
+  const [symptoms, setSymptoms] = useState('');
   const [preview, setPreview] = useState<PreviewState>({ status: 'idle' });
   const [reloadTick, setReloadTick] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -179,6 +181,7 @@ export function NewVisitForm({
       visitType,
       idempotencyKey: key,
       expectedTotalPaise: preview.data.totalPaise,
+      ...(symptoms.trim() ? { receptionSymptoms: symptoms.trim() } : {}),
       // A free visit sends no payment at all (the API refuses a list for it).
       ...(preview.data.totalPaise > 0 ? { payments: plan.payments } : {}),
     });
@@ -252,6 +255,16 @@ export function NewVisitForm({
                   </label>
                 ))}
               </div>
+
+              <TextareaField
+                label={staffCopy.opd.symptoms.label}
+                hint={staffCopy.opd.symptoms.hint}
+                placeholder={staffCopy.opd.symptoms.placeholder}
+                maxLength={staffCopy.opd.symptoms.maxLength}
+                value={symptoms}
+                disabled={submitting}
+                onChange={(event) => setSymptoms(event.target.value)}
+              />
 
               <p className="section-heading">{copy.doctorHeading}</p>
               <div

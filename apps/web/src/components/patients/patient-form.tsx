@@ -24,6 +24,8 @@ import {
   PATIENT_FORM_SECTION_ORDER,
   PATIENT_FORM_SECTION_RELATIVE,
   patientFormFieldSpan,
+  PATIENT_AGE_DAYS_MAX,
+  PATIENT_AGE_MONTHS_MAX,
   patientsWebConfig,
 } from '@/config/patients';
 import { sessionConfig } from '@/config/session';
@@ -271,7 +273,14 @@ export function PatientForm(props: Props) {
   }
 
   function setDobMode(next: DobMode) {
-    setValues((prev) => ({ ...prev, dobMode: next, dateOfBirth: '', ageYears: '' }));
+    setValues((prev) => ({
+      ...prev,
+      dobMode: next,
+      dateOfBirth: '',
+      ageYears: '',
+      ageMonths: '',
+      ageDays: '',
+    }));
     setErrors((prev) => ({ ...prev, dateOfBirth: '', ageYears: '' }));
   }
 
@@ -298,6 +307,14 @@ export function PatientForm(props: Props) {
         } else if (values.dobMode === 'age') {
           const age = Number(active);
           if (!Number.isInteger(age) || age < cfg.ageMin || age > cfg.ageMax) {
+            next.ageYears = formCopy.fieldErrorInvalid;
+          }
+          const months = values.ageMonths.trim();
+          const days = values.ageDays.trim();
+          if (months && !(Number(months) >= 0 && Number(months) <= PATIENT_AGE_MONTHS_MAX)) {
+            next.ageYears = formCopy.fieldErrorInvalid;
+          }
+          if (days && !(Number(days) >= 0 && Number(days) <= PATIENT_AGE_DAYS_MAX)) {
             next.ageYears = formCopy.fieldErrorInvalid;
           }
         }
@@ -637,17 +654,17 @@ export function PatientForm(props: Props) {
             <div className="patient-age-mode" role="group">
               <button
                 type="button"
-                aria-pressed={values.dobMode === 'age'}
-                onClick={() => setDobMode('age')}
-              >
-                {formCopy.dobModeAge}
-              </button>
-              <button
-                type="button"
                 aria-pressed={values.dobMode === 'dob'}
                 onClick={() => setDobMode('dob')}
               >
                 {formCopy.dobModeDob}
+              </button>
+              <button
+                type="button"
+                aria-pressed={values.dobMode === 'age'}
+                onClick={() => setDobMode('age')}
+              >
+                {formCopy.dobModeAge}
               </button>
             </div>
             {values.dobMode === 'dob' ? (
@@ -669,32 +686,73 @@ export function PatientForm(props: Props) {
                 )}
               />
             ) : (
-              <input
-                id={inputId}
-                ref={(el) => setRef('ageYears', el)}
-                type="text"
-                inputMode="numeric"
-                aria-label={formCopy.ageYears}
-                aria-required={field.required || undefined}
-                aria-invalid={ageError ? true : undefined}
-                value={values.ageYears}
-                maxLength={cfg.ageMaxDigits}
-                onChange={(e) => {
-                  const next = digitsOnly(e.target.value, cfg.ageMaxDigits);
-                  setValues((prev) => ({ ...prev, ageYears: next, dateOfBirth: '' }));
-                  setErrors((prev) => ({ ...prev, ageYears: '', dateOfBirth: '' }));
-                }}
-                className={cn(
-                  'field-control min-h-[var(--size-input-height)] h-[var(--size-input-height)] w-full rounded-e-[var(--radius-control)] border bg-card px-[var(--space-2)] text-[length:var(--font-size-input)] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  ageError ? 'border-destructive' : 'border-[var(--input-border)]',
-                )}
-              />
+              <div className="patient-age-parts">
+                <input
+                  id={inputId}
+                  ref={(el) => setRef('ageYears', el)}
+                  type="text"
+                  inputMode="numeric"
+                  aria-label={formCopy.ageYears}
+                  placeholder={formCopy.ageUnitYears}
+                  aria-required={field.required || undefined}
+                  aria-invalid={ageError ? true : undefined}
+                  value={values.ageYears}
+                  maxLength={cfg.ageMaxDigits}
+                  onChange={(e) => {
+                    const next = digitsOnly(e.target.value, cfg.ageMaxDigits);
+                    setValues((prev) => ({ ...prev, ageYears: next, dateOfBirth: '' }));
+                    setErrors((prev) => ({ ...prev, ageYears: '', dateOfBirth: '' }));
+                  }}
+                  className={cn(
+                    'field-control min-h-[var(--size-input-height)] h-[var(--size-input-height)] w-full border bg-card px-[var(--space-2)] text-[length:var(--font-size-input)] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    ageError ? 'border-destructive' : 'border-[var(--input-border)]',
+                  )}
+                />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  aria-label={formCopy.ageMonths}
+                  placeholder={formCopy.ageUnitMonths}
+                  aria-invalid={ageError ? true : undefined}
+                  value={values.ageMonths}
+                  maxLength={2}
+                  onChange={(e) => {
+                    const next = digitsOnly(e.target.value, 2);
+                    setValues((prev) => ({ ...prev, ageMonths: next }));
+                    setErrors((prev) => ({ ...prev, ageYears: '' }));
+                  }}
+                  className={cn(
+                    'field-control min-h-[var(--size-input-height)] h-[var(--size-input-height)] w-full border bg-card px-[var(--space-2)] text-[length:var(--font-size-input)] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    ageError ? 'border-destructive' : 'border-[var(--input-border)]',
+                  )}
+                />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  aria-label={formCopy.ageDays}
+                  placeholder={formCopy.ageUnitDays}
+                  aria-invalid={ageError ? true : undefined}
+                  value={values.ageDays}
+                  maxLength={2}
+                  onChange={(e) => {
+                    const next = digitsOnly(e.target.value, 2);
+                    setValues((prev) => ({ ...prev, ageDays: next }));
+                    setErrors((prev) => ({ ...prev, ageYears: '' }));
+                  }}
+                  className={cn(
+                    'field-control min-h-[var(--size-input-height)] h-[var(--size-input-height)] w-full rounded-e-[var(--radius-control)] border bg-card px-[var(--space-2)] text-[length:var(--font-size-input)] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    ageError ? 'border-destructive' : 'border-[var(--input-border)]',
+                  )}
+                />
+              </div>
             )}
           </div>
           {ageError ? (
             <p role="alert" className="type-small text-destructive">
               {ageError}
             </p>
+          ) : values.dobMode === 'age' ? (
+            <p className="type-small text-muted-foreground">{formCopy.ageEstimatedNote}</p>
           ) : null}
         </div>,
       );

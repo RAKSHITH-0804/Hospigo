@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 import PatientSlipPage from '@/app/app/patients/[id]/slip/page';
 import VisitReceiptPage from '@/app/app/opd/visits/[id]/receipt/page';
 import PrescriptionPrintPage from '@/app/app/opd/visits/[id]/prescription/page';
+import PatientReportPrintPage from '@/app/app/opd/visits/[id]/report/page';
+import PatientCardPage from '@/app/app/patients/[id]/card/page';
 import SettingsSectionPage from '@/app/app/settings/[section]/page';
 import { staffCopy } from '@/config/staff-copy';
 import { makeTemplate, withBoxes, withFields } from '@/lib/print/print-test-fixtures';
@@ -271,18 +273,25 @@ describe('prescription print page', () => {
     );
   });
 
-  it('prints the completed prescription through the template', async () => {
+  it('prints the slim prescription: the medicines and the patient, nothing of the patient report', async () => {
     sessionMock.mockResolvedValue(session(['opd.notes.read']));
     routes.set('/opd/visits/p1/consultation', ok(completedConsult()));
-    routes.set('/print-templates/PRESCRIPTION', ok(template));
+    routes.set(
+      '/print-templates/PRESCRIPTION',
+      ok(
+        withFields(
+          makeTemplate('PRESCRIPTION', { paper: 'A5', pageWidthMm: 148, pageHeightMm: 210 }),
+          ['patientName', 'medicines'],
+        ),
+      ),
+    );
     const { container } = render(await PrescriptionPrintPage(idParams));
     expect(container.querySelector('style')?.textContent).toBe(
-      '@page { size: 210mm 297mm; margin: 0; }',
+      '@page { size: 148mm 210mm; margin: 0; }',
     );
-    expect(screen.getByText('Fever 3 days')).toBeTruthy();
-    expect(screen.getByText('Viral fever')).toBeTruthy();
     expect(screen.getByText(/1\. Paracetamol 500/)).toBeTruthy();
-    expect(screen.queryByText('Rest')).toBeNull(); // advice is off in this template
+    expect(screen.queryByText('Fever 3 days')).toBeNull();
+    expect(screen.queryByText('Viral fever')).toBeNull();
     expect(screen.getByRole('button', { name: copy.print })).toBeTruthy();
   });
 
@@ -445,5 +454,95 @@ describe('printing settings section', () => {
     routes.set('/print-templates/presets', { status: 'forbidden' });
     render(await SettingsSectionPage(section));
     expect(screen.getByRole('alert').textContent).toBe(staffCopy.errors.forbidden);
+  });
+});
+
+describe('patient report print page', () => {
+  const template = withFields(
+    makeTemplate('PATIENT_REPORT', { paper: 'A4', pageWidthMm: 210, pageHeightMm: 297 }),
+    ['patientName', 'complaints', 'diagnosis', 'medicines'],
+  );
+  const copy = staffCopy.print.patientReport;
+
+  it('needs opd.notes.read', async () => {
+    sessionMock.mockResolvedValue(session(['opd.visits.read']));
+    await expect(PatientReportPrintPage(idParams)).rejects.toThrow(
+      'REDIRECT:/app?notice=no-permission',
+    );
+  });
+
+  it('prints the completed consultation with everything through the patient report template', async () => {
+    sessionMock.mockResolvedValue(session(['opd.notes.read']));
+    routes.set('/opd/visits/p1/consultation', ok(completedConsult()));
+    routes.set('/print-templates/PATIENT_REPORT', ok(template));
+    const { container } = render(await PatientReportPrintPage(idParams));
+    expect(container.querySelector('style')?.textContent).toBe(
+      '@page { size: 210mm 297mm; margin: 0; }',
+    );
+    expect(screen.getByText('Fever 3 days')).toBeTruthy();
+    expect(screen.getByText('Viral fever')).toBeTruthy();
+    expect(screen.getByText(/1\. Paracetamol 500/)).toBeTruthy();
+    expect(screen.queryByText('Rest')).toBeNull(); // advice is off in this template
+    expect(screen.getByRole('button', { name: copy.print })).toBeTruthy();
+  });
+});
+
+describe('patient card page', () => {
+  const copy = staffCopy.print.patientCard;
+  const patientDetail = {
+    id: 'p1',
+    uhid: 'HSP-0001',
+    name: 'Praveen S',
+    gender: 'M',
+    dateOfBirth: '1990-01-01',
+    ageYears: 36,
+    age: { years: 36, months: 10, days: 25 },
+    dobIsEstimated: false,
+    createdByName: 'Receptionist One',
+    phone: '+919876543210',
+    email: null,
+    addressStreet: 'Main Road',
+    addressCross: null,
+    addressArea: null,
+    addressCity: 'Hubli',
+    addressState: null,
+    addressPincode: null,
+    registeredBranchId: 'b1',
+    isActive: true,
+    customFieldValues: [],
+  };
+  const cardTemplate = withFields(
+    makeTemplate('PATIENT_CARD', {
+      paper: 'LABEL',
+      widthMm: 100,
+      heightMm: 50,
+      pageWidthMm: 100,
+      pageHeightMm: 50,
+    }),
+    ['uhid', 'patientName', 'age', 'address', 'phone', 'receptionistName'],
+  );
+
+  it('prints the label with the patient and the receptionist at the label page size', async () => {
+    sessionMock.mockResolvedValue(session(['patients.registry.read']));
+    routes.set('/patients/p1', ok(patientDetail));
+    routes.set('/print-templates/PATIENT_CARD', ok(cardTemplate));
+    const { container } = render(
+      await PatientCardPage({ ...idParams, searchParams: Promise.resolve({}) }),
+    );
+    expect(container.querySelector('style')?.textContent).toBe(
+      '@page { size: 100mm 50mm; margin: 0; }',
+    );
+    expect(screen.getAllByText(/Praveen S/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Receptionist One/)).toBeTruthy();
+    expect(screen.getByText(/36 y/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: copy.print })).toBeTruthy();
+  });
+
+  it('says so when the hospital has switched the card off', async () => {
+    sessionMock.mockResolvedValue(session(['patients.registry.read']));
+    routes.set('/patients/p1', ok(patientDetail));
+    routes.set('/print-templates/PATIENT_CARD', ok({ ...cardTemplate, enabled: false }));
+    render(await PatientCardPage({ ...idParams, searchParams: Promise.resolve({}) }));
+    expect(screen.getByText(copy.switchedOffTitle)).toBeTruthy();
   });
 });

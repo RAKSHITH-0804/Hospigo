@@ -3,9 +3,8 @@ import { PrintStage } from '@/components/print/print-sheet';
 import { EmptyState } from '@/components/states/empty-state';
 import { staffCopy } from '@/config/staff-copy';
 import { requirePermission } from '@/lib/auth/guards';
-import type { ConsultationResponse, VitalsResponse } from '@/lib/opd/clinical-types';
-import { apiConsultationPath, apiVisitTestsPath, apiVisitVitalsPath } from '@/lib/opd/server';
-import type { VisitTestsResponse } from '@/lib/opd/tests-types';
+import type { ConsultationResponse } from '@/lib/opd/clinical-types';
+import { apiConsultationPath } from '@/lib/opd/server';
 import { errorMessageFor } from '@/lib/patients/client';
 import { fetchStaffOnServer, serverErrorCode } from '@/lib/patients/server';
 import { prescriptionItems, withExtraValues } from '@/lib/print/documents';
@@ -21,9 +20,9 @@ const copy = staffCopy.print.prescription;
 export const metadata: Metadata = { title: copy.pageTitle };
 
 /**
- * The printed prescription of a COMPLETED consultation. It prints through the hospital's
- * prescription template (paper, letterhead or pre-printed positions). Vitals and ordered tests
- * are added when the person may read them and they could be fetched; the API decides access.
+ * The prescription of a COMPLETED consultation: the slim document that goes to the pharmacy (header,
+ * the medicines the doctor entered, the signature). It prints through the hospital's prescription
+ * template. The patient's own full copy is the patient report.
  */
 export default async function PrescriptionPrintPage({
   params,
@@ -32,17 +31,10 @@ export default async function PrescriptionPrintPage({
 }) {
   const session = await requirePermission('opd.notes.read');
   const { id } = await params;
-  const permissions = session.permissions ?? [];
   const hospitalName = session.hospitalName?.trim() || staffCopy.brand;
 
-  const [consult, vitals, tests, templateResult, logoImageId, extraValues] = await Promise.all([
+  const [consult, templateResult, logoImageId, extraValues] = await Promise.all([
     fetchStaffOnServer<ConsultationResponse>(apiConsultationPath(id)),
-    permissions.includes('opd.vitals.read')
-      ? fetchStaffOnServer<VitalsResponse>(apiVisitVitalsPath(id))
-      : Promise.resolve(null),
-    permissions.includes('opd.investigations.order')
-      ? fetchStaffOnServer<VisitTestsResponse>(apiVisitTestsPath(id))
-      : Promise.resolve(null),
     fetchTemplate('PRESCRIPTION'),
     fetchLogoImageId(),
     fetchPrintValues(),
@@ -87,8 +79,6 @@ export default async function PrescriptionPrintPage({
         prescriptionItems({
           hospitalName,
           consultation: consult.data,
-          vitals: vitals?.status === 'ok' ? vitals.data : null,
-          tests: tests?.status === 'ok' ? tests.data : null,
         }),
         extraValues,
       )}

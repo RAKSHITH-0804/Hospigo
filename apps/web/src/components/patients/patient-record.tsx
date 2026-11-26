@@ -8,7 +8,7 @@ import { patientsWebConfig } from '@/config/patients';
 import { staffCopy } from '@/config/staff-copy';
 import {
   EMPTY_VALUE,
-  ageLabel,
+  ageDisplay,
   formatPhoneDisplay,
   formatDateOnly,
   genderLabel,
@@ -68,14 +68,12 @@ function customDisplay(value: CustomFieldValue): string {
  */
 function ageRows(patient: PatientDetail): ReactNode {
   const hasAge = patient.ageYears !== null && patient.ageYears !== undefined;
-  const plainAge = hasAge
-    ? `${ageLabel(patient.ageYears)} ${copy.record.ageYearsSuffix}`
-    : EMPTY_VALUE;
+  const plainAge = hasAge ? ageDisplay({ ...patient, dobIsEstimated: false }) : EMPTY_VALUE;
   if (patient.dobIsEstimated || !patient.dateOfBirth) {
     return (
       <Row label={copy.form.ageYears}>
         {hasAge && patient.dobIsEstimated
-          ? copy.record.ageApproximate.replace('{age}', ageLabel(patient.ageYears))
+          ? copy.record.ageApproximateShort.replace('{age}', plainAge)
           : plainAge}
       </Row>
     );
@@ -185,6 +183,12 @@ export function PatientRecord({
               className={cn(buttonVariants({ variant: 'outline' }), 'touch-target')}
             >
               {copy.record.printSlipAction}
+            </Link>
+            <Link
+              href={`${base}/card`}
+              className={cn(buttonVariants({ variant: 'outline' }), 'touch-target')}
+            >
+              {copy.record.printCardAction}
             </Link>
             {canWrite ? (
               <Link href={`${base}/edit`} className={cn(buttonVariants(), 'touch-target')}>

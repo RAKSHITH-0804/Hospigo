@@ -19,7 +19,8 @@ import { staffCopy } from '@/config/staff-copy';
 import { ABORTED_CODE, buildListPath, errorMessageFor, patientsApi } from '@/lib/patients/client';
 import { isSearchable, listUrlQuery, type PatientListParams } from '@/lib/patients/list-params';
 import {
-  ageLabel,
+  ageDisplay,
+  EMPTY_VALUE,
   formatPhoneDisplay,
   formatRegisteredOn,
   genderLabel,
@@ -254,7 +255,11 @@ export function PatientsSearch({
       cell: (row) => genderLabel(row.gender),
       hideOnPhone: true,
     },
-    { id: 'age', header: copy.search.columns.age, cell: (row) => ageLabel(row.ageYears) },
+    {
+      id: 'age',
+      header: copy.search.columns.age,
+      cell: (row) => (row.ageYears === null ? EMPTY_VALUE : ageDisplay(row)),
+    },
     {
       id: 'phone',
       header: copy.search.columns.phone,
@@ -420,7 +425,7 @@ export function PatientsSearch({
                       </div>
                       <div>
                         <dt className="text-muted-foreground">{copy.search.quickView.age}</dt>
-                        <dd>{ageLabel(selected.ageYears)}</dd>
+                        <dd>{selected.ageYears === null ? EMPTY_VALUE : ageDisplay(selected)}</dd>
                       </div>
                       <div>
                         <dt className="text-muted-foreground">{copy.search.quickView.phone}</dt>

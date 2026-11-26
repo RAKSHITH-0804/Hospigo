@@ -1,6 +1,8 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { PageHeader } from '@/components/ui/page-header';
 import { PrintButton } from '@/components/patients/print-button';
+import { AutoPrint } from './auto-print';
+import { printConfig } from '@/config/print';
 import {
   alignStyle,
   boxClasses,
@@ -219,6 +221,8 @@ export function PrintStage({
   description,
   backHref,
   printLabel,
+  autoPrint,
+  extraActions,
 }: {
   template: PrintTemplate;
   items: PrintItem[];
@@ -227,6 +231,10 @@ export function PrintStage({
   description?: string;
   backHref?: string;
   printLabel: string;
+  /** Open the print window by itself once the page has shown. */
+  autoPrint?: boolean;
+  /** More buttons next to the print button (for example the patient card after payment). */
+  extraActions?: ReactNode;
 }) {
   return (
     <div className="print-stage flex flex-col gap-[var(--space-4)]">
@@ -237,12 +245,18 @@ export function PrintStage({
           title={title}
           description={description}
           backHref={backHref}
-          actions={<PrintButton label={printLabel} />}
+          actions={
+            <>
+              {extraActions}
+              <PrintButton label={printLabel} />
+            </>
+          }
         />
       </div>
       <div className="print-paper-wrap">
         <PrintSheet template={template} items={items} images={images} />
       </div>
+      {autoPrint ? <AutoPrint delayMs={printConfig.autoPrintDelayMs} /> : null}
     </div>
   );
 }

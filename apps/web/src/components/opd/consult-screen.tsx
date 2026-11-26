@@ -305,12 +305,20 @@ export function ConsultScreen({
                   <p role="status" className="type-label text-muted-foreground">
                     {copy.completedBanner}
                   </p>
-                  <Link
-                    href={`/app/opd/visits/${encodeURIComponent(visit.id)}/prescription`}
-                    className={cn(buttonVariants({ variant: 'outline' }), 'touch-target w-fit')}
-                  >
-                    {staffCopy.print.prescription.print}
-                  </Link>
+                  <div className="flex flex-wrap gap-[var(--space-2)]">
+                    <Link
+                      href={`/app/opd/visits/${encodeURIComponent(visit.id)}/prescription`}
+                      className={cn(buttonVariants({ variant: 'outline' }), 'touch-target w-fit')}
+                    >
+                      {staffCopy.print.prescription.print}
+                    </Link>
+                    <Link
+                      href={`/app/opd/visits/${encodeURIComponent(visit.id)}/report`}
+                      className={cn(buttonVariants({ variant: 'outline' }), 'touch-target w-fit')}
+                    >
+                      {staffCopy.print.patientReport.print}
+                    </Link>
+                  </div>
                 </>
               ) : null}
               {!canWrite && !completed ? (
@@ -320,6 +328,13 @@ export function ConsultScreen({
                 note={note}
                 onChange={changeNote}
                 readOnly={!editable}
+                receptionLine={
+                  visit.receptionSymptoms
+                    ? staffCopy.opd.symptoms.line
+                        .replace('{name}', visit.receptionistName ?? '')
+                        .replace('{text}', visit.receptionSymptoms)
+                    : null
+                }
                 calendar={{
                   weekStart: settings.calendarWeekStart,
                   quickDays: settings.followUpQuickDays,

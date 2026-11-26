@@ -103,6 +103,8 @@ export type VisitView = {
   receptionSymptoms: string | null;
   /** The receptionist who billed the visit (printed on the receipt and the patient card). */
   createdByName: string;
+  /** The hospital's setting: print the patient card after payment (only on the single visit read). */
+  patientCardAutoPrint?: boolean;
   /** Present only for callers with opd.billing.read (doctors and nurses never see money). */
   bill?: BillView | null;
 };
@@ -820,10 +822,17 @@ export class OpdVisitsService {
       if (!row) {
         throw opdError(404, OpdErrorCode.VISIT_NOT_FOUND);
       }
-      return toVisitView(row, await this.tokenPrefix(tx, actor.tenantId), {
-        withMoney: scope.withMoney,
-        detail: true,
+      const settings = await tx.opdSettings.findUnique({
+        where: { tenantId: actor.tenantId },
+        select: { patientCardAutoPrint: true },
       });
+      return {
+        ...toVisitView(row, await this.tokenPrefix(tx, actor.tenantId), {
+          withMoney: scope.withMoney,
+          detail: true,
+        }),
+        patientCardAutoPrint: settings?.patientCardAutoPrint ?? false,
+      };
     });
   }
 

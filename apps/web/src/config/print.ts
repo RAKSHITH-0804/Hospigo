@@ -62,6 +62,7 @@ export const printDesignerConfig = {
     'paymentModes',
     'referenceNo',
     'vitals',
+    'receptionSymptoms',
     'complaints',
     'diagnosis',
     'medicines',
@@ -69,4 +70,10 @@ export const printDesignerConfig = {
     'advice',
     'doctorSignature',
   ] as readonly string[],
+} as const;
+
+/** Printing outside the designer. */
+export const printConfig = {
+  /** The patient card opens the print window this long after the page has shown (the page needs time to paint). */
+  autoPrintDelayMs: 600,
 } as const;

@@ -3,6 +3,11 @@
 export type OpdRules = {
   followUpFreeDays: number;
   repeatVisitFreeHours: number;
+  /** Default paper of new documents (A4 or A5). */
+  defaultPrintPaper?: 'A4' | 'A5';
+  /** Offer the patient card print button after payment. */
+  patientCardAutoPrint?: boolean;
+  paperChoices?: readonly ('A4' | 'A5')[];
   persisted: boolean;
   limits: {
     followUpFreeDays: { min: number; max: number };

@@ -1,5 +1,11 @@
 /** Print templates as the API sends them (Step 7-3). Sizes are millimetres with at most one decimal. */
-export const PRINT_DOC_TYPES = ['REGISTRATION_SLIP', 'RECEIPT', 'PRESCRIPTION'] as const;
+export const PRINT_DOC_TYPES = [
+  'REGISTRATION_SLIP',
+  'RECEIPT',
+  'PRESCRIPTION',
+  'PATIENT_REPORT',
+  'PATIENT_CARD',
+] as const;
 export type PrintDocType = (typeof PRINT_DOC_TYPES)[number];
 
 export const PRINT_PAPERS = ['A4', 'A5', 'A6', 'LABEL', 'CUSTOM'] as const;

@@ -11,6 +11,8 @@ export type ClinicalPatient = {
   name: string;
   gender: string | null;
   ageYears: number | null;
+  age?: { years: number; months: number; days: number } | null;
+  dobIsEstimated?: boolean;
 };
 
 export type ClinicalVisit = {
@@ -22,6 +24,9 @@ export type ClinicalVisit = {
   consultationStartedAt: string | null;
   completedAt: string | null;
   patient: ClinicalPatient;
+  /** What the patient told reception, and who billed the visit (Step 2.1a). */
+  receptionSymptoms?: string | null;
+  receptionistName?: string;
   doctor: { id: string; code: string; name: string };
 };
 

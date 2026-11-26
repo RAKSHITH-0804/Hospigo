@@ -3,7 +3,7 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { SettingBlock } from '@/components/settings/setting-block';
 import { Button } from '@/components/ui/button';
-import { InputField } from '@/components/ui/field';
+import { InputField, SelectField } from '@/components/ui/field';
 import { staffCopy } from '@/config/staff-copy';
 import { saveOpdRules } from '@/lib/settings/client';
 import { settingsErrorMessage } from '@/lib/settings/errors';
@@ -27,6 +27,8 @@ export function OpdRulesForm({ initial, canWrite }: { initial: OpdRules; canWrit
   const [followUpError, setFollowUpError] = useState<string | undefined>();
   const [repeatError, setRepeatError] = useState<string | undefined>();
   const [formError, setFormError] = useState<string | null>(null);
+  const [paper, setPaper] = useState<'A4' | 'A5'>(initial.defaultPrintPaper ?? 'A5');
+  const [cardOn, setCardOn] = useState(initial.patientCardAutoPrint ?? false);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const busy = useRef(false);
@@ -50,7 +52,13 @@ export function OpdRulesForm({ initial, canWrite }: { initial: OpdRules; canWrit
     }
     busy.current = true;
     setSaving(true);
-    const result = await saveOpdRules({ followUpFreeDays: days, repeatVisitFreeHours: hours });
+    const result = await saveOpdRules({
+      followUpFreeDays: days,
+      repeatVisitFreeHours: hours,
+      // only what changed, so an older value is never written again by accident
+      ...(paper !== (rules.defaultPrintPaper ?? 'A5') ? { defaultPrintPaper: paper } : {}),
+      ...(cardOn !== (rules.patientCardAutoPrint ?? false) ? { patientCardAutoPrint: cardOn } : {}),
+    });
     busy.current = false;
     setSaving(false);
     if (!result.ok) {
@@ -60,6 +68,8 @@ export function OpdRulesForm({ initial, canWrite }: { initial: OpdRules; canWrit
     setRules(result.data);
     setFollowUp(String(result.data.followUpFreeDays));
     setRepeat(String(result.data.repeatVisitFreeHours));
+    setPaper(result.data.defaultPrintPaper ?? 'A5');
+    setCardOn(result.data.patientCardAutoPrint ?? false);
     setSaved(true);
   }
 
@@ -106,6 +116,37 @@ export function OpdRulesForm({ initial, canWrite }: { initial: OpdRules; canWrit
               }}
               error={repeatError}
             />
+          </div>
+          <div className="settings-field-medium">
+            <SelectField
+              label={copy.paperLabel}
+              hint={copy.paperHint}
+              value={paper}
+              onChange={(event) => {
+                setPaper(event.target.value as 'A4' | 'A5');
+                setSaved(false);
+              }}
+            >
+              {(rules.paperChoices ?? ['A4', 'A5']).map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </SelectField>
+          </div>
+          <div className="field-label">
+            <label className="flex items-center gap-[var(--space-2)]">
+              <input
+                type="checkbox"
+                checked={cardOn}
+                onChange={(event) => {
+                  setCardOn(event.target.checked);
+                  setSaved(false);
+                }}
+              />
+              {copy.cardLabel}
+            </label>
+            <span className="type-small text-muted-foreground">{copy.cardHint}</span>
           </div>
           {canWrite ? (
             <Button type="submit" disabled={saving} className="touch-target">

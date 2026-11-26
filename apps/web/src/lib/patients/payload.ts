@@ -28,6 +28,8 @@ export type FormValues = Record<TextKey, string> & {
   dobMode: DobMode;
   dateOfBirth: string;
   ageYears: string;
+  ageMonths: string;
+  ageDays: string;
   custom: Record<string, string>;
 };
 
@@ -68,6 +70,8 @@ export function emptyValues(): FormValues {
     dobMode: PATIENT_FORM_DEFAULT_DOB_MODE,
     dateOfBirth: '',
     ageYears: '',
+    ageMonths: '',
+    ageDays: '',
     custom: {},
   };
 }
@@ -107,7 +111,9 @@ export function valuesFromDetail(detail: PatientDetail): FormValues {
     addressPincode: detail.addressPincode ?? '',
     dobMode: estimated ? 'age' : 'dob',
     dateOfBirth: estimated ? '' : (detail.dateOfBirth?.slice(0, 10) ?? ''),
-    ageYears: estimated ? String(detail.ageYears) : '',
+    ageYears: estimated ? String(detail.age?.years ?? detail.ageYears) : '',
+    ageMonths: estimated && detail.age ? String(detail.age.months) : '',
+    ageDays: estimated && detail.age ? String(detail.age.days) : '',
     custom,
   };
 }
@@ -162,8 +168,23 @@ export function buildPatientBody(
     }
   } else {
     const next = values.ageYears.trim();
-    if (next && (!initial || initial.dobMode !== 'age' || initial.ageYears !== next)) {
+    const months = values.ageMonths.trim();
+    const days = values.ageDays.trim();
+    if (
+      next &&
+      (!initial ||
+        initial.dobMode !== 'age' ||
+        initial.ageYears !== next ||
+        initial.ageMonths.trim() !== months ||
+        initial.ageDays.trim() !== days)
+    ) {
       body.ageYears = Number(next);
+      if (months) {
+        body.ageMonths = Number(months);
+      }
+      if (days) {
+        body.ageDays = Number(days);
+      }
     }
   }
 

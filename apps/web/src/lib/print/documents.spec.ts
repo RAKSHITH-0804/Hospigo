@@ -3,7 +3,14 @@ import type { ConsultationResponse, VitalsResponse } from '@/lib/opd/clinical-ty
 import type { VisitTestsResponse } from '@/lib/opd/tests-types';
 import type { VisitView } from '@/lib/opd/types';
 import type { PatientDetail } from '@/lib/patients/types';
-import { prescriptionItems, receiptItems, slipItems, withExtraValues } from './documents';
+import {
+  patientCardItems,
+  patientReportItems,
+  prescriptionItems,
+  receiptItems,
+  slipItems,
+  withExtraValues,
+} from './documents';
 import { DOC_FIELD_ORDER } from './form';
 import type { PrintItem } from './types';
 
@@ -20,6 +27,7 @@ const API_FIELDS = {
     'address',
     'registeredOn',
     'branchName',
+    'receptionistName',
   ],
   RECEIPT: [
     'hospitalName',
@@ -37,6 +45,7 @@ const API_FIELDS = {
     'refunded',
     'paymentModes',
     'referenceNo',
+    'receptionistName',
   ],
   PRESCRIPTION: [
     'hospitalName',
@@ -52,13 +61,43 @@ const API_FIELDS = {
     'doctorSpeciality',
     'doctorRegistrationNo',
     'doctorSignature',
+    'medicines',
+    'amendedMark',
+  ],
+  PATIENT_REPORT: [
+    'hospitalName',
+    'patientName',
+    'uhid',
+    'age',
+    'gender',
+    'visitDate',
+    'token',
+    'doctorName',
+    'doctorDepartment',
+    'doctorQualifications',
+    'doctorSpeciality',
+    'doctorRegistrationNo',
+    'doctorSignature',
     'vitals',
+    'receptionSymptoms',
     'complaints',
     'diagnosis',
     'medicines',
     'tests',
     'advice',
     'followUpDate',
+    'amendedMark',
+  ],
+  PATIENT_CARD: [
+    'hospitalName',
+    'uhid',
+    'patientName',
+    'relative',
+    'age',
+    'gender',
+    'address',
+    'phone',
+    'receptionistName',
   ],
 } as const;
 
@@ -240,7 +279,7 @@ describe('slipItems', () => {
     expect(textOf(items, 'address')).toBe('12 Lake Road, Mysuru, Karnataka, 570001');
     expect(textOf(items, 'phone')).toBe('9876543210');
     expect(textOf(items, 'branchName')).toBe('Main Branch');
-    expect(textOf(items, 'age')).toBe('34');
+    expect(textOf(items, 'age')).toBe('34 y');
   });
 
   it('prints the relation and the relative name together on one line', () => {
@@ -359,16 +398,16 @@ const consultation: ConsultationResponse = {
   addenda: [],
 };
 
-describe('prescriptionItems', () => {
+describe('patientReportItems (the patient copy, the full print)', () => {
   it('has exactly the prescription fields of the API, in order', () => {
     expect(
-      prescriptionItems({ consultation, hospitalName: 'Demo Hospital' }).map((i) => i.key),
-    ).toEqual([...API_FIELDS.PRESCRIPTION]);
+      patientReportItems({ consultation, hospitalName: 'Demo Hospital' }).map((i) => i.key),
+    ).toEqual([...API_FIELDS.PATIENT_REPORT]);
   });
 
   it('numbers the medicines in prescription order and adds the instructions', () => {
     const med = get(
-      prescriptionItems({ consultation, hospitalName: 'Demo Hospital' }),
+      patientReportItems({ consultation, hospitalName: 'Demo Hospital' }),
       'medicines',
     );
     expect('lines' in med && med.lines).toEqual([
@@ -378,16 +417,16 @@ describe('prescriptionItems', () => {
   });
 
   it('prints the note, the patient and the follow-up date', () => {
-    const items = prescriptionItems({ consultation, hospitalName: 'Demo Hospital' });
+    const items = patientReportItems({ consultation, hospitalName: 'Demo Hospital' });
     expect(textOf(items, 'complaints')).toBe('Fever 3 days');
     expect(textOf(items, 'diagnosis')).toBe('Viral fever');
     expect(textOf(items, 'advice')).toBe('Rest and fluids');
     expect(textOf(items, 'followUpDate')).not.toBe('');
-    expect(textOf(items, 'age')).toBe('34');
+    expect(textOf(items, 'age')).toBe('34 y');
   });
 
   it('prints the doctor details of the consultation: the printed name, then qualifications, speciality and registration number', () => {
-    const items = prescriptionItems({ consultation, hospitalName: 'Demo Hospital' });
+    const items = patientReportItems({ consultation, hospitalName: 'Demo Hospital' });
     expect(textOf(items, 'doctorName')).toBe('Dr. M. Rao');
     expect(textOf(items, 'doctorDepartment')).toBe('Medicine');
     expect(textOf(items, 'doctorQualifications')).toBe('MBBS, MD');
@@ -410,7 +449,7 @@ describe('prescriptionItems', () => {
         registrationNo: null,
       },
     };
-    const items = prescriptionItems({ consultation: bare, hospitalName: 'Demo Hospital' });
+    const items = patientReportItems({ consultation: bare, hospitalName: 'Demo Hospital' });
     expect(textOf(items, 'doctorName')).toBe('Dr Meena');
     for (const key of [
       'doctorDepartment',
@@ -437,7 +476,12 @@ describe('prescriptionItems', () => {
         { name: 'Dengue NS1', status: 'ORDERED' },
       ],
     } as unknown as VisitTestsResponse;
-    const items = prescriptionItems({ consultation, vitals, tests, hospitalName: 'Demo Hospital' });
+    const items = patientReportItems({
+      consultation,
+      vitals,
+      tests,
+      hospitalName: 'Demo Hospital',
+    });
     const v = get(items, 'vitals');
     expect('lines' in v && v.lines).toEqual(['Temperature: 101.2 F', 'Pulse: 88 bpm']);
     const t = get(items, 'tests');
@@ -445,7 +489,7 @@ describe('prescriptionItems', () => {
   });
 
   it('copes with a note that does not exist', () => {
-    const items = prescriptionItems({
+    const items = patientReportItems({
       consultation: { ...consultation, consultation: null },
       hospitalName: 'Demo Hospital',
     });
@@ -475,5 +519,66 @@ describe('withExtraValues', () => {
 
   it('with nothing to add the values are unchanged', () => {
     expect(withExtraValues(base, [])).toEqual(base);
+  });
+});
+
+describe('prescriptionItems (the slim document for the pharmacy)', () => {
+  it('has the header, the patient, the medicines and the signature, and nothing of the patient report', () => {
+    const items = prescriptionItems({ consultation, hospitalName: 'Demo Hospital' });
+    const keys = items.map((i) => i.key);
+    expect(keys).toEqual(
+      expect.arrayContaining(['hospitalName', 'patientName', 'medicines', 'doctorSignature']),
+    );
+    for (const never of [
+      'vitals',
+      'diagnosis',
+      'tests',
+      'advice',
+      'complaints',
+      'receptionSymptoms',
+    ]) {
+      expect(keys).not.toContain(never);
+    }
+  });
+
+  it('marks an amended note', () => {
+    expect(textOf(prescriptionItems({ consultation, hospitalName: 'H' }), 'amendedMark')).toBe('');
+    expect(
+      textOf(prescriptionItems({ consultation, hospitalName: 'H', amended: true }), 'amendedMark'),
+    ).toBe('Amended');
+  });
+});
+
+describe('patientCardItems and the receptionist name', () => {
+  it('builds the card with the receptionist and shows an estimated age with a ~', () => {
+    const patient = {
+      id: 'p1',
+      uhid: 'U1',
+      name: 'Praveen',
+      gender: 'M',
+      dateOfBirth: '2026-06-14',
+      ageYears: 0,
+      age: { years: 0, months: 5, days: 12 },
+      dobIsEstimated: true,
+      createdByName: 'Receptionist One',
+      phone: '+919876543210',
+      email: null,
+      addressStreet: 'Main Road',
+      addressCross: null,
+      addressArea: null,
+      addressCity: 'Hubli',
+      addressState: null,
+      addressPincode: null,
+      registeredBranchId: 'b1',
+      isActive: true,
+      customFieldValues: [],
+    } as unknown as Parameters<typeof patientCardItems>[0];
+    const items = patientCardItems(patient, 'Demo Hospital');
+    expect(textOf(items, 'receptionistName')).toBe('Receptionist One');
+    expect(textOf(items, 'age')).toBe('~5 m 12 d');
+    expect(textOf(items, 'address')).toBe('Main Road, Hubli');
+    expect(textOf(slipItems(patient, 'Main', 'Demo Hospital'), 'receptionistName')).toBe(
+      'Receptionist One',
+    );
   });
 });

@@ -287,9 +287,10 @@ describe('PatientForm (register)', () => {
     await renderRegister({
       'POST /api/staff/patients': () => jsonResponse({ id: 'new2', uhid: 'NREG0010' }),
     });
-    expect(screen.getByRole('button', { name: form.dobModeAge }).getAttribute('aria-pressed')).toBe(
+    expect(screen.getByRole('button', { name: form.dobModeDob }).getAttribute('aria-pressed')).toBe(
       'true',
     );
+    fireEvent.click(screen.getByRole('button', { name: form.dobModeAge }));
     expect(screen.queryByLabelText(new RegExp(`^${form.dateOfBirth}$`))).toBeNull();
     type(form.name, 'Mock Delta');
     type(form.phone, '9876543210');
@@ -299,6 +300,36 @@ describe('PatientForm (register)', () => {
     const body = bodyOf(postCalls()[0] as unknown[]);
     expect(body.ageYears).toBe(42);
     expect('dateOfBirth' in body).toBe(false);
+  });
+
+  it('age entry sends years, months and days for a baby', async () => {
+    await renderRegister({
+      'POST /api/staff/patients': () => jsonResponse({ id: 'new3', uhid: 'NREG0011' }),
+    });
+    fireEvent.click(screen.getByRole('button', { name: form.dobModeAge }));
+    type(form.name, 'Baby Test');
+    type(form.phone, '9876543210');
+    type(form.ageYears, '0');
+    fireEvent.change(screen.getByLabelText(form.ageMonths), { target: { value: '5' } });
+    fireEvent.change(screen.getByLabelText(form.ageDays), { target: { value: '12' } });
+    fireEvent.click(screen.getByRole('button', { name: form.submitRegister }));
+    await waitFor(() => expect(pushMock).toHaveBeenCalled());
+    const body = bodyOf(postCalls()[0] as unknown[]);
+    expect(body.ageYears).toBe(0);
+    expect(body.ageMonths).toBe(5);
+    expect(body.ageDays).toBe(12);
+    expect('dateOfBirth' in body).toBe(false);
+  });
+
+  it('a month over 11 is refused on the screen, nothing is sent', async () => {
+    await renderRegister();
+    fireEvent.click(screen.getByRole('button', { name: form.dobModeAge }));
+    type(form.name, 'Baby Test');
+    type(form.phone, '9876543210');
+    type(form.ageYears, '1');
+    fireEvent.change(screen.getByLabelText(form.ageMonths), { target: { value: '12' } });
+    fireEvent.click(screen.getByRole('button', { name: form.submitRegister }));
+    expect(postCalls()).toHaveLength(0);
   });
 
   it('maps API fieldErrors for built-in, custom.<code> and ageYears', async () => {
@@ -424,10 +455,13 @@ describe('PatientForm (register)', () => {
     expect(alert.textContent).toBe(staffCopy.errors.forbidden);
   });
 
-  it('defaults age/DOB to Age and keeps Register in the page header form submit', async () => {
+  it('defaults to the date of birth (age is the second option) and keeps Register in the page header form submit', async () => {
     await renderRegister();
-    expect(screen.getByRole('button', { name: form.dobModeAge }).getAttribute('aria-pressed')).toBe(
+    expect(screen.getByRole('button', { name: form.dobModeDob }).getAttribute('aria-pressed')).toBe(
       'true',
+    );
+    expect(screen.getByRole('button', { name: form.dobModeAge }).getAttribute('aria-pressed')).toBe(
+      'false',
     );
     const register = screen.getByRole('button', { name: form.submitRegister });
     expect(register.getAttribute('form')).toBe('patient-form');
@@ -595,10 +629,15 @@ describe('PatientForm server boot data and visual rules', () => {
         boot={{ fields: config.fields }}
       />,
     );
-    const age = screen.getByLabelText(form.ageYears);
-    expect(age.className).toContain('rounded-e-[var(--radius-control)]');
-    fireEvent.click(screen.getByRole('button', { name: form.dobModeDob }));
+    // date of birth is the default entry
     expect(screen.getByLabelText(form.dateOfBirth).className).toContain(
+      'rounded-e-[var(--radius-control)]',
+    );
+    // age entry: years, months and days side by side; the last one closes the group
+    fireEvent.click(screen.getByRole('button', { name: form.dobModeAge }));
+    expect(screen.getByLabelText(form.ageYears)).toBeTruthy();
+    expect(screen.getByLabelText(form.ageMonths)).toBeTruthy();
+    expect(screen.getByLabelText(form.ageDays).className).toContain(
       'rounded-e-[var(--radius-control)]',
     );
     const css = readFileSync(join(__dirname, '../../app/globals.css'), 'utf8');

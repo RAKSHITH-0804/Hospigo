@@ -120,6 +120,8 @@ const labelPreset: PrintPreset = {
       [fieldBox('billNumber', 'e1', { widthMm: 60 }), fieldBox('total', 'e2', { yMm: 20 })],
     ),
     PRESCRIPTION: makeTemplate('PRESCRIPTION'),
+    PATIENT_REPORT: makeTemplate('PATIENT_REPORT'),
+    PATIENT_CARD: makeTemplate('PATIENT_CARD'),
   },
 };
 const prePreset: PrintPreset = {
@@ -142,6 +144,8 @@ const prePreset: PrintPreset = {
       ],
     ),
     PRESCRIPTION: makeTemplate('PRESCRIPTION'),
+    PATIENT_REPORT: makeTemplate('PATIENT_REPORT'),
+    PATIENT_CARD: makeTemplate('PATIENT_CARD'),
   },
 };
 

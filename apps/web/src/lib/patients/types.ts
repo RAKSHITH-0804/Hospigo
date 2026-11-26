@@ -1,5 +1,8 @@
 /** Shapes aligned with docs/reference/api-opd.md and the patients API DTOs. */
 
+/** Years, months and days from the date of birth to today (worked out by the API). */
+export type AgeParts = { years: number; months: number; days: number };
+
 export type PatientSearchItem = {
   id: string;
   uhid: string;
@@ -7,6 +10,7 @@ export type PatientSearchItem = {
   gender: string | null;
   dateOfBirth: string | null;
   ageYears: number | null;
+  age?: AgeParts | null;
   dobIsEstimated: boolean;
   phone: string | null;
   registeredBranchId: string;
@@ -63,7 +67,10 @@ export type PatientDetail = {
   gender: string | null;
   dateOfBirth: string | null;
   ageYears: number | null;
+  age?: AgeParts | null;
   dobIsEstimated: boolean;
+  /** The person who registered the patient (printed on the slip and the card). */
+  createdByName?: string;
   phone: string | null;
   email: string | null;
   addressStreet: string | null;
@@ -92,6 +99,8 @@ export type RegisterPatientBody = {
   gender?: string;
   dateOfBirth?: string;
   ageYears?: number;
+  ageMonths?: number;
+  ageDays?: number;
   phone?: string;
   email?: string;
   addressStreet?: string;
@@ -105,4 +114,4 @@ export type RegisterPatientBody = {
 };
 
 /** API fieldErrors codes (docs/reference/api-opd.md). */
-export type PatientFieldErrorCode = 'REQUIRED' | 'INVALID' | 'AGE_AND_DOB_BOTH';
+export type PatientFieldErrorCode = 'REQUIRED' | 'INVALID' | 'AGE_AND_DOB_BOTH' | 'DOB_KNOWN';

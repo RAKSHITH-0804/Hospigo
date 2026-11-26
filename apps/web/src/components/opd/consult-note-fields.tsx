@@ -21,15 +21,19 @@ export function ConsultNoteFields({
   onChange,
   readOnly,
   calendar,
+  receptionLine,
 }: {
   note: NoteDraft;
   onChange: (patch: Partial<NoteDraft>) => void;
   readOnly: boolean;
   calendar: { weekStart: number; quickDays: readonly number[]; minDate: string };
+  /** What reception wrote, as "<name>: <text>" (read-only), or null when nothing was entered. */
+  receptionLine?: string | null;
 }) {
   if (readOnly) {
     return (
       <div className="note-grid">
+        {receptionLine ? <ReadOnlyBlock label={copy.complaints} value={receptionLine} /> : null}
         <ReadOnlyBlock label={copy.complaints} value={note.complaints} />
         <ReadOnlyBlock label={copy.diagnosis} value={note.diagnosis} />
         <ReadOnlyBlock label={copy.advice} value={note.advice} />
@@ -42,6 +46,12 @@ export function ConsultNoteFields({
   }
   return (
     <div className="note-grid">
+      {receptionLine ? (
+        <div className="flex flex-col gap-[var(--space-1)]">
+          <p className="type-label text-muted-foreground">{copy.complaints}</p>
+          <p className="type-label whitespace-pre-wrap">{receptionLine}</p>
+        </div>
+      ) : null}
       <TextareaField
         label={copy.complaints}
         value={note.complaints}

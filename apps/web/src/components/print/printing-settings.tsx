@@ -1,6 +1,7 @@
 'use client';
 
 import type { Editor } from '@tiptap/react';
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { NumberField } from '@/components/print/number-field';
 import { PrintCanvas } from '@/components/print/print-canvas';
@@ -761,11 +762,19 @@ export function PrintingSettings({
             <section aria-label={copy.modePreview} className="printing-preview">
               <p className="type-label text-muted-foreground">{copy.previewNote}</p>
               {docType !== 'PRESCRIPTION' &&
+              docType !== 'PATIENT_REPORT' &&
               template.layout.elements.some((e) => e.type === 'IMAGE' && e.slot === 'SIGNATURE') ? (
                 <p className="type-label text-muted-foreground">{copy.signatureOnlyPrescription}</p>
               ) : (
                 <p className="type-label text-muted-foreground">{copy.pictureMarkerNote}</p>
               )}
+              {docType === 'PATIENT_CARD' ? (
+                <p className="type-label">
+                  <Link href="/app/print/card-test" className="underline">
+                    {staffCopy.print.patientCard.printTest}
+                  </Link>
+                </p>
+              ) : null}
               <div className="print-paper-wrap">
                 <PrintSheet
                   template={template}

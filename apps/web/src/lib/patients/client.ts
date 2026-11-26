@@ -204,6 +204,8 @@ export function fieldErrorMessageFor(code: string): string {
       return form.fieldErrorInvalid;
     case 'AGE_AND_DOB_BOTH':
       return form.fieldErrorAgeAndDobBoth;
+    case 'DOB_KNOWN':
+      return form.fieldErrorDobKnown;
     default:
       return form.fieldErrorInvalid;
   }

@@ -14,7 +14,12 @@ import type {
 /** Browser calls to the Next route handlers of the settings screens. Tokens never reach the browser. */
 
 export const saveOpdRules = (
-  body: Partial<Pick<OpdRules, 'followUpFreeDays' | 'repeatVisitFreeHours'>>,
+  body: Partial<
+    Pick<
+      OpdRules,
+      'followUpFreeDays' | 'repeatVisitFreeHours' | 'defaultPrintPaper' | 'patientCardAutoPrint'
+    >
+  >,
 ): Promise<PatientsApiResult<OpdRules>> =>
   patientsApi<OpdRules>(SETTINGS_ROUTES.opdRules, { method: 'PUT', body });
 

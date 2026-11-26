@@ -302,7 +302,7 @@ describe('doctor Tests box on the consultation screen', () => {
         json(makeConsult({ visit: started(), consultation: makeNote() })),
     });
     renderScreen({ canOrderTests: false });
-    fireEvent.change(screen.getByLabelText(/Complaints/i), { target: { value: 'cough' } });
+    fireEvent.change(screen.getByLabelText(/Symptoms/i), { target: { value: 'cough' } });
     await wait(5000);
     expect(sent().some((c) => c.includes('/investigations'))).toBe(false);
     void url;
