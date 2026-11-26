@@ -12,6 +12,8 @@ export const GLOBAL_TABLES = new Set([
   'hq_users',
   'hq_auth_sessions',
   'hq_auth_action_tokens',
+  // Step 2.1b: the hospitals an Indigo Employee may enter; the hospital login has no access at all.
+  'hq_user_hospitals',
   'patient_accounts',
   'patient_otp_challenges',
   'patient_auth_sessions',

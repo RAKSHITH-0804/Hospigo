@@ -94,79 +94,81 @@ export class IndigoAccessService {
         requestId: randomUUID(),
       },
       async () => {
-        const userId = await this.tenantDb.withTenant(async (tx) => {
-          // the only place that may set the flag: the database trigger checks for this word
-          await tx.$executeRaw`SELECT set_config('app.indigo_enter', 'on', true)`;
-          const role = await tx.role.findFirst({ where: { code: roleCode } });
-          if (!role) {
-            return null;
-          }
-          let user = await tx.user.findFirst({ where: { indigoHqUserId: hqUserId } });
-          if (!user) {
-            user = await tx.user.create({
-              data: {
-                tenantId: hospitalId,
-                code: `INDIGO-${hqUserId.slice(-8)}`,
-                email: `indigo-${hqUserId}@indigo.invalid`,
-                displayName: shownName,
-                // never a valid hash: nobody can sign in to this user with a password
-                passwordHash: '!',
-                mustChangePassword: false,
-                passwordChangedAt: new Date(),
-                indigoHqUserId: hqUserId,
-              },
+        // the only place that may set the Indigo flag: the database trigger checks for this word
+        const userId = await this.tenantDb.withTenant(
+          async (tx) => {
+            const role = await tx.role.findFirst({ where: { code: roleCode } });
+            if (!role) {
+              return null;
+            }
+            let user = await tx.user.findFirst({ where: { indigoHqUserId: hqUserId } });
+            if (!user) {
+              user = await tx.user.create({
+                data: {
+                  tenantId: hospitalId,
+                  code: `INDIGO-${hqUserId.slice(-8)}`,
+                  email: `indigo-${hqUserId}@indigo.invalid`,
+                  displayName: shownName,
+                  // never a valid hash: nobody can sign in to this user with a password
+                  passwordHash: '!',
+                  mustChangePassword: false,
+                  passwordChangedAt: new Date(),
+                  indigoHqUserId: hqUserId,
+                },
+              });
+            } else if (!user.isActive || user.displayName !== shownName) {
+              await tx.user.update({
+                where: { id: user.id },
+                data: { isActive: true, displayName: shownName },
+              });
+            }
+            // exactly one live assignment: the role that matches the Indigo role TODAY
+            await tx.roleAssignment.updateMany({
+              where: { userId: user.id, isActive: true, NOT: { roleId: role.id } },
+              data: { isActive: false },
             });
-          } else if (!user.isActive || user.displayName !== shownName) {
-            await tx.user.update({
-              where: { id: user.id },
-              data: { isActive: true, displayName: shownName },
+            const assignment = await tx.roleAssignment.findFirst({
+              where: { userId: user.id, roleId: role.id, scopeType: 'HOSPITAL' },
             });
-          }
-          // exactly one live assignment: the role that matches the Indigo role TODAY
-          await tx.roleAssignment.updateMany({
-            where: { userId: user.id, isActive: true, NOT: { roleId: role.id } },
-            data: { isActive: false },
-          });
-          const assignment = await tx.roleAssignment.findFirst({
-            where: { userId: user.id, roleId: role.id, scopeType: 'HOSPITAL' },
-          });
-          if (!assignment) {
-            await tx.roleAssignment.create({
-              data: {
-                tenantId: hospitalId,
-                userId: user.id,
-                roleId: role.id,
-                scopeType: 'HOSPITAL',
-              },
-            });
-          } else if (!assignment.isActive) {
-            await tx.roleAssignment.update({
-              where: { id: assignment.id },
-              data: { isActive: true },
-            });
-          }
-          const branches = await tx.branch.findMany({
-            where: { isActive: true },
-            select: { id: true },
-          });
-          for (const branch of branches) {
-            await tx.userBranch.upsert({
-              where: {
-                tenantId_userId_branchId: {
+            if (!assignment) {
+              await tx.roleAssignment.create({
+                data: {
                   tenantId: hospitalId,
                   userId: user.id,
-                  branchId: branch.id,
+                  roleId: role.id,
+                  scopeType: 'HOSPITAL',
                 },
-              },
-              create: { tenantId: hospitalId, userId: user.id, branchId: branch.id },
-              update: { isActive: true },
+              });
+            } else if (!assignment.isActive) {
+              await tx.roleAssignment.update({
+                where: { id: assignment.id },
+                data: { isActive: true },
+              });
+            }
+            const branches = await tx.branch.findMany({
+              where: { isActive: true },
+              select: { id: true },
             });
-          }
-          await tx.indigoAccessLog.create({
-            data: { tenantId: hospitalId, hqUserId, userId: user.id, action: 'ENTER' },
-          });
-          return user.id;
-        });
+            for (const branch of branches) {
+              await tx.userBranch.upsert({
+                where: {
+                  tenantId_userId_branchId: {
+                    tenantId: hospitalId,
+                    userId: user.id,
+                    branchId: branch.id,
+                  },
+                },
+                create: { tenantId: hospitalId, userId: user.id, branchId: branch.id },
+                update: { isActive: true },
+              });
+            }
+            await tx.indigoAccessLog.create({
+              data: { tenantId: hospitalId, hqUserId, userId: user.id, action: 'ENTER' },
+            });
+            return user.id;
+          },
+          { indigoEnter: true },
+        );
         if (!userId) {
           throw new ForbiddenException(INDIGO_HOSPITAL_UNAVAILABLE);
         }

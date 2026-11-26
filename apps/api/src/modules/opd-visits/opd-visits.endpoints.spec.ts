@@ -1950,6 +1950,9 @@ describe('OPD visits and billing endpoints (HTTP)', () => {
       'opd.investigations.bill',
       // Step 7c: an admin has no doctor profile of their own (they correct others with opd.doctors.write)
       'opd.doctors.own',
+      // Step 2.1b: templates and logos belong to the Indigo Owner, the all-patients view to doctors
+      'print.templates.manage',
+      'patients.history.view_all',
     ];
     const FLOOR_READS = ['opd.queue.read', 'opd.vitals.read', 'opd.notes.read'];
 

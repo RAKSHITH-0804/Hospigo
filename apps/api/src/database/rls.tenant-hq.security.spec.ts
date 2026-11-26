@@ -23,6 +23,9 @@ const HQ_ALLOWED: Record<string, Priv> = {
   hq_users: { select: true, insert: true, update: true, delete: false },
   hq_auth_sessions: { select: true, insert: true, update: true, delete: true },
   hq_auth_action_tokens: { select: true, insert: true, update: true, delete: false },
+  // Step 2.1b: Indigo access. The HQ login reads and appends the access log (never changes it).
+  hq_user_hospitals: { select: true, insert: true, update: false, delete: true },
+  indigo_access_log: { select: true, insert: true, update: false, delete: false },
 };
 
 const INSERT_REFUSAL_TABLES = [
@@ -975,6 +978,34 @@ describe('Tenant isolation + HQ security (hospigo_test only)', () => {
       },
     });
     sampleB.stored_images = storedImage.id;
+
+    // Step 2.1b: a version of the sample note, a view log row and an Indigo access row.
+    const version = await prisma.consultationVersion.create({
+      data: {
+        tenantId: tenantB,
+        branchId: branchB,
+        consultationId: sampleB.consultations!,
+        visitId: sampleB.opd_visits!,
+        versionNo: 1,
+        reason: 'sample reason',
+        snapshot: {},
+        editedBy: sampleB.users!,
+      },
+    });
+    sampleB.consultation_versions = version.id;
+    const viewed = await prisma.patientViewLog.create({
+      data: {
+        tenantId: tenantB,
+        branchId: branchB,
+        viewerUserId: sampleB.users!,
+        patientId: sampleB.patients!,
+      },
+    });
+    sampleB.patient_view_log = viewed.id;
+    const entered = await prisma.indigoAccessLog.create({
+      data: { tenantId: tenantB, hqUserId: 'sample-hq', userId: sampleB.users!, action: 'ENTER' },
+    });
+    sampleB.indigo_access_log = entered.id;
   });
 
   afterAll(async () => {

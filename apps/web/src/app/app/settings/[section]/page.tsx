@@ -97,7 +97,7 @@ export default async function SettingsSectionPage({
   const session = await requirePermission('hospital.settings.read');
   const { section: sectionId } = await params;
   const sections = visibleSettingsSections(session.permissions, {
-    canSwitchBranch: session.canSwitchBranch === true,
+    canSwitchBranch: (session.hospitalWide ?? session.canSwitchBranch) === true,
   });
   const section = findSettingsSection(sectionId);
 
@@ -208,7 +208,7 @@ export default async function SettingsSectionPage({
           leaveRequests.status === 'ok' ? leaveRequests.data.pendingCount : null
         }
         activeBranchName={session.activeBranchName}
-        filterToActiveBranch={session.canSwitchBranch === true}
+        filterToActiveBranch={(session.hospitalWide ?? session.canSwitchBranch) === true}
       />
     );
   }

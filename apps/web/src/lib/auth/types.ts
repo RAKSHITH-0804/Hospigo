@@ -53,6 +53,8 @@ export type AuthMeProfile = {
   permissions: string[];
   /** True for hospital-wide users (branch switcher). Display only: the API decides. */
   canSwitchBranch: boolean;
+  /** Hospital-wide role (a person with several branches of their own is a switcher but not hospital-wide). */
+  hospitalWide?: boolean;
 };
 
 export type BrowserAuthErrorCode =

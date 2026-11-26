@@ -398,7 +398,7 @@ export const staffCopy = {
           good: [
             'The text is plain: no formatting, no calculation.',
             'A value is never deleted, and the code cannot be changed.',
-            'A Branch Admin can change the values of their own branch only.',
+            'An Admin can change the values of their own branch only.',
           ],
         },
         'vitals-fields': {
@@ -431,7 +431,7 @@ export const staffCopy = {
             'A doctor can also edit their own details, except the department, under My profile.',
             'A prescription keeps the details as they were when the doctor completed it. Changing a profile later does not change old prescriptions.',
             'The department decides how the collection report groups doctors.',
-            'A Branch Admin sees and corrects only the doctors who work in their own branch.',
+            'An Admin sees and corrects only the doctors who work in their own branch.',
             'Availability: the switch and leave days stop a doctor being picked; weekly times only warn.',
             'Doctors are added when the hospital is set up, not on this page.',
           ],
@@ -478,7 +478,7 @@ export const staffCopy = {
           example:
             'A nurse for the Main Branch: Add staff, name Anita Rao, her email, tick Main Branch and the Nurse role, then Add and send email.',
           good: [
-            'A SuperAdmin manages everyone. A Branch Admin manages only people of their own branch.',
+            'A SuperAdmin manages everyone. An Admin manages only people of their own branch.',
             'Nobody can change their own roles or branches, or deactivate themselves.',
             'The last SuperAdmin cannot be deactivated.',
             'Deactivating signs the person out at once. Nothing is deleted.',
@@ -496,9 +496,9 @@ export const staffCopy = {
           example:
             'A Lab Clerk role that may only see patients: tick Patients: view, leave everything else empty.',
           good: [
-            'Only a SuperAdmin makes or changes roles. A Branch Admin can only give the roles that already exist.',
+            'Only a SuperAdmin makes or changes roles. An Admin can only give the roles that already exist.',
             'Changing a role changes what everyone who holds it may do.',
-            'The ready-made roles SuperAdmin and Branch Admin are fixed and cannot be edited.',
+            'The ready-made roles SuperAdmin and Admin are fixed and cannot be edited.',
             'A role that people still hold cannot be deactivated. Take it off them first.',
             'Roles are never deleted, only deactivated.',
           ],
@@ -2486,7 +2486,7 @@ export const staffCopy = {
       title: 'About leave requests',
       steps: [
         'A doctor asks for leave from My profile. Nothing changes until an Admin approves.',
-        'Open Leave requests on this page to see the requests that wait. A Branch Admin sees the doctors of their own branch.',
+        'Open Leave requests on this page to see the requests that wait. An Admin sees the doctors of their own branch.',
         'Approve adds the days to the doctor’s leave; on those days the doctor cannot be picked for a visit. Reject changes nothing else.',
         'Nobody can decide their own request. To remove an approved leave, use Availability.',
       ],
@@ -2600,7 +2600,7 @@ export const staffCopy = {
     typeHints: {
       TESTS: 'Columns: Code, Name, Price. Start date and Active are optional.',
       DOCTOR_FEES:
-        'Columns: Doctor code, Visit type (NEW or FOLLOW_UP), Fee. Start date and Branch code are optional. Leave Branch code empty for the hospital-wide fee of the doctor, or type a branch code for the fee of that branch only (a Branch Admin may use only the code of their own branch). Every doctor needs a NEW row (or one already saved). A FOLLOW_UP row is optional: without it a follow-up costs the new-visit fee.',
+        'Columns: Doctor code, Visit type (NEW or FOLLOW_UP), Fee. Start date and Branch code are optional. Leave Branch code empty for the hospital-wide fee of the doctor, or type a branch code for the fee of that branch only (an Admin may use only the code of their own branch). Every doctor needs a NEW row (or one already saved). A FOLLOW_UP row is optional: without it a follow-up costs the new-visit fee.',
       MEDICINES: 'Columns: Code, Name. Composition, Form and Active are optional.',
     } as Record<string, string>,
     sample: 'Download the sample file',

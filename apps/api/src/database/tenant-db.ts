@@ -20,7 +20,7 @@ export class TenantDb {
    */
   async withTenant<T>(
     fn: (tx: TenantTx) => Promise<T>,
-    options?: { timeoutMs?: number },
+    options?: { timeoutMs?: number; indigoEnter?: boolean },
   ): Promise<T> {
     const ctx = requireContext();
     if (ctx.kind === 'HQ' || ctx.kind === 'PATIENT') {
@@ -33,6 +33,10 @@ export class TenantDb {
     return this.prisma.$transaction(
       async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
+        if (options?.indigoEnter) {
+          // Only the Indigo entry passes this: the database lets it, and nothing else, create the hidden Indigo user.
+          await tx.$executeRaw`SELECT set_config('app.indigo_enter', 'on', true)`;
+        }
         return fn(tx);
       },
       options?.timeoutMs ? { timeout: options.timeoutMs, maxWait: 10_000 } : undefined,
