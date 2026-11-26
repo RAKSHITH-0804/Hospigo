@@ -1453,6 +1453,1866 @@
       ]
     },
     {
+      "name": "2-1f-library: Hospigo 2.1f: template library, terminology, branch modules, starter, access log, dashboard",
+      "item": [
+        {
+          "name": "0 Setup",
+          "item": [
+            {
+              "name": "Login SuperAdmin (north main)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/hospital/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "hospital",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{superEmail}}\",\"password\":\"{{superadminPassword}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.collectionVariables.set('xSuper', pm.response.json().accessToken);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Login Branch Admin (north main)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/hospital/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "hospital",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"branchadmin@demo-north.example.test\",\"password\":\"{{branchAdminPassword}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.collectionVariables.set('xBranchAdmin', pm.response.json().accessToken);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Login Receptionist (north main)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/hospital/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "hospital",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{receptionEmail}}\",\"password\":\"{{staffPassword}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.collectionVariables.set('xRecv', pm.response.json().accessToken);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Login Indigo Owner",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/hq/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "hq",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"email\":\"{{indigoOwnerEmail}}\",\"password\":\"{{indigoPassword}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.collectionVariables.set('xHqOwner', pm.response.json().accessToken);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Login Indigo Employee",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/hq/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "hq",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"email\":\"{{indigoEmployeeEmail}}\",\"password\":\"{{indigoPassword}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.collectionVariables.set('xHqEmployee', pm.response.json().accessToken);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "The Owner finds north and south",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqOwner}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "const items = pm.response.json().items;",
+                      "const north = items.find(h => h.code === 'DEMO_NORTH'); const south = items.find(h => h.code === 'DEMO_SOUTH');",
+                      "pm.test('both demo hospitals are listed', () => { pm.expect(north).to.exist; pm.expect(south).to.exist; });",
+                      "pm.collectionVariables.set('xNorthId', north.id); pm.collectionVariables.set('xSouthId', south.id);",
+                      "const main = north.branches.find(b => b.isMain);",
+                      "pm.collectionVariables.set('xNorthBranchId', main.id); pm.collectionVariables.set('xNorthBranchModulesJson', JSON.stringify(main.modules));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "1 Library (Indigo Owner)",
+          "item": [
+            {
+              "name": "Only the Owner: an Employee gets 403",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqEmployee}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/library",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "library"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('403', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "A hospital token gets 401",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xSuper}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/library",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "library"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('401', () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "The Owner adds the designed samples",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqOwner}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/library/samples",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "library",
+                    "samples"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.test('added is a number', () => pm.expect(pm.response.json().added).to.be.a('number'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Pressing it again adds nothing",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqOwner}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/library/samples",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "library",
+                    "samples"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.test('nothing new', () => pm.expect(pm.response.json().added).to.eql(0));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "The library holds two to three templates per document",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqOwner}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/library",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "library"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "const t = pm.response.json().templates;",
+                      "for (const d of ['REGISTRATION_SLIP','RECEIPT','PRESCRIPTION','PATIENT_REPORT','PATIENT_CARD']) { const n = t.filter(x => x.docType === d && !x.retired && x.key !== undefined && !x.key.startsWith('custom-')).length; pm.test(d + ' has 2 to 3 samples', () => pm.expect(n).to.be.within(2, 3)); }",
+                      "const bill = t.find(x => x.key === 'bill-classic'); const bill2 = t.find(x => x.key === 'bill-modern');",
+                      "pm.collectionVariables.set('xTplBill', bill.id); pm.collectionVariables.set('xTplBill2', bill2.id);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "A copy under a new name",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqOwner}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/library/templates",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "library",
+                    "templates"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"copyOf\":\"{{xTplBill}}\",\"name\":\"Postman copy {{$timestamp}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('201', () => pm.response.to.have.status(201));",
+                      "pm.collectionVariables.set('xTplCopy', pm.response.json().id);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "A bad request is refused",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqOwner}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/library/templates",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "library",
+                    "templates"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"docType\":\"NOPE\",\"name\":\"x\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('400', () => pm.response.to.have.status(400));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "The copy is taken out again",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqOwner}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/library/templates/{{xTplCopy}}/retire",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "library",
+                    "templates",
+                    "{{xTplCopy}}",
+                    "retire"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "The Owner assigns two bills to north",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqOwner}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals/{{xNorthId}}/library",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals",
+                    "{{xNorthId}}",
+                    "library"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"templateIds\":[\"{{xTplBill}}\",\"{{xTplBill2}}\"],\"logoIds\":[]}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "An unknown template is refused",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqOwner}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals/{{xNorthId}}/library",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals",
+                    "{{xNorthId}}",
+                    "library"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"templateIds\":[\"nope\"],\"logoIds\":[]}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('400', () => pm.response.to.have.status(400));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "2 The hospital chooses",
+          "item": [
+            {
+              "name": "The SuperAdmin sees exactly the two assigned bills",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xSuper}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/print-library",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "print-library"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "const b = pm.response.json();",
+                      "pm.test('two bills', () => pm.expect(b.templates.length).to.eql(2));",
+                      "pm.test('can choose for the hospital', () => pm.expect(b.canChoose.hospital).to.eql(true));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "The receptionist may not (403)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xRecv}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/print-library",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "print-library"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('403', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "The SuperAdmin chooses the modern bill for the whole hospital",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xSuper}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/print-library/templates/{{xTplBill2}}/choose?scope=hospital",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "print-library",
+                    "templates",
+                    "{{xTplBill2}}",
+                    "choose"
+                  ],
+                  "query": [
+                    {
+                      "key": "scope",
+                      "value": "hospital"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.test('hospital scope', () => pm.expect(pm.response.json().scope).to.eql('HOSPITAL'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "It is marked in use",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xSuper}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/print-library",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "print-library"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "const t = pm.response.json().templates.find(x => x.id === pm.collectionVariables.get('xTplBill2'));",
+                      "pm.test('active', () => pm.expect(t.active).to.eql(true));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "A Branch Admin cannot choose for the whole hospital (403)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xBranchAdmin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/print-library/templates/{{xTplBill}}/choose?scope=hospital",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "print-library",
+                    "templates",
+                    "{{xTplBill}}",
+                    "choose"
+                  ],
+                  "query": [
+                    {
+                      "key": "scope",
+                      "value": "hospital"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('403', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "A Branch Admin chooses for the own branch",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xBranchAdmin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/print-library/templates/{{xTplBill}}/choose?scope=branch",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "print-library",
+                    "templates",
+                    "{{xTplBill}}",
+                    "choose"
+                  ],
+                  "query": [
+                    {
+                      "key": "scope",
+                      "value": "branch"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.test('branch scope', () => pm.expect(pm.response.json().scope).to.eql('BRANCH'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "A template that was not assigned is not found (404)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xSuper}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/print-library/templates/nope/choose",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "print-library",
+                    "templates",
+                    "nope",
+                    "choose"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('404', () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "3 Terminology",
+          "item": [
+            {
+              "name": "The Owner sets a word",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqOwner}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals/{{xNorthId}}/terminology",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals",
+                    "{{xNorthId}}",
+                    "terminology"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"items\":{\"patients\":\"Clients\"}}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "The hospital reads it",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xRecv}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/terminology",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "terminology"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.test('the word', () => pm.expect(pm.response.json().items.patients).to.eql('Clients'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Markup is refused",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqOwner}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals/{{xNorthId}}/terminology",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals",
+                    "{{xNorthId}}",
+                    "terminology"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"items\":{\"patients\":\"<b>x</b>\"}}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('400', () => pm.response.to.have.status(400));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "An Employee assigned to north clears it",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqEmployee}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals/{{xNorthId}}/terminology",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals",
+                    "{{xNorthId}}",
+                    "terminology"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"items\":{\"patients\":null}}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "An Employee cannot touch south (403)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqEmployee}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals/{{xSouthId}}/terminology",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals",
+                    "{{xSouthId}}",
+                    "terminology"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"items\":{\"patients\":\"X\"}}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('403', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "The hospital word is gone again",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xRecv}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/terminology",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "terminology"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.test('empty', () => pm.expect(Object.keys(pm.response.json().items).length).to.eql(0));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "4 Branch modules, starter, access log, dashboard",
+          "item": [
+            {
+              "name": "The Owner sets the main branch modules to what it already has",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqOwner}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals/{{xNorthId}}/branches/{{xNorthBranchId}}/modules",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals",
+                    "{{xNorthId}}",
+                    "branches",
+                    "{{xNorthBranchId}}",
+                    "modules"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"moduleCodes\":{{xNorthBranchModulesJson}}}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "OPD cannot be switched off for one branch",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqOwner}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals/{{xNorthId}}/branches/{{xNorthBranchId}}/modules",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals",
+                    "{{xNorthId}}",
+                    "branches",
+                    "{{xNorthBranchId}}",
+                    "modules"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"moduleCodes\":[]}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('400', () => pm.response.to.have.status(400));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "An Employee cannot switch branch modules (403)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqEmployee}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals/{{xNorthId}}/branches/{{xNorthBranchId}}/modules",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals",
+                    "{{xNorthId}}",
+                    "branches",
+                    "{{xNorthBranchId}}",
+                    "modules"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"moduleCodes\":{{xNorthBranchModulesJson}}}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('403', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "The Owner runs the starter masters (safe to press twice)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqOwner}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals/{{xNorthId}}/starter",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals",
+                    "{{xNorthId}}",
+                    "starter"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.test('a report', () => pm.expect(pm.response.json().created).to.be.an('array'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "An Employee cannot run it (403)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqEmployee}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals/{{xNorthId}}/starter",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals",
+                    "{{xNorthId}}",
+                    "starter"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('403', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "The SuperAdmin reads the Indigo access log of the own hospital",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xSuper}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo-access-log",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo-access-log"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.test('a page of entries', () => pm.expect(pm.response.json().items).to.be.an('array'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "The receptionist cannot (403)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xRecv}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo-access-log",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo-access-log"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('403', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "The dashboard summary: SuperAdmin sees money and approvals",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xSuper}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dashboard/summary",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "dashboard",
+                    "summary"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "const s = pm.response.json().sections;",
+                      "pm.test('money and approvals', () => { pm.expect(s.money).to.eql(true); pm.expect(s.approvals).to.eql(true); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "The dashboard summary: the receptionist has no approvals block",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xRecv}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dashboard/summary",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "dashboard",
+                    "summary"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "const b = pm.response.json();",
+                      "pm.test('no approvals', () => { pm.expect(b.sections.approvals).to.eql(false); pm.expect(b.pendingApprovals).to.eql(null); });"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "5 Clean up",
+          "item": [
+            {
+              "name": "The Owner enters north (to clean up the chosen designs)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqOwner}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/indigo/enter",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "indigo",
+                    "enter"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"hospitalId\":\"{{xNorthId}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.collectionVariables.set('xOwnerInside', pm.response.json().accessToken);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "The branch design is removed",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xOwnerInside}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=branch",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "print-templates",
+                    "RECEIPT"
+                  ],
+                  "query": [
+                    {
+                      "key": "scope",
+                      "value": "branch"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "The hospital design is removed",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xOwnerInside}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=hospital",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "print-templates",
+                    "RECEIPT"
+                  ],
+                  "query": [
+                    {
+                      "key": "scope",
+                      "value": "hospital"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "The assignment is taken away again",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqOwner}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals/{{xNorthId}}/library",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals",
+                    "{{xNorthId}}",
+                    "library"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"templateIds\":[],\"logoIds\":[]}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "3d-branch-switch: Hospigo 3d branch switcher",
       "item": [
         {
