@@ -667,7 +667,7 @@ export const staffCopy = {
       cancel: 'Cancel',
       resetDone: 'Back to the built-in default.',
       readOnly:
-        'You can look at these settings. Only an Admin with the settings permission can change them.',
+        'Printouts and logos are set up for you by Indigo. You can look at them here; to change one, ask Indigo.',
       previewNote: 'Sample data, not a real patient. The page is shown at its real size.',
       pictureMarkerNote:
         'A dashed box marks a picture that is not uploaded yet. When printing, an empty picture box stays empty.',

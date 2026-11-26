@@ -35,12 +35,14 @@ describe('Print templates per branch (HTTP, hospigo_test)', () => {
 
   async function seed(label: string, kit: ReturnType<typeof createKit>): Promise<Cast> {
     const h = await kit.hospital(label);
+    // templates belong to the Indigo Owner (hospital-wide); a person who holds the permission for ONE
+    // branch only stands for "changes only their own branch, never the hospital".
     const admin = await kit.person(h, 'sa', [h.main, h.east], {
-      roleId: h.superAdminRoleId,
+      roleId: h.ownerRoleId,
       scope: 'HOSPITAL',
     });
     const branchAdmin = await kit.person(h, 'ba', [h.main], {
-      roleId: h.branchAdminRoleId,
+      permissions: ['hospital.settings.read', 'print.templates.manage'],
       scope: 'BRANCH',
     });
     const reception = await kit.person(h, 'recv', [h.main], {

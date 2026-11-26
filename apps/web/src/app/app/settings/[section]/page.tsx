@@ -326,7 +326,7 @@ export default async function SettingsSectionPage({
         <PrintingSettings
           templates={templates.data.items}
           presets={presets.data.items}
-          canWrite={session.permissions?.includes('opd.settings.write') ?? false}
+          canWrite={session.permissions?.includes('print.templates.manage') ?? false}
           canChange={templates.data.canChange}
           extraValues={extraValues.status === 'ok' ? extraValues.data.items : []}
           hospitalName={session.hospitalName?.trim() || staffCopy.brand}

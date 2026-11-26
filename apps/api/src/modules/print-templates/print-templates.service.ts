@@ -157,7 +157,7 @@ export class PrintTemplatesService {
   ) {}
 
   private assertMayChange(actor: Actor, scope: PrintScope): Promise<void> {
-    return assertMayChangePrint(this.access, actor, scope);
+    return assertMayChangePrint(this.access, actor, scope, 'print.templates.manage');
   }
 
   /** The built-in presets with what each one gives each document (the screen copies, then adjusts). */
@@ -182,9 +182,9 @@ export class PrintTemplatesService {
     canChange: { branch: boolean; hospital: boolean };
   }> {
     const [canBranch, canHospital] = await Promise.all([
-      this.access.can('opd.settings.write', actor.branchId, 'OPD'),
+      this.access.can('print.templates.manage', actor.branchId, 'OPD'),
       this.access
-        .hospitalWideBranches('opd.settings.write', 'OPD')
+        .hospitalWideBranches('print.templates.manage', 'OPD')
         .then((branches) => branches.length > 0),
     ]);
     return this.tenantDb.withTenant(async (tx) => {

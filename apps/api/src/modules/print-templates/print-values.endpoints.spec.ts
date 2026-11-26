@@ -10,6 +10,7 @@ prepareTestEnv();
 
 type Cast = {
   h: KitHospital;
+  owner: string; // Indigo Owner at MAIN (changes templates)
   admin: string; // SuperAdmin at MAIN
   adminEast: string; // the same SuperAdmin at EAST
   branchAdmin: string; // Branch Admin of MAIN
@@ -45,8 +46,13 @@ describe('Extra print values (HTTP, hospigo_test)', () => {
       scope: 'BRANCH',
     });
     const nobody = await kit.person(h, 'nobody', [h.main]);
+    const indigoOwner = await kit.person(h, 'owner', [h.main, h.east], {
+      roleId: h.ownerRoleId,
+      scope: 'HOSPITAL',
+    });
     return {
       h,
+      owner: indigoOwner.token(h.main),
       admin: admin.token(h.main),
       adminEast: admin.token(h.east),
       branchAdmin: branchAdmin.token(h.main),
@@ -392,7 +398,7 @@ describe('Extra print values (HTTP, hospigo_test)', () => {
     body.layout.elements = [...body.layout.elements, box];
     const saved = await http()
       .put('/print-templates/REGISTRATION_SLIP?scope=branch')
-      .set(auth(A.admin))
+      .set(auth(A.owner))
       .send(body)
       .expect(200);
     expect(JSON.stringify(saved.body.layout)).toContain(`value.${k}`);
@@ -404,7 +410,7 @@ describe('Extra print values (HTTP, hospigo_test)', () => {
       ].content.paragraphs[0].runs[0].field = field;
       const res = await http()
         .put('/print-templates/REGISTRATION_SLIP?scope=branch')
-        .set(auth(A.admin))
+        .set(auth(A.owner))
         .send(broken)
         .expect(400);
       expect(res.body.code).toBe('PRINT_TEMPLATE_INVALID');

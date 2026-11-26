@@ -414,7 +414,7 @@ describe('printing settings section', () => {
     );
   });
 
-  it('shows the screen with the templates and presets from the API; writing needs opd.settings.write', async () => {
+  it('shows the screen with the templates and presets from the API; writing needs print.templates.manage (the Indigo Owner)', async () => {
     routes.set('/print-templates', ok(list));
     routes.set('/print-templates/presets', ok(presets));
     sessionMock.mockResolvedValue(session(['hospital.settings.read']));
@@ -424,7 +424,7 @@ describe('printing settings section', () => {
     expect(screen.getByRole('option', { name: 'A4, full letterhead' })).toBeTruthy();
     expect(screen.getByRole('button', { name: copy.save }).matches(':disabled')).toBe(true);
     view.unmount();
-    sessionMock.mockResolvedValue(session(['hospital.settings.read', 'opd.settings.write']));
+    sessionMock.mockResolvedValue(session(['hospital.settings.read', 'print.templates.manage']));
     render(await SettingsSectionPage(section));
     expect(screen.queryByText(copy.readOnly)).toBeNull();
     expect(screen.getByRole('button', { name: copy.save }).matches(':disabled')).toBe(false);

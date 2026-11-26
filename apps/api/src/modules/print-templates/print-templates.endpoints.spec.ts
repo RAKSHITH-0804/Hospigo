@@ -59,7 +59,7 @@ type Hospital = {
   users: Record<string, string>;
 };
 
-const SETTINGS_CODES = ['hospital.settings.read', 'opd.settings.write'] as const;
+const SETTINGS_CODES = ['hospital.settings.read', 'print.templates.manage'] as const;
 const RECEPTION_CODES = ['opd.visits.read', 'opd.billing.read'] as const;
 const ALL_CODES = [...new Set([...SETTINGS_CODES, ...RECEPTION_CODES])];
 

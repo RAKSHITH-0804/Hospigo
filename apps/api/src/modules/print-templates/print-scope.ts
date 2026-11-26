@@ -14,14 +14,16 @@ export async function assertMayChangePrint(
   access: AccessService,
   actor: Actor,
   scope: PrintScope,
+  /** The permission that allows the change: templates use print.templates.manage (Indigo Owner only, Step 2.1b). */
+  code = 'opd.settings.write',
 ): Promise<void> {
   if (scope === 'hospital') {
-    if ((await access.hospitalWideBranches('opd.settings.write', 'OPD')).length === 0) {
+    if ((await access.hospitalWideBranches(code, 'OPD')).length === 0) {
       throw opdError(403, OpdErrorCode.PRINT_SCOPE_FORBIDDEN);
     }
     return;
   }
-  if (!(await access.can('opd.settings.write', actor.branchId, 'OPD'))) {
+  if (!(await access.can(code, actor.branchId, 'OPD'))) {
     throw opdError(403, OpdErrorCode.PRINT_SCOPE_FORBIDDEN);
   }
 }

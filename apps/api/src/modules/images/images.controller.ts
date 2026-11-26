@@ -114,7 +114,7 @@ export class BrandingController {
   ) {}
 
   private async requireHospitalWide(): Promise<void> {
-    if ((await this.access.hospitalWideBranches('hospital.settings.write')).length === 0) {
+    if ((await this.access.hospitalWideBranches('print.templates.manage')).length === 0) {
       throw new ForbiddenException();
     }
   }
@@ -127,13 +127,13 @@ export class BrandingController {
     const logo = await this.tenantDb.withTenant((tx) =>
       this.images.current(tx, actor.tenantId, 'HOSPITAL_LOGO', null),
     );
-    const canWrite = (await this.access.hospitalWideBranches('hospital.settings.write')).length > 0;
+    const canWrite = (await this.access.hospitalWideBranches('print.templates.manage')).length > 0;
     return { logo, canWrite, limits: imageLimitsView() };
   }
 
   @Put('logo')
   @HttpCode(200)
-  @RequirePermission('hospital.settings.write')
+  @RequirePermission('print.templates.manage')
   @UseInterceptors(pictureUpload())
   @ApiOperation({ summary: 'Upload the hospital logo (hospital-wide Admin only)' })
   async putLogo(@Req() req: HttpReq, @UploadedFile() file: Upload) {
@@ -147,7 +147,7 @@ export class BrandingController {
 
   @Post('logo/remove')
   @HttpCode(200)
-  @RequirePermission('hospital.settings.write')
+  @RequirePermission('print.templates.manage')
   @ApiOperation({ summary: 'Stop using a logo (the old picture stays on record)' })
   async removeLogo(@Req() req: HttpReq) {
     await this.requireHospitalWide();

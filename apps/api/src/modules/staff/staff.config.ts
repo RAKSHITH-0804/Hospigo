@@ -58,6 +58,8 @@ export const FLOOR_PERMISSION_CODES: readonly string[] = [
   'opd.investigations.bill',
   'opd.refunds.request',
   'opd.doctors.own',
+  // Step 2.1b: a doctor may read any patient of the hospital with the history (views are logged)
+  'patients.history.view_all',
 ];
 
 /** Ready-made roles a SuperAdmin can start from (the same lists the demo hospitals use). */
@@ -113,6 +115,7 @@ export const ROLE_TEMPLATES: ReadonlyArray<{
       'opd.notes.write',
       'opd.investigations.order',
       'opd.doctors.own',
+      'patients.history.view_all',
     ],
   },
 ];

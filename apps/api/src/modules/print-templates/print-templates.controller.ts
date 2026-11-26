@@ -63,7 +63,7 @@ export class PrintTemplatesController {
 
   @Put('print-templates/:docType')
   @HttpCode(200)
-  @RequirePermission('opd.settings.write', { module: 'OPD' })
+  @RequirePermission('print.templates.manage', { module: 'OPD' })
   @ApiOperation({
     summary:
       'Save the template of one document (replaces it). scope=branch saves it for the signed-in branch only; scope=hospital (the default) for the whole hospital and needs the permission in every branch. Paper, margins, mode and layout are checked field by field.',
@@ -84,7 +84,7 @@ export class PrintTemplatesController {
 
   @Delete('print-templates/:docType')
   @HttpCode(200)
-  @RequirePermission('opd.settings.write', { module: 'OPD' })
+  @RequirePermission('print.templates.manage', { module: 'OPD' })
   @ApiOperation({
     summary:
       'Remove the saved template of one document in the chosen scope (branch or hospital): the lookup then falls back to the next level',

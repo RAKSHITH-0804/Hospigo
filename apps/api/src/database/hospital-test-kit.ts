@@ -82,6 +82,8 @@ export type KitHospital = {
   east: string;
   superAdminRoleId: string;
   branchAdminRoleId: string;
+  /** The Indigo Owner role (Step 2.1b): the only one that changes print templates and logos. */
+  ownerRoleId: string;
 };
 
 export type KitPerson = { id: string; token: (branchId: string) => string };
@@ -129,8 +131,19 @@ export function createKit(owner: OwnerPrisma, tokens: TokenService) {
     await owner.opdSettings.create({
       data: { tenantId: tenant, followUpFreeDays: 7, tokenPrefix: 'T', timezone: 'Asia/Kolkata' },
     });
-    const { superAdminRoleId, branchAdminRoleId } = await ensureSystemRolesForTenant(owner, tenant);
-    return { tenant, code: created.code, main, east, superAdminRoleId, branchAdminRoleId };
+    const { superAdminRoleId, branchAdminRoleId, ownerRoleId } = await ensureSystemRolesForTenant(
+      owner,
+      tenant,
+    );
+    return {
+      tenant,
+      code: created.code,
+      main,
+      east,
+      superAdminRoleId,
+      branchAdminRoleId,
+      ownerRoleId,
+    };
   }
 
   /** A person working in the given branches, with a system role or a role made of the given permissions. */

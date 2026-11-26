@@ -65,6 +65,7 @@ type Hospital = {
 const CODES = [
   'hospital.settings.read',
   'hospital.settings.write',
+  'print.templates.manage',
   'opd.doctors.own',
   'opd.doctors.read',
   'opd.doctors.write',
@@ -198,6 +199,7 @@ describe('pictures: logo and doctor signature (HTTP)', () => {
       [
         'hospital.settings.read',
         'hospital.settings.write',
+        'print.templates.manage',
         'opd.doctors.read',
         'opd.doctors.write',
         'opd.visits.read',
@@ -210,6 +212,7 @@ describe('pictures: logo and doctor signature (HTTP)', () => {
       [
         'hospital.settings.read',
         'hospital.settings.write',
+        'print.templates.manage',
         'opd.doctors.read',
         'opd.doctors.write',
       ],
