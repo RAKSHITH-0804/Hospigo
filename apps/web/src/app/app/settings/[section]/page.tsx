@@ -9,6 +9,8 @@ import { OpdRulesForm } from '@/components/settings/opd-rules-form';
 import { NumberSeriesScreen } from '@/components/settings/number-series-screen';
 import { PaymentModesScreen } from '@/components/settings/payment-modes-screen';
 import { PricesScreen } from '@/components/settings/prices-screen';
+import { IndigoAccessScreen } from '@/components/settings/indigo-access-screen';
+import { PrintLibraryScreen } from '@/components/settings/print-library-screen';
 import { PrintValuesScreen } from '@/components/settings/print-values-screen';
 import { VitalsFieldsScreen } from '@/components/settings/vitals-fields-screen';
 import { ImportsScreen } from '@/components/settings/imports-screen';
@@ -61,6 +63,7 @@ import {
   type StaffOptions,
 } from '@/lib/staff/types';
 import type { OpdRules, PatientFieldsResponse, UhidFormatResponse } from '@/lib/settings/types';
+import type { AccessLogResponse, ChooserView } from '@/lib/indigo/library';
 import { fetchLogoImageId } from '@/lib/print/server';
 import {
   PRINT_API_PATH,
@@ -72,6 +75,8 @@ import {
 const WIDE_SECTIONS = [
   'printing',
   'print-values',
+  'print-library',
+  'indigo-access',
   'patient-registration',
   'patient-numbers',
   'doctors',
@@ -91,7 +96,7 @@ export default async function SettingsSectionPage({
   searchParams,
 }: {
   params: Promise<{ section: string }>;
-  searchParams?: Promise<{ q?: string; kind?: string }>;
+  searchParams?: Promise<{ q?: string; kind?: string; page?: string }>;
 }) {
   // Viewing any settings needs hospital.settings.read; without it: the usual no-permission redirect.
   const session = await requirePermission('hospital.settings.read');
@@ -118,6 +123,16 @@ export default async function SettingsSectionPage({
 
   const canWrite = session.permissions?.includes('hospital.settings.write') ?? false;
   let content: ReactNode = null;
+  if (section.id === 'print-library') {
+    const view = await fetchStaffOnServer<ChooserView>('/print-library');
+    content = <PrintLibraryScreen view={view.status === 'ok' ? view.data : null} />;
+  }
+  if (section.id === 'indigo-access') {
+    const raw = searchParams ? (await searchParams).page : undefined;
+    const page = Math.max(1, Number.parseInt(raw ?? '1', 10) || 1);
+    const log = await fetchStaffOnServer<AccessLogResponse>('/indigo-access-log', { page });
+    content = <IndigoAccessScreen data={log.status === 'ok' ? log.data : null} page={page} />;
+  }
   if (section.id === 'patient-registration') {
     const fields = await fetchStaffOnServer<PatientFieldsResponse>(API_PATIENT_FIELDS);
     content = (

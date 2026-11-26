@@ -786,6 +786,8 @@ describe('patients pages', () => {
           'vitals-fields': 'opd.masters.write',
           'bill-numbers': 'opd.settings.write',
           'print-values': 'opd.settings.write',
+          'print-library': 'print.templates.choose',
+          'indigo-access': 'indigo.access.read',
         };
         expect(entry.permission).toBe(own[entry.id] ?? 'hospital.settings.read');
       }

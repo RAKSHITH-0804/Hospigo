@@ -7,6 +7,8 @@ import type { ShellNavItem } from '@/config/modules';
 const indigoNav: ShellNavItem[] = [
   { href: '/admin', label: staffCopy.admin.console.navHospitals, icon: 'hospitals' },
   { href: '/admin/onboard', label: staffCopy.admin.console.navOnboard, icon: 'modules' },
+  { href: '/admin/library', label: staffCopy.library.navLibrary, icon: 'modules' },
+  { href: '/admin/terminology', label: staffCopy.terms.navTerms, icon: 'modules' },
   { href: '/admin/employees', label: staffCopy.admin.console.navEmployees, icon: 'staff' },
 ];
 

@@ -194,6 +194,8 @@
   --size-icon-menu: 1rem;
   --size-icon-button: 1.75rem;
   --size-kpi-min: 9rem;
+  --size-library-logo: 3rem;
+  --size-term-field-min: 14rem;
   --size-chart-min: 15rem;
   --size-chart-height: 14rem;
   --size-kpi-skeleton: 4.5rem;
@@ -469,6 +471,19 @@
   }
 
   /* Dashboard: KPI cards and small charts, theme tokens only. */
+  .library-logo {
+    width: var(--size-library-logo);
+    height: var(--size-library-logo);
+    object-fit: contain;
+    flex: none;
+  }
+
+  .terms-grid {
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fit, minmax(var(--size-term-field-min), 1fr));
+  }
+
   .dash-insights {
     display: grid;
     gap: var(--space-3);

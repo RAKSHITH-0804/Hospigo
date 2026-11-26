@@ -16,7 +16,11 @@ const refuse = (status: number, reason?: string) =>
  * Only the file is passed on (nothing else from the browser form). The API looks at the real bytes
  * and decides everything else (permission, type, size, doctor).
  */
-export async function proxyPictureUpload(request: Request, path: string): Promise<NextResponse> {
+export async function proxyPictureUpload(
+  request: Request,
+  path: string,
+  options: { method?: 'PUT' | 'POST'; query?: Record<string, string> } = {},
+): Promise<NextResponse> {
   const originError = assertOrigin(request);
   if (originError) {
     return originError;
@@ -45,5 +49,11 @@ export async function proxyPictureUpload(request: Request, path: string): Promis
   }
   const clean = new FormData();
   clean.append('file', file, 'picture');
-  return staffRoute({ method: 'PUT', request, path, form: clean });
+  return staffRoute({
+    method: options.method ?? 'PUT',
+    request,
+    path,
+    query: options.query,
+    form: clean,
+  });
 }

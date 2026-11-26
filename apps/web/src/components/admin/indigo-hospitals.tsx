@@ -10,6 +10,7 @@ import { sessionConfig } from '@/config/session';
 import { staffCopy } from '@/config/staff-copy';
 import { fill } from '@/lib/opd/clinical-format';
 import { saveHospitalModules } from '@/lib/indigo/client';
+import { runStarter, saveBranchModules } from '@/lib/indigo/library';
 import type { IndigoHospitalRow, IndigoOverview } from '@/lib/indigo/types';
 import { cn } from '@/lib/utils';
 
@@ -66,6 +67,112 @@ function ModuleSwitches({
       <div className="flex flex-wrap items-center gap-[var(--space-2)]">
         <Button type="button" variant="outline" disabled={busy} onClick={() => void save()}>
           {busy ? consoleCopy.modulesSaving : consoleCopy.modulesSave}
+        </Button>
+        {message ? (
+          <p role={message.ok ? 'status' : 'alert'} className="type-small">
+            {message.text}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** The modules of ONE branch (the hospital must hold the module; OPD stays on). */
+function BranchModuleSwitches({
+  hospital,
+  branch,
+  catalog,
+}: {
+  hospital: IndigoHospitalRow;
+  branch: IndigoHospitalRow['branches'][number];
+  catalog: IndigoOverview['moduleCatalog'];
+}) {
+  const [on, setOn] = useState<string[]>(branch.modules);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const held = catalog.filter((m) => hospital.modules.includes(m.code));
+
+  async function save() {
+    setBusy(true);
+    setMessage(null);
+    const result = await saveBranchModules(hospital.id, branch.id, on);
+    setBusy(false);
+    setMessage(
+      result.ok
+        ? { ok: true, text: consoleCopy.modulesSaved }
+        : { ok: false, text: consoleCopy.modulesFailed },
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-[var(--space-1)]">
+      <p className="type-small font-medium">
+        {fill(staffCopy.setup.branchModules, { name: branch.name })}
+      </p>
+      <div className="flex flex-wrap gap-[var(--space-3)]">
+        {held.map((module) => (
+          <label key={module.code} className="flex items-center gap-[var(--space-1)] type-small">
+            <input
+              type="checkbox"
+              checked={on.includes(module.code)}
+              disabled={busy || module.code === 'OPD'}
+              onChange={(event) =>
+                setOn((current) =>
+                  event.target.checked
+                    ? [...current, module.code]
+                    : current.filter((code) => code !== module.code),
+                )
+              }
+            />
+            {module.name}
+          </label>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-[var(--space-2)]">
+        <Button type="button" variant="outline" disabled={busy} onClick={() => void save()}>
+          {staffCopy.setup.branchModulesSave}
+        </Button>
+        {message ? (
+          <p role={message.ok ? 'status' : 'alert'} className="type-small">
+            {message.text}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** The starter masters (payment modes, vitals fields, number series, ...), safe to press twice. */
+function StarterButton({ hospitalId }: { hospitalId: string }) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function run() {
+    setBusy(true);
+    setMessage(null);
+    const result = await runStarter(hospitalId);
+    setBusy(false);
+    setMessage(
+      result.ok
+        ? {
+            ok: true,
+            text: fill(staffCopy.setup.starterDone, {
+              created: String(result.data.created.length),
+              kept: String(result.data.kept.length),
+            }),
+          }
+        : { ok: false, text: staffCopy.setup.starterFailed },
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-[var(--space-1)]">
+      <p className="type-small font-medium">{staffCopy.setup.starterHeading}</p>
+      <p className="type-small text-muted-foreground">{staffCopy.setup.starterHint}</p>
+      <div className="flex flex-wrap items-center gap-[var(--space-2)]">
+        <Button type="button" variant="outline" disabled={busy} onClick={() => void run()}>
+          {busy ? staffCopy.setup.starterRunning : staffCopy.setup.starterRun}
         </Button>
         {message ? (
           <p role={message.ok ? 'status' : 'alert'} className="type-small">
@@ -164,7 +271,20 @@ export function IndigoHospitals({ overview }: { overview: IndigoOverview }) {
                   </ul>
                 </div>
                 {overview.canManage ? (
-                  <ModuleSwitches hospital={hospital} catalog={overview.moduleCatalog} />
+                  <>
+                    <ModuleSwitches hospital={hospital} catalog={overview.moduleCatalog} />
+                    {hospital.branches.length > 1
+                      ? hospital.branches.map((branch) => (
+                          <BranchModuleSwitches
+                            key={branch.id}
+                            hospital={hospital}
+                            branch={branch}
+                            catalog={overview.moduleCatalog}
+                          />
+                        ))
+                      : null}
+                    <StarterButton hospitalId={hospital.id} />
+                  </>
                 ) : (
                   <p className="type-small">{hospital.modules.join(', ')}</p>
                 )}
