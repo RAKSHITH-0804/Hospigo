@@ -247,6 +247,7 @@ export default async function SettingsSectionPage({
       <PricesScreen
         startQuery={{ q: startQ, kind: startKind }}
         branchId={activeBranchId}
+        branchName={session.activeBranchName}
         initial={prices.status === 'ok' ? prices.data : null}
         initialErrorCode={prices.status === 'ok' ? null : serverErrorCode(prices)}
       />

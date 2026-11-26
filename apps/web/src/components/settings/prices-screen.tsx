@@ -31,10 +31,13 @@ const paging = staffCopy.pagination;
 type Flash = { kind: 'ok' | 'error'; text: string } | null;
 type TableRow = PriceRow & { id: string };
 
-/** The words on the row button: set the first price, set a separate follow-up fee, or change the price. */
-function actionText(row: PriceRow): string {
+/** The words on the row button: set the first price, set a separate follow-up fee, set the fee for this branch, or change the price. */
+function actionText(row: PriceRow, hasBranch: boolean): string {
   if (row.followsBase && row.currentAmountPaise !== null) {
     return copy.setSeparate;
+  }
+  if (hasBranch && row.kind === 'DOCTOR_FEE' && row.feeScope === 'HOSPITAL') {
+    return copy.setBranchFee;
   }
   return row.currentAmountPaise === null ? copy.setFirst : copy.change;
 }
@@ -54,11 +57,14 @@ export function PricesScreen({
   initialErrorCode,
   startQuery,
   branchId,
+  branchName,
 }: {
   initial: PricesResponse | null;
   initialErrorCode: string | null;
   /** The active branch the first list was made for; doctor fees follow it. */
   branchId?: string | null;
+  /** The name of that branch, for the note above the list. */
+  branchName?: string | null;
   /** The search and filter the page was opened with (the first list is already for them). */
   startQuery?: { q: string; kind: PriceKind | '' };
 }) {
@@ -72,6 +78,8 @@ export function PricesScreen({
   const [amountText, setAmountText] = useState('');
   const [amountError, setAmountError] = useState<string | null>(null);
   const [date, setDate] = useState('');
+  // Doctor fees: does the change apply to the active branch or to the whole hospital?
+  const [applyTo, setApplyTo] = useState<'BRANCH' | 'HOSPITAL'>('BRANCH');
   const [saving, setSaving] = useState(false);
   const [flash, setFlash] = useState<Flash>(null);
   const [historyRow, setHistoryRow] = useState<PriceRow | null>(null);
@@ -139,6 +147,18 @@ export function PricesScreen({
     setAmountError(null);
     setDate(data?.today ?? '');
     setFlash(null);
+    // A branch Admin can only set the branch fee. A hospital-wide Admin changing a fee that is
+    // already hospital-wide, or setting a first fee with no branch fee, keeps the hospital-wide scope.
+    const wide = data?.canSetHospitalWide === true;
+    setApplyTo(
+      !branchId || !wide
+        ? 'BRANCH'
+        : row.kind === 'DOCTOR_FEE' && row.feeScope === 'BRANCH'
+          ? 'BRANCH'
+          : row.feeScope === 'HOSPITAL' || row.feeScope === null || row.feeScope === undefined
+            ? 'HOSPITAL'
+            : 'BRANCH',
+    );
   }
 
   async function openHistory(row: PriceRow) {
@@ -149,7 +169,7 @@ export function PricesScreen({
     setHistoryRow(row);
     setEditing(null);
     setHistory(null);
-    const result = await priceHistory(row);
+    const result = await priceHistory(row, branchId);
     setHistory(result.ok ? result.data.items : 'error');
   }
 
@@ -167,7 +187,12 @@ export function PricesScreen({
     busy.current = true;
     setSaving(true);
     setFlash(null);
-    const result = await changePrice(editing, { amountPaise, effectiveFrom: date || undefined });
+    const forBranch = editing.kind === 'DOCTOR_FEE' && !!branchId && applyTo === 'BRANCH';
+    const result = await changePrice(
+      editing,
+      { amountPaise, effectiveFrom: date || undefined },
+      forBranch ? branchId : null,
+    );
     busy.current = false;
     setSaving(false);
     if (!result.ok) {
@@ -198,13 +223,24 @@ export function PricesScreen({
       cell: (row) =>
         row.currentAmountPaise === null ? (
           <Badge variant="warning">{copy.noPrice}</Badge>
-        ) : row.followsBase ? (
-          <span>
-            {formatPaise(row.currentAmountPaise)}{' '}
-            <span className="type-small text-muted-foreground">({copy.sameAsNew})</span>
-          </span>
         ) : (
-          formatPaise(row.currentAmountPaise)
+          <span>
+            {formatPaise(row.currentAmountPaise)}
+            {row.followsBase ? (
+              <>
+                {' '}
+                <span className="type-small text-muted-foreground">({copy.sameAsNew})</span>
+              </>
+            ) : null}
+            {branchId && row.kind === 'DOCTOR_FEE' && row.feeScope ? (
+              <>
+                {' '}
+                <Badge variant={row.feeScope === 'BRANCH' ? 'info' : 'neutral'}>
+                  {row.feeScope === 'BRANCH' ? copy.scopeBranch : copy.scopeHospital}
+                </Badge>
+              </>
+            ) : null}
+          </span>
         ),
     },
     {
@@ -234,10 +270,10 @@ export function PricesScreen({
             type="button"
             size="sm"
             variant="outline"
-            aria-label={`${row.name}: ${actionText(row)}`}
+            aria-label={`${row.name}: ${actionText(row, !!branchId)}`}
             onClick={() => openEditor(row)}
           >
-            {actionText(row)}
+            {actionText(row, !!branchId)}
           </Button>
           <Button
             type="button"
@@ -293,14 +329,25 @@ export function PricesScreen({
         {flash?.text ?? ''}
       </p>
 
+      {branchId && branchName ? (
+        <p className="type-small text-muted-foreground">
+          {copy.branchShown.replace('{branch}', branchName)}
+        </p>
+      ) : null}
+
       {editing ? (
         <form className="surface-card section-stack" onSubmit={onSubmit} noValidate>
           <h3 className="type-label-strong">
             {(editing.followsBase && editing.currentAmountPaise !== null
               ? copy.setSeparateTitle
-              : firstPrice
-                ? copy.setTitle
-                : copy.changeTitle
+              : editing.kind === 'DOCTOR_FEE' &&
+                  branchId &&
+                  applyTo === 'BRANCH' &&
+                  editing.feeScope !== 'BRANCH'
+                ? copy.setBranchTitle
+                : firstPrice
+                  ? copy.setTitle
+                  : copy.changeTitle
             ).replace('{name}', editing.name)}
           </h3>
           <p className="type-small text-muted-foreground">
@@ -311,6 +358,21 @@ export function PricesScreen({
           </p>
           {editing.kind === 'DOCTOR_FEE' && editing.visitType === 'FOLLOW_UP' ? (
             <p className="type-small text-muted-foreground">{copy.followUpNote}</p>
+          ) : null}
+          {editing.kind === 'DOCTOR_FEE' && branchId ? (
+            <>
+              {data.canSetHospitalWide === true ? (
+                <SelectField
+                  label={copy.appliesToLabel}
+                  value={applyTo}
+                  onChange={(event) => setApplyTo(event.target.value as 'BRANCH' | 'HOSPITAL')}
+                >
+                  <option value="BRANCH">{copy.appliesToBranch}</option>
+                  <option value="HOSPITAL">{copy.appliesToHospital}</option>
+                </SelectField>
+              ) : null}
+              <p className="type-small text-muted-foreground">{copy.scopeNote}</p>
+            </>
           ) : null}
           <div className="cluster-top">
             <InputField

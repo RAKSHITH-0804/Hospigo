@@ -1,0 +1,1279 @@
+{
+  "info": {
+    "name": "Hospigo 3d branch switcher",
+    "description": "Step 3d. Uses the superadminPassword and staffPassword variables of the Hospigo Local environment (select that environment). Seed the dev database and start the API on port 3000, then Run collection. About 14 calls count against the login/refresh IP limit (20 per minute): wait a minute between runs. Request 24 ends the SuperAdmin session on purpose (reuse test).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0 Setup",
+      "item": [
+        {
+          "name": "1 Login SuperAdmin (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{superEmail}}\",\"password\":\"{{superadminPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('select the Hospigo Local environment: superadminPassword and staffPassword must be set', () => {",
+                  "  pm.expect(pm.variables.get(\"superadminPassword\"), 'superadminPassword').to.be.a('string').and.not.empty;",
+                  "  pm.expect(pm.variables.get(\"staffPassword\"), 'staffPassword').to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has tokens', () => { pm.expect(j.accessToken).to.be.a('string'); pm.expect(j.refreshToken).to.be.a('string'); });",
+                  "pm.collectionVariables.set('superAccess', j.accessToken);",
+                  "pm.collectionVariables.set('superRefresh', j.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 Login Receptionist (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{receptionEmail}}\",\"password\":\"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has tokens', () => { pm.expect(j.accessToken).to.be.a('string'); pm.expect(j.refreshToken).to.be.a('string'); });",
+                  "pm.collectionVariables.set('recAccess', j.accessToken);",
+                  "pm.collectionVariables.set('recRefresh', j.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3 Login Nurse (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{nurseEmail}}\",\"password\":\"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has tokens', () => { pm.expect(j.accessToken).to.be.a('string'); pm.expect(j.refreshToken).to.be.a('string'); });",
+                  "pm.collectionVariables.set('nurseAccess', j.accessToken);",
+                  "pm.collectionVariables.set('nurseRefresh', j.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4 Login South SuperAdmin (other hospital)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-south-main\",\"email\":\"{{southSuperEmail}}\",\"password\":\"{{superadminPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('southAccess', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5 South SuperAdmin /auth/me (learn a branch id of the OTHER hospital)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{southAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has a branch id', () => pm.expect(j.activeBranchId).to.be.a('string'));",
+                  "pm.collectionVariables.set('southBranchId', j.activeBranchId);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1 SuperAdmin switches",
+      "item": [
+        {
+          "name": "6 SuperAdmin /auth/me (before)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('canSwitchBranch is true', () => pm.expect(j.canSwitchBranch).to.eql(true));",
+                  "pm.test('is on the main branch', () => pm.expect(j.activeBranchName).to.eql('Main Branch'));",
+                  "pm.collectionVariables.set('mainBranchId', j.activeBranchId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7 List switchable branches",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/switchable-branches",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "switchable-branches"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const list = pm.response.json();",
+                  "pm.test('two active branches of the own hospital', () => pm.expect(list).to.have.lengthOf(2));",
+                  "const east = list.find(b => !b.isMain);",
+                  "pm.test('main is current, other is not', () => {",
+                  "  pm.expect(list.find(b => b.isMain).isCurrent).to.eql(true);",
+                  "  pm.expect(east.isCurrent).to.eql(false);",
+                  "});",
+                  "pm.test('no other hospital branch listed', () => pm.expect(JSON.stringify(list)).to.not.include(pm.collectionVariables.get('southBranchId')));",
+                  "pm.collectionVariables.set('eastBranchId', east.id);",
+                  "pm.collectionVariables.set('eastBranchName', east.name);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8 SWITCH to the other branch",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/switch-branch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "switch-branch"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"branchId\":\"{{eastBranchId}}\",\"refreshToken\":\"{{superRefresh}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('new tokens', () => { pm.expect(j.accessToken).to.be.a('string'); pm.expect(j.refreshToken).to.be.a('string'); pm.expect(j.mustChangePassword).to.eql(false); });",
+                  "pm.test('refresh token was rotated', () => pm.expect(j.refreshToken).to.not.eql(pm.collectionVariables.get('superRefresh')));",
+                  "pm.collectionVariables.set('superOldRefresh', pm.collectionVariables.get('superRefresh'));",
+                  "pm.collectionVariables.set('superAccess', j.accessToken);",
+                  "pm.collectionVariables.set('superRefresh', j.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9 /auth/me shows the NEW branch",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('active branch is the other branch', () => {",
+                  "  pm.expect(j.activeBranchId).to.eql(pm.collectionVariables.get('eastBranchId'));",
+                  "  pm.expect(j.activeBranchName).to.eql(pm.collectionVariables.get('eastBranchName'));",
+                  "});",
+                  "pm.test('still a switcher', () => pm.expect(j.canSwitchBranch).to.eql(true));",
+                  "pm.test('permissions recomputed (array)', () => pm.expect(j.permissions).to.be.an('array').that.is.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Register a patient AFTER the switch",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"{{switchPatientName}}\",\"ageYears\":33,\"phone\":\"{{switchPatientPhone}}\",\"confirmDuplicate\":true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "const j = pm.response.json();",
+                  "pm.test('has id and uhid', () => { pm.expect(j.id).to.be.a('string'); pm.expect(j.uhid).to.be.a('string'); });",
+                  "pm.collectionVariables.set('switchPatientUhid', j.uhid);"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const stamp = Date.now();",
+                  "pm.collectionVariables.set('switchPatientName', 'Switchtest ' + stamp);",
+                  "pm.collectionVariables.set('switchPatientPhone', '9' + String(stamp).slice(-9));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 The new patient shows the NEW branch",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients?uhid={{switchPatientUhid}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients"
+              ],
+              "query": [
+                {
+                  "key": "uhid",
+                  "value": "{{switchPatientUhid}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('one patient', () => pm.expect(j.items).to.have.lengthOf(1));",
+                  "pm.test('registered at the switched-to branch (not the login branch)', () => {",
+                  "  pm.expect(j.items[0].registeredBranchId).to.eql(pm.collectionVariables.get('eastBranchId'));",
+                  "  pm.expect(j.items[0].registeredBranchId).to.not.eql(pm.collectionVariables.get('mainBranchId'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 Refresh keeps the new branch",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"refreshToken\":\"{{superRefresh}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('superAccess', j.accessToken);",
+                  "pm.collectionVariables.set('superRefresh', j.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 /auth/me after refresh: still the new branch",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('still the switched-to branch', () => pm.expect(pm.response.json().activeBranchId).to.eql(pm.collectionVariables.get('eastBranchId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 SWITCH back to main (tidy up)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/switch-branch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "switch-branch"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"branchId\":\"{{mainBranchId}}\",\"refreshToken\":\"{{superRefresh}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('superAccess', j.accessToken);",
+                  "pm.collectionVariables.set('superRefresh', j.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 /auth/me: back on main",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('main again', () => pm.expect(pm.response.json().activeBranchId).to.eql(pm.collectionVariables.get('mainBranchId')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 Refused and edge cases",
+      "item": [
+        {
+          "name": "16a Receptionist: list switchable branches = 403",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/switchable-branches",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "switchable-branches"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));",
+                  "pm.test('no branch data in the body', () => pm.expect(JSON.stringify(pm.response.json())).to.not.include(pm.collectionVariables.get('eastBranchId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16b Receptionist: switch = 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/switch-branch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "switch-branch"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"branchId\":\"{{eastBranchId}}\",\"refreshToken\":\"{{recRefresh}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16c Receptionist: /auth/me says canSwitchBranch=false",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('cannot switch', () => pm.expect(pm.response.json().canSwitchBranch).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17a Nurse: list switchable branches = 403",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nurseAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/switchable-branches",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "switchable-branches"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));",
+                  "pm.test('no branch data in the body', () => pm.expect(JSON.stringify(pm.response.json())).to.not.include(pm.collectionVariables.get('eastBranchId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17b Nurse: switch = 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nurseAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/switch-branch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "switch-branch"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"branchId\":\"{{eastBranchId}}\",\"refreshToken\":\"{{nurseRefresh}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17c Nurse: /auth/me says canSwitchBranch=false",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nurseAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('cannot switch', () => pm.expect(pm.response.json().canSwitchBranch).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "18 Other hospital's branch = 404",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/switch-branch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "switch-branch"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"branchId\":\"{{southBranchId}}\",\"refreshToken\":\"{{superRefresh}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));",
+                  "pm.test('generic body', () => pm.expect(pm.response.json().message).to.eql('Branch not available'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "19 Unknown branch id = the SAME 404",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/switch-branch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "switch-branch"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"branchId\":\"does-not-exist-123\",\"refreshToken\":\"{{superRefresh}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));",
+                  "pm.test('same body as the other hospital case', () => pm.expect(pm.response.json()).to.eql({statusCode:404,message:'Branch not available',error:'Not Found'}));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "20 Switch to the branch already active = 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/switch-branch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "switch-branch"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"branchId\":\"{{mainBranchId}}\",\"refreshToken\":\"{{superRefresh}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "21 No token = 401 (switch)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/switch-branch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "switch-branch"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"branchId\":\"{{eastBranchId}}\",\"refreshToken\":\"{{superRefresh}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "22 No token = 401 (list)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/switchable-branches",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "switchable-branches"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "23 Refused calls did not consume the refresh token (refresh still works)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"refreshToken\":\"{{superRefresh}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('superAccess', j.accessToken);",
+                  "pm.collectionVariables.set('superRefresh', j.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "24 LAST: replaying an OLD refresh token = 401 and the session family is revoked",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/switch-branch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "switch-branch"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"branchId\":\"{{eastBranchId}}\",\"refreshToken\":\"{{superOldRefresh}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401 (reuse detected)', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "25 The family is now dead: the newest refresh token is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"refreshToken\":\"{{superRefresh}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401 (family revoked)', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:3000"
+    },
+    {
+      "key": "superEmail",
+      "value": "superadmin@demo-north.example.test"
+    },
+    {
+      "key": "receptionEmail",
+      "value": "receptionist1@demo-north.example.test"
+    },
+    {
+      "key": "nurseEmail",
+      "value": "nurse1@demo-north.example.test"
+    },
+    {
+      "key": "southSuperEmail",
+      "value": "superadmin@demo-south.example.test"
+    }
+  ]
+}

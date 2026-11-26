@@ -51,7 +51,7 @@ It is off by default, so the older command behaves exactly as before. A field wh
 After the starter script, an Admin or SuperAdmin must set:
 
 1. The **registration fee** price (Settings, OPD, Prices).
-2. Each **doctor's fee** for NEW and for FOLLOW_UP (Prices, or the Excel upload "Doctor fees"). The doctors exist first (Settings, Staff, role Doctor).
+2. Each **doctor's fee** for NEW and for FOLLOW_UP (Prices, or the Excel upload "Doctor fees"). The doctors exist first (Settings, Staff, role Doctor). A fee is hospital-wide by default; a branch that charges differently gets its own fee for that doctor (Prices, with that branch selected, **Set fee for this branch**, or the **Branch code** column of the Excel file): the branch fee is used in that branch, the hospital-wide fee everywhere else.
 3. The test prices and the medicine list if wanted (Settings, OPD, Upload lists).
 4. The **last UHID number** if the hospital already has patients (Settings, Patients, Patient numbers: raise-only, with a reason).
 5. The **bill, receipt and refund number format** if the hospital wants its own (Settings, Billing, Bill numbers, hospital-wide Admin only), and the **start number** if it already issued numbers on paper (raise-only, with a reason). The count rule and the financial year start can only be chosen before the first number exists.

@@ -138,6 +138,106 @@ describe('PricesScreen', () => {
     expect(listMock.mock.calls[0]![0]).toMatchObject({ branchId: 'branch-1' });
   });
 
+  describe('doctor fees of the active branch (Step 9)', () => {
+    const ok = {
+      ok: true,
+      data: {
+        changed: true,
+        previousAmountPaise: 50_000,
+        price: { id: 'p', amountPaise: 70_000, effectiveFrom: 'x' },
+      },
+    };
+    const hospitalFee = {
+      ...fee,
+      feeScope: 'HOSPITAL' as const,
+      nextAmountPaise: null,
+      nextFrom: null,
+    };
+    const branchFee = {
+      ...fee,
+      feeScope: 'BRANCH' as const,
+      nextAmountPaise: null,
+      nextFrom: null,
+    };
+
+    it('shows where the fee comes from and offers Set fee for this branch on a hospital-wide fee', () => {
+      render(
+        <PricesScreen
+          initial={data([hospitalFee])}
+          initialErrorCode={null}
+          branchId="b-east"
+          branchName="East Wing"
+        />,
+      );
+      expect(screen.getByText(copy.scopeHospital)).toBeTruthy();
+      expect(screen.getByText(copy.branchShown.replace('{branch}', 'East Wing'))).toBeTruthy();
+      expect(screen.getByRole('button', { name: `Dr Rao: ${copy.setBranchFee}` })).toBeTruthy();
+    });
+
+    it('a branch fee is labelled and changed with the plain Change price button', () => {
+      render(
+        <PricesScreen initial={data([branchFee])} initialErrorCode={null} branchId="b-east" />,
+      );
+      expect(screen.getByText(copy.scopeBranch)).toBeTruthy();
+      expect(screen.getByRole('button', { name: `Dr Rao: ${copy.change}` })).toBeTruthy();
+    });
+
+    it('a Branch Admin saves the fee for the active branch and has no hospital-wide choice', async () => {
+      changeMock.mockResolvedValue(ok);
+      listMock.mockResolvedValue({ ok: true, data: data([branchFee]) });
+      render(
+        <PricesScreen initial={data([hospitalFee])} initialErrorCode={null} branchId="b-east" />,
+      );
+      fireEvent.click(screen.getByRole('button', { name: `Dr Rao: ${copy.setBranchFee}` }));
+      expect(screen.queryByLabelText(copy.appliesToLabel)).toBeNull();
+      fireEvent.change(screen.getByLabelText(copy.amountLabel), { target: { value: '700' } });
+      fireEvent.click(screen.getByRole('button', { name: copy.save }));
+      await waitFor(() => expect(changeMock).toHaveBeenCalledTimes(1));
+      expect(changeMock.mock.calls[0]![2]).toBe('b-east');
+    });
+
+    it('a hospital-wide Admin chooses between this branch and the whole hospital', async () => {
+      changeMock.mockResolvedValue(ok);
+      listMock.mockResolvedValue({
+        ok: true,
+        data: data([hospitalFee], { canSetHospitalWide: true }),
+      });
+      render(
+        <PricesScreen
+          initial={data([hospitalFee], { canSetHospitalWide: true })}
+          initialErrorCode={null}
+          branchId="b-east"
+        />,
+      );
+      fireEvent.click(screen.getByRole('button', { name: `Dr Rao: ${copy.setBranchFee}` }));
+      const choice = screen.getByLabelText(copy.appliesToLabel) as HTMLSelectElement;
+      expect(choice.value).toBe('HOSPITAL');
+      fireEvent.change(screen.getByLabelText(copy.amountLabel), { target: { value: '700' } });
+      fireEvent.click(screen.getByRole('button', { name: copy.save }));
+      await waitFor(() => expect(changeMock).toHaveBeenCalledTimes(1));
+      expect(changeMock.mock.calls[0]![2]).toBeNull();
+      // and for this branch only
+      changeMock.mockClear();
+      await waitFor(() => expect(screen.queryByLabelText(copy.amountLabel)).toBeNull());
+      fireEvent.click(screen.getByRole('button', { name: `Dr Rao: ${copy.setBranchFee}` }));
+      fireEvent.change(screen.getByLabelText(copy.appliesToLabel), { target: { value: 'BRANCH' } });
+      fireEvent.click(screen.getByRole('button', { name: copy.save }));
+      await waitFor(() => expect(changeMock).toHaveBeenCalledTimes(1));
+      expect(changeMock.mock.calls[0]![2]).toBe('b-east');
+    });
+
+    it('tests and the registration fee are never sent with a branch', async () => {
+      changeMock.mockResolvedValue(ok);
+      listMock.mockResolvedValue({ ok: true, data: data([row()]) });
+      render(<PricesScreen initial={data([row()])} initialErrorCode={null} branchId="b-east" />);
+      fireEvent.click(screen.getByRole('button', { name: `Blood sugar: ${copy.change}` }));
+      expect(screen.queryByLabelText(copy.appliesToLabel)).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: copy.save }));
+      await waitFor(() => expect(changeMock).toHaveBeenCalledTimes(1));
+      expect(changeMock.mock.calls[0]![2]).toBeNull();
+    });
+  });
+
   it('refuses a price that is not rupees and paise before asking the server', () => {
     render(<PricesScreen initial={data([row()])} initialErrorCode={null} />);
     fireEvent.click(screen.getByRole('button', { name: `Blood sugar: ${copy.change}` }));

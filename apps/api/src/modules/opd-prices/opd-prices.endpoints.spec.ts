@@ -578,7 +578,9 @@ describe('OPD prices: list, history and change (HTTP, hospigo_test)', () => {
       oldAmountPaise: 50_000,
       newAmountPaise: 55_000,
     });
+    expect((row.metadata as { branchId: unknown }).branchId).toBeNull();
     expect(Object.keys(row.metadata as object).sort()).toEqual([
+      'branchId',
       'doctorProfileId',
       'effectiveFrom',
       'newAmountPaise',

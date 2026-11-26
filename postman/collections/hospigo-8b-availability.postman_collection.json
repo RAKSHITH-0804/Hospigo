@@ -1,0 +1,1221 @@
+{
+  "info": {
+    "name": "Hospigo 8b availability",
+    "description": "Step 8b part D (API): doctor availability: the switch, weekly times per branch and leave periods. BEFORE RUNNING: (1) npm run prisma:migrate -w @hospigo/api (one new migration: DELETE on doctor_timings and doctor_leave), (2) restart the API, (3) environment Hospigo Local with staffPassword and superadminPassword. It changes the FIRST doctor of the demo north main branch and puts everything back (switch on, no times, no leave).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:3000"
+    },
+    {
+      "key": "receptionEmail",
+      "value": "receptionist1@demo-north.example.test"
+    },
+    {
+      "key": "superEmail",
+      "value": "superadmin@demo-north.example.test"
+    }
+  ],
+  "item": [
+    {
+      "name": "0 Setup",
+      "item": [
+        {
+          "name": "1 Login Receptionist (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\": \"demo-north-main\", \"email\": \"{{receptionEmail}}\", \"password\": \"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('rRecv', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 Login SuperAdmin (north)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\": \"demo-north-main\", \"email\": \"{{superEmail}}\", \"password\": \"{{superadminPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('rSuper', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3 Pick the first doctor of the branch",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('there is a doctor', () => pm.expect(j.items.length).to.be.above(0));",
+                  "pm.collectionVariables.set('docId', j.items[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4 Read the availability (200) and keep the branch and today",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors/{{docId}}/availability",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors",
+                "{{docId}}",
+                "availability"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has the shape', () => { pm.expect(j.availabilityOn).to.be.a('boolean'); pm.expect(j.timings).to.be.an('array'); pm.expect(j.leaves).to.be.an('array'); pm.expect(j.today).to.match(/^\\d{4}-\\d{2}-\\d{2}$/); });",
+                  "pm.test('SuperAdmin may change it', () => pm.expect(j.canWrite).to.eql(true));",
+                  "pm.collectionVariables.set('today', j.today);",
+                  "pm.collectionVariables.set('branchId', j.branches[0].id);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1 Who may use it",
+      "item": [
+        {
+          "name": "5 Receptionist cannot read availability (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors/{{docId}}/availability",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors",
+                "{{docId}}",
+                "availability"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6 No token (401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors/{{docId}}/availability",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors",
+                "{{docId}}",
+                "availability"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7 Receptionist cannot switch (403)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors/{{docId}}/availability/switch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors",
+                "{{docId}}",
+                "availability",
+                "switch"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"availabilityOn\":false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8 Unknown doctor is 404",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors/does-not-exist/availability",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors",
+                "does-not-exist",
+                "availability"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 The switch",
+      "item": [
+        {
+          "name": "9 Switch off (200)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors/{{docId}}/availability/switch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors",
+                "{{docId}}",
+                "availability",
+                "switch"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"availabilityOn\":false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('off', () => pm.expect(pm.response.json().availabilityOn).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Reception sees SWITCH_OFF for that doctor",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().items.find(x => x.id === pm.collectionVariables.get('docId'));",
+                  "pm.test('not available, reason SWITCH_OFF', () => { pm.expect(d.available).to.eql(false); pm.expect(d.unavailableReason).to.eql('SWITCH_OFF'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 A text instead of a real true or false is refused (400)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors/{{docId}}/availability/switch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors",
+                "{{docId}}",
+                "availability",
+                "switch"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"availabilityOn\":\"true\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 Switch on again (200)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors/{{docId}}/availability/switch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors",
+                "{{docId}}",
+                "availability",
+                "switch"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"availabilityOn\":true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('on', () => pm.expect(pm.response.json().availabilityOn).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 Weekly times",
+      "item": [
+        {
+          "name": "13 Overlapping times are refused (OVERLAP)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors/{{docId}}/availability/timings/{{branchId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors",
+                "{{docId}}",
+                "availability",
+                "timings",
+                "{{branchId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"slots\":[{\"weekday\":1,\"start\":\"09:00\",\"end\":\"12:00\"},{\"weekday\":1,\"start\":\"11:00\",\"end\":\"15:00\"}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('reason OVERLAP', () => pm.expect(pm.response.json().reason).to.eql('OVERLAP'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 An end before the start is refused (END_BEFORE_START)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors/{{docId}}/availability/timings/{{branchId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors",
+                "{{docId}}",
+                "availability",
+                "timings",
+                "{{branchId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"slots\":[{\"weekday\":1,\"start\":\"12:00\",\"end\":\"09:00\"}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('reason END_BEFORE_START', () => pm.expect(pm.response.json().reason).to.eql('END_BEFORE_START'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 A branch of another hospital is refused (BRANCH_NOT_ALLOWED)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors/{{docId}}/availability/timings/not-a-branch-of-this-doctor",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors",
+                "{{docId}}",
+                "availability",
+                "timings",
+                "not-a-branch-of-this-doctor"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"slots\":[]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('reason BRANCH_NOT_ALLOWED', () => pm.expect(pm.response.json().reason).to.eql('BRANCH_NOT_ALLOWED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 Save a timetable (200)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors/{{docId}}/availability/timings/{{branchId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors",
+                "{{docId}}",
+                "availability",
+                "timings",
+                "{{branchId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"slots\":[{\"weekday\":1,\"start\":\"09:00\",\"end\":\"13:00\"},{\"weekday\":1,\"start\":\"13:00\",\"end\":\"17:00\"}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('two times read back as HH:MM', () => { const t = pm.response.json().timings.filter(x => x.branchId === pm.collectionVariables.get('branchId')); pm.expect(t.map(x => x.start + '-' + x.end)).to.eql(['09:00-13:00','13:00-17:00']); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 Times only warn: the doctor is still available for a visit",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().items.find(x => x.id === pm.collectionVariables.get('docId'));",
+                  "pm.test('still available (outsideTimings may be true or false)', () => { pm.expect(d.available).to.eql(true); pm.expect(d.outsideTimings).to.be.a('boolean'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "18 Clear the timetable (200)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors/{{docId}}/availability/timings/{{branchId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors",
+                "{{docId}}",
+                "availability",
+                "timings",
+                "{{branchId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"slots\":[]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('none left in that branch', () => pm.expect(pm.response.json().timings.filter(x => x.branchId === pm.collectionVariables.get('branchId')).length).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4 Leave",
+      "item": [
+        {
+          "name": "19 Add a leave for tomorrow and the day after (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors/{{docId}}/availability/leave",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors",
+                "{{docId}}",
+                "availability",
+                "leave"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"fromDate\":\"{{lFrom}}\",\"toDate\":\"{{lTo}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const t = pm.collectionVariables.get('today');",
+                  "const d = new Date(t + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + 1);",
+                  "pm.collectionVariables.set('lFrom', d.toISOString().slice(0, 10));",
+                  "d.setUTCDate(d.getUTCDate() + 1);",
+                  "pm.collectionVariables.set('lTo', d.toISOString().slice(0, 10));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const l = pm.response.json().leaves.find(x => x.fromDate === pm.collectionVariables.get('lFrom'));",
+                  "pm.test('the leave is listed', () => pm.expect(l).to.exist);",
+                  "pm.collectionVariables.set('leaveId', l.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "20 Reception still sees the doctor as available TODAY (leave covers other days only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().items.find(x => x.id === pm.collectionVariables.get('docId'));",
+                  "pm.test('available today', () => pm.expect(d.available).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "21 The same days again overlap (LEAVE_OVERLAP)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors/{{docId}}/availability/leave",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors",
+                "{{docId}}",
+                "availability",
+                "leave"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"fromDate\":\"{{lFrom}}\",\"toDate\":\"{{lTo}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('reason LEAVE_OVERLAP', () => pm.expect(pm.response.json().reason).to.eql('LEAVE_OVERLAP'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "22 An end before the start is refused (END_BEFORE_START)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors/{{docId}}/availability/leave",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors",
+                "{{docId}}",
+                "availability",
+                "leave"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"fromDate\":\"2999-01-02\",\"toDate\":\"2999-01-01\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('reason END_BEFORE_START', () => pm.expect(pm.response.json().reason).to.eql('END_BEFORE_START'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "23 A leave in the past is refused (DATE_IN_PAST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors/{{docId}}/availability/leave",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors",
+                "{{docId}}",
+                "availability",
+                "leave"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"fromDate\":\"2001-01-01\",\"toDate\":\"2001-01-02\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('reason DATE_IN_PAST', () => pm.expect(pm.response.json().reason).to.eql('DATE_IN_PAST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "24 Remove the leave (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors/{{docId}}/availability/leave/{{leaveId}}/remove",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors",
+                "{{docId}}",
+                "availability",
+                "leave",
+                "{{leaveId}}",
+                "remove"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('gone', () => pm.expect(pm.response.json().leaves.find(x => x.id === pm.collectionVariables.get('leaveId'))).to.be.undefined);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "25 Removing it again is 404",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors/{{docId}}/availability/leave/{{leaveId}}/remove",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors",
+                "{{docId}}",
+                "availability",
+                "leave",
+                "{{leaveId}}",
+                "remove"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

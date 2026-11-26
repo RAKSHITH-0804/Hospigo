@@ -5,3 +5,6 @@ apps/api/src/generated
 package-lock.json
 .next
 apps/web/next-env.d.ts
+
+# Postman collections are exported by Postman; keep their format
+postman/collections/*.json

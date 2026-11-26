@@ -101,9 +101,10 @@ export class OpdPricesController {
     @Query('itemId') itemId?: string,
     @Query('doctorProfileId') doctorProfileId?: string,
     @Query('visitType') visitType?: string,
+    @Query('branchId') branchId?: string,
   ) {
     if (itemId !== undefined) {
-      if (doctorProfileId !== undefined || visitType !== undefined) {
+      if (doctorProfileId !== undefined || visitType !== undefined || branchId !== undefined) {
         throw new BadRequestException('Give itemId, or doctorProfileId with visitType, not both');
       }
       return this.prices.history(actorOf(req), { kind: 'ITEM', itemId: idOf(itemId, 'itemId') });
@@ -115,6 +116,7 @@ export class OpdPricesController {
       kind: 'DOCTOR_FEE',
       doctorProfileId: idOf(doctorProfileId, 'doctorProfileId'),
       visitType: visitType as PriceVisitType,
+      branchId: branchId ? idOf(branchId, 'branchId') : null,
     });
   }
 
@@ -138,7 +140,7 @@ export class OpdPricesController {
   @RequirePermission('opd.prices.write', { module: 'OPD' })
   @ApiOperation({
     summary:
-      'Add a new doctor fee version (new or follow-up visits). Only new bills use it. The same amount again changes nothing (changed false).',
+      'Add a new doctor fee version (new or follow-up visits), hospital-wide or, with branchId, for one branch. Only new bills use it. The same amount again changes nothing (changed false).',
   })
   async changeDoctorFee(@Req() req: HttpReq, @Body() body: ChangeDoctorFeeDto) {
     return this.prices.changeDoctorFee(body, actorOf(req));

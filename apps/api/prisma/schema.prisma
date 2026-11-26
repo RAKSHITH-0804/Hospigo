@@ -320,6 +320,7 @@ model Branch {
   roleAssignmentBranches RoleAssignmentBranch[]
   printTemplates PrintTemplate[]
   printValues PrintValue[]
+  doctorFees DoctorFee[]
   auditLogs     AuditLog[]
   authSessions  AuthSession[]
   registeredPatients Patient[]
@@ -1173,6 +1174,8 @@ model DoctorFee {
   id              String    @id @default(cuid())
   tenantId        String    @map("tenant_id")
   doctorProfileId String    @map("doctor_profile_id")
+  /// Step 9: null = the doctor's hospital-wide fee; a branch id = the fee in that branch only.
+  branchId        String?   @map("branch_id")
   visitType       VisitType @map("visit_type")
   amountPaise     Int       @map("amount_paise")
   effectiveFrom   DateTime  @map("effective_from") @db.Timestamptz(3)
@@ -1181,13 +1184,13 @@ model DoctorFee {
 
   hospital Hospital      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   doctor   DoctorProfile @relation(fields: [tenantId, doctorProfileId], references: [tenantId, id], onDelete: Restrict)
+  branch   Branch?       @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict)
   creator  User          @relation("DoctorFeeCreatedBy", fields: [tenantId, createdBy], references: [tenantId, id], onDelete: Restrict)
 
   billLines BillLine[]
 
   @@unique([tenantId, id])
-  @@unique([tenantId, doctorProfileId, visitType, effectiveFrom])
-  @@index([tenantId, doctorProfileId, visitType, effectiveFrom])
+  @@index([tenantId, doctorProfileId, visitType, effectiveFrom], map: "doctor_fees_lookup_idx")
   @@map("doctor_fees")
 }
 
@@ -1436,6 +1439,7 @@ model Bill {
   @@unique([tenantId, billNumber])
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId, branchId, billDate], map: "bills_branch_date_idx")
+  @@index([tenantId, visitId], map: "bills_visit_idx")
   @@map("bills")
 }
 

@@ -1,0 +1,1422 @@
+{
+  "info": {
+    "name": "Hospigo 7 reports and print templates",
+    "description": "Step 7 (API): the daily collection report (JSON and CSV, one branch and all branches), and print templates. BEFORE RUNNING: (1) npm run prisma:migrate -w @hospigo/api  (2) re-run the dev seed so Admin roles get the new report permission: NODE_ENV=development npm run prisma:seed -w @hospigo/api  (3) start the API on port 3000. Select the Hospigo Local environment (staffPassword and superadminPassword). Run collection. About 4 logins count against the login IP limit (20 per minute). The collection makes ONE paid visit and restores the receipt template to the default at the end.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0 Setup",
+      "item": [
+        {
+          "name": "1 Login Receptionist (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{receptionEmail}}\",\"password\":\"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('select the Hospigo Local environment: staffPassword and superadminPassword must be set', () => { pm.expect(pm.variables.get('staffPassword'), 'staffPassword').to.be.a('string').and.not.empty; pm.expect(pm.variables.get('superadminPassword'), 'superadminPassword').to.be.a('string').and.not.empty; });",
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has a token', () => pm.expect(j.accessToken).to.be.a('string'));",
+                  "pm.collectionVariables.set('rRecv', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 Login SuperAdmin (north, hospital-wide)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{superEmail}}\",\"password\":\"{{superadminPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has a token', () => pm.expect(j.accessToken).to.be.a('string'));",
+                  "pm.collectionVariables.set('rSuper', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3 Login SuperAdmin (south, another hospital)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-south-main\",\"email\":\"{{southSuperEmail}}\",\"password\":\"{{superadminPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has a token', () => pm.expect(j.accessToken).to.be.a('string'));",
+                  "pm.collectionVariables.set('rSouth', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3a Setup: remove any leftover branch-level receipt template (SuperAdmin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=branch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates",
+                "RECEIPT"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "branch"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 (nothing left at this level)', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3b Setup: remove any leftover hospital-level receipt template (SuperAdmin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=hospital",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates",
+                "RECEIPT"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "hospital"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 (nothing left at this level)', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1 Daily collection report",
+      "item": [
+        {
+          "name": "4 Report of today BEFORE (SuperAdmin, active branch)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/reports/daily-collection?date={{today}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "reports",
+                "daily-collection"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{today}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });",
+                  "pm.collectionVariables.set('today', today);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('a report with today, the time zone and one branch', () => { pm.expect(j.date).to.eql(pm.collectionVariables.get('today')); pm.expect(j.timezone).to.be.a('string'); pm.expect(j.combined).to.eql(false); pm.expect(j.branches).to.have.length(1); });",
+                  "pm.test('collected minus returned is the net', () => pm.expect(j.totals.netPaise).to.eql(j.totals.collectedPaise - j.totals.refundedPaise));",
+                  "pm.test('by mode, by doctor and by bill type each add up to the total', () => { for (const k of ['byMode','byDoctor','byBillType']) { pm.expect(j[k].reduce((s, r) => s + r.collectedPaise, 0), k).to.eql(j.totals.collectedPaise); pm.expect(j[k].reduce((s, r) => s + r.refundedPaise, 0), k).to.eql(j.totals.refundedPaise); } });",
+                  "pm.test('the ledger of the day agrees to the paise', () => pm.expect(j.ledger.matches).to.eql(true));",
+                  "pm.collectionVariables.set('rBeforeCollected', j.totals.collectedPaise);",
+                  "pm.collectionVariables.set('rBeforePayments', j.totals.payments);",
+                  "pm.collectionVariables.set('rBeforeVisits', j.counts.visits);",
+                  "const cash = j.byMode.find(m => m.key === 'CASH'); pm.collectionVariables.set('rBeforeCash', cash ? cash.collectedPaise : 0);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5 Receptionist cannot read the report (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/reports/daily-collection?date={{today}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "reports",
+                "daily-collection"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{today}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6 No token = 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/opd/reports/daily-collection?date={{today}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "reports",
+                "daily-collection"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{today}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7 Pick Doctor North 2",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().items.find(x => x.name === 'Doctor North 2');",
+                  "pm.test('Doctor North 2 is available', () => { pm.expect(d).to.exist; pm.expect(d.available).to.eql(true); });",
+                  "pm.collectionVariables.set('rDoc', d.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8 Register a patient",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"{{rName}}\",\"ageYears\":33,\"phone\":\"{{rPhone}}\",\"confirmDuplicate\":true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const n = Date.now() % 1000000000;",
+                  "pm.collectionVariables.set('rName', 'Pm7 Patient ' + n);",
+                  "pm.collectionVariables.set('rPhone', '9' + String(n).padStart(9, '0'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "pm.collectionVariables.set('rPatient', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9 Reception takes cash for a visit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{rPatient}}\",\"doctorProfileId\":\"{{rDoc}}\",\"visitType\":\"NEW\",\"idempotencyKey\":\"{{rKey}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('rKey', 'PM7-V-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "const j = pm.response.json();",
+                  "pm.test('paid and waiting', () => { pm.expect(j.status).to.eql('WAITING'); pm.expect(j.bill.paymentStatus).to.eql('PAID'); });",
+                  "pm.collectionVariables.set('rVisitTotal', j.bill.totalPaise);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Report AFTER: exactly that money more, one more visit, still agrees with the ledger",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/reports/daily-collection?date={{today}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "reports",
+                "daily-collection"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{today}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "const total = parseInt(pm.collectionVariables.get('rVisitTotal'));",
+                  "pm.test('collected grew by exactly the visit total', () => pm.expect(j.totals.collectedPaise).to.eql(parseInt(pm.collectionVariables.get('rBeforeCollected')) + total));",
+                  "pm.test('one more payment and one more visit', () => { pm.expect(j.totals.payments).to.eql(parseInt(pm.collectionVariables.get('rBeforePayments')) + 1); pm.expect(j.counts.visits).to.eql(parseInt(pm.collectionVariables.get('rBeforeVisits')) + 1); });",
+                  "const cash = j.byMode.find(m => m.key === 'CASH');",
+                  "pm.test('the cash line grew by the visit total', () => pm.expect(cash.collectedPaise).to.eql(parseInt(pm.collectionVariables.get('rBeforeCash')) + total));",
+                  "pm.test('the ledger still agrees', () => pm.expect(j.ledger.matches).to.eql(true));",
+                  "pm.test('no patient data in the report', () => pm.expect(JSON.stringify(j)).to.not.include(pm.collectionVariables.get('rName')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 Bad dates are refused (400): not a date, before the product, tomorrow",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/reports/daily-collection?date=2026-02-30",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "reports",
+                "daily-collection"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2026-02-30"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 for 2026-02-30', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 A date before 2020 (400)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/reports/daily-collection?date=2019-12-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "reports",
+                "daily-collection"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2019-12-31"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 A day that has not started yet (400)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/reports/daily-collection?date={{tomorrow}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "reports",
+                "daily-collection"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{tomorrow}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const t = new Date(Date.now() + 36 * 3600 * 1000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });",
+                  "const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });",
+                  "pm.collectionVariables.set('tomorrow', t > today ? t : new Date(Date.now() + 60 * 3600 * 1000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "pm.test('REPORT_DATE_INVALID', () => pm.expect(pm.response.json().code).to.eql('REPORT_DATE_INVALID'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 A branch id the person may not report on is refused (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/reports/daily-collection?date={{today}}&branch=EVIL",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "reports",
+                "daily-collection"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{today}}"
+                },
+                {
+                  "key": "branch",
+                  "value": "EVIL"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403: not a branch this person may report on (deny by default)', () => pm.response.to.have.status(403));",
+                  "pm.test('code', () => pm.expect(pm.response.json().code).to.eql('REPORT_SCOPE_FORBIDDEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 All branches (hospital-wide SuperAdmin): every branch listed, a row per active branch",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/reports/daily-collection?date={{today}}&branch=ALL",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "reports",
+                "daily-collection"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{today}}"
+                },
+                {
+                  "key": "branch",
+                  "value": "ALL"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('combined, with every branch of the hospital', () => { pm.expect(j.combined).to.eql(true); pm.expect(j.branches.length).to.be.above(1); pm.expect(j.byBranch.length).to.be.at.least(1); pm.expect(j.byBranch.length).to.be.at.most(j.branches.length); });",
+                  "pm.test('the branch rows add up to the total', () => pm.expect(j.byBranch.reduce((s, r) => s + r.collectedPaise, 0)).to.eql(j.totals.collectedPaise));",
+                  "pm.test('combined is at least what this branch collected', () => pm.expect(j.totals.collectedPaise).to.be.at.least(parseInt(pm.collectionVariables.get('rBeforeCollected')) + parseInt(pm.collectionVariables.get('rVisitTotal'))));",
+                  "pm.test('the ledger agrees', () => pm.expect(j.ledger.matches).to.eql(true));",
+                  "pm.collectionVariables.set('rNorthBranchIds', JSON.stringify(j.branches.map(b => b.id)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 Another hospital: its own branches only, none of ours",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSouth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/reports/daily-collection?date={{today}}&branch=ALL",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "reports",
+                "daily-collection"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{today}}"
+                },
+                {
+                  "key": "branch",
+                  "value": "ALL"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('none of the north branches is in this report', () => { const north = JSON.parse(pm.collectionVariables.get('rNorthBranchIds')); pm.expect(j.branches.length).to.be.above(0); pm.expect(j.branches.map(b => b.id).filter(id => north.includes(id))).to.eql([]); });",
+                  "pm.test('it is its own hospital: combined, ledger agrees', () => { pm.expect(j.combined).to.eql(true); pm.expect(j.ledger.matches).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 CSV download: a file Excel can open",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/reports/daily-collection.csv?date={{today}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "reports",
+                "daily-collection.csv"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{today}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('csv type and file name', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('text/csv'); pm.expect(pm.response.headers.get('Content-Disposition')).to.include('collection-' + pm.collectionVariables.get('today') + '.csv'); });",
+                  "const text = pm.response.text();",
+                  "pm.test('starts with the Excel mark and the header row', () => { const raw = pm.response.stream; pm.expect([raw[0], raw[1], raw[2]]).to.eql([0xEF, 0xBB, 0xBF]); pm.expect(text).to.include('date,branches,section,key,name,payments,refunds,collected_rupees,refunded_rupees,net_rupees,visits'); });",
+                  "pm.test('has a TOTAL row and MODE rows', () => { pm.expect(text).to.include(',TOTAL,total,Total,'); pm.expect(text).to.include(',MODE,CASH,'); });",
+                  "pm.test('no patient data in the file', () => pm.expect(text).to.not.include(pm.collectionVariables.get('rName')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "18 CSV: Receptionist cannot download it (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/reports/daily-collection.csv?date={{today}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "reports",
+                "daily-collection.csv"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{today}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 Print templates",
+      "item": [
+        {
+          "name": "19 Start clean: back to the default (SuperAdmin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=hospital",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates",
+                "RECEIPT"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "hospital"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('default A5', () => { const j = pm.response.json(); pm.expect(j.source).to.eql('DEFAULT'); pm.expect(j.paper).to.eql('A5'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "20 Reception can READ the templates (to print)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('the three documents, and the receipt is back on its built-in default', () => { pm.expect(j.items.map(i => i.docType)).to.eql(['REGISTRATION_SLIP','RECEIPT','PRESCRIPTION']); pm.expect(j.items.find(i => i.docType === 'RECEIPT').source).to.eql('DEFAULT'); });",
+                  "pm.test('the real page size is given', () => { const r = j.items.find(i => i.docType === 'RECEIPT'); pm.expect(r.pageWidthMm).to.eql(148); pm.expect(r.pageHeightMm).to.eql(210); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "21 The built-in presets (SuperAdmin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates/presets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates",
+                "presets"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('four presets', () => pm.expect(pm.response.json().items.map(i => i.key)).to.eql(['A4_FULL','A5_FULL','LABEL_SLIP','PREPRINTED_BILL']));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "22 Reception cannot read the presets or change a template (403)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates/RECEIPT",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates",
+                "RECEIPT"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"enabled\": true, \"preset\": null, \"paper\": \"CUSTOM\", \"widthMm\": 240, \"heightMm\": 140, \"orientation\": \"LANDSCAPE\", \"margins\": {\"topMm\": 0, \"rightMm\": 0, \"bottomMm\": 0, \"leftMm\": 0}, \"mode\": \"PREPRINTED\", \"layout\": {\"version\": 1, \"fontSizePt\": 10, \"headerText\": \"Postman test\", \"footerText\": \"\", \"showLogo\": false, \"fields\": {\"billNumber\": true, \"receiptNumber\": true, \"token\": true, \"patientName\": true, \"uhid\": true, \"doctorName\": true, \"visitDate\": true, \"branchName\": true, \"lines\": true, \"total\": true, \"paid\": true, \"refunded\": true, \"paymentModes\": true, \"referenceNo\": true}, \"offset\": {\"xMm\": 1.5, \"yMm\": -1}, \"positions\": {\"billNumber\": {\"xMm\": 20, \"yMm\": 30}, \"total\": {\"xMm\": 200, \"yMm\": 120}}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "23 SuperAdmin saves a pre-printed receipt on 240 x 140 mm stationery",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=hospital",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates",
+                "RECEIPT"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "hospital"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"enabled\": true, \"preset\": null, \"paper\": \"CUSTOM\", \"widthMm\": 240, \"heightMm\": 140, \"orientation\": \"LANDSCAPE\", \"margins\": {\"topMm\": 0, \"rightMm\": 0, \"bottomMm\": 0, \"leftMm\": 0}, \"mode\": \"PREPRINTED\", \"layout\": {\"version\": 1, \"fontSizePt\": 10, \"headerText\": \"Postman test\", \"footerText\": \"\", \"showLogo\": false, \"fields\": {\"billNumber\": true, \"receiptNumber\": true, \"token\": true, \"patientName\": true, \"uhid\": true, \"doctorName\": true, \"visitDate\": true, \"branchName\": true, \"lines\": true, \"total\": true, \"paid\": true, \"refunded\": true, \"paymentModes\": true, \"referenceNo\": true}, \"offset\": {\"xMm\": 1.5, \"yMm\": -1}, \"positions\": {\"billNumber\": {\"xMm\": 20, \"yMm\": 30}, \"total\": {\"xMm\": 200, \"yMm\": 120}}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('saved as custom, with the page size and the nudge', () => { pm.expect(j.source).to.eql('CUSTOM'); pm.expect(j.pageWidthMm).to.eql(240); pm.expect(j.pageHeightMm).to.eql(140); pm.expect(j.mode).to.eql('PREPRINTED'); pm.expect(j.layout.offset).to.eql({ xMm: 1.5, yMm: -1 }); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "24 Reception now reads the saved template",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates/RECEIPT",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates",
+                "RECEIPT"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('custom, pre-printed', () => { const j = pm.response.json(); pm.expect(j.source).to.eql('CUSTOM'); pm.expect(j.mode).to.eql('PREPRINTED'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "25 A bad template is refused with the field and the reason (400)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates/RECEIPT",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates",
+                "RECEIPT"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"enabled\": true, \"preset\": null, \"paper\": \"CUSTOM\", \"widthMm\": 240, \"heightMm\": 140, \"orientation\": \"LANDSCAPE\", \"margins\": {\"topMm\": 99, \"rightMm\": 99, \"bottomMm\": 99, \"leftMm\": 99}, \"mode\": \"PREPRINTED\", \"layout\": {\"version\": 1, \"fontSizePt\": 10, \"headerText\": \"Postman test\", \"footerText\": \"\", \"showLogo\": false, \"fields\": {\"billNumber\": true, \"receiptNumber\": true, \"token\": true, \"patientName\": true, \"uhid\": true, \"doctorName\": true, \"visitDate\": true, \"branchName\": true, \"lines\": true, \"total\": true, \"paid\": true, \"refunded\": true, \"paymentModes\": true, \"referenceNo\": true}, \"offset\": {\"xMm\": 1.5, \"yMm\": -1}, \"positions\": {\"billNumber\": {\"xMm\": 20, \"yMm\": 30}, \"total\": {\"xMm\": 200, \"yMm\": 120}}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "pm.test('PRINT_TEMPLATE_INVALID with the field', () => { const j = pm.response.json(); pm.expect(j.code).to.eql('PRINT_TEMPLATE_INVALID'); pm.expect(j.field).to.eql('margins'); pm.expect(j.reason).to.be.oneOf(['NO_ROOM_TO_PRINT_DOWN', 'NO_ROOM_TO_PRINT_ACROSS']); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "26 An unknown field is refused (400)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates/RECEIPT",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates",
+                "RECEIPT"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"enabled\": true, \"preset\": null, \"paper\": \"CUSTOM\", \"widthMm\": 240, \"heightMm\": 140, \"orientation\": \"LANDSCAPE\", \"margins\": {\"topMm\": 0, \"rightMm\": 0, \"bottomMm\": 0, \"leftMm\": 0}, \"mode\": \"PREPRINTED\", \"layout\": {\"version\": 1, \"fontSizePt\": 10, \"headerText\": \"Postman test\", \"footerText\": \"\", \"showLogo\": false, \"fields\": {\"billNumber\": true, \"receiptNumber\": true, \"token\": true, \"patientName\": true, \"uhid\": true, \"doctorName\": true, \"visitDate\": true, \"branchName\": true, \"lines\": true, \"total\": true, \"paid\": true, \"refunded\": true, \"paymentModes\": true, \"referenceNo\": true}, \"offset\": {\"xMm\": 1.5, \"yMm\": -1}, \"positions\": {\"billNumber\": {\"xMm\": 20, \"yMm\": 30}, \"total\": {\"xMm\": 200, \"yMm\": 120}}}, \"tenantId\": \"x\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "27 An unknown document type is refused (400)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates/receipt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates",
+                "receipt"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "pm.test('PRINT_DOC_TYPE_INVALID', () => pm.expect(pm.response.json().code).to.eql('PRINT_DOC_TYPE_INVALID'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "28 Another hospital still has the default (hospitals are apart)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSouth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates/RECEIPT",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates",
+                "RECEIPT"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('south is untouched: default', () => pm.expect(pm.response.json().source).to.eql('DEFAULT'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "29 Go back to the default",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=hospital",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates",
+                "RECEIPT"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "hospital"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('default again', () => pm.expect(pm.response.json().source).to.eql('DEFAULT'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "30 No token = 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/print-templates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "print-templates"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:3000"
+    },
+    {
+      "key": "receptionEmail",
+      "value": "receptionist1@demo-north.example.test"
+    },
+    {
+      "key": "superEmail",
+      "value": "superadmin@demo-north.example.test"
+    },
+    {
+      "key": "southSuperEmail",
+      "value": "superadmin@demo-south.example.test"
+    }
+  ]
+}

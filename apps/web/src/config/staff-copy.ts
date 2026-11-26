@@ -2456,6 +2456,17 @@ export const staffCopy = {
     followUpNote:
       'Until a separate follow-up fee is set, a follow-up visit costs the new-visit fee. Once you set one, it no longer follows later changes to the new-visit fee. To go back to the same price, type the same amount as the new-visit fee.',
     historyFollowsBase: 'No separate follow-up fee yet: a follow-up visit costs the new-visit fee.',
+    scopeBranch: 'This branch',
+    scopeHospital: 'Hospital-wide',
+    setBranchFee: 'Set fee for this branch',
+    setBranchTitle: 'Set the fee for this branch: {name}',
+    appliesToLabel: 'Applies to',
+    appliesToBranch: 'This branch only',
+    appliesToHospital: 'Whole hospital (branches without their own fee)',
+    scopeNote:
+      'A fee set for this branch is used in this branch instead of the hospital-wide fee, even if the hospital-wide fee changes later. Other branches are not changed. Nothing is deleted: every change is a new version.',
+    branchShown:
+      'Doctor fees shown for this branch: {branch}. Tests and the registration fee are the same in every branch.',
     history: 'History',
     changeTitle: 'Change price: {name}',
     setTitle: 'Set the first price: {name}',
@@ -2485,6 +2496,8 @@ export const staffCopy = {
     errors: {
       invalidAmount: 'Type the price in rupees, for example 300 or 300.50.',
       notFound: 'That item was not found. Reload the page and try again.',
+      scopeForbidden:
+        'You can set the fee of your own branch only. The hospital-wide fee is set by a hospital-wide Admin.',
       fallback: 'The price could not be saved. Check the amount and the date and try again.',
       reasons: {
         DATE_INVALID: 'That is not a real date.',
@@ -2494,6 +2507,8 @@ export const staffCopy = {
           'A price that starts later is already scheduled. Choose a date after it.',
         VERSION_EXISTS: 'A price already starts on that date. Choose another date.',
         ITEM_INACTIVE: 'This item is switched off, so its price cannot be changed.',
+        BRANCH_NOT_FOUND: 'That branch was not found. Reload the page and try again.',
+        DOCTOR_NOT_IN_BRANCH: 'This doctor does not work in this branch.',
       } as Record<string, string>,
     },
   },
@@ -2511,7 +2526,7 @@ export const staffCopy = {
     typeHints: {
       TESTS: 'Columns: Code, Name, Price. Start date and Active are optional.',
       DOCTOR_FEES:
-        'Columns: Doctor code, Visit type (NEW or FOLLOW_UP), Fee. Start date is optional. Every doctor needs a NEW row (or one already saved). A FOLLOW_UP row is optional: without it a follow-up costs the new-visit fee.',
+        'Columns: Doctor code, Visit type (NEW or FOLLOW_UP), Fee. Start date and Branch code are optional. Leave Branch code empty for the hospital-wide fee of the doctor, or type a branch code for the fee of that branch only (a Branch Admin may use only the code of their own branch). Every doctor needs a NEW row (or one already saved). A FOLLOW_UP row is optional: without it a follow-up costs the new-visit fee.',
       MEDICINES: 'Columns: Code, Name. Composition, Form and Active are optional.',
     } as Record<string, string>,
     sample: 'Download the sample file',
@@ -2555,6 +2570,7 @@ export const staffCopy = {
       active: 'Active',
       doctorCode: 'Doctor code',
       visitType: 'Visit type',
+      branchCode: 'Branch code',
       amount: 'Fee',
       composition: 'Composition',
       form: 'Form',
@@ -2581,6 +2597,10 @@ export const staffCopy = {
       DOCTOR_NOT_FOUND: 'No doctor of this hospital has that code.',
       DOCTOR_INACTIVE: 'This doctor is switched off.',
       VISIT_TYPE_INVALID: 'The visit type must be NEW or FOLLOW_UP.',
+      BRANCH_NOT_FOUND: 'No branch of this hospital has that code.',
+      BRANCH_SCOPE_FORBIDDEN:
+        'You may set fees for your own branch only. Type the code of your branch (an empty code means the hospital-wide fee, which a hospital-wide Admin sets).',
+      DOCTOR_NOT_IN_BRANCH: 'This doctor does not work in that branch.',
       FORMULA_NOT_ALLOWED: 'The cell holds a formula. Type the value instead.',
       CELL_ERROR: 'The cell holds an error.',
       ACTIVE_INVALID: 'Active must be Yes or No.',

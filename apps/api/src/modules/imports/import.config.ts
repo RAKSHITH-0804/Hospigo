@@ -115,6 +115,14 @@ export const IMPORT_COLUMNS: Record<ImportTypeCode, readonly ColumnDef[]> = {
       required: false,
       example: '',
     },
+    {
+      // Step 9: blank = the doctor's hospital-wide fee; a branch code = the fee in that branch only.
+      key: 'branchCode',
+      header: 'Branch code',
+      aliases: ['branchcode', 'branch'],
+      required: false,
+      example: '',
+    },
   ],
   MEDICINES: [
     {
@@ -162,8 +170,8 @@ export const IMPORT_SAMPLE_ROWS: Record<
 > = {
   TESTS: [{ code: 'CBC', name: 'Complete blood count', price: 350, startDate: '', active: 'Yes' }],
   DOCTOR_FEES: [
-    { doctorCode: 'DR001', visitType: 'NEW', amount: 500, startDate: '' },
-    { doctorCode: 'DR001', visitType: 'FOLLOW_UP', amount: 300, startDate: '' },
+    { doctorCode: 'DR001', visitType: 'NEW', amount: 500, startDate: '', branchCode: '' },
+    { doctorCode: 'DR001', visitType: 'FOLLOW_UP', amount: 300, startDate: '', branchCode: '' },
   ],
   MEDICINES: [
     {

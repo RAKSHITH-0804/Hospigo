@@ -1,0 +1,3115 @@
+{
+  "info": {
+    "name": "Hospigo 6a investigations bill, refunds and cancelling",
+    "description": "Step 6a (API): tests ordered by the doctor, the investigations bill, refund requests, Admin approval and cancelling a waiting visit. BEFORE RUNNING: (1) npm run prisma:migrate -w @hospigo/api  (2) re-run the dev seed so the roles get the new permissions: NODE_ENV=development npm run prisma:seed -w @hospigo/api  (3) start the API on port 3000. Select the Hospigo Local environment (staffPassword and superadminPassword). Then Run collection. About 5 logins count against the login IP limit (20 per minute). Every request has checks; all of them should be green. Re-running creates new patients and visits.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0 Setup",
+      "item": [
+        {
+          "name": "1 Login Receptionist (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{receptionEmail}}\",\"password\":\"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('select the Hospigo Local environment: staffPassword and superadminPassword must be set', () => { pm.expect(pm.variables.get('staffPassword'), 'staffPassword').to.be.a('string').and.not.empty; pm.expect(pm.variables.get('superadminPassword'), 'superadminPassword').to.be.a('string').and.not.empty; });",
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has tokens', () => { pm.expect(j.accessToken).to.be.a('string'); });",
+                  "pm.collectionVariables.set('pRecv', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 Login Doctor 2 (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{doctorEmail}}\",\"password\":\"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has tokens', () => { pm.expect(j.accessToken).to.be.a('string'); });",
+                  "pm.collectionVariables.set('pDoc', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3 Login Nurse (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{nurseEmail}}\",\"password\":\"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has tokens', () => { pm.expect(j.accessToken).to.be.a('string'); });",
+                  "pm.collectionVariables.set('pNurse', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4 Login SuperAdmin (north main): decides refunds",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{superEmail}}\",\"password\":\"{{superadminPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has tokens', () => { pm.expect(j.accessToken).to.be.a('string'); });",
+                  "pm.collectionVariables.set('pSuper', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5 Login South Receptionist (other hospital)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-south-main\",\"email\":\"{{southReceptionEmail}}\",\"password\":\"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has tokens', () => { pm.expect(j.accessToken).to.be.a('string'); });",
+                  "pm.collectionVariables.set('pSouth', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1 Doctor orders tests, reception bills them",
+      "item": [
+        {
+          "name": "6 Pick Doctor North 2",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().items.find(x => x.name === 'Doctor North 2');",
+                  "pm.test('Doctor North 2 exists and is available', () => { pm.expect(d).to.exist; pm.expect(d.available).to.eql(true); });",
+                  "pm.collectionVariables.set('pDocProfile', d.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7 Register patient A",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"{{pName}}\",\"ageYears\":35,\"phone\":\"{{pPhone}}\",\"confirmDuplicate\":true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const n = Date.now() % 1000000000;",
+                  "pm.collectionVariables.set('pName', 'Pm6a Patient ' + n);",
+                  "pm.collectionVariables.set('pPhone', '9' + String(n).padStart(9, '0'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "pm.collectionVariables.set('pPatient', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8 Reception takes payment: visit 1",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{pPatient}}\",\"doctorProfileId\":\"{{pDocProfile}}\",\"visitType\":\"NEW\",\"idempotencyKey\":\"{{kVisit1}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('kVisit1', 'PM6A-kVisit1-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "const j = pm.response.json();",
+                  "pm.test('paid visit is WAITING with a token and a paid consultation bill', () => { pm.expect(j.status).to.eql('WAITING'); pm.expect(j.token).to.be.an('object'); pm.expect(j.bill.paymentStatus).to.eql('PAID'); pm.expect(j.bill.totalPaise).to.be.above(0); });",
+                  "pm.collectionVariables.set('pVisit1', j.id);",
+                  "pm.collectionVariables.set('pBill1', j.bill.id);",
+                  "pm.collectionVariables.set('pBill1_total', j.bill.totalPaise);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9 Doctor searches the tests list (no prices)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/investigations/tests?q=Mock&limit=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "investigations",
+                "tests"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "Mock"
+                },
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().items;",
+                  "pm.test('at least two active tests', () => pm.expect(items.length).to.be.at.least(2));",
+                  "pm.test('no price is sent to the doctor', () => pm.expect(JSON.stringify(items)).to.not.match(/price|paise/i));",
+                  "pm.collectionVariables.set('pTestA', items[0].id);",
+                  "pm.collectionVariables.set('pTestB', items[1].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Ordering before the consultation starts is refused (409)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{pVisit1}}/investigations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{pVisit1}}",
+                "investigations"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"chargeItemIds\":[\"{{pTestA}}\"]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409', () => pm.response.to.have.status(409));",
+                  "pm.test('VISIT_NOT_IN_CONSULTATION', () => pm.expect(pm.response.json().code).to.eql('VISIT_NOT_IN_CONSULTATION'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 Doctor 2 starts visit 1",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{pVisit1}}/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{pVisit1}}",
+                "start"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('in consultation', () => pm.expect(pm.response.json().visit.status).to.eql('IN_CONSULTATION'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 The nurse cannot order tests (403)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pNurse}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{pVisit1}}/investigations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{pVisit1}}",
+                "investigations"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"chargeItemIds\":[\"{{pTestA}}\"]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 Reception cannot order tests (403)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{pVisit1}}/investigations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{pVisit1}}",
+                "investigations"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"chargeItemIds\":[\"{{pTestA}}\"]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 Doctor 2 orders two tests",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{pVisit1}}/investigations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{pVisit1}}",
+                "investigations"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"chargeItemIds\":[\"{{pTestA}}\",\"{{pTestB}}\"]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const o = pm.response.json().orders;",
+                  "pm.test('two tests, both ORDERED', () => { pm.expect(o).to.have.length(2); pm.expect(o.every(x => x.status === 'ORDERED')).to.eql(true); });",
+                  "pm.collectionVariables.set('pOrder1', o[0].id);",
+                  "pm.collectionVariables.set('pOrder2', o[1].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 The same test twice in one list is refused (400)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{pVisit1}}/investigations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{pVisit1}}",
+                "investigations"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"chargeItemIds\":[\"{{pTestA}}\",\"{{pTestA}}\"]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "pm.test('TEST_DUPLICATE', () => pm.expect(pm.response.json().code).to.eql('TEST_DUPLICATE'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 Reception sees the pending tests with current prices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/investigations/pending",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "investigations",
+                "pending"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const row = pm.response.json().items.find(i => i.visitId === pm.collectionVariables.get('pVisit1'));",
+                  "pm.test('the visit is on the list with two priced tests', () => { pm.expect(row).to.exist; pm.expect(row.orders).to.have.length(2); pm.expect(row.orders.every(o => o.pricePaise > 0)).to.eql(true); });",
+                  "pm.test('the total is the sum of the prices', () => pm.expect(row.totalPaise).to.eql(row.orders[0].pricePaise + row.orders[1].pricePaise));",
+                  "pm.collectionVariables.set('pTestsTotal', row.totalPaise);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 The nurse cannot see the pending tests (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pNurse}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/investigations/pending",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "investigations",
+                "pending"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "18 A changed total is refused: 409 PRICE_CHANGED, nothing charged",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{pVisit1}}/investigation-bills",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{pVisit1}}",
+                "investigation-bills"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"idempotencyKey\":\"{{kTests}}\",\"orderIds\":[\"{{pOrder1}}\",\"{{pOrder2}}\"],\"expectedTotalPaise\":1}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('kTests', 'PM6A-kTests-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409', () => pm.response.to.have.status(409));",
+                  "pm.test('PRICE_CHANGED', () => pm.expect(pm.response.json().code).to.eql('PRICE_CHANGED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "19 The doctor cannot bill (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{pVisit1}}/investigation-bills",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{pVisit1}}",
+                "investigation-bills"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"idempotencyKey\":\"{{kTests}}\",\"orderIds\":[\"{{pOrder1}}\"]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "20 Reception bills both tests: cash + UPI, ONE receipt",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{pVisit1}}/investigation-bills",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{pVisit1}}",
+                "investigation-bills"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"idempotencyKey\":\"{{kTests}}\",\"orderIds\":[\"{{pOrder1}}\",\"{{pOrder2}}\"],\"expectedTotalPaise\":{{pTestsTotal}},\"payments\":[{\"paymentModeCode\":\"CASH\",\"amountPaise\":30000},{\"paymentModeCode\":\"UPI\",\"amountPaise\":{{pTestsUpi}},\"referenceNo\":\"PM6A-UPI-1\"}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const t = parseInt(pm.collectionVariables.get('pTestsTotal'));",
+                  "pm.collectionVariables.set('pTestsUpi', t - 30000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.test('an investigations bill, paid in full', () => { pm.expect(j.bill.billType).to.eql('INVESTIGATION'); pm.expect(j.bill.paymentStatus).to.eql('PAID'); pm.expect(j.bill.totalPaise).to.eql(parseInt(pm.collectionVariables.get('pTestsTotal'))); });",
+                  "pm.test('two test lines, ONE receipt, two payments', () => { pm.expect(j.bill.lines).to.have.length(2); pm.expect(j.bill.receipts).to.have.length(1); pm.expect(j.bill.payments).to.have.length(2); });",
+                  "pm.test('both orders are BILLED', () => pm.expect(j.orders.every(o => o.status === 'BILLED')).to.eql(true));",
+                  "pm.collectionVariables.set('pTestsBill', j.bill.id);",
+                  "pm.collectionVariables.set('pTestsBillNumber', j.bill.billNumber);",
+                  "pm.collectionVariables.set('pReceiptNumber', j.bill.receipts[0].receiptNumber);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "21 The same key again returns the same bill (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{pVisit1}}/investigation-bills",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{pVisit1}}",
+                "investigation-bills"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"idempotencyKey\":\"{{kTests}}\",\"orderIds\":[\"{{pOrder1}}\",\"{{pOrder2}}\"],\"payments\":[{\"paymentModeCode\":\"CASH\",\"amountPaise\":30000},{\"paymentModeCode\":\"UPI\",\"amountPaise\":{{pTestsUpi}},\"referenceNo\":\"PM6A-UPI-1\"}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('replayed: same bill and receipt', () => { pm.expect(j.replayed).to.eql(true); pm.expect(j.bill.id).to.eql(pm.collectionVariables.get('pTestsBill')); pm.expect(j.bill.receipts[0].receiptNumber).to.eql(pm.collectionVariables.get('pReceiptNumber')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "22 The same key for something else is refused (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{pVisit1}}/investigation-bills",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{pVisit1}}",
+                "investigation-bills"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"idempotencyKey\":\"{{kTests}}\",\"orderIds\":[\"{{pOrder1}}\"]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409', () => pm.response.to.have.status(409));",
+                  "pm.test('IDEMPOTENCY_KEY_REUSED', () => pm.expect(pm.response.json().code).to.eql('IDEMPOTENCY_KEY_REUSED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "23 A billed test cannot be billed again (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{pVisit1}}/investigation-bills",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{pVisit1}}",
+                "investigation-bills"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"idempotencyKey\":\"{{kAgain}}\",\"orderIds\":[\"{{pOrder1}}\"]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('kAgain', 'PM6A-kAgain-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409', () => pm.response.to.have.status(409));",
+                  "pm.test('ORDERS_NOT_AVAILABLE', () => pm.expect(pm.response.json().code).to.eql('ORDERS_NOT_AVAILABLE'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "24 The doctor cannot change a billed test list (the billed tests stay)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{pVisit1}}/investigations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{pVisit1}}",
+                "investigations"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"chargeItemIds\":[]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('both tests are still there, BILLED', () => { const o = pm.response.json().orders; pm.expect(o).to.have.length(2); pm.expect(o.every(x => x.status === 'BILLED')).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "25 Reception sees the tests and the investigations bill",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{pVisit1}}/investigations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{pVisit1}}",
+                "investigations"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('one investigations bill with its receipt', () => { pm.expect(j.bills).to.have.length(1); pm.expect(j.bills[0].billNumber).to.eql(pm.collectionVariables.get('pTestsBillNumber')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "26 The doctor sees the tests but never money",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{pVisit1}}/investigations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{pVisit1}}",
+                "investigations"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('orders yes, bills no', () => { const j = pm.response.json(); pm.expect(j.orders).to.have.length(2); pm.expect(j.bills).to.be.undefined; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "27 Another hospital's receptionist cannot see this visit (404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pSouth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{pVisit1}}/investigations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{pVisit1}}",
+                "investigations"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "28 No token = 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/opd/investigations/pending",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "investigations",
+                "pending"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 Refunds and cancelling a visit",
+      "item": [
+        {
+          "name": "29 Register patient B",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"{{pName}}\",\"ageYears\":35,\"phone\":\"{{pPhone}}\",\"confirmDuplicate\":true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const n = Date.now() % 1000000000;",
+                  "pm.collectionVariables.set('pName', 'Pm6a Patient ' + n);",
+                  "pm.collectionVariables.set('pPhone', '9' + String(n).padStart(9, '0'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "pm.collectionVariables.set('pPatient', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "30 Reception takes payment: visit 2 (will be refunded, then cancelled)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{pPatient}}\",\"doctorProfileId\":\"{{pDocProfile}}\",\"visitType\":\"NEW\",\"idempotencyKey\":\"{{kVisit2}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('kVisit2', 'PM6A-kVisit2-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "const j = pm.response.json();",
+                  "pm.test('paid visit is WAITING with a token and a paid consultation bill', () => { pm.expect(j.status).to.eql('WAITING'); pm.expect(j.token).to.be.an('object'); pm.expect(j.bill.paymentStatus).to.eql('PAID'); pm.expect(j.bill.totalPaise).to.be.above(0); });",
+                  "pm.collectionVariables.set('pVisit2', j.id);",
+                  "pm.collectionVariables.set('pBill2', j.bill.id);",
+                  "pm.collectionVariables.set('pBill2_total', j.bill.totalPaise);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "31 Receptionist asks for 100 rupees back (nothing moves yet)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/bills/{{pBill2}}/refund-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "bills",
+                "{{pBill2}}",
+                "refund-requests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"amountPaise\":10000,\"reason\":\"Postman: wrong bill\",\"idempotencyKey\":\"{{kRf1}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('kRf1', 'PM6A-kRf1-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json().request;",
+                  "pm.test('REQUESTED, 10000 paise, original bill unchanged', () => { pm.expect(r.status).to.eql('REQUESTED'); pm.expect(r.type).to.eql('REFUND'); pm.expect(r.amountPaise).to.eql(10000); pm.expect(r.bill.refundedPaise).to.eql(0); });",
+                  "pm.collectionVariables.set('pReq1', r.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "32 The same key returns the same request (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/bills/{{pBill2}}/refund-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "bills",
+                "{{pBill2}}",
+                "refund-requests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"amountPaise\":10000,\"reason\":\"Postman: wrong bill\",\"idempotencyKey\":\"{{kRf1}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('same request', () => { const j = pm.response.json(); pm.expect(j.replayed).to.eql(true); pm.expect(j.request.id).to.eql(pm.collectionVariables.get('pReq1')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "33 More than was paid is refused (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/bills/{{pBill2}}/refund-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "bills",
+                "{{pBill2}}",
+                "refund-requests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"amountPaise\":99999999,\"reason\":\"too much\",\"idempotencyKey\":\"{{kRf2}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('kRf2', 'PM6A-kRf2-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409', () => pm.response.to.have.status(409));",
+                  "pm.test('REFUND_EXCEEDS_REFUNDABLE', () => pm.expect(pm.response.json().code).to.eql('REFUND_EXCEEDS_REFUNDABLE'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "34 Zero or negative amounts are refused (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/bills/{{pBill2}}/refund-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "bills",
+                "{{pBill2}}",
+                "refund-requests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"amountPaise\":0,\"reason\":\"zero\",\"idempotencyKey\":\"{{kRf3}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('kRf3', 'PM6A-kRf3-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "35 The receptionist cannot approve her own request (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/refund-requests/{{pReq1}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "refund-requests",
+                "{{pReq1}}",
+                "approve"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "36 The SuperAdmin cannot ask for refunds (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/bills/{{pBill2}}/refund-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "bills",
+                "{{pBill2}}",
+                "refund-requests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"amountPaise\":100,\"reason\":\"x\",\"idempotencyKey\":\"{{kRf4}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('kRf4', 'PM6A-kRf4-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "37 The SuperAdmin lists the open requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/refund-requests?status=REQUESTED&pageSize=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "refund-requests"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "REQUESTED"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "100"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().items;",
+                  "pm.test('the request is on the list, all are REQUESTED', () => { pm.expect(items.every(i => i.status === 'REQUESTED')).to.eql(true); pm.expect(items.map(i => i.id)).to.include(pm.collectionVariables.get('pReq1')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "38 Another hospital cannot see the request (404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pSouth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/refund-requests/{{pReq1}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "refund-requests",
+                "{{pReq1}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "39 The SuperAdmin approves: refund in the original mode, voucher number issued",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/refund-requests/{{pReq1}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "refund-requests",
+                "{{pReq1}}",
+                "approve"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"note\":\"Postman ok\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json().request;",
+                  "pm.test('APPROVED with a voucher number', () => { pm.expect(r.status).to.eql('APPROVED'); pm.expect(r.refundNumber).to.be.a('string').and.not.empty; });",
+                  "pm.test('one refund of 10000 paise in CASH (the original mode)', () => { pm.expect(r.refunds).to.have.length(1); pm.expect(r.refunds[0].amountPaise).to.eql(10000); pm.expect(r.refunds[0].paymentMode.code).to.eql('CASH'); });",
+                  "pm.test('the bill shows the refund, the original amounts are unchanged', () => { pm.expect(r.bill.refundedPaise).to.eql(10000); pm.expect(r.bill.paidPaise).to.eql(r.bill.totalPaise); });",
+                  "pm.test('a refund alone does not cancel the visit', () => pm.expect(r.visit.status).to.eql('WAITING'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "40 Approving the same request again gives the same answer, money moves once",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/refund-requests/{{pReq1}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "refund-requests",
+                "{{pReq1}}",
+                "approve"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('replayed, still one refund', () => { const j = pm.response.json(); pm.expect(j.replayed).to.eql(true); pm.expect(j.request.refunds).to.have.length(1); pm.expect(j.request.bill.refundedPaise).to.eql(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "41 Reception asks to CANCEL visit 2 (default: all that is left)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{pVisit2}}/cancel-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{pVisit2}}",
+                "cancel-requests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"reason\":\"Postman: patient left\",\"idempotencyKey\":\"{{kCx1}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('kCx1', 'PM6A-kCx1-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json().request;",
+                  "const total = parseInt(pm.collectionVariables.get('pBill2_total'));",
+                  "pm.test('CANCEL_VISIT for what is still refundable', () => { pm.expect(r.type).to.eql('CANCEL_VISIT'); pm.expect(r.status).to.eql('REQUESTED'); pm.expect(r.amountPaise).to.eql(total - 10000); });",
+                  "pm.collectionVariables.set('pReqCancel', r.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "42 A second open cancellation is refused (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{pVisit2}}/cancel-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{pVisit2}}",
+                "cancel-requests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"reason\":\"again\",\"idempotencyKey\":\"{{kCx2}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('kCx2', 'PM6A-kCx2-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409', () => pm.response.to.have.status(409));",
+                  "pm.test('REFUND_REQUEST_OPEN', () => pm.expect(pm.response.json().code).to.eql('REFUND_REQUEST_OPEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "43 The visit is still waiting until the Admin decides",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{pVisit2}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{pVisit2}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('WAITING', () => pm.expect(pm.response.json().status).to.eql('WAITING'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "44 The SuperAdmin approves the cancellation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/refund-requests/{{pReqCancel}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "refund-requests",
+                "{{pReqCancel}}",
+                "approve"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json().request;",
+                  "pm.test('APPROVED, visit CANCELLED, the whole fee has been returned', () => { pm.expect(r.status).to.eql('APPROVED'); pm.expect(r.visit.status).to.eql('CANCELLED'); pm.expect(r.bill.refundedPaise).to.eql(r.bill.paidPaise); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "45 The cancelled visit is gone from the doctor queue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/queue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "queue"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('visit 2 is not in the queue', () => pm.expect(pm.response.json().items.map(i => i.id)).to.not.include(pm.collectionVariables.get('pVisit2')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "46 A cancelled visit cannot be started (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{pVisit2}}/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{pVisit2}}",
+                "start"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "47 Nothing more can be refunded on it (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/bills/{{pBill2}}/refund-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "bills",
+                "{{pBill2}}",
+                "refund-requests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"amountPaise\":1,\"reason\":\"more\",\"idempotencyKey\":\"{{kRf5}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('kRf5', 'PM6A-kRf5-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "48 Visit 1 is in consultation: its consultation fee can no longer be refunded (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/bills/{{pBill1}}/refund-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "bills",
+                "{{pBill1}}",
+                "refund-requests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"amountPaise\":1000,\"reason\":\"too late\",\"idempotencyKey\":\"{{kRf6}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('kRf6', 'PM6A-kRf6-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409', () => pm.response.to.have.status(409));",
+                  "pm.test('CONSULTATION_STARTED', () => pm.expect(pm.response.json().code).to.eql('CONSULTATION_STARTED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "49 ...and it cannot be cancelled either (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{pVisit1}}/cancel-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{pVisit1}}",
+                "cancel-requests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"reason\":\"too late\",\"idempotencyKey\":\"{{kCx3}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('kCx3', 'PM6A-kCx3-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "50 But the tests bill CAN be refunded after the consultation started (ask for all of it)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/bills/{{pTestsBill}}/refund-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "bills",
+                "{{pTestsBill}}",
+                "refund-requests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"amountPaise\":{{pTestsTotal}},\"reason\":\"Postman: tests not taken\",\"idempotencyKey\":\"{{kRf7}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('kRf7', 'PM6A-kRf7-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('pReqTests', pm.response.json().request.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "51 Approving without the UPI reference is refused (400): the UPI part needs one",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/refund-requests/{{pReqTests}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "refund-requests",
+                "{{pReqTests}}",
+                "approve"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "pm.test('REFERENCE_REQUIRED', () => pm.expect(pm.response.json().code).to.eql('REFERENCE_REQUIRED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "52 A reference that is not text is refused (400), not a crash",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/refund-requests/{{pReqTests}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "refund-requests",
+                "{{pReqTests}}",
+                "approve"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"references\":{\"UPI\":123}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "pm.test('REFERENCE_INVALID', () => pm.expect(pm.response.json().code).to.eql('REFERENCE_INVALID'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "53 With the reference it works: every payment gets its own money back",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/refund-requests/{{pReqTests}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "refund-requests",
+                "{{pReqTests}}",
+                "approve"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"references\":{\"UPI\":\"PM6A-RF-UPI-1\"}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json().request;",
+                  "const by = m => r.refunds.filter(x => x.paymentMode.code === m).reduce((s, x) => s + x.amountPaise, 0);",
+                  "pm.test('CASH 30000 back to cash, the rest back to UPI', () => { pm.expect(by('CASH')).to.eql(30000); pm.expect(by('UPI')).to.eql(parseInt(pm.collectionVariables.get('pTestsTotal')) - 30000); });",
+                  "pm.test('the whole tests bill is refunded; the receipt/bill amounts are unchanged', () => { pm.expect(r.bill.refundedPaise).to.eql(r.bill.paidPaise); pm.expect(r.bill.totalPaise).to.eql(parseInt(pm.collectionVariables.get('pTestsTotal'))); });",
+                  "pm.test('a voucher number was issued', () => pm.expect(r.refundNumber).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "54 Nothing is left to refund on the tests bill (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/bills/{{pTestsBill}}/refund-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "bills",
+                "{{pTestsBill}}",
+                "refund-requests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"amountPaise\":1,\"reason\":\"more\",\"idempotencyKey\":\"{{kRf8}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('kRf8', 'PM6A-kRf8-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "55 Register patient C",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"{{pName}}\",\"ageYears\":35,\"phone\":\"{{pPhone}}\",\"confirmDuplicate\":true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const n = Date.now() % 1000000000;",
+                  "pm.collectionVariables.set('pName', 'Pm6a Patient ' + n);",
+                  "pm.collectionVariables.set('pPhone', '9' + String(n).padStart(9, '0'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "pm.collectionVariables.set('pPatient', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "56 Reception takes payment: visit 3 (cancellation will be rejected)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{pPatient}}\",\"doctorProfileId\":\"{{pDocProfile}}\",\"visitType\":\"NEW\",\"idempotencyKey\":\"{{kVisit3}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('kVisit3', 'PM6A-kVisit3-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "const j = pm.response.json();",
+                  "pm.test('paid visit is WAITING with a token and a paid consultation bill', () => { pm.expect(j.status).to.eql('WAITING'); pm.expect(j.token).to.be.an('object'); pm.expect(j.bill.paymentStatus).to.eql('PAID'); pm.expect(j.bill.totalPaise).to.be.above(0); });",
+                  "pm.collectionVariables.set('pVisit3', j.id);",
+                  "pm.collectionVariables.set('pBill3', j.bill.id);",
+                  "pm.collectionVariables.set('pBill3_total', j.bill.totalPaise);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "57 Reception asks to cancel visit 3",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{pVisit3}}/cancel-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{pVisit3}}",
+                "cancel-requests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"reason\":\"Postman: maybe\",\"idempotencyKey\":\"{{kCx4}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('kCx4', 'PM6A-kCx4-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('pReqReject', pm.response.json().request.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "58 Rejecting needs a note (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/refund-requests/{{pReqReject}}/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "refund-requests",
+                "{{pReqReject}}",
+                "reject"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"note\":\"   \"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "pm.test('REASON_REQUIRED', () => pm.expect(pm.response.json().code).to.eql('REASON_REQUIRED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "59 The SuperAdmin rejects with a note",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/refund-requests/{{pReqReject}}/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "refund-requests",
+                "{{pReqReject}}",
+                "reject"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"note\":\"Patient is still here\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json().request;",
+                  "pm.test('REJECTED with the note, no voucher, no money moved', () => { pm.expect(r.status).to.eql('REJECTED'); pm.expect(r.decisionNote).to.eql('Patient is still here'); pm.expect(r.refundNumber).to.eql(null); pm.expect(r.refunds).to.have.length(0); pm.expect(r.bill.refundedPaise).to.eql(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "60 A rejected request cannot be approved afterwards (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/refund-requests/{{pReqReject}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "refund-requests",
+                "{{pReqReject}}",
+                "approve"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409', () => pm.response.to.have.status(409));",
+                  "pm.test('REQUEST_ALREADY_DECIDED', () => pm.expect(pm.response.json().code).to.eql('REQUEST_ALREADY_DECIDED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "61 Visit 3 is still waiting in the queue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pDoc}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/queue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "queue"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('visit 3 is still there', () => pm.expect(pm.response.json().items.map(i => i.id)).to.include(pm.collectionVariables.get('pVisit3')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "62 The closed request list shows approved and rejected ones",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/refund-requests?pageSize=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "refund-requests"
+              ],
+              "query": [
+                {
+                  "key": "pageSize",
+                  "value": "100"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const ids = pm.response.json().items.map(i => i.id);",
+                  "pm.test('all four requests of this run are listed', () => ['pReq1','pReqCancel','pReqTests','pReqReject'].forEach(k => pm.expect(ids).to.include(pm.collectionVariables.get(k))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "63 No token = 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/opd/refund-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "refund-requests"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:3000"
+    },
+    {
+      "key": "receptionEmail",
+      "value": "receptionist1@demo-north.example.test"
+    },
+    {
+      "key": "nurseEmail",
+      "value": "nurse1@demo-north.example.test"
+    },
+    {
+      "key": "doctorEmail",
+      "value": "doctor2@demo-north.example.test"
+    },
+    {
+      "key": "superEmail",
+      "value": "superadmin@demo-north.example.test"
+    },
+    {
+      "key": "southReceptionEmail",
+      "value": "receptionist1@demo-south.example.test"
+    }
+  ]
+}

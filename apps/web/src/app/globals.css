@@ -2352,13 +2352,19 @@
     }
 
     .rx-row {
+      /* Medicine on its own line, then Dose, Frequency and Duration side by side, then
+         Instructions across the three, with the remove button in the narrow last column. */
       grid-template-columns:
-        repeat(2, minmax(var(--size-rx-field), 1fr))
+        repeat(3, minmax(0, 1fr))
         var(--size-icon-button);
     }
 
     .rx-row > .rx-medicine {
       grid-column: 1 / -1;
+    }
+
+    .rx-row > :nth-child(5) {
+      grid-column: 1 / 4;
     }
   }
 
@@ -2368,13 +2374,19 @@
     }
 
     .rx-row {
+      /* Medicine on its own line, then Dose, Frequency and Duration side by side, then
+         Instructions across the three, with the remove button in the narrow last column. */
       grid-template-columns:
-        repeat(2, minmax(var(--size-rx-field), 1fr))
+        repeat(3, minmax(0, 1fr))
         var(--size-icon-button);
     }
 
     .rx-row > .rx-medicine {
       grid-column: 1 / -1;
+    }
+
+    .rx-row > :nth-child(5) {
+      grid-column: 1 / 4;
     }
   }
 
@@ -3317,11 +3329,14 @@
 
 .consult-card-fill .note-grid > * {
   min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
+/* The box grows to fill its row, so the note card has no empty band under the labels. */
 .consult-card-fill .note-grid textarea {
   min-height: var(--size-textarea-min);
-  height: 100%;
+  flex: 1 1 auto;
 }
 
 .consult-vitals-strip {
@@ -3355,6 +3370,14 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
+}
+
+/* Messages and the action buttons share one grid area: stack them instead of overlapping. */
+.consult-actions-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
 }
 
 .consult-footer {

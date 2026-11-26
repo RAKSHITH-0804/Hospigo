@@ -10,6 +10,7 @@ Start with the four living files in this folder. Everything else is grouped by w
 | [engineering-tracker.md](engineering-tracker.md) | Step table and status of every step                                      |
 | [project-context.md](project-context.md)         | What Hospigo is and every decision behind it                             |
 | [CHANGELOG.md](CHANGELOG.md)                     | One entry per step: what was added, changed, tested                      |
+| [exit-report-phase2.md](exit-report-phase2.md)   | Phase 2 exit report: built, deferred, known limits, go-live blockers     |
 
 ## Folders
 

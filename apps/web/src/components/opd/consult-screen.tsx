@@ -375,45 +375,47 @@ export function ConsultScreen({
           </>
         ) : null}
 
-        {actionError ? (
-          <p role="alert" className="type-label text-destructive consult-area-actions">
-            {actionError}
-          </p>
-        ) : null}
-
-        {editable && !initial.doctorDetails.registrationNo ? (
-          <p role="note" className="settings-reminder type-label consult-area-actions">
-            {staffCopy.doctorProfile.consultReminder}{' '}
-            <Link href="/app/profile" className="underline">
-              {staffCopy.doctorProfile.consultReminderLink}
-            </Link>
-          </p>
-        ) : null}
-
-        {editable ? (
-          <div className="consult-area-actions consult-actions">
-            <Button
-              type="button"
-              variant="outline"
-              className="touch-target"
-              disabled={completing || status.phase === 'saving'}
-              onClick={() => void autosave.saveNow()}
-            >
-              {copy.saveDraft}
-            </Button>
-            <Button
-              type="button"
-              className="touch-target"
-              disabled={completing}
-              onClick={() => void onComplete()}
-            >
-              {completing ? copy.completing : copy.complete}
-            </Button>
-            <p role="status" className="type-small text-muted-foreground">
-              {saveLine}
+        <div className="consult-area-actions consult-actions-block">
+          {actionError ? (
+            <p role="alert" className="type-label text-destructive">
+              {actionError}
             </p>
-          </div>
-        ) : null}
+          ) : null}
+
+          {editable && !initial.doctorDetails.registrationNo ? (
+            <p role="note" className="settings-reminder type-label">
+              {staffCopy.doctorProfile.consultReminder}{' '}
+              <Link href="/app/profile" className="underline">
+                {staffCopy.doctorProfile.consultReminderLink}
+              </Link>
+            </p>
+          ) : null}
+
+          {editable ? (
+            <div className="consult-actions">
+              <Button
+                type="button"
+                variant="outline"
+                className="touch-target"
+                disabled={completing || status.phase === 'saving'}
+                onClick={() => void autosave.saveNow()}
+              >
+                {copy.saveDraft}
+              </Button>
+              <Button
+                type="button"
+                className="touch-target"
+                disabled={completing}
+                onClick={() => void onComplete()}
+              >
+                {completing ? copy.completing : copy.complete}
+              </Button>
+              <p role="status" className="type-small text-muted-foreground">
+                {saveLine}
+              </p>
+            </div>
+          ) : null}
+        </div>
 
         <div className="consult-area-footer consult-footer">
           <div className="consult-footer-previous">{children}</div>

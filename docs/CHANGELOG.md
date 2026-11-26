@@ -29,6 +29,19 @@
 
 ## Unreleased
 
+## 2026-11-24 — Phase 2 Step 9 — OPD hardening and exit (branch `feature/step-9-hardening-exit`, not pushed)
+
+- **Commit hash(es):** see `git log` on the branch (one commit per item).
+- **Added:** per-branch doctor fees (a fee row may belong to one branch; branch beats hospital-wide; lookup in billing, the doctor list, the price list and history; change route with scope rules; Excel `Branch code` column; Prices screen: scope label, `Set fee for this branch`, `Applies to` choice); delete of the stored file of a cancelled or failed Excel batch; index on bills (tenant, visit); the 14 Postman collections in `postman/collections/` with a README; `docs/exit-report-phase2.md`; `docs/decisions/decisions-9.md`; the manual checklist now covers all of Phase 2.
+- **Changed:** the application login lost DELETE on `users`, hospitals, branches, roles, role permissions, assignments and branch links; a Branch Admin can no longer set a hospital-wide doctor fee (own-branch fees only); `.gitignore` and `.prettierignore` for the committed collections; the `CLAUDE.md` Postman rule.
+- **Removed:** nothing.
+- **Fixed:** doctor fees of other branches no longer mix into a branch's fee lookup; bills of one visit no longer scan the bills table (160 ms to 0.06 ms at 700k bills).
+- **Database (migrations, roles, RLS):** `20261128090000_revoke_users_delete`, `20261128100000_bills_visit_index`, `20261128110000_doctor_fee_branch` (nullable `branch_id` with a composite foreign key, unique key per doctor, type, scope and moment; triggers, grants and RLS unchanged). Applied to `hospigo_test` only.
+- **New .env keys (names only):** none.
+- **Tests:** API 1045 (was 1025), web 1795 (was 1790), browser smoke 19 (`npm run e2e`, not CI); lint, format check, both builds green.
+- **Decisions:** `docs/decisions/decisions-9.md` (per-branch fees supersede "fees stay per doctor"; 15-minute token window accepted; Branch Admin creating roles later).
+- **Follow-ups and open items:** a Branch Admin can still change the registration fee and test prices for every branch (decision needed); `pg_trgm` for name-fragment search; measure the visits tables on staging; merge the three Dependabot branches one at a time; browser smoke tests: Done: Playwright (`@playwright/test`, uses the installed Chrome) with `npm run e2e` (19 browser tests: 4 sign-ins, the main flow from registration to cancel and approval, branch switch, and a screen check at 1920, 1366x768 and 390 wide); all 19 pass on an isolated stack (API 3100, web 3101 on `hospigo_test`). Not CI. How to run: `docs/guides/e2e.md`. The screen check found and fixed three consultation-page layout bugs (action buttons overlapped the reminder, the Duration field was squeezed to the icon column, the note boxes left an empty band). Not yet run against the dev servers (the dev database needs the three new migrations first).
+
 ## 2026-11-24 — Phase 2 Step 8c-final (prices by branch, leave behaviour, notes)
 
 - **Commit hash(es):** unverified (not committed yet; branch `feature/step-8c-ui-fixes` after `e2d542c`).

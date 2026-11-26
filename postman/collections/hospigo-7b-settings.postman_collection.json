@@ -1,0 +1,2059 @@
+{
+  "info": {
+    "name": "Hospigo 7b settings",
+    "description": "Step 7b (API): the settings screens: OPD rules (free follow-up days, free repeat-visit hours), registration fields (standard and own fields, dropdown choices) and the patient number (UHID) format. BEFORE RUNNING: (1) the dev seed has been run (NODE_ENV=development npm run prisma:seed -w @hospigo/api) (2) the API runs on port 3000. Select the Hospigo Local environment (staffPassword and superadminPassword), then Run collection. About 3 logins count against the login IP limit (20 per minute). The collection puts everything back: the OPD rules and the number format are restored, the fields it adds are switched off (fields are never deleted, by design), and it registers ONE patient to prove the new number format is really used.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0 Setup",
+      "item": [
+        {
+          "name": "1 Login Receptionist (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{receptionEmail}}\",\"password\":\"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('select the Hospigo Local environment: staffPassword and superadminPassword must be set', () => { pm.expect(pm.variables.get('staffPassword'), 'staffPassword').to.be.a('string').and.not.empty; pm.expect(pm.variables.get('superadminPassword'), 'superadminPassword').to.be.a('string').and.not.empty; });",
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has a token', () => pm.expect(j.accessToken).to.be.a('string'));",
+                  "pm.collectionVariables.set('sRecv', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 Login SuperAdmin (north)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{superEmail}}\",\"password\":\"{{superadminPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has a token', () => pm.expect(j.accessToken).to.be.a('string'));",
+                  "pm.collectionVariables.set('sSuper', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3 Login SuperAdmin (south, another hospital)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-south-main\",\"email\":\"{{southSuperEmail}}\",\"password\":\"{{superadminPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has a token', () => pm.expect(j.accessToken).to.be.a('string'));",
+                  "pm.collectionVariables.set('sSouth', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1 OPD rules",
+      "item": [
+        {
+          "name": "4 Read the rules (SuperAdmin) and remember them",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/opd-rules",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "opd-rules"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('numbers and limits', () => { pm.expect(j.followUpFreeDays).to.be.a('number'); pm.expect(j.repeatVisitFreeHours).to.be.a('number'); pm.expect(j.limits.followUpFreeDays.max).to.eql(365); pm.expect(j.limits.repeatVisitFreeHours.max).to.eql(8760); });",
+                  "pm.collectionVariables.set('oFollow', j.followUpFreeDays);",
+                  "pm.collectionVariables.set('oRepeat', j.repeatVisitFreeHours);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5 Receptionist cannot read (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/opd-rules",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "opd-rules"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6 Receptionist cannot change (403)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/opd-rules",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "opd-rules"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"followUpFreeDays\": 1}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7 No token = 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/settings/opd-rules",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "opd-rules"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8 Change both rules",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/opd-rules",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "opd-rules"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"followUpFreeDays\": 11, \"repeatVisitFreeHours\": 36}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('saved', () => { pm.expect(j.followUpFreeDays).to.eql(11); pm.expect(j.repeatVisitFreeHours).to.eql(36); pm.expect(j.persisted).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9 Read again: the new values are kept",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/opd-rules",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "opd-rules"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('11 and 36', () => { const j = pm.response.json(); pm.expect(j.followUpFreeDays).to.eql(11); pm.expect(j.repeatVisitFreeHours).to.eql(36); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Out of range is refused (366 days)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/opd-rules",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "opd-rules"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"followUpFreeDays\": 366}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "const j = pm.response.json();",
+                  "pm.test('SETTINGS_INVALID on followUpFreeDays', () => { pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('followUpFreeDays'); });",
+                  "pm.test('reason OUT_OF_RANGE', () => pm.expect(j.reason).to.eql('OUT_OF_RANGE'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 A fraction is refused",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/opd-rules",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "opd-rules"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"repeatVisitFreeHours\": 1.5}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "const j = pm.response.json();",
+                  "pm.test('SETTINGS_INVALID on repeatVisitFreeHours', () => { pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('repeatVisitFreeHours'); });",
+                  "pm.test('reason OUT_OF_RANGE', () => pm.expect(j.reason).to.eql('OUT_OF_RANGE'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 An empty body is refused",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/opd-rules",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "opd-rules"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "const j = pm.response.json();",
+                  "pm.test('SETTINGS_INVALID on body', () => { pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('body'); });",
+                  "pm.test('reason REQUIRED', () => pm.expect(j.reason).to.eql('REQUIRED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 The other hospital is not changed",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSouth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/opd-rules",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "opd-rules"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('south does not have 11 and 36 from us', () => { const j = pm.response.json(); pm.expect(j.followUpFreeDays === 11 && j.repeatVisitFreeHours === 36).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 Put the original rules back",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/opd-rules",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "opd-rules"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"followUpFreeDays\":{{oFollow}},\"repeatVisitFreeHours\":{{oRepeat}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('restored', () => { const j = pm.response.json(); pm.expect(j.followUpFreeDays).to.eql(Number(pm.collectionVariables.get('oFollow'))); pm.expect(j.repeatVisitFreeHours).to.eql(Number(pm.collectionVariables.get('oRepeat'))); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 Registration fields",
+      "item": [
+        {
+          "name": "15 List the fields (SuperAdmin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/patient-fields",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "patient-fields"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "const name = j.builtin.find(f => f.key === 'name');",
+                  "pm.test('name is locked on and required', () => { pm.expect(name.alwaysRequired).to.eql(true); pm.expect(name.isEnabled).to.eql(true); pm.expect(name.isRequired).to.eql(true); });",
+                  "pm.test('limit of own fields', () => pm.expect(j.limits.maxCustomFields).to.eql(30));",
+                  "const g = j.builtin.find(f => f.key === 'gender');",
+                  "pm.collectionVariables.set('gReq', g.isRequired);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 Receptionist cannot read the settings (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/patient-fields",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "patient-fields"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 Receptionist cannot add a field (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/patient-fields/custom",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "patient-fields",
+                "custom"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"label\": \"X\", \"dataType\": \"TEXT\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "18 Name cannot be made optional (locked)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/patient-fields/builtin/name",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "patient-fields",
+                "builtin",
+                "name"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"isRequired\": false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "const j = pm.response.json();",
+                  "pm.test('SETTINGS_INVALID on isRequired', () => { pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('isRequired'); });",
+                  "pm.test('reason LOCKED', () => pm.expect(j.reason).to.eql('LOCKED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "19 Unknown standard field = 404",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/patient-fields/builtin/nope",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "patient-fields",
+                "builtin",
+                "nope"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"isRequired\": true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "20 Make gender required",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/patient-fields/builtin/gender",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "patient-fields",
+                "builtin",
+                "gender"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"isRequired\": true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('required', () => pm.expect(pm.response.json().isRequired).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "21 The registration form now says gender is required (receptionist)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients/form-config",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "form-config"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const g = pm.response.json().fields.find(f => f.key === 'gender');",
+                  "pm.test('gender required in the form', () => pm.expect(g.required).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "22 Put gender back as it was",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/patient-fields/builtin/gender",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "patient-fields",
+                "builtin",
+                "gender"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"isRequired\":{{gReq}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('as before', () => pm.expect(pm.response.json().isRequired).to.eql(pm.collectionVariables.get('gReq') === 'true'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "23 Add a text field of our own",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/patient-fields/custom",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "patient-fields",
+                "custom"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"label\":\"{{fLabel}}\",\"dataType\":\"TEXT\",\"section\":\"OTHER\",\"isRequired\":false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('fLabel', 'Pm7b Field ' + (Date.now() % 100000000));",
+                  "pm.collectionVariables.set('fLabel2', 'Pm7b Choice ' + (Date.now() % 100000000));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.test('a field with its own code', () => { pm.expect(j.code).to.match(/^cf_/); pm.expect(j.isEnabled).to.eql(true); pm.expect(j.options).to.eql([]); });",
+                  "pm.collectionVariables.set('fId', j.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "24 The same name again is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/patient-fields/custom",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "patient-fields",
+                "custom"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"label\":\"{{fLabel}}\",\"dataType\":\"TEXT\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "const j = pm.response.json();",
+                  "pm.test('SETTINGS_INVALID on label', () => { pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('label'); });",
+                  "pm.test('reason DUPLICATE', () => pm.expect(j.reason).to.eql('DUPLICATE'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "25 A dropdown without choices is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/patient-fields/custom",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "patient-fields",
+                "custom"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"label\":\"{{fLabel2}}\",\"dataType\":\"DROPDOWN\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "const j = pm.response.json();",
+                  "pm.test('SETTINGS_INVALID on options', () => { pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('options'); });",
+                  "pm.test('reason NEEDS_AN_OPTION', () => pm.expect(j.reason).to.eql('NEEDS_AN_OPTION'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "26 Add a dropdown with two choices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/patient-fields/custom",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "patient-fields",
+                "custom"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"label\":\"{{fLabel2}}\",\"dataType\":\"DROPDOWN\",\"options\":[\"Yes\",\"No\"]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.test('two choices in order', () => pm.expect(j.options.map(o => o.label)).to.eql(['Yes','No']));",
+                  "pm.collectionVariables.set('dId', j.id);",
+                  "pm.collectionVariables.set('dYes', j.options[0].id);",
+                  "pm.collectionVariables.set('dNo', j.options[1].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "27 The registration form (receptionist) now asks for both",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients/form-config",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "form-config"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const codes = pm.response.json().fields.map(f => f.code).filter(Boolean);",
+                  "pm.test('both own fields are in the form', () => { pm.expect(codes.some(c => c.startsWith('cf_pm7b_field'))).to.eql(true); pm.expect(codes.some(c => c.startsWith('cf_pm7b_choice'))).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "28 Rename a choice and switch the other off (never deleted)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/patient-fields/custom/{{dId}}/options",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "patient-fields",
+                "custom",
+                "{{dId}}",
+                "options"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"options\":[{\"id\":\"{{dYes}}\",\"label\":\"Yes, insured\"}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const o = pm.response.json().options;",
+                  "pm.test('renamed, and the other is off but kept', () => { pm.expect(o.find(x => x.id === pm.collectionVariables.get('dYes')).label).to.eql('Yes, insured'); const no = o.find(x => x.id === pm.collectionVariables.get('dNo')); pm.expect(no.isActive).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "29 At least one choice must stay on",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/patient-fields/custom/{{dId}}/options",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "patient-fields",
+                "custom",
+                "{{dId}}",
+                "options"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"options\":[{\"id\":\"{{dYes}}\",\"label\":\"Yes\",\"isActive\":false}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "const j = pm.response.json();",
+                  "pm.test('SETTINGS_INVALID on options', () => { pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('options'); });",
+                  "pm.test('reason NEEDS_AN_OPTION', () => pm.expect(j.reason).to.eql('NEEDS_AN_OPTION'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "30 Choices cannot be set on a text field",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/patient-fields/custom/{{fId}}/options",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "patient-fields",
+                "custom",
+                "{{fId}}",
+                "options"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"options\": [{\"label\": \"x\"}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "const j = pm.response.json();",
+                  "pm.test('SETTINGS_INVALID on options', () => { pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('options'); });",
+                  "pm.test('reason NOT_A_DROPDOWN', () => pm.expect(j.reason).to.eql('NOT_A_DROPDOWN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "31 Another hospital cannot change our field (404)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSouth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/patient-fields/custom/{{fId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "patient-fields",
+                "custom",
+                "{{fId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"label\": \"Hacked\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "32 Another hospital cannot see our fields in its form",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSouth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients/form-config",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "form-config"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const codes = pm.response.json().fields.map(f => f.code).filter(Boolean);",
+                  "pm.test('south has no pm7b fields', () => pm.expect(codes.some(c => c.indexOf('pm7b') >= 0)).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "33 Clean up: switch our text field off",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/patient-fields/custom/{{fId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "patient-fields",
+                "custom",
+                "{{fId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"isEnabled\": false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('off', () => pm.expect(pm.response.json().isEnabled).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "34 Clean up: switch our dropdown off",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/patient-fields/custom/{{dId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "patient-fields",
+                "custom",
+                "{{dId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"isEnabled\": false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('off', () => pm.expect(pm.response.json().isEnabled).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "35 The form no longer asks for them",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients/form-config",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "form-config"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const codes = pm.response.json().fields.map(f => f.code).filter(Boolean);",
+                  "pm.test('no pm7b fields', () => pm.expect(codes.some(c => c.indexOf('pm7b') >= 0)).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 Patient number (UHID) format",
+      "item": [
+        {
+          "name": "36 Read the format in use and remember it",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/uhid-format",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "uhid-format"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('a format is set, with a sample and the limits', () => { pm.expect(j.configured).to.eql(true); pm.expect(j.example).to.be.a('string'); pm.expect(j.limits.maxBlocks).to.eql(12); });",
+                  "pm.collectionVariables.set('uOrig', JSON.stringify(j.format));",
+                  "pm.collectionVariables.set('uOrigExample', j.example);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "37 Receptionist cannot read it (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/uhid-format",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "uhid-format"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "38 Receptionist cannot change it (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/uhid-format",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "uhid-format"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "39 A format without a running number is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/uhid-format",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "uhid-format"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"resetRule\": \"NEVER\", \"blocks\": [{\"blockType\": \"FIXED_TEXT\", \"textValue\": \"PM\"}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "const j = pm.response.json();",
+                  "pm.test('SETTINGS_INVALID on blocks', () => { pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('blocks'); });",
+                  "pm.test('reason NEEDS_RUNNING_NUMBER', () => pm.expect(j.reason).to.eql('NEEDS_RUNNING_NUMBER'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "40 Text with a space is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/uhid-format",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "uhid-format"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"resetRule\": \"NEVER\", \"blocks\": [{\"blockType\": \"FIXED_TEXT\", \"textValue\": \"P M\"}, {\"blockType\": \"RUNNING_NUMBER\", \"minWidth\": 4}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "const j = pm.response.json();",
+                  "pm.test('SETTINGS_INVALID on blocks.0.textValue', () => { pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('blocks.0.textValue'); });",
+                  "pm.test('reason INVALID', () => pm.expect(j.reason).to.eql('INVALID'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "41 Restarting every year needs a year part",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/uhid-format",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "uhid-format"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"resetRule\": \"FINANCIAL_YEAR\", \"blocks\": [{\"blockType\": \"RUNNING_NUMBER\", \"minWidth\": 4}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "const j = pm.response.json();",
+                  "pm.test('SETTINGS_INVALID on blocks', () => { pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('blocks'); });",
+                  "pm.test('reason NEEDS_FINANCIAL_YEAR', () => pm.expect(j.reason).to.eql('NEEDS_FINANCIAL_YEAR'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "42 Start a new format PM-000001",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/uhid-format",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "uhid-format"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"resetRule\": \"NEVER\", \"blocks\": [{\"blockType\": \"FIXED_TEXT\", \"textValue\": \"PM\"}, {\"blockType\": \"SEPARATOR\", \"textValue\": \"-\"}, {\"blockType\": \"RUNNING_NUMBER\", \"minWidth\": 6}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('the sample is in the new format', () => pm.expect(j.example).to.eql('PM-000001'));",
+                  "pm.test('the next number is in the new format and never goes back', () => pm.expect(j.next).to.match(/^PM-\\d{6}$/));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "43 Register a patient: the number uses the new format",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"{{uName}}\",\"ageYears\":33,\"phone\":\"{{uPhone}}\",\"confirmDuplicate\":true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const n = Date.now() % 1000000000;",
+                  "pm.collectionVariables.set('uName', 'Pm7b Patient ' + n);",
+                  "pm.collectionVariables.set('uPhone', '9' + String(n).padStart(9, '0'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "pm.test('the UHID is in the new format', () => pm.expect(pm.response.json().uhid).to.match(/^PM-\\d{6}$/));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "44 The other hospital keeps its own format",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSouth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/uhid-format",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "uhid-format"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('south is not PM-', () => pm.expect(String(pm.response.json().example)).to.not.match(/^PM-/));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "45 Put the original format back",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/uhid-format",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "uhid-format"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{uOrig}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('the original sample is back', () => pm.expect(pm.response.json().example).to.eql(pm.collectionVariables.get('uOrigExample')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:3000"
+    },
+    {
+      "key": "receptionEmail",
+      "value": "receptionist1@demo-north.example.test"
+    },
+    {
+      "key": "superEmail",
+      "value": "superadmin@demo-north.example.test"
+    },
+    {
+      "key": "southSuperEmail",
+      "value": "superadmin@demo-south.example.test"
+    }
+  ]
+}

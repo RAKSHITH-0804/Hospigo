@@ -1,0 +1,1765 @@
+{
+  "info": {
+    "name": "Hospigo 4a OPD visit and billing",
+    "description": "Step 4a. Select the Hospigo Local environment (superadminPassword and staffPassword). Seed first: npm run prisma:migrate -w @hospigo/api and npm run prisma:seed -w @hospigo/api (the demo roles need the new permissions). Requests 7b to 7d check the price preview and the expected-total safety check. Requests 11b to 11d need the hospital setting repeat_visit_free_hours above 0 (the demo seed sets 24)., then start the API on port 3000 and Run collection. About 9 calls count against the login/refresh IP limit (20 per minute): wait a minute between runs.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0 Setup",
+      "item": [
+        {
+          "name": "1 Login Receptionist (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{receptionEmail}}\",\"password\":\"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('select the Hospigo Local environment: superadminPassword and staffPassword must be set', () => {",
+                  "  pm.expect(pm.variables.get(\"superadminPassword\"), 'superadminPassword').to.be.a('string').and.not.empty;",
+                  "  pm.expect(pm.variables.get(\"staffPassword\"), 'staffPassword').to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has tokens', () => { pm.expect(j.accessToken).to.be.a('string'); pm.expect(j.refreshToken).to.be.a('string'); });",
+                  "pm.collectionVariables.set('recvAccess', j.accessToken);",
+                  "pm.collectionVariables.set('recvRefresh', j.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 Login Nurse (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{nurseEmail}}\",\"password\":\"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has tokens', () => { pm.expect(j.accessToken).to.be.a('string'); pm.expect(j.refreshToken).to.be.a('string'); });",
+                  "pm.collectionVariables.set('nurseAccess', j.accessToken);",
+                  "pm.collectionVariables.set('nurseRefresh', j.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3 Login Doctor 2 (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{doctorEmail}}\",\"password\":\"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has tokens', () => { pm.expect(j.accessToken).to.be.a('string'); pm.expect(j.refreshToken).to.be.a('string'); });",
+                  "pm.collectionVariables.set('doctorAccess', j.accessToken);",
+                  "pm.collectionVariables.set('doctorRefresh', j.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4 Login SuperAdmin (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{superEmail}}\",\"password\":\"{{superadminPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has tokens', () => { pm.expect(j.accessToken).to.be.a('string'); pm.expect(j.refreshToken).to.be.a('string'); });",
+                  "pm.collectionVariables.set('superAccess', j.accessToken);",
+                  "pm.collectionVariables.set('superRefresh', j.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5 Login South Receptionist (other hospital)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-south-main\",\"email\":\"{{southReceptionEmail}}\",\"password\":\"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has tokens', () => { pm.expect(j.accessToken).to.be.a('string'); pm.expect(j.refreshToken).to.be.a('string'); });",
+                  "pm.collectionVariables.set('southAccess', j.accessToken);",
+                  "pm.collectionVariables.set('southRefresh', j.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5b Setup: make sure one doctor is switched off (this collection needs one; undone at the end if we did it)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().items;",
+                  "const already = items.find(d => !d.available && d.unavailableReason === 'SWITCH_OFF');",
+                  "pm.collectionVariables.set('offWasMine', already ? 'no' : 'yes');",
+                  "if (!already) {",
+                  "  const avail = items.filter(d => d.available);",
+                  "  const ID = avail[avail.length - 1].id;",
+                  "  pm.collectionVariables.set('offDoctorMine', ID);",
+                  "  pm.sendRequest({ url: pm.variables.get('baseUrl') + '/opd/doctors/' + ID + '/availability/switch', method: 'PUT', header: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + pm.collectionVariables.get('superAccess') }, body: { mode: 'raw', raw: JSON.stringify({ availabilityOn: false }) } }, (err, res) => { pm.test('doctor switch off (200)', () => { pm.expect(err).to.eql(null); pm.expect(res.code).to.eql(200); }); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1 Receptionist: visit, bill, cash",
+      "item": [
+        {
+          "name": "6 Doctors of this branch (fees and availability)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().items;",
+                  "const available = items.filter(d => d.available);",
+                  "const off = items.find(d => !d.available && d.unavailableReason === 'SWITCH_OFF');",
+                  "// Doctor A is the one this collection signs in as (Doctor North 2), Doctor B any other available doctor",
+                  "const docA = available.find(d => /North 2/.test(d.name)) || available[0];",
+                  "const docB = available.find(d => d.id !== docA.id);",
+                  "pm.test('at least two available doctors with fees in paise', () => {",
+                  "  pm.expect(available.length).to.be.at.least(2);",
+                  "  pm.expect(available[0].feeNewPaise).to.be.a('number');",
+                  "});",
+                  "pm.test('an unavailable doctor is listed with a reason', () => {",
+                  "  pm.expect(off, 'unavailable doctor').to.exist;",
+                  "  pm.expect(off.unavailableReason).to.eql('SWITCH_OFF');",
+                  "});",
+                  "pm.test('no email addresses in the list', () => pm.expect(JSON.stringify(items)).to.not.include('@'));",
+                  "pm.collectionVariables.set('doctorAId', docA.id);",
+                  "pm.collectionVariables.set('doctorAFee', String(docA.feeNewPaise));",
+                  "pm.collectionVariables.set('doctorBId', docB.id);",
+                  "pm.collectionVariables.set('doctorBFee', String(docB.feeNewPaise));",
+                  "pm.collectionVariables.set('doctorOffId', off.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7 Register a brand new patient (needs the registration fee)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"{{patientName}}\",\"ageYears\":40,\"phone\":\"{{patientPhoneNew}}\",\"confirmDuplicate\":true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "pm.collectionVariables.set('opdPatientId', pm.response.json().id);",
+                  "pm.test('this run uses the patient it just registered (collection variable, not an environment one)', () => {",
+                  "  pm.expect(pm.variables.get('opdPatientId')).to.eql(pm.response.json().id);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const stamp = Date.now();",
+                  "pm.collectionVariables.set('patientName', 'Opd4a ' + stamp);",
+                  "pm.collectionVariables.set('patientPhoneNew', '9' + String(stamp).slice(-9));",
+                  "pm.collectionVariables.set('visitKey', 'PM-' + stamp + '-' + Math.floor(Math.random() * 1e6));",
+                  "pm.collectionVariables.set('visitKey2', 'PM2-' + stamp + '-' + Math.floor(Math.random() * 1e6));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7b PREVIEW the bill (what the screen shows; writes nothing)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/preview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "preview"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{opdPatientId}}\",\"doctorProfileId\":\"{{doctorAId}}\",\"visitType\":\"NEW\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "const fee = Number(pm.collectionVariables.get('doctorAFee'));",
+                  "pm.test('first visit: consultation + registration, total above the doctor fee', () => {",
+                  "  pm.expect(j.lines.map(l => l.kind)).to.eql(['CONSULTATION', 'REGISTRATION']);",
+                  "  pm.expect(j.totalPaise).to.be.above(fee);",
+                  "  pm.expect(j.registrationIncluded).to.eql(true);",
+                  "  pm.expect(j.sameDayVisitWithDoctor).to.eql(false);",
+                  "});",
+                  "pm.collectionVariables.set('previewTotal', String(j.totalPaise));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7c Preview for an unavailable doctor = refused (400, same as create)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/preview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "preview"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{opdPatientId}}\",\"doctorProfileId\":\"{{doctorOffId}}\",\"visitType\":\"NEW\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "pm.test('code', () => pm.expect(pm.response.json().code).to.eql('DOCTOR_UNAVAILABLE'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7d WRONG expected total = refused (409 PRICE_CHANGED), nothing charged",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{opdPatientId}}\",\"doctorProfileId\":\"{{doctorAId}}\",\"visitType\":\"NEW\",\"idempotencyKey\":\"PM-wrong-{{visitKey}}\",\"expectedTotalPaise\":1}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409', () => pm.response.to.have.status(409));",
+                  "const j = pm.response.json();",
+                  "pm.test('code and the real total', () => {",
+                  "  pm.expect(j.code).to.eql('PRICE_CHANGED');",
+                  "  pm.expect(j.totalPaise).to.eql(Number(pm.collectionVariables.get('previewTotal')));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8 CREATE VISIT + BILL + TAKE CASH (one step)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{opdPatientId}}\",\"doctorProfileId\":\"{{doctorAId}}\",\"visitType\":\"NEW\",\"idempotencyKey\":\"{{visitKey}}\",\"expectedTotalPaise\":{{previewTotal}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 created', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "const fee = Number(pm.collectionVariables.get('doctorAFee'));",
+                  "pm.test('not a replay, waiting in the queue with a token', () => {",
+                  "  pm.expect(j.replayed).to.eql(false);",
+                  "  pm.expect(j.status).to.eql('WAITING');",
+                  "  pm.expect(j.token.label).to.match(/^[A-Za-z]+[0-9]+$/);",
+                  "});",
+                  "pm.test('bill is fully paid in cash, in whole paise', () => {",
+                  "  pm.expect(j.bill.paymentStatus).to.eql('PAID');",
+                  "  pm.expect(j.bill.paidPaise).to.eql(j.bill.totalPaise);",
+                  "  pm.expect(Number.isInteger(j.bill.totalPaise)).to.eql(true);",
+                  "  pm.expect(j.bill.payments).to.have.lengthOf(1);",
+                  "  pm.expect(j.bill.payments[0].paymentMode.code).to.eql('CASH');",
+                  "});",
+                  "pm.test('first visit = consultation + registration fee', () => {",
+                  "  pm.expect(j.bill.lines.map(l => l.kind)).to.eql(['CONSULTATION', 'REGISTRATION']);",
+                  "  pm.expect(j.bill.totalPaise).to.be.above(fee);",
+                  "  pm.expect(j.bill.lines.reduce((s, l) => s + l.lineTotalPaise, 0)).to.eql(j.bill.totalPaise);",
+                  "});",
+                  "pm.test('bill and receipt numbers look right', () => {",
+                  "  pm.expect(j.bill.billNumber).to.match(/^[0-9]{4}\\/[0-9]{5}$/);",
+                  "  pm.expect(j.bill.payments[0].receiptNumber).to.match(/^[0-9]{4}\\/[0-9]{5}$/);",
+                  "});",
+                  "pm.collectionVariables.set('opdVisitId', j.id);",
+                  "pm.collectionVariables.set('billNumber', j.bill.billNumber);",
+                  "pm.collectionVariables.set('receiptNumber', j.bill.payments[0].receiptNumber);",
+                  "pm.collectionVariables.set('tokenNo', String(j.token.no));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9 Double click: SAME key again = SAME visit, bill and receipt (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{opdPatientId}}\",\"doctorProfileId\":\"{{doctorAId}}\",\"visitType\":\"NEW\",\"idempotencyKey\":\"{{visitKey}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 (replay, not a new charge)', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('same visit, bill number and receipt', () => {",
+                  "  pm.expect(j.replayed).to.eql(true);",
+                  "  pm.expect(j.id).to.eql(pm.collectionVariables.get('opdVisitId'));",
+                  "  pm.expect(j.bill.billNumber).to.eql(pm.collectionVariables.get('billNumber'));",
+                  "  pm.expect(j.bill.payments[0].receiptNumber).to.eql(pm.collectionVariables.get('receiptNumber'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 SAME key but a different doctor = refused (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{opdPatientId}}\",\"doctorProfileId\":\"{{doctorBId}}\",\"visitType\":\"NEW\",\"idempotencyKey\":\"{{visitKey}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409', () => pm.response.to.have.status(409));",
+                  "pm.test('code', () => pm.expect(pm.response.json().code).to.eql('IDEMPOTENCY_KEY_REUSED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 Second visit, other doctor: NO registration fee again, next token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{opdPatientId}}\",\"doctorProfileId\":\"{{doctorBId}}\",\"visitType\":\"NEW\",\"idempotencyKey\":\"{{visitKey2}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.test('only the consultation line', () => {",
+                  "  pm.expect(j.bill.lines.map(l => l.kind)).to.eql(['CONSULTATION']);",
+                  "  pm.expect(j.bill.totalPaise).to.eql(Number(pm.collectionVariables.get('doctorBFee')));",
+                  "});",
+                  "pm.test('token is after the first one (same branch, same day)', () => pm.expect(j.token.no).to.be.above(Number(pm.collectionVariables.get('tokenNo'))));",
+                  "pm.collectionVariables.set('opdVisit2Id', j.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11b Same patient, SAME doctor again inside the free window: preview says no money",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/preview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "preview"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{opdPatientId}}\",\"doctorProfileId\":\"{{doctorAId}}\",\"visitType\":\"NEW\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('repeat visit is free (hospital setting repeat_visit_free_hours is above 0)', () => {",
+                  "  pm.expect(j.totalPaise).to.eql(0);",
+                  "  pm.expect(j.repeatVisitFree).to.eql(true);",
+                  "  pm.expect(j.followUpFree).to.eql(false);",
+                  "  pm.expect(j.lines[0].pricingNote).to.eql('REPEAT_VISIT_FREE_WINDOW');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11c ... and the real visit collects nothing, still gets a token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{opdPatientId}}\",\"doctorProfileId\":\"{{doctorAId}}\",\"visitType\":\"NEW\",\"idempotencyKey\":\"PM-repeat-{{visitKey}}\",\"expectedTotalPaise\":0}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.test('zero bill, no payment, queued with a token', () => {",
+                  "  pm.expect(j.bill.totalPaise).to.eql(0);",
+                  "  pm.expect(j.bill.payments.length).to.eql(0);",
+                  "  pm.expect(j.bill.lines[0].pricingNote).to.eql('REPEAT_VISIT_FREE_WINDOW');",
+                  "  pm.expect(j.token.no).to.be.above(0);",
+                  "});",
+                  "pm.collectionVariables.set('opdVisit3Id', j.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11d Register a second patient (a first visit is always charged: used by the UPI check)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"{{patient2Name}}\",\"ageYears\":35,\"phone\":\"{{patient2Phone}}\",\"confirmDuplicate\":true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "pm.collectionVariables.set('opdPatient2Id', pm.response.json().id);"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const stamp = Date.now() + 1;",
+                  "pm.collectionVariables.set('patient2Name', 'Opd4a second ' + stamp);",
+                  "pm.collectionVariables.set('patient2Phone', '8' + String(stamp).slice(-9));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 Unavailable doctor = refused (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{opdPatientId}}\",\"doctorProfileId\":\"{{doctorOffId}}\",\"visitType\":\"NEW\",\"idempotencyKey\":\"PM-off-{{visitKey}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "const j = pm.response.json();",
+                  "pm.test('code and reason', () => { pm.expect(j.code).to.eql('DOCTOR_UNAVAILABLE'); pm.expect(j.reason).to.eql('SWITCH_OFF'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 UPI without a reference = refused (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{opdPatient2Id}}\",\"doctorProfileId\":\"{{doctorAId}}\",\"visitType\":\"NEW\",\"idempotencyKey\":\"PM-upi-{{visitKey}}\",\"paymentModeCode\":\"UPI\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "pm.test('code', () => pm.expect(pm.response.json().code).to.eql('REFERENCE_REQUIRED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 Branch, amount and status in the body = refused (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{opdPatientId}}\",\"doctorProfileId\":\"{{doctorAId}}\",\"visitType\":\"NEW\",\"idempotencyKey\":\"PM-bad-{{visitKey}}\",\"branchId\":\"x\",\"totalPaise\":1}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 (the server decides branch and amount)', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 Read the visit as the receptionist (bill, lines, payment)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{opdVisitId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{opdVisitId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('bill with lines and the cash payment', () => {",
+                  "  pm.expect(j.bill.lines).to.have.lengthOf(2);",
+                  "  pm.expect(j.bill.payments).to.have.lengthOf(1);",
+                  "  pm.expect(j.bill.billNumber).to.eql(pm.collectionVariables.get('billNumber'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 The patient's visits (newest first)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients/{{opdPatientId}}/visits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "{{opdPatientId}}",
+                "visits"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('three visits, newest first (the free repeat visit), bill summary only', () => {",
+                  "  pm.expect(j.total).to.eql(3);",
+                  "  pm.expect(j.items[0].id).to.eql(pm.collectionVariables.get('opdVisit3Id'));",
+                  "  pm.expect(j.items.map(i => i.id)).to.include(pm.collectionVariables.get('opdVisit2Id'));",
+                  "  pm.expect(j.items[0].bill).to.not.have.property('lines');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 Who may do what",
+      "item": [
+        {
+          "name": "17 Nurse cannot create a visit (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nurseAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{opdPatientId}}\",\"doctorProfileId\":\"{{doctorAId}}\",\"visitType\":\"NEW\",\"idempotencyKey\":\"PM-nurse-{{visitKey}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "18 Nurse can read the visit but sees NO money",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nurseAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{opdVisitId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{opdVisitId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('no bill and no amounts in the response', () => {",
+                  "  pm.expect(j).to.not.have.property('bill');",
+                  "  pm.expect(JSON.stringify(j)).to.not.match(/paise|receipt|billNumber/i);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "19 Doctor reads their OWN visit (no money)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{doctorAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{opdVisitId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{opdVisitId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('no bill', () => pm.expect(pm.response.json()).to.not.have.property('bill'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "20 Doctor cannot read ANOTHER doctor's visit (404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{doctorAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{opdVisit2Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{opdVisit2Id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "21 SuperAdmin cannot create visits or list doctors (read-only admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403: admin roles do not create visits or take cash', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "22 SuperAdmin cannot take cash either (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{opdPatientId}}\",\"doctorProfileId\":\"{{doctorAId}}\",\"visitType\":\"NEW\",\"idempotencyKey\":\"PM-super-{{visitKey}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "23 SuperAdmin CAN read the visit with its bill (billing.read)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{opdVisitId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{opdVisitId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('bill visible', () => pm.expect(pm.response.json().bill.paymentStatus).to.eql('PAID'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "30 Cleanup: switch the doctor on again if this run switched it off",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{recvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "if (pm.collectionVariables.get('offWasMine') === 'yes') {",
+                  "  const ID = pm.collectionVariables.get('offDoctorMine');",
+                  "  pm.sendRequest({ url: pm.variables.get('baseUrl') + '/opd/doctors/' + ID + '/availability/switch', method: 'PUT', header: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + pm.collectionVariables.get('superAccess') }, body: { mode: 'raw', raw: JSON.stringify({ availabilityOn: true }) } }, (err, res) => { pm.test('doctor switch on (200)', () => { pm.expect(err).to.eql(null); pm.expect(res.code).to.eql(200); }); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 Hospitals and branches stay apart",
+      "item": [
+        {
+          "name": "24 Another hospital cannot read the visit (404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{southAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{opdVisitId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{opdVisitId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "25 Another hospital cannot use this hospital's doctor (404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{southAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{opdPatientId}}\",\"doctorProfileId\":\"{{doctorAId}}\",\"visitType\":\"NEW\",\"idempotencyKey\":\"PM-south-{{visitKey}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));",
+                  "pm.test('code', () => pm.expect(pm.response.json().code).to.be.oneOf(['DOCTOR_NOT_FOUND', 'PATIENT_NOT_FOUND']));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "26 SuperAdmin: list branches to switch to",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/switchable-branches",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "switchable-branches"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const east = pm.response.json().find(b => !b.isMain);",
+                  "pm.test('another branch exists', () => pm.expect(east).to.exist);",
+                  "pm.collectionVariables.set('otherBranchId', east.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "27 SuperAdmin switches to the OTHER branch",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/switch-branch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "switch-branch"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"branchId\":\"{{otherBranchId}}\",\"refreshToken\":\"{{superRefresh}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('superAccess', pm.response.json().accessToken);",
+                  "pm.collectionVariables.set('superRefresh', pm.response.json().refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "28 Visits stay in their branch: the other branch cannot read it (404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{opdVisitId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{opdVisitId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 (bills stay in the branch that billed)', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "29 No token = 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{opdPatientId}}\",\"doctorProfileId\":\"{{doctorAId}}\",\"visitType\":\"NEW\",\"idempotencyKey\":\"PM-none-{{visitKey}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:3000"
+    },
+    {
+      "key": "receptionEmail",
+      "value": "receptionist1@demo-north.example.test"
+    },
+    {
+      "key": "nurseEmail",
+      "value": "nurse1@demo-north.example.test"
+    },
+    {
+      "key": "doctorEmail",
+      "value": "doctor2@demo-north.example.test"
+    },
+    {
+      "key": "superEmail",
+      "value": "superadmin@demo-north.example.test"
+    },
+    {
+      "key": "southReceptionEmail",
+      "value": "receptionist1@demo-south.example.test"
+    }
+  ]
+}

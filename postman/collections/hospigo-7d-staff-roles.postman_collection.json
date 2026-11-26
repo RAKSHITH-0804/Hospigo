@@ -1,0 +1,2843 @@
+{
+ "info": {
+  "name": "Hospigo 7d staff and roles",
+  "description": "Step 7d (API): staff list, add, change, switch off and on, roles and permissions, the staff code format and My profile for every role. BEFORE RUNNING: (1) npm run prisma:migrate -w @hospigo/api  (2) re-run the dev seed so the roles get the new permission list: NODE_ENV=development npm run prisma:seed -w @hospigo/api  (3) restart the API on port 3000. Select the Hospigo Local environment (staffPassword and superadminPassword), then Run collection. It adds ONE test role (Postman 7d role) and ONE test person (pm7d.test@demo-north.example.test), switched OFF at the end; later runs reuse them, so nothing piles up. The staff code format is put back. Nothing is deleted anywhere. The email code flows that need a real mailbox are proven in the automated tests; here only the refusals are checked. About 3 logins count against the login IP limit (20 per minute).",
+  "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+ },
+ "variable": [
+  {
+   "key": "baseUrl",
+   "value": "http://127.0.0.1:3000"
+  },
+  {
+   "key": "superEmail",
+   "value": "superadmin@demo-north.example.test"
+  },
+  {
+   "key": "receptionEmail",
+   "value": "receptionist1@demo-north.example.test"
+  },
+  {
+   "key": "southSuperEmail",
+   "value": "superadmin@demo-south.example.test"
+  }
+ ],
+ "item": [
+  {
+   "name": "0 Setup",
+   "item": [
+    {
+     "name": "1 Login SuperAdmin (north)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/auth/hospital/login",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "auth",
+        "hospital",
+        "login"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{superEmail}}\",\"password\":\"{{superadminPassword}}\"}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('select the Hospigo Local environment: staffPassword and superadminPassword must be set', () => { pm.expect(pm.variables.get('staffPassword'), 'staffPassword').to.be.a('string').and.not.empty; pm.expect(pm.variables.get('superadminPassword'), 'superadminPassword').to.be.a('string').and.not.empty; });",
+         "pm.test('login 200', () => pm.response.to.have.status(200));",
+         "const j = pm.response.json();",
+         "pm.test('has a token', () => pm.expect(j.accessToken).to.be.a('string'));",
+         "pm.collectionVariables.set('dSuper', j.accessToken);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "2 Login Receptionist (north main)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/auth/hospital/login",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "auth",
+        "hospital",
+        "login"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{receptionEmail}}\",\"password\":\"{{staffPassword}}\"}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('login 200', () => pm.response.to.have.status(200));",
+         "const j = pm.response.json();",
+         "pm.test('has a token', () => pm.expect(j.accessToken).to.be.a('string'));",
+         "pm.collectionVariables.set('dRecv', j.accessToken);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "3 Login SuperAdmin (south)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/auth/hospital/login",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "auth",
+        "hospital",
+        "login"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"accessCode\":\"demo-south-main\",\"email\":\"{{southSuperEmail}}\",\"password\":\"{{superadminPassword}}\"}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('login 200', () => pm.response.to.have.status(200));",
+         "const j = pm.response.json();",
+         "pm.test('has a token', () => pm.expect(j.accessToken).to.be.a('string'));",
+         "pm.collectionVariables.set('dSouth', j.accessToken);"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "1 Staff list and options",
+   "item": [
+    {
+     "name": "4 Receptionist cannot list staff (403)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('403', () => pm.response.to.have.status(403));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "5 No token = 401",
+     "request": {
+      "method": "GET",
+      "header": [],
+      "url": {
+       "raw": "{{baseUrl}}/staff",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('401', () => pm.response.to.have.status(401));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "6 SuperAdmin reads the options: roles, branches, code format, limits",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff/options",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff",
+        "options"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "const j = pm.response.json();",
+         "pm.test('canWrite and hospital scope', () => { pm.expect(j.canWrite).to.eql(true); pm.expect(j.canHospitalScope).to.eql(true); });",
+         "pm.test('both system roles are offered and assignable to a SuperAdmin', () => { const codes = j.roles.map(r => r.code); pm.expect(codes).to.include('SUPER_ADMIN'); pm.expect(codes).to.include('BRANCH_ADMIN'); pm.expect(j.roles.find(r => r.code === 'BRANCH_ADMIN').assignable).to.eql(true); });",
+         "pm.test('branches, limits and code format', () => { pm.expect(j.branches.length).to.be.at.least(1); pm.expect(j.limits.nameMax).to.be.a('number'); pm.expect(j.codeFormat.prefix).to.be.a('string'); pm.expect(j.codeFormat.next).to.be.a('string'); });",
+         "pm.collectionVariables.set('mainBranchId', (j.branches.find(b => b.name.toLowerCase().includes('main')) || j.branches[0]).id);",
+         "pm.collectionVariables.set('origPrefix', j.codeFormat.prefix);",
+         "pm.collectionVariables.set('origWidth', String(j.codeFormat.minWidth));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "7 SuperAdmin lists staff: every row has a status, branches, roles and who may be changed",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "const j = pm.response.json();",
+         "pm.test('paging fields', () => { pm.expect(j.page).to.eql(1); pm.expect(j.pageSize).to.be.a('number'); pm.expect(j.total).to.be.at.least(1); });",
+         "pm.test('every row is complete', () => j.items.forEach(s => { pm.expect(s.id).to.be.a('string'); pm.expect(['ACTIVE','INVITED','INACTIVE']).to.include(s.status); pm.expect(s.branches).to.be.an('array'); pm.expect(s.roles).to.be.an('array'); pm.expect(s.editable).to.be.a('boolean'); pm.expect(s).to.not.have.property('passwordHash'); }));",
+         "pm.test('exactly one row is me', () => pm.expect(j.items.filter(s => s.isYou).length).to.eql(1));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "8 Search by text and filter by status",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff?q=superadmin&status=ACTIVE",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff"
+       ],
+       "query": [
+        {
+         "key": "q",
+         "value": "superadmin"
+        },
+        {
+         "key": "status",
+         "value": "ACTIVE"
+        }
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "const j = pm.response.json();",
+         "pm.test('only matching active people', () => { pm.expect(j.items.length).to.be.at.least(1); j.items.forEach(s => { pm.expect(s.status).to.eql('ACTIVE'); pm.expect((s.name + s.email + s.code).toLowerCase()).to.include('superadmin'); }); });"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "9 A silly page size does not break the list (capped)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff?pageSize=999999&page=abc",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff"
+       ],
+       "query": [
+        {
+         "key": "pageSize",
+         "value": "999999"
+        },
+        {
+         "key": "page",
+         "value": "abc"
+        }
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('capped and defaulted', () => { const j = pm.response.json(); pm.expect(j.pageSize).to.be.at.most(100); pm.expect(j.page).to.eql(1); });"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "10 The other hospital never sees north staff",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSouth}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff?q=demo-north",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff"
+       ],
+       "query": [
+        {
+         "key": "q",
+         "value": "demo-north"
+        }
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('nobody from north', () => pm.response.json().items.forEach(s => pm.expect(s.email).to.not.include('demo-north')));"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "2 Staff code format",
+   "item": [
+    {
+     "name": "11 Receptionist cannot read it (403)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff/code-format",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff",
+        "code-format"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('403', () => pm.response.to.have.status(403));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "12 SuperAdmin changes prefix and digits; the sample follows",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff/code-format",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff",
+        "code-format"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"prefix\": \"pm7\", \"minWidth\": 4}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('prefix is upper case and the next code has 4 digits', () => { const j = pm.response.json(); pm.expect(j.prefix).to.eql('PM7'); pm.expect(j.next).to.match(/^PM7\\d{4,}$/); });"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "13 A bad prefix is refused (400 prefix)",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff/code-format",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff",
+        "code-format"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"prefix\": \"!!\", \"minWidth\": 3}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('400', () => pm.response.to.have.status(400));",
+         "pm.test('names the field', () => { const j = pm.response.json(); pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('prefix'); });"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "14 Digits out of range are refused (400 minWidth)",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff/code-format",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff",
+        "code-format"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"prefix\": \"PM7\", \"minWidth\": 99}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('400', () => pm.response.to.have.status(400));",
+         "pm.test('names the field', () => pm.expect(pm.response.json().field).to.eql('minWidth'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "15 Receptionist cannot change it (403)",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff/code-format",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff",
+        "code-format"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"prefix\": \"EVIL\", \"minWidth\": 3}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('403', () => pm.response.to.have.status(403));"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "3 Roles",
+   "item": [
+    {
+     "name": "16 Receptionist cannot list roles (403)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/roles",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "roles"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('403', () => pm.response.to.have.status(403));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "17 SuperAdmin lists roles: the two system roles are there; finds the test role if an earlier run made it",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/roles",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "roles"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "const j = pm.response.json();",
+         "pm.test('canWrite and both system roles', () => { pm.expect(j.canWrite).to.eql(true); const sys = j.items.filter(r => r.isSystem).map(r => r.code); pm.expect(sys).to.include('SUPER_ADMIN'); pm.expect(sys).to.include('BRANCH_ADMIN'); });",
+         "pm.test('each role says how many hold it and its permissions', () => j.items.forEach(r => { pm.expect(r.assignedCount).to.be.a('number'); pm.expect(r.permissionCodes).to.be.an('array'); }));",
+         "pm.collectionVariables.set('superRoleId', j.items.find(r => r.code === 'SUPER_ADMIN').id);",
+         "const mine = j.items.find(r => r.name === 'Postman 7d role'); pm.collectionVariables.set('rId', mine ? mine.id : '');"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "18 Catalog: every permission has a plain description and a group",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/roles/catalog",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "roles",
+        "catalog"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('described', () => { const j = pm.response.json(); pm.expect(j.items.length).to.be.at.least(10); j.items.forEach(p => { pm.expect(p.description).to.be.a('string').and.not.empty; pm.expect(p.group).to.be.a('string'); }); });"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "19 Ready-made roles to start from",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/roles/templates",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "roles",
+        "templates"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('Receptionist, Nurse and Doctor', () => { const keys = pm.response.json().items.map(t => t.key); pm.expect(keys).to.include.members(['RECEPTIONIST','NURSE','DOCTOR']); });"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "20 SuperAdmin makes a role (or it already exists from an earlier run)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/roles",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "roles"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"name\": \"Postman 7d role\", \"description\": \"Made by the 7d collection\", \"permissionCodes\": [\"opd.queue.read\", \"opd.visits.read\"]}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('201 the first time, 400 name DUPLICATE afterwards', () => { if (pm.collectionVariables.get('rId')) { pm.response.to.have.status(400); pm.expect(pm.response.json().field).to.eql('name'); pm.expect(pm.response.json().reason).to.eql('DUPLICATE'); } else { pm.response.to.have.status(201); } });",
+         "if (pm.response.code === 201) { pm.collectionVariables.set('rId', pm.response.json().id); }"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "21 Receptionist cannot make a role (403)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/roles",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "roles"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"name\": \"Evil\", \"permissionCodes\": [\"opd.queue.read\"]}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('403', () => pm.response.to.have.status(403));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "22 A permission code that does not exist is refused",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/roles",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "roles"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"name\": \"Postman bad\", \"permissionCodes\": [\"no.such.permission\"]}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('400', () => pm.response.to.have.status(400));",
+         "pm.test('names the permission list', () => pm.expect(pm.response.json().field).to.match(/^permissionCodes/));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "23 A role with no permission is refused",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/roles",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "roles"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"name\": \"Postman empty\", \"permissionCodes\": []}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('400', () => pm.response.to.have.status(400));",
+         "pm.test('names the permission list', () => pm.expect(pm.response.json().field).to.eql('permissionCodes'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "24 SuperAdmin changes the role (name stays, description and powers change)",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/roles/{{rId}}",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "roles",
+        "{{rId}}"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"description\": \"Changed by the 7d collection\", \"permissionCodes\": [\"opd.queue.read\", \"opd.visits.read\", \"patients.registry.read\"]}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('changed', () => { const j = pm.response.json(); pm.expect(j.description).to.eql('Changed by the 7d collection'); pm.expect(j.permissionCodes).to.include('patients.registry.read'); });"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "25 A system role cannot be changed (409 SYSTEM_ROLE)",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/roles/{{superRoleId}}",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "roles",
+        "{{superRoleId}}"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"name\": \"Hacked\"}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('409', () => pm.response.to.have.status(409));",
+         "pm.test('reason', () => pm.expect(pm.response.json().reason).to.eql('SYSTEM_ROLE'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "26 The other hospital cannot touch this role (404)",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSouth}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/roles/{{rId}}",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "roles",
+        "{{rId}}"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"name\": \"Stolen\"}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('404', () => pm.response.to.have.status(404));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "27 Receptionist cannot change a role (403)",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/roles/{{rId}}",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "roles",
+        "{{rId}}"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"name\": \"Evil\"}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('403', () => pm.response.to.have.status(403));"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "4 Add, change, switch off and on",
+   "item": [
+    {
+     "name": "28 Find the test person from an earlier run",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff?q=pm7d.test",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff"
+       ],
+       "query": [
+        {
+         "key": "q",
+         "value": "pm7d.test"
+        }
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "const mine = pm.response.json().items.find(s => s.email === 'pm7d.test@demo-north.example.test'); pm.collectionVariables.set('sId', mine ? mine.id : '');"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "29 SuperAdmin adds a person with the test role (or the person exists from an earlier run)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"name\":\"Postman Seven D\",\"email\":\"PM7D.Test@demo-north.example.test\",\"phone\":\"98765 43210\",\"branchIds\":[\"{{mainBranchId}}\"],\"roles\":[{\"roleId\":\"{{rId}}\"}]}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('201 the first time, 400 email DUPLICATE afterwards (any letter case)', () => { if (pm.collectionVariables.get('sId')) { pm.response.to.have.status(400); pm.expect(pm.response.json().reason).to.eql('DUPLICATE'); } else { pm.response.to.have.status(201); } });",
+         "if (pm.response.code === 201) { const j = pm.response.json(); pm.collectionVariables.set('sId', j.staff.id); pm.test('invited, with a code in the chosen format, email stored in lower case', () => { pm.expect(j.staff.status).to.eql('INVITED'); pm.expect(j.staff.code).to.match(/^PM7\\d{4,}$/); pm.expect(j.staff.email).to.eql('pm7d.test@demo-north.example.test'); pm.expect(j.activationSent).to.be.a('boolean'); pm.expect(j.staff).to.not.have.property('passwordHash'); }); }"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "30 Receptionist cannot add staff (403)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"name\": \"Evil\", \"email\": \"evil@demo-north.example.test\", \"branchIds\": [\"{{mainBranchId}}\"], \"roles\": [{\"roleId\": \"{{rId}}\"}]}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('403', () => pm.response.to.have.status(403));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "31 A person with no branch is refused",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"name\":\"No Branch\",\"email\":\"nobranch.pm7d@demo-north.example.test\",\"branchIds\":[],\"roles\":[{\"roleId\":\"{{rId}}\"}]}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('400', () => pm.response.to.have.status(400));",
+         "pm.test('names the field', () => pm.expect(pm.response.json().field).to.eql('branchIds'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "32 A person with no role is refused",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"name\":\"No Role\",\"email\":\"norole.pm7d@demo-north.example.test\",\"branchIds\":[\"{{mainBranchId}}\"],\"roles\":[]}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('400', () => pm.response.to.have.status(400));",
+         "pm.test('names the field', () => pm.expect(pm.response.json().field).to.eql('roles'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "33 A bad email is refused",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"name\":\"Bad Mail\",\"email\":\"not-an-email\",\"branchIds\":[\"{{mainBranchId}}\"],\"roles\":[{\"roleId\":\"{{rId}}\"}]}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('400', () => pm.response.to.have.status(400));",
+         "pm.test('names the field', () => pm.expect(pm.response.json().field).to.eql('email'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "34 A branch of the other hospital is refused",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSouth}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"name\":\"Cross\",\"email\":\"cross.pm7d@demo-south.example.test\",\"branchIds\":[\"{{mainBranchId}}\"],\"roles\":[{\"roleId\":\"{{rId}}\"}]}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('400', () => pm.response.to.have.status(400));",
+         "pm.test('refused', () => pm.expect(pm.response.json().code).to.eql('SETTINGS_INVALID'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "35 Switch the test person on (it may be off from an earlier run)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff/{{sId}}/reactivate",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff",
+        "{{sId}}",
+        "reactivate"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200, or 409 ALREADY_ACTIVE', () => { if (pm.response.code === 409) { pm.expect(pm.response.json().reason).to.eql('ALREADY_ACTIVE'); } else { pm.response.to.have.status(200); } });"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "36 SuperAdmin changes the person: name, phone, branches and roles together",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff/{{sId}}",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff",
+        "{{sId}}"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"name\":\"Postman Seven D Two\",\"phone\":\"+91 98765 43210\",\"branchIds\":[\"{{mainBranchId}}\"],\"roles\":[{\"roleId\":\"{{rId}}\"}]}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('changed', () => { const j = pm.response.json(); pm.expect(j.name).to.eql('Postman Seven D Two'); pm.expect(j.phone).to.eql('+91 98765 43210'); pm.expect(j.roles.map(r => r.roleId)).to.include(pm.collectionVariables.get('rId')); });"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "37 Branches without roles are refused (they must be sent together)",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff/{{sId}}",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff",
+        "{{sId}}"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"branchIds\":[\"{{mainBranchId}}\"]}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('400', () => pm.response.to.have.status(400));",
+         "pm.test('names roles', () => pm.expect(pm.response.json().field).to.eql('roles'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "38 Send the activation email again (only before a password is set)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff/{{sId}}/resend-invite",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff",
+        "{{sId}}",
+        "resend-invite"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200, or 429 when run again within a minute', () => { if (pm.response.code === 429) { pm.expect(pm.response.json().code).to.eql('RATE_LIMITED'); pm.expect(pm.response.json().retryAfterSec).to.be.a('number'); } else { pm.response.to.have.status(200); pm.expect(pm.response.json().activationSent).to.be.a('boolean'); } });"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "39 Receptionist cannot change the person (403)",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff/{{sId}}",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff",
+        "{{sId}}"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"name\": \"Evil\"}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('403', () => pm.response.to.have.status(403));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "40 The other hospital cannot reach the person (404)",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSouth}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff/{{sId}}",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff",
+        "{{sId}}"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"name\": \"Stolen\"}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('404', () => pm.response.to.have.status(404));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "41 The other hospital cannot switch the person off (404)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSouth}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff/{{sId}}/deactivate",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff",
+        "{{sId}}",
+        "deactivate"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('404', () => pm.response.to.have.status(404));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "42 Nobody can switch themselves off (409 SELF)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff?q=superadmin@demo-north",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff"
+       ],
+       "query": [
+        {
+         "key": "q",
+         "value": "superadmin@demo-north"
+        }
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "const me = pm.response.json().items.find(s => s.isYou); pm.collectionVariables.set('meId', me.id); pm.test('found myself', () => pm.expect(me).to.exist);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "43 Switch myself off is refused",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff/{{meId}}/deactivate",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff",
+        "{{meId}}",
+        "deactivate"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('409', () => pm.response.to.have.status(409));",
+         "pm.test('reason', () => pm.expect(pm.response.json().reason).to.eql('SELF'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "44 Change my own roles through Staff is refused",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff/{{meId}}",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff",
+        "{{meId}}"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"branchIds\":[\"{{mainBranchId}}\"],\"roles\":[{\"roleId\":\"{{superRoleId}}\"}]}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('409', () => pm.response.to.have.status(409));",
+         "pm.test('reason', () => pm.expect(pm.response.json().reason).to.eql('SELF'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "45 A role people still hold cannot be switched off (409 ROLE_IN_USE)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/roles/{{rId}}/deactivate",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "roles",
+        "{{rId}}",
+        "deactivate"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('409', () => pm.response.to.have.status(409));",
+         "pm.test('reason', () => pm.expect(pm.response.json().reason).to.eql('ROLE_IN_USE'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "46 Switch the test person off (cleanup: signed out, nothing deleted)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff/{{sId}}/deactivate",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff",
+        "{{sId}}",
+        "deactivate"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('inactive', () => pm.expect(pm.response.json().status).to.eql('INACTIVE'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "47 A switched-off person cannot be sent an activation email (409 INACTIVE)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff/{{sId}}/resend-invite",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff",
+        "{{sId}}",
+        "resend-invite"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('409', () => pm.response.to.have.status(409));",
+         "pm.test('reason', () => pm.expect(pm.response.json().reason).to.eql('INACTIVE'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "48 The list shows them as switched off, and they are still there",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff?status=INACTIVE&q=pm7d.test",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff"
+       ],
+       "query": [
+        {
+         "key": "status",
+         "value": "INACTIVE"
+        },
+        {
+         "key": "q",
+         "value": "pm7d.test"
+        }
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('there', () => { const s = pm.response.json().items.find(x => x.id === pm.collectionVariables.get('sId')); pm.expect(s).to.exist; pm.expect(s.status).to.eql('INACTIVE'); });"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "5 My profile (every role)",
+   "item": [
+    {
+     "name": "49 No token = 401",
+     "request": {
+      "method": "GET",
+      "header": [],
+      "url": {
+       "raw": "{{baseUrl}}/account/me",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "account",
+        "me"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('401', () => pm.response.to.have.status(401));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "50 SuperAdmin reads their own account",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/account/me",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "account",
+        "me"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('my own data only', () => { const j = pm.response.json(); pm.expect(j.email).to.eql(pm.variables.get('superEmail')); pm.expect(j.roles).to.be.an('array'); pm.expect(j.limits.nameMax).to.be.a('number'); pm.expect(j).to.not.have.property('passwordHash'); pm.collectionVariables.set('origName', j.name); pm.collectionVariables.set('origPhone', j.phone === null ? '' : j.phone); });"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "51 The receptionist reads theirs too (not only doctors)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/account/me",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "account",
+        "me"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('their own email', () => pm.expect(pm.response.json().email).to.eql(pm.variables.get('receptionEmail')));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "52 Change my own name and phone (tidied)",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/account/me",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "account",
+        "me"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"name\": \"  Postman   Me \", \"phone\": \"+91 98765 00000\"}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('tidied', () => { const j = pm.response.json(); pm.expect(j.name).to.eql('Postman Me'); pm.expect(j.phone).to.eql('+91 98765 00000'); });"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "53 Put my name and phone back",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/account/me",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "account",
+        "me"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"name\":\"{{origName}}\",\"phone\":\"{{origPhone}}\"}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('restored', () => pm.expect(pm.response.json().name).to.eql(pm.collectionVariables.get('origName')));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "54 I cannot change my email, code or anyone else through this call",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/account/me",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "account",
+        "me"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"email\": \"hijack@example.test\"}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('400', () => pm.response.to.have.status(400));",
+         "pm.test('needs a name or phone', () => pm.expect(pm.response.json().field).to.eql('body'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "55 A bad phone number is refused",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/account/me",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "account",
+        "me"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"phone\": \"abc\"}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('400', () => pm.response.to.have.status(400));",
+         "pm.test('names the field', () => pm.expect(pm.response.json().field).to.eql('phone'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "56 Email change: a bad address is refused, nothing is sent",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/account/email/request",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "account",
+        "email",
+        "request"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"email\": \"nope\"}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('400', () => pm.response.to.have.status(400));",
+         "pm.test('names the field', () => pm.expect(pm.response.json().field).to.eql('email'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "57 Email change: the address I already use is refused (SAME)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/account/email/request",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "account",
+        "email",
+        "request"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"email\":\"{{receptionEmail}}\"}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('400', () => pm.response.to.have.status(400));",
+         "pm.test('reason', () => pm.expect(pm.response.json().reason).to.eql('SAME'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "58 Email change: an address another person uses is refused (DUPLICATE)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/account/email/request",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "account",
+        "email",
+        "request"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"email\":\"{{superEmail}}\"}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('400', () => pm.response.to.have.status(400));",
+         "pm.test('reason', () => pm.expect(pm.response.json().reason).to.eql('DUPLICATE'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "59 Email change: a code nobody asked for does not work (EXPIRED)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/account/email/confirm",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "account",
+        "email",
+        "confirm"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"code\": \"123456\"}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('400', () => pm.response.to.have.status(400));",
+         "pm.test('OTP_INVALID', () => { const j = pm.response.json(); pm.expect(j.code).to.eql('OTP_INVALID'); pm.expect(j.reason).to.eql('EXPIRED'); });"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "60 Password change: the address typed must be my own (MISMATCH)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/account/password/request",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "account",
+        "password",
+        "request"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"email\":\"{{superEmail}}\"}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('400', () => pm.response.to.have.status(400));",
+         "pm.test('reason', () => pm.expect(pm.response.json().reason).to.eql('MISMATCH'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "61 Password change: a code nobody asked for does not work (EXPIRED)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/account/password/confirm",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "account",
+        "password",
+        "confirm"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"code\": \"123456\", \"newPassword\": \"A-Very-Long-Password-91\"}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('400', () => pm.response.to.have.status(400));",
+         "pm.test('OTP_INVALID', () => { const j = pm.response.json(); pm.expect(j.code).to.eql('OTP_INVALID'); pm.expect(j.reason).to.eql('EXPIRED'); });"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "62 Password change: a weak password is refused before the code is used",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dRecv}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/account/password/confirm",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "account",
+        "password",
+        "confirm"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"code\": \"123456\", \"newPassword\": \"short\"}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('400', () => pm.response.to.have.status(400));",
+         "pm.test('names the password', () => pm.expect(pm.response.json().field).to.eql('newPassword'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "63 Staff admin routes need the token kind too: no token on /roles = 401",
+     "request": {
+      "method": "GET",
+      "header": [],
+      "url": {
+       "raw": "{{baseUrl}}/roles",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "roles"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('401', () => pm.response.to.have.status(401));"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "6 Put things back",
+   "item": [
+    {
+     "name": "64 Staff code format back to what it was",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{dSuper}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/staff/code-format",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "staff",
+        "code-format"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"prefix\":\"{{origPrefix}}\",\"minWidth\":{{origWidth}}}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.test('restored', () => pm.expect(pm.response.json().prefix).to.eql(pm.collectionVariables.get('origPrefix')));"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

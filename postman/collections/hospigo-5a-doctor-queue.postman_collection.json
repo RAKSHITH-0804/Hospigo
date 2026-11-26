@@ -1,0 +1,1856 @@
+{
+  "info": {
+    "name": "Hospigo 5a doctor queue, note, prescription and vitals",
+    "description": "Steps 5a-2 and 5a-3. Select the Hospigo Local environment (staffPassword). Start the API on port 3000 (the dev database must have the 5a migration and the dev seed re-run so the Doctor and Nurse roles get the new permissions). Run collection. 5 logins count against the login IP limit (20 per minute).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0 Setup",
+      "item": [
+        {
+          "name": "1 Login Receptionist (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{receptionEmail}}\",\"password\":\"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('select the Hospigo Local environment: staffPassword must be set', () => {",
+                  "  pm.expect(pm.variables.get(\"staffPassword\"), 'staffPassword').to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has tokens', () => { pm.expect(j.accessToken).to.be.a('string'); });",
+                  "pm.collectionVariables.set('cRecvAccess', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 Login Doctor 2 (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{doctorAEmail}}\",\"password\":\"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has tokens', () => { pm.expect(j.accessToken).to.be.a('string'); });",
+                  "pm.collectionVariables.set('cDocAAccess', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3 Login Doctor 3 (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{doctorBEmail}}\",\"password\":\"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has tokens', () => { pm.expect(j.accessToken).to.be.a('string'); });",
+                  "pm.collectionVariables.set('cDocBAccess', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4 Login Nurse (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{nurseEmail}}\",\"password\":\"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has tokens', () => { pm.expect(j.accessToken).to.be.a('string'); });",
+                  "pm.collectionVariables.set('cNurseAccess', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5 Login South Doctor (other hospital)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-south-main\",\"email\":\"{{southDoctorEmail}}\",\"password\":\"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has tokens', () => { pm.expect(j.accessToken).to.be.a('string'); });",
+                  "pm.collectionVariables.set('cSouthAccess', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1 Queue, vitals, consultation",
+      "item": [
+        {
+          "name": "6 Pick doctors 2 and 3",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cRecvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/doctors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "doctors"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().items;",
+                  "const a = items.find(d => d.name === 'Doctor North 2');",
+                  "const b = items.find(d => d.name === 'Doctor North 3');",
+                  "pm.test('doctors 2 and 3 are available with a fee', () => {",
+                  "  pm.expect(a, 'Doctor North 2').to.exist; pm.expect(b, 'Doctor North 3').to.exist;",
+                  "  pm.expect(a.available).to.eql(true); pm.expect(b.available).to.eql(true);",
+                  "});",
+                  "pm.collectionVariables.set('cDocAProfile', a.id);",
+                  "pm.collectionVariables.set('cDocBProfile', b.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7 Register patient A",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cRecvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"{{cPatientName}}\",\"ageYears\":35,\"phone\":\"{{cPatientPhone}}\",\"confirmDuplicate\":true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "pm.collectionVariables.set('cPatient', pm.response.json().id);"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const stamp = Date.now() + Math.floor(Math.random() * 1000);",
+                  "pm.collectionVariables.set('cPatientName', 'Clinical5a ' + stamp);",
+                  "pm.collectionVariables.set('cPatientPhone', '7' + String(stamp).slice(-9));",
+                  "pm.collectionVariables.set('cKey', 'PM5A-' + stamp + '-' + Math.floor(Math.random() * 1e6));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8 Reception takes payment: visit 1 for Doctor 2",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cRecvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{cPatient}}\",\"doctorProfileId\":\"{{cDocAProfile}}\",\"visitType\":\"NEW\",\"idempotencyKey\":\"{{cKey}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "const j = pm.response.json();",
+                  "pm.test('paid visit is WAITING with a token', () => { pm.expect(j.status).to.eql('WAITING'); pm.expect(j.token).to.be.an('object'); });",
+                  "pm.collectionVariables.set('cVisit1', j.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9 Register patient B",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cRecvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"{{cPatientName}}\",\"ageYears\":35,\"phone\":\"{{cPatientPhone}}\",\"confirmDuplicate\":true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "pm.collectionVariables.set('cPatient', pm.response.json().id);"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const stamp = Date.now() + Math.floor(Math.random() * 1000);",
+                  "pm.collectionVariables.set('cPatientName', 'Clinical5a ' + stamp);",
+                  "pm.collectionVariables.set('cPatientPhone', '7' + String(stamp).slice(-9));",
+                  "pm.collectionVariables.set('cKey', 'PM5A-' + stamp + '-' + Math.floor(Math.random() * 1e6));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Reception takes payment: visit 2 for Doctor 2",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cRecvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{cPatient}}\",\"doctorProfileId\":\"{{cDocAProfile}}\",\"visitType\":\"NEW\",\"idempotencyKey\":\"{{cKey}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "const j = pm.response.json();",
+                  "pm.test('paid visit is WAITING with a token', () => { pm.expect(j.status).to.eql('WAITING'); pm.expect(j.token).to.be.an('object'); });",
+                  "pm.collectionVariables.set('cVisit2', j.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 Register patient C",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cRecvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"{{cPatientName}}\",\"ageYears\":35,\"phone\":\"{{cPatientPhone}}\",\"confirmDuplicate\":true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "pm.collectionVariables.set('cPatient', pm.response.json().id);"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const stamp = Date.now() + Math.floor(Math.random() * 1000);",
+                  "pm.collectionVariables.set('cPatientName', 'Clinical5a ' + stamp);",
+                  "pm.collectionVariables.set('cPatientPhone', '7' + String(stamp).slice(-9));",
+                  "pm.collectionVariables.set('cKey', 'PM5A-' + stamp + '-' + Math.floor(Math.random() * 1e6));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 Reception takes payment: visit 3 for Doctor 3",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cRecvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"patientId\":\"{{cPatient}}\",\"doctorProfileId\":\"{{cDocBProfile}}\",\"visitType\":\"NEW\",\"idempotencyKey\":\"{{cKey}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "const j = pm.response.json();",
+                  "pm.test('paid visit is WAITING with a token', () => { pm.expect(j.status).to.eql('WAITING'); pm.expect(j.token).to.be.an('object'); });",
+                  "pm.collectionVariables.set('cVisit3', j.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 Doctor 2 sees only own visits, in payment order",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cDocAAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/queue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "queue"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "const ids = j.items.map(i => i.id);",
+                  "const v1 = pm.collectionVariables.get('cVisit1'), v2 = pm.collectionVariables.get('cVisit2'), v3 = pm.collectionVariables.get('cVisit3');",
+                  "pm.test('own queue, both visits, first paid first', () => {",
+                  "  pm.expect(j.scope).to.eql('OWN');",
+                  "  pm.expect(ids).to.include(v1); pm.expect(ids).to.include(v2);",
+                  "  pm.expect(ids.indexOf(v1)).to.be.below(ids.indexOf(v2));",
+                  "});",
+                  "pm.test('Doctor 3 visit is not here; no money in the queue', () => {",
+                  "  pm.expect(ids).to.not.include(v3);",
+                  "  pm.expect(pm.response.text()).to.not.include('Paise');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 Doctor 3 sees only their visit",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cDocBAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/queue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "queue"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const ids = pm.response.json().items.map(i => i.id);",
+                  "pm.test('only Doctor 3 visit', () => {",
+                  "  pm.expect(ids).to.include(pm.collectionVariables.get('cVisit3'));",
+                  "  pm.expect(ids).to.not.include(pm.collectionVariables.get('cVisit1'));",
+                  "  pm.expect(ids).to.not.include(pm.collectionVariables.get('cVisit2'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 Nurse sees the whole branch queue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cNurseAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/queue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "queue"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "const ids = j.items.map(i => i.id);",
+                  "pm.test('branch scope with all three visits', () => {",
+                  "  pm.expect(j.scope).to.eql('BRANCH');",
+                  "  ['cVisit1','cVisit2','cVisit3'].forEach(k => pm.expect(ids).to.include(pm.collectionVariables.get(k)));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 Nurse: the vitals fields of the hospital",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cNurseAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/vitals-fields",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "vitals-fields"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().items;",
+                  "pm.test('pulse and spo2 exist, no ids', () => {",
+                  "  const codes = items.map(f => f.code);",
+                  "  pm.expect(codes).to.include('pulse'); pm.expect(codes).to.include('spo2');",
+                  "  items.forEach(f => pm.expect(f).to.not.have.property('id'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 Nurse records vitals for visit 1",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cNurseAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{cVisit1}}/vitals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{cVisit1}}",
+                "vitals"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"readings\":[{\"fieldCode\":\"pulse\",\"value\":72},{\"fieldCode\":\"spo2\",\"value\":98}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('both recorded as version 1', () => {",
+                  "  pm.expect(j.recorded).to.have.members(['pulse', 'spo2']);",
+                  "  const p = j.fields.find(f => f.code === 'pulse');",
+                  "  pm.expect(p.value).to.eql(72); pm.expect(p.version).to.eql(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "18 Sending the same pulse again changes nothing",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cNurseAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{cVisit1}}/vitals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{cVisit1}}",
+                "vitals"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"readings\":[{\"fieldCode\":\"pulse\",\"value\":72}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 and unchanged', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().unchanged).to.eql(['pulse']);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "19 A different pulse needs a reason (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cNurseAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{cVisit1}}/vitals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{cVisit1}}",
+                "vitals"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"readings\":[{\"fieldCode\":\"pulse\",\"value\":80}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 reason required', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().code).to.eql('VITALS_CORRECTION_REASON_REQUIRED');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "20 Correct the pulse with a reason (history is kept)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cNurseAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{cVisit1}}/vitals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{cVisit1}}",
+                "vitals"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"readings\":[{\"fieldCode\":\"pulse\",\"value\":80,\"correctionReason\":\"wrong finger\"}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 corrected', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const p = pm.response.json().fields.find(f => f.code === 'pulse');",
+                  "  pm.expect(p.version).to.eql(2); pm.expect(p.value).to.eql(80);",
+                  "  pm.expect(p.history.map(h => h.value)).to.eql([72, 80]);",
+                  "  pm.expect(p.history[1].correctionReason).to.eql('wrong finger');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "21 Doctor 3 cannot start or read Doctor 2's visit (404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cDocBAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{cVisit1}}/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{cVisit1}}",
+                "start"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 not found (no hint it exists)', () => {",
+                  "  pm.response.to.have.status(404);",
+                  "  pm.expect(pm.response.json().code).to.eql('VISIT_NOT_FOUND');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "22 The nurse cannot start a consultation (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cNurseAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{cVisit1}}/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{cVisit1}}",
+                "start"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "23 Doctor 2 cannot save a note before starting (409)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cDocAAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{cVisit1}}/consultation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{cVisit1}}",
+                "consultation"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"diagnosis\":\"too early\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 not in consultation', () => {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.json().code).to.eql('VISIT_NOT_IN_CONSULTATION');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "24 Doctor 2 starts visit 1",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cDocAAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{cVisit1}}/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{cVisit1}}",
+                "start"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 in consultation', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.replayed).to.eql(false);",
+                  "  pm.expect(j.visit.status).to.eql('IN_CONSULTATION');",
+                  "  pm.expect(j.visit.consultationStartedAt).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "25 A second Start click gives the same state",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cDocAAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{cVisit1}}/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{cVisit1}}",
+                "start"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 replay', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().replayed).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "26 Completing an empty note is refused (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cDocAAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{cVisit1}}/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{cVisit1}}",
+                "complete"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 note empty', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().code).to.eql('NOTE_EMPTY');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "27 Search the medicine list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cDocAAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/medicines?q=Mock&limit=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "medicines"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "Mock"
+                },
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().items;",
+                  "pm.test('medicines found', () => pm.expect(items.length).to.be.above(0));",
+                  "pm.collectionVariables.set('cMedicineId', items[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "28 Doctor 2 saves the draft note",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cDocAAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{cVisit1}}/consultation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{cVisit1}}",
+                "consultation"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"complaints\":\"Fever for 3 days\",\"diagnosis\":\"Viral fever\",\"advice\":\"Rest and fluids\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 draft', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const c = pm.response.json().consultation;",
+                  "  pm.expect(c.status).to.eql('DRAFT'); pm.expect(c.diagnosis).to.eql('Viral fever');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "29 Doctor 2 writes the prescription (one listed, one unlisted)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cDocAAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{cVisit1}}/prescription",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{cVisit1}}",
+                "prescription"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"items\":[{\"medicineId\":\"{{cMedicineId}}\",\"dose\":\"1 tablet\",\"frequency\":\"twice a day\",\"duration\":\"5 days\"},{\"medicineName\":\"Tulsi drops\",\"dose\":\"5 drops\",\"frequency\":\"morning\",\"duration\":\"7 days\"}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 two rows', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const rx = pm.response.json().prescription;",
+                  "  pm.expect(rx).to.have.length(2);",
+                  "  pm.expect(rx[0].isUnlisted).to.eql(false); pm.expect(rx[1].isUnlisted).to.eql(true);",
+                  "  pm.expect(rx[1].medicineName).to.eql('Tulsi drops');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "30 Nurse reads the note (every read is audited)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cNurseAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{cVisit1}}/consultation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{cVisit1}}",
+                "consultation"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 with note and prescription', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.consultation.diagnosis).to.eql('Viral fever');",
+                  "  pm.expect(j.prescription).to.have.length(2);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "31 Receptionist cannot read notes or the queue (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cRecvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{cVisit1}}/consultation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{cVisit1}}",
+                "consultation"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "32 Doctor 2 completes visit 1",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cDocAAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{cVisit1}}/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{cVisit1}}",
+                "complete"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 completed', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.replayed).to.eql(false);",
+                  "  pm.expect(j.visit.status).to.eql('COMPLETED');",
+                  "  pm.expect(j.consultation.status).to.eql('COMPLETED');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "33 A completed note cannot be edited (409)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cDocAAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{cVisit1}}/consultation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{cVisit1}}",
+                "consultation"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"diagnosis\":\"changed after completion\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "34 A correction is an addendum (who, when, why)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cDocAAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{cVisit1}}/consultation/addenda",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{cVisit1}}",
+                "consultation",
+                "addenda"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"text\":\"Patient is allergic to penicillin\",\"reason\":\"Missed allergy history\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 addendum', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.consultation.diagnosis).to.eql('Viral fever');",
+                  "  pm.expect(j.addenda).to.have.length(1);",
+                  "  pm.expect(j.addenda[0].reason).to.eql('Missed allergy history');",
+                  "  pm.expect(j.addenda[0].addedBy.name).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "35 Doctor 2 still sees visit 1, now marked Completed, and visit 2 still waiting",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cDocAAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/queue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "queue"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().items;",
+                  "const v1 = items.find(i => i.id === pm.collectionVariables.get('cVisit1'));",
+                  "const v2 = items.find(i => i.id === pm.collectionVariables.get('cVisit2'));",
+                  "pm.test('visit 1 is listed as Completed today with its time', () => {",
+                  "  pm.expect(v1).to.exist; pm.expect(v1.status).to.eql('COMPLETED'); pm.expect(v1.completedAt).to.be.a('string');",
+                  "});",
+                  "pm.test('visit 2 is still waiting, and open visits come before completed ones', () => {",
+                  "  pm.expect(v2.status).to.eql('WAITING');",
+                  "  pm.expect(items.indexOf(v2)).to.be.below(items.indexOf(v1));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "35b Reception sees the whole branch read-only (no clinical text)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cRecvAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/queue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "queue"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "const ids = j.items.map(i => i.id);",
+                  "pm.test('branch scope with the completed and the waiting visit', () => {",
+                  "  pm.expect(j.scope).to.eql('BRANCH');",
+                  "  pm.expect(ids).to.include(pm.collectionVariables.get('cVisit1'));",
+                  "  pm.expect(ids).to.include(pm.collectionVariables.get('cVisit2'));",
+                  "});",
+                  "pm.test('no note text, no money', () => {",
+                  "  const text = pm.response.text();",
+                  "  pm.expect(text).to.not.include('Viral'); pm.expect(text).to.not.include('Paise');",
+                  "  pm.expect(text).to.not.include('complaints');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "36 Another hospital's doctor cannot see this visit (404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cSouthAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/visits/{{cVisit1}}/consultation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "visits",
+                "{{cVisit1}}",
+                "consultation"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));",
+                  "pm.test('nothing about the note leaks', () => pm.expect(pm.response.text()).to.not.include('Viral'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "37 No token = 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/opd/queue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "queue"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:3000"
+    },
+    {
+      "key": "receptionEmail",
+      "value": "receptionist1@demo-north.example.test"
+    },
+    {
+      "key": "doctorAEmail",
+      "value": "doctor2@demo-north.example.test"
+    },
+    {
+      "key": "doctorBEmail",
+      "value": "doctor3@demo-north.example.test"
+    },
+    {
+      "key": "nurseEmail",
+      "value": "nurse1@demo-north.example.test"
+    },
+    {
+      "key": "southDoctorEmail",
+      "value": "doctor1@demo-south.example.test"
+    }
+  ]
+}

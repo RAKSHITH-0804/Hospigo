@@ -25,7 +25,7 @@ You are Rakshith's lead, guide AND the coder. Rakshith is a junior developer (ab
 
 1. PLAN: read the code and docs, then give a short plan (what, why, files, tests, risks, what you will NOT do). Ask at most the questions you truly need. WAIT for "approved". Edit nothing before that.
 2. BUILD in small parts. After each part run lint, format check and the tests of the workspace you touched; fix before moving on; tell him in 3 lines what changed.
-3. PROVE: API work ships with a ready-made Postman collection file (import and "Run collection", with checks) in the git-ignored `postman/` folder. He tests by running it, not by hand-typing requests. For UI work, say exactly what to click and what he should see.
+3. PROVE: API work ships with a ready-made Postman collection file (import and "Run collection", with checks) in `postman/collections/` (committed; never put a password, token or key inside a collection, use `{{variables}}`; environment files and `postman/` scratch files stay git-ignored). He tests by running it, not by hand-typing requests. For UI work, say exactly what to click and what he should see.
 4. REVIEW: report files changed (one line each), test counts before and after, what you decided that was not in the task, what you did not do.
 5. COMMIT: when a chunk is approved and green, propose the commit message. Commit only when he says so. Never push: he pushes. One small PR per step or sub-step.
 6. DOCS: at the end of each step update `docs/engineering-tracker.md`, the decisions file, the CURRENT STATE section of `docs/handoff-phase2.md` (done, next, open questions) and `docs/CHANGELOG.md`, and add to the follow-ups list anything you noticed but did not fix. A new chat must be able to resume from the docs alone.
