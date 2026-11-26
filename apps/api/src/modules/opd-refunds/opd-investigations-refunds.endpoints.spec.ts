@@ -1522,6 +1522,115 @@ describe('OPD tests ordering, investigations bill, refunds and cancellation (HTT
       expect((await http().get('/opd/refund-requests/pending-count')).status).toBe(401);
     });
 
+    it('an Admin of TWO branches (Step 2.1f): the queue, the requests, the report, the pending tests and the dashboard show only the ACTIVE branch; prices are hospital-wide; a branch not assigned is refused; another hospital sees none of it', async () => {
+      const perms = [
+        'opd.visits.read',
+        'opd.queue.read',
+        'opd.billing.read',
+        'opd.reports.read',
+        'opd.refunds.approve',
+        'opd.investigations.bill',
+        'opd.prices.write',
+      ];
+      const permRows = await owner.permission.findMany({ where: { code: { in: perms } } });
+      const person = async (key: string, branches: string[]) => {
+        const u = await owner.user.create({
+          data: {
+            tenantId: A.tenant,
+            code: uniq(`TB${key}`).slice(0, 40),
+            email: `${uniq(key)}@example.test`,
+            displayName: `Two branch ${key}`,
+            passwordHash: 'x',
+          },
+        });
+        for (const branchId of branches) {
+          await owner.userBranch.create({ data: { tenantId: A.tenant, userId: u.id, branchId } });
+        }
+        const role = await owner.role.create({
+          data: { tenantId: A.tenant, code: uniq('R_TB'), name: `TB ${key}` },
+        });
+        for (const p of permRows) {
+          await owner.rolePermission.create({
+            data: { tenantId: A.tenant, roleId: role.id, permissionId: p.id },
+          });
+        }
+        const assignment = await owner.roleAssignment.create({
+          data: { tenantId: A.tenant, userId: u.id, roleId: role.id, scopeType: 'BRANCH' },
+        });
+        for (const branchId of branches) {
+          await owner.roleAssignmentBranch.create({
+            data: { tenantId: A.tenant, assignmentId: assignment.id, branchId },
+          });
+        }
+        return (branchId: string) =>
+          tokenService.signHospitalAccess({ tenantId: A.tenant, userId: u.id, branchId });
+      };
+      const both = await person('both', [A.main, A.east]);
+      const mainOnly = await person('mainonly', [A.main]);
+      const getAs = (token: string, url: string) =>
+        http()
+          .get(url)
+          .set({ Authorization: `Bearer ${token}` });
+      const today = new Date().toISOString().slice(0, 10);
+      const listOf = (body: Loose): Loose[] =>
+        Array.isArray(body) ? body : (body.items ?? body.visits ?? body.queue ?? []);
+
+      // data exists in the main branch only: a paid waiting visit and a pending refund request
+      const v = await waiting(A);
+      await reqRefund(A, 'recv', v.billId, 500).expect(201);
+
+      const seen = async (branchId: string) => {
+        const t = both(branchId);
+        const [queue, requests, report, pending, dash] = await Promise.all([
+          getAs(t, '/opd/queue'),
+          getAs(t, '/opd/refund-requests?status=REQUESTED&pageSize=100'),
+          getAs(t, `/opd/reports/daily-collection?date=${today}`),
+          getAs(t, '/opd/investigations/pending'),
+          getAs(t, '/dashboard/summary'),
+        ]);
+        for (const res of [queue, requests, report, pending, dash]) {
+          expect(res.status).toBe(200);
+        }
+        return {
+          queue: listOf(queue.body).length,
+          requests: listOf(requests.body).length,
+          collected: report.body.totals.collectedPaise as number,
+          reportVisits: report.body.counts.visits as number,
+          dashVisits: dash.body.today.visits as number,
+          dashBranch: dash.body.branchId as string,
+        };
+      };
+      const main = await seen(A.main);
+      const east = await seen(A.east);
+      expect(main.queue).toBeGreaterThan(0);
+      expect(main.requests).toBeGreaterThan(0);
+      expect(main.collected).toBeGreaterThan(0);
+      expect(main.reportVisits).toBeGreaterThan(0);
+      expect(main.dashVisits).toBeGreaterThan(0);
+      expect(main.dashBranch).toBe(A.main);
+      // the other branch of the same Admin shows none of it
+      expect(east).toEqual({
+        queue: 0,
+        requests: 0,
+        collected: 0,
+        reportVisits: 0,
+        dashVisits: 0,
+        dashBranch: A.east,
+      });
+      // prices belong to the hospital, not to a branch: the same list from either branch
+      const pricesMain = await getAs(both(A.main), '/opd/prices').expect(200);
+      const pricesEast = await getAs(both(A.east), '/opd/prices').expect(200);
+      expect(pricesEast.body).toEqual(pricesMain.body);
+      // a person assigned to the main branch only is refused with a token for the east branch
+      for (const url of ['/opd/queue', '/opd/refund-requests', '/opd/investigations/pending']) {
+        expect((await getAs(mainOnly(A.east), url)).status).toBe(403);
+      }
+      // another hospital's Admin never sees these numbers
+      expect(
+        (await get(B, 'admin', '/opd/refund-requests?status=REQUESTED&pageSize=100')).body.items,
+      ).not.toEqual(expect.arrayContaining([expect.objectContaining({ billId: v.billId })]));
+    });
+
     it('the dashboard summary (Step 2.1d): real counts, blocks follow permissions, other branch and hospital not mixed in', async () => {
       const summary = async (h: Hospital, who: string) => {
         const res = await get(h, who, '/dashboard/summary');
