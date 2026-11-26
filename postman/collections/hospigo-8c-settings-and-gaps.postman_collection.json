@@ -28,12 +28,148 @@
     {
       "key": "southEmail",
       "value": "superadmin@demo-south.example.test"
+    },
+    {
+      "key": "indigoOwnerEmail",
+      "value": "owner@indigo-demo.example.test"
     }
   ],
   "item": [
     {
       "name": "0 Setup",
       "item": [
+        {
+          "name": "O1 Login Indigo Owner (no access code)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hq/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hq",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"{{indigoOwnerEmail}}\",\"password\":\"{{indigoPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('hqOwnerAccess', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "O2 The Owner sees the hospitals and picks Demo North",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{hqOwnerAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/indigo/hospitals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "indigo",
+                "hospitals"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const north = pm.response.json().items.find(h => h.code === 'DEMO_NORTH');",
+                  "pm.test('Demo North is listed', () => pm.expect(north).to.exist);",
+                  "pm.collectionVariables.set('northHospitalId', north.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "O3 Enter Demo North as the Indigo Owner",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{hqOwnerAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/indigo/enter",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "indigo",
+                "enter"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"hospitalId\":\"{{northHospitalId}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('a hospital token pair', () => { pm.expect(j.accessToken).to.be.a('string'); pm.expect(j.refreshToken).to.be.a('string'); });",
+                  "pm.collectionVariables.set('rOwner', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
         {
           "name": "1 Login SuperAdmin (north main)",
           "request": {
@@ -2686,13 +2822,13 @@
           ]
         },
         {
-          "name": "62 SuperAdmin may change both places (200)",
+          "name": "62 The Indigo Owner may change both places (200)",
           "request": {
             "method": "GET",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{tSA}}"
+                "value": "Bearer {{rOwner}}"
               }
             ],
             "url": {
@@ -2719,7 +2855,7 @@
           ]
         },
         {
-          "name": "63 Branch Admin may change the branch only (200)",
+          "name": "63 An Admin can no longer change templates (200, nothing)",
           "request": {
             "method": "GET",
             "header": [
@@ -2745,7 +2881,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('branch only', () => pm.expect(pm.response.json().canChange).to.eql({branch: true, hospital: false}));"
+                  "pm.test('nothing', () => pm.expect(pm.response.json().canChange).to.eql({branch: false, hospital: false}));"
                 ]
               }
             }
@@ -2848,7 +2984,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{tBA}}"
+                "value": "Bearer {{rOwner}}"
               }
             ],
             "url": {
@@ -2936,8 +3072,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 403', () => pm.response.to.have.status(403));",
-                  "pm.test('code PRINT_SCOPE_FORBIDDEN', () => pm.expect(pm.response.json().code).to.eql('PRINT_SCOPE_FORBIDDEN'));"
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
                 ]
               }
             }
@@ -2990,7 +3125,7 @@
           ]
         },
         {
-          "name": "69 Branch Admin saves the template of their own branch (200)",
+          "name": "69 The Indigo Owner saves the template of this branch (200)",
           "request": {
             "method": "PUT",
             "header": [
@@ -3000,7 +3135,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{tBA}}"
+                "value": "Bearer {{rOwner}}"
               }
             ],
             "url": {
@@ -3083,7 +3218,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{tBA}}"
+                "value": "Bearer {{rOwner}}"
               }
             ],
             "url": {

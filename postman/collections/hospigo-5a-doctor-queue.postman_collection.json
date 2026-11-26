@@ -1617,7 +1617,7 @@
           ]
         },
         {
-          "name": "34 A correction is an addendum (who, when, why)",
+          "name": "34 An addendum is no longer possible (409): a completed note is changed by an Admin as a new version",
           "request": {
             "method": "POST",
             "header": [
@@ -1659,14 +1659,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('201 addendum', () => {",
-                  "  pm.response.to.have.status(201);",
-                  "  const j = pm.response.json();",
-                  "  pm.expect(j.consultation.diagnosis).to.eql('Viral fever');",
-                  "  pm.expect(j.addenda).to.have.length(1);",
-                  "  pm.expect(j.addenda[0].reason).to.eql('Missed allergy history');",
-                  "  pm.expect(j.addenda[0].addedBy.name).to.be.a('string');",
-                  "});"
+                  "pm.test('409 retired', () => { pm.response.to.have.status(409); pm.expect(pm.response.json().code).to.eql('ADDENDUM_RETIRED'); });"
                 ]
               }
             }

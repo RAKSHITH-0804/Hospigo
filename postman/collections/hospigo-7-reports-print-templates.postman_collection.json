@@ -9,6 +9,138 @@
       "name": "0 Setup",
       "item": [
         {
+          "name": "O1 Login Indigo Owner (no access code)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hq/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hq",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"{{indigoOwnerEmail}}\",\"password\":\"{{indigoPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('hqOwnerAccess', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "O2 The Owner sees the hospitals and picks Demo North",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{hqOwnerAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/indigo/hospitals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "indigo",
+                "hospitals"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const north = pm.response.json().items.find(h => h.code === 'DEMO_NORTH');",
+                  "pm.test('Demo North is listed', () => pm.expect(north).to.exist);",
+                  "pm.collectionVariables.set('northHospitalId', north.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "O3 Enter Demo North as the Indigo Owner",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{hqOwnerAccess}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/indigo/enter",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "indigo",
+                "enter"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"hospitalId\":\"{{northHospitalId}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('a hospital token pair', () => { pm.expect(j.accessToken).to.be.a('string'); pm.expect(j.refreshToken).to.be.a('string'); });",
+                  "pm.collectionVariables.set('rOwner', j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "1 Login Receptionist (north main)",
           "request": {
             "method": "POST",
@@ -154,7 +286,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{rSuper}}"
+                "value": "Bearer {{rOwner}}"
               }
             ],
             "url": {
@@ -193,7 +325,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{rSuper}}"
+                "value": "Bearer {{rOwner}}"
               }
             ],
             "url": {
@@ -934,7 +1066,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{rSuper}}"
+                "value": "Bearer {{rOwner}}"
               }
             ],
             "url": {
@@ -1093,7 +1225,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{rSuper}}"
+                "value": "Bearer {{rOwner}}"
               }
             ],
             "url": {
@@ -1181,7 +1313,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{rSuper}}"
+                "value": "Bearer {{rOwner}}"
               }
             ],
             "url": {
@@ -1228,7 +1360,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{rSuper}}"
+                "value": "Bearer {{rOwner}}"
               }
             ],
             "url": {
@@ -1338,7 +1470,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{rSuper}}"
+                "value": "Bearer {{rOwner}}"
               }
             ],
             "url": {
@@ -1417,6 +1549,10 @@
     {
       "key": "southSuperEmail",
       "value": "superadmin@demo-south.example.test"
+    },
+    {
+      "key": "indigoOwnerEmail",
+      "value": "owner@indigo-demo.example.test"
     }
   ]
 }

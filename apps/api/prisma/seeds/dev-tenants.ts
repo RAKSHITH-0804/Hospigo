@@ -249,6 +249,7 @@ export async function seedDevTenants(prisma: PrismaClient): Promise<void> {
   }
 
   await seedDevPatients(prisma);
+  await seedIndigoDemoPeople(prisma);
 
   console.log('Dev tenant seed complete.');
 }
@@ -1130,4 +1131,42 @@ async function ensureBranchRole(
     create: { tenantId, assignmentId: assignment.id, branchId },
     update: { isActive: true },
   });
+}
+
+/**
+ * Dev only (Step 2.1b): a demo Indigo Owner and a demo Indigo Employee (assigned to Demo North), for
+ * trying the Indigo entry and for the Postman collections. They are created only when
+ * SEED_INDIGO_PASSWORD is set in .env; production never runs this seed.
+ */
+async function seedIndigoDemoPeople(prisma: PrismaClient): Promise<void> {
+  const password = process.env.SEED_INDIGO_PASSWORD;
+  if (!password) {
+    console.log('SEED_INDIGO_PASSWORD is not set: no demo Indigo people created.');
+    return;
+  }
+  const passwordHash = await argon2.hash(password);
+  const people = [
+    { email: 'owner@indigo-demo.example.test', displayName: 'Indigo Owner', indigoRole: 'OWNER' },
+    {
+      email: 'employee@indigo-demo.example.test',
+      displayName: 'Indigo Employee',
+      indigoRole: 'EMPLOYEE',
+    },
+  ] as const;
+  const north = await prisma.hospital.findUnique({ where: { code: 'DEMO_NORTH' } });
+  for (const person of people) {
+    const row = await prisma.hqUser.upsert({
+      where: { email: person.email },
+      create: { ...person, passwordHash, mustChangePassword: false, passwordChangedAt: new Date() },
+      update: { ...person, passwordHash, mustChangePassword: false, isActive: true },
+    });
+    if (person.indigoRole === 'EMPLOYEE' && north) {
+      await prisma.hqUserHospital.upsert({
+        where: { hqUserId_tenantId: { hqUserId: row.id, tenantId: north.id } },
+        create: { hqUserId: row.id, tenantId: north.id },
+        update: {},
+      });
+    }
+  }
+  console.log('Demo Indigo Owner and Employee are ready.');
 }
