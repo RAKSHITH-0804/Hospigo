@@ -1,4 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
+import argon2 from 'argon2';
 import request from 'supertest';
 import type { PrismaClient } from '../../generated/prisma';
 import {
@@ -132,6 +133,45 @@ export async function chooseDesigns(
     const logoId = library.logoIds.get(setup.tenantId);
     if (logoId) {
       await put('/print-library/logos/' + logoId + '/choose');
+    }
+  }
+}
+
+/**
+ * The Indigo demo people for the showcase database: the Owner (every hospital) and an Employee assigned
+ * to both showcase hospitals. The password is the name SEED_INDIGO_PASSWORD (else the staff password) in .env.
+ */
+export async function seedShowcaseIndigo(
+  prisma: PrismaClient,
+  setups: LibrarySetup[],
+): Promise<void> {
+  const password = process.env.SEED_INDIGO_PASSWORD || process.env.SEED_STAFF_PASSWORD;
+  if (!password) {
+    console.log('No SEED_INDIGO_PASSWORD or SEED_STAFF_PASSWORD: no Indigo demo people.');
+    return;
+  }
+  const passwordHash = await argon2.hash(password);
+  for (const person of [
+    { email: 'owner@indigo-demo.example.test', displayName: 'Indigo Owner', indigoRole: 'OWNER' },
+    {
+      email: 'employee@indigo-demo.example.test',
+      displayName: 'Indigo Employee',
+      indigoRole: 'EMPLOYEE',
+    },
+  ]) {
+    const row = await prisma.hqUser.upsert({
+      where: { email: person.email },
+      create: { ...person, passwordHash, mustChangePassword: false, passwordChangedAt: new Date() },
+      update: { ...person, passwordHash, mustChangePassword: false, isActive: true },
+    });
+    if (person.indigoRole === 'EMPLOYEE') {
+      for (const setup of setups) {
+        await prisma.hqUserHospital.upsert({
+          where: { hqUserId_tenantId: { hqUserId: row.id, tenantId: setup.tenantId } },
+          create: { hqUserId: row.id, tenantId: setup.tenantId },
+          update: {},
+        });
+      }
     }
   }
 }

@@ -163,3 +163,13 @@ Security of the console: every route needs an HQ token; the service re-reads the
 - The first version of the dashboard counted visits by the moment the row was written; it now counts them by visit date (the business day).
 - Choosing a design a second time returned an error because `updateMany` cannot set the library column; fixed and tested.
 - A new raw-SQL allowlist entry was added for the console onboarding function (see Step 2.1e).
+
+## Step 2.1g: completion run (branch `feature/step-2-1f-finish`)
+
+- **demo:reset** drops and rebuilds only `hospigo_demo` (migrate, reference seed, showcase seed). The showcase now also makes refund and cancellation requests (approved, rejected, waiting) on fresh waiting visits, because the API refuses refunds once a consultation has started, and creates the Indigo Owner and Employee.
+- **Sl No:** a separate extra receipt value `linesNumbered` (1., 2., 3.) so existing templates and the plain `lines` value are unchanged.
+- **Terminology everywhere:** `staffCopy` is wrapped; every string read from it swaps the standard word of each of the 24 terms for the hospital's word (per request on the server, one value in the browser, 60 s cache). Words are replaced as whole words, capital style kept; a term only works for words that appear in the copy as written.
+- **Switch hospital:** `/auth/indigo/enter` and `/auth/indigo/hospitals` also accept the hospital token of an Indigo person's hidden user (anyone else gets the usual refusal); the web ends the old session after the switch; audited as an entry.
+- **Amend adds tests:** `addTestIds` on the amend; only adds; migration `20261129096000_amend_adds_tests` gives the order trigger ONE narrow exception (visit COMPLETED and `app.amend_tests = 'on'`, set only by the amend path, which needs the amend permission). Updates and deletes of orders are untouched. There is no screen control for it yet (API only).
+- **Login page:** the helper line under the Access code is removed (copy, screen, test); a blank code still means Indigo.
+- **Database behind guard:** at start the API compares `_prisma_migrations` with the migration folders; behind = one loud error with the command, and development refuses to start; `/health/details` has `migrations`. Needs the owner URL (otherwise "unknown").

@@ -6,7 +6,7 @@ import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import type { PrismaClient } from '../../generated/prisma';
 import { CLOCK, FakeClock } from '../../common/clock';
 import { seedApprovals } from './showcase-approvals';
-import { chooseDesigns, seedLibrary } from './showcase-library';
+import { chooseDesigns, seedLibrary, seedShowcaseIndigo } from './showcase-library';
 import { ensureSystemRolesForTenant, SYSTEM_ROLE_CODES } from '../system-roles';
 import { defaultStarterOptions, runHospitalStarter } from '../hospital-starter/hospital-starter';
 import { ROLE_TEMPLATES } from '../../modules/staff/staff.config';
@@ -646,6 +646,7 @@ export async function seedShowcase(prisma: PrismaClient, options: ShowcaseOption
     console.log(`Showcase hospital ready: ${hospital.name}`);
   }
   const library = await seedLibrary(prisma, setups);
+  await seedShowcaseIndigo(prisma, setups);
   const clock = new FakeClock(new Date());
   const { AppModule } = await import('../../app.module');
   const { TokenService } = await import('../../modules/auth/token.service');
