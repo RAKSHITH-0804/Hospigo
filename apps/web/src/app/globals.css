@@ -193,6 +193,11 @@
   --size-header-height: 2.75rem;
   --size-icon-menu: 1rem;
   --size-icon-button: 1.75rem;
+  --size-kpi-min: 9rem;
+  --size-chart-min: 15rem;
+  --size-chart-height: 8rem;
+  --size-kpi-skeleton: 4.5rem;
+  --size-donut: 6rem;
   --size-badge-min: 1.25rem;
   --radius-pill: 62.4375rem;
   --size-selection-min-height: 2.75rem;
@@ -461,6 +466,112 @@
     background: var(--foreground);
     color: var(--background);
     box-shadow: 0 0.25rem 1rem oklch(0 0 0 / 0.2);
+  }
+
+  /* Dashboard: KPI cards and small charts, theme tokens only. */
+  .kpi-grid,
+  .chart-grid {
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fit, minmax(var(--size-kpi-min), 1fr));
+  }
+
+  .chart-grid {
+    grid-template-columns: repeat(auto-fit, minmax(var(--size-chart-min), 1fr));
+  }
+
+  .kpi-card,
+  .chart-card {
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
+    background: var(--card);
+  }
+
+  .kpi-skeleton {
+    min-height: var(--size-kpi-skeleton);
+    border-radius: var(--radius-control);
+    background: var(--muted);
+  }
+
+  .chart-svg {
+    width: 100%;
+    height: var(--size-chart-height);
+  }
+
+  .chart-bar {
+    fill: var(--primary);
+  }
+
+  .chart-line {
+    fill: none;
+    stroke: var(--primary);
+    stroke-width: 2;
+  }
+
+  .chart-svg circle {
+    fill: var(--primary);
+  }
+
+  .chart-donut {
+    width: var(--size-donut);
+    height: var(--size-donut);
+    flex: none;
+  }
+
+  .chart-donut circle {
+    stroke-width: 6;
+  }
+
+  .chart-track {
+    stroke: var(--muted);
+  }
+
+  .chart-donut-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .chart-legend {
+    display: grid;
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .chart-s1 {
+    stroke: var(--primary);
+    background: var(--primary);
+  }
+
+  .chart-s2 {
+    stroke: var(--accent-foreground);
+    background: var(--accent-foreground);
+  }
+
+  .chart-s3 {
+    stroke: var(--muted-foreground);
+    background: var(--muted-foreground);
+  }
+
+  .chart-s4 {
+    stroke: var(--destructive);
+    background: var(--destructive);
+  }
+
+  .chart-s5 {
+    stroke: var(--border);
+    background: var(--border);
+  }
+
+  .chart-dot {
+    display: inline-block;
+    width: var(--space-2);
+    height: var(--space-2);
+    margin-inline-end: var(--space-2);
+    border-radius: var(--radius-pill);
   }
 
   .password-wrap {

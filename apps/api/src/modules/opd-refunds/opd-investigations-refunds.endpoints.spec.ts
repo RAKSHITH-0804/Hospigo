@@ -1522,6 +1522,34 @@ describe('OPD tests ordering, investigations bill, refunds and cancellation (HTT
       expect((await http().get('/opd/refund-requests/pending-count')).status).toBe(401);
     });
 
+    it('the dashboard summary (Step 2.1d): real counts, blocks follow permissions, other branch and hospital not mixed in', async () => {
+      const summary = async (h: Hospital, who: string) => {
+        const res = await get(h, who, '/dashboard/summary');
+        expect(res.status).toBe(200);
+        return res.body;
+      };
+      const before = await summary(A, 'admin');
+      await waiting(A);
+      const after = await summary(A, 'admin');
+      expect(after.today.visits).toBe(before.today.visits + 1);
+      expect(after.trend).toHaveLength(14);
+      expect(after.trend[13].visits).toBe(before.trend[13].visits + 1);
+      expect(after.sections.approvals).toBe(true);
+      expect(typeof after.pendingApprovals).toBe('number');
+      // the money block follows the billing permission; approvals follow the approve permission
+      const recv = await summary(A, 'recv');
+      expect(recv.sections.approvals).toBe(false);
+      expect(recv.pendingApprovals).toBeNull();
+      expect(recv.sections.money ? typeof recv.today.collectionPaise : 'null').not.toBe(
+        'undefined',
+      );
+      // another branch and another hospital are counted on their own
+      const east = await summary(A, 'adminEast');
+      expect(east.today.visits).toBe(0);
+      expect((await summary(B, 'admin')).today.visits).toBe(0);
+      expect((await http().get('/dashboard/summary')).status).toBe(401);
+    });
+
     it('lists newest first with a status filter and paging; a wrong status is 400', async () => {
       const v = await waiting(A);
       const a = await reqRefund(A, 'recv', v.billId, 100);

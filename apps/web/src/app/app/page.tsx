@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { DashboardInsights } from '@/components/dashboard/dashboard-insights';
 import { QuickLinks } from '@/components/dashboard/quick-links';
 import { sessionConfig } from '@/config/session';
 import { staffCopy } from '@/config/staff-copy';
@@ -34,6 +35,7 @@ export default async function StaffDashboardPage({
         hospitalName={session.hospitalName?.trim() || staffCopy.brand}
         permissions={session.permissions}
       />
+      <DashboardInsights />
     </div>
   );
 }
