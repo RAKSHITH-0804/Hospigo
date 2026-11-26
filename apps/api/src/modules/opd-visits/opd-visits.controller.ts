@@ -5,6 +5,7 @@ import {
   HttpCode,
   Param,
   Post,
+  Put,
   Query,
   Req,
   Res,
@@ -15,7 +16,11 @@ import { RequirePermission } from '../access/permission.decorators';
 import { TokenKinds } from '../auth/token-kinds.decorator';
 import type { AccessClaims, HospitalAccessClaims } from '../auth/token.types';
 import { isHospitalTokenType } from '../auth/token.types';
-import { CreateVisitDto, PreviewVisitDto } from './dto/create-visit.dto';
+import {
+  CreateVisitDto,
+  PreviewVisitDto,
+  UpdateReceptionSymptomsDto,
+} from './dto/create-visit.dto';
 import { OPD_VISITS_CONFIG as C } from './opd-visits.config';
 import { OpdVisitsService, type Actor } from './opd-visits.service';
 
@@ -99,6 +104,20 @@ export class OpdVisitsController {
   @ApiOperation({ summary: 'One visit of the active branch (money only with opd.billing.read)' })
   async one(@Req() req: HttpReq, @Param('id') id: string) {
     return this.visits.getVisit(id, actorOf(req));
+  }
+
+  @Put('opd/visits/:id/reception-symptoms')
+  @RequirePermission('opd.visits.create', { module: 'OPD' })
+  @ApiOperation({
+    summary:
+      'Reception sets or clears the symptoms of a visit (until the doctor starts the consultation)',
+  })
+  async setSymptoms(
+    @Req() req: HttpReq,
+    @Param('id') id: string,
+    @Body() body: UpdateReceptionSymptomsDto,
+  ) {
+    return this.visits.setReceptionSymptoms(id, body.receptionSymptoms, actorOf(req));
   }
 
   @Get('patients/:patientId/visits')

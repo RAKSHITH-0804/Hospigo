@@ -1,5 +1,5 @@
 import {
-  DEFAULT_PRESET_BY_DOC,
+  defaultPresetKey,
   PAPER_SIZES_MM,
   PRESETS,
   PRINT_DOC_TYPES,
@@ -124,13 +124,24 @@ describe('print template presets and defaults', () => {
   it('a hospital that saved nothing gets the built-in default of each document', () => {
     for (const docType of PRINT_DOC_TYPES) {
       const t = defaultInput(docType);
-      expect(t.preset).toBe(DEFAULT_PRESET_BY_DOC[docType]);
+      expect(t.preset).toBe(defaultPresetKey(docType));
       expect(t.enabled).toBe(true);
       expect(() => validateTemplate(docType, t)).not.toThrow();
     }
     expect(defaultInput('RECEIPT')).toMatchObject({ paper: 'A5', mode: 'FULL' });
-    expect(defaultInput('REGISTRATION_SLIP')).toMatchObject({ paper: 'A4' });
-    expect(defaultInput('PRESCRIPTION')).toMatchObject({ paper: 'A4' });
+    // Step 2.1a: A5 is the default of every document but the label (a hospital setting)
+    expect(defaultInput('REGISTRATION_SLIP')).toMatchObject({ paper: 'A5' });
+    expect(defaultInput('PRESCRIPTION')).toMatchObject({ paper: 'A5' });
+    expect(defaultInput('PATIENT_REPORT')).toMatchObject({ paper: 'A5' });
+    expect(defaultInput('PATIENT_CARD')).toMatchObject({
+      paper: 'LABEL',
+      widthMm: 100,
+      heightMm: 50,
+      preset: 'CARD_LABEL',
+    });
+    // a hospital that chose A4 gets A4 (except the label)
+    expect(defaultInput('REGISTRATION_SLIP', 'A4')).toMatchObject({ paper: 'A4' });
+    expect(defaultInput('PATIENT_CARD', 'A4')).toMatchObject({ paper: 'LABEL' });
   });
 
   it('plain paper starts with the hospital name (bold, centred, on top); every other value has its caption as plain bold words in front', () => {
@@ -160,7 +171,7 @@ describe('print template presets and defaults', () => {
   });
 
   it('a long document that does not fit one column is laid out in two columns, all on the page', () => {
-    const t = presetInput('A5_FULL', 'PRESCRIPTION');
+    const t = presetInput('A5_FULL', 'PATIENT_REPORT');
     const page = pageSizeMm(t);
     const boxes = t.layout.elements.slice(1);
     expect(new Set(boxes.map((e) => e.xMm)).size).toBeGreaterThan(1);

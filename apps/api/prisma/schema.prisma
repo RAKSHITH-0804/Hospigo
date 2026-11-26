@@ -1268,6 +1268,10 @@ model OpdSettings {
   taxName            String?  @map("tax_name")
   taxRegistrationNo  String?  @map("tax_registration_no")
   taxInclusive       Boolean  @default(false) @map("tax_inclusive")
+  /// Default paper of new slip, receipt, prescription and report templates (A4 or A5).
+  defaultPrintPaper  String   @default("A5") @map("default_print_paper")
+  /// Print the patient card (label) automatically after payment (off by default).
+  patientCardAutoPrint Boolean @default(false) @map("patient_card_auto_print")
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -1372,6 +1376,8 @@ model OpdVisit {
   visitDate             DateTime    @map("visit_date") @db.Date
   status                VisitStatus @default(AWAITING_PAYMENT)
   previousVisitId       String?     @map("previous_visit_id")
+  /// Symptoms typed by reception while billing (Step 2.1a); editable until the doctor starts.
+  receptionSymptoms     String?     @map("reception_symptoms")
   tokenDate             DateTime?   @map("token_date") @db.Date
   tokenNo               Int?        @map("token_no")
   queuedAt              DateTime?   @map("queued_at") @db.Timestamptz(3)
@@ -1824,6 +1830,8 @@ enum PrintDocType {
   REGISTRATION_SLIP
   RECEIPT
   PRESCRIPTION
+  PATIENT_REPORT
+  PATIENT_CARD
 
   @@map("print_doc_type")
 }
@@ -1897,6 +1905,8 @@ model PrintTemplate {
   mode           PrintMode        @default(FULL)
   preset         String?
   layout         Json             @default("{}")
+  /// Set when a template is replaced by a newer design (Step 2.1a); a retired row is never read.
+  retiredAt      DateTime?        @map("retired_at") @db.Timestamptz(3)
   createdBy      String           @map("created_by")
   updatedBy      String           @map("updated_by")
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)

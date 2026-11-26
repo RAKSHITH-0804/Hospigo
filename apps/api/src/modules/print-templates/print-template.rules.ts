@@ -24,7 +24,13 @@ import {
  * default of every document. All limits are here (and checked again by the database). Sizes are
  * millimetres with at most ONE decimal.
  */
-export const PRINT_DOC_TYPES = ['REGISTRATION_SLIP', 'RECEIPT', 'PRESCRIPTION'] as const;
+export const PRINT_DOC_TYPES = [
+  'REGISTRATION_SLIP',
+  'RECEIPT',
+  'PRESCRIPTION',
+  'PATIENT_REPORT',
+  'PATIENT_CARD',
+] as const;
 export type PrintDocType = (typeof PRINT_DOC_TYPES)[number];
 export const PRINT_PAPERS = ['A4', 'A5', 'A6', 'LABEL', 'CUSTOM'] as const;
 export type PrintPaper = (typeof PRINT_PAPERS)[number];
@@ -83,6 +89,7 @@ export const PRINT_FIELDS: Record<PrintDocType, readonly string[]> = {
     'address',
     'registeredOn',
     'branchName',
+    'receptionistName',
   ],
   RECEIPT: [
     'hospitalName',
@@ -100,7 +107,9 @@ export const PRINT_FIELDS: Record<PrintDocType, readonly string[]> = {
     'refunded',
     'paymentModes',
     'referenceNo',
+    'receptionistName',
   ],
+  /** The slim document that goes to the pharmacy: header, the medicines, the signature. */
   PRESCRIPTION: [
     'hospitalName',
     'patientName',
@@ -115,13 +124,45 @@ export const PRINT_FIELDS: Record<PrintDocType, readonly string[]> = {
     'doctorSpeciality',
     'doctorRegistrationNo',
     'doctorSignature',
+    'medicines',
+    'amendedMark',
+  ],
+  /** The patient's copy: today's full print (vitals, symptoms, diagnosis, medicines, tests, advice). */
+  PATIENT_REPORT: [
+    'hospitalName',
+    'patientName',
+    'uhid',
+    'age',
+    'gender',
+    'visitDate',
+    'token',
+    'doctorName',
+    'doctorDepartment',
+    'doctorQualifications',
+    'doctorSpeciality',
+    'doctorRegistrationNo',
+    'doctorSignature',
     'vitals',
+    'receptionSymptoms',
     'complaints',
     'diagnosis',
     'medicines',
     'tests',
     'advice',
     'followUpDate',
+    'amendedMark',
+  ],
+  /** The patient card: a small gummed label. */
+  PATIENT_CARD: [
+    'hospitalName',
+    'uhid',
+    'patientName',
+    'relative',
+    'age',
+    'gender',
+    'address',
+    'phone',
+    'receptionistName',
   ],
 };
 
@@ -224,6 +265,16 @@ export const PRESETS: Record<string, Preset> = {
       PRESCRIPTION: ['hospitalName', 'patientName', 'uhid', 'doctorName', 'medicines'],
     },
   },
+  CARD_LABEL: {
+    name: 'Patient card label (50 x 100 mm)',
+    paper: 'LABEL',
+    widthMm: 100,
+    heightMm: 50,
+    orientation: 'LANDSCAPE',
+    marginMm: 3,
+    mode: 'FULL',
+    fontSizePt: 8,
+  },
   PREPRINTED_BILL: {
     name: 'Pre-printed stationery (only the data is printed)',
     paper: 'CUSTOM',
@@ -236,11 +287,17 @@ export const PRESETS: Record<string, Preset> = {
   },
 };
 
-export const DEFAULT_PRESET_BY_DOC: Record<PrintDocType, string> = {
-  REGISTRATION_SLIP: 'A4_FULL',
-  RECEIPT: 'A5_FULL',
-  PRESCRIPTION: 'A4_FULL',
-};
+/** The paper a hospital may choose as its default for new documents (a hospital setting). */
+export const DEFAULT_PAPERS = ['A4', 'A5'] as const;
+export type DefaultPaper = (typeof DEFAULT_PAPERS)[number];
+
+/** The built-in start of each document. The patient card is always the label; the rest follow the hospital's default paper. */
+export function defaultPresetKey(docType: PrintDocType, paper: DefaultPaper = 'A5'): string {
+  if (docType === 'PATIENT_CARD') {
+    return 'CARD_LABEL';
+  }
+  return paper === 'A4' ? 'A4_FULL' : 'A5_FULL';
+}
 
 /** Starting point of a document from a preset (a settings screen copies it, then adjusts it). */
 export function presetInputV2(
@@ -304,8 +361,11 @@ export function presetInput(presetKey: string, docType: PrintDocType): PrintTemp
   };
 }
 
-export function defaultInput(docType: PrintDocType): PrintTemplateInput {
-  return presetInput(DEFAULT_PRESET_BY_DOC[docType], docType);
+export function defaultInput(
+  docType: PrintDocType,
+  paper: DefaultPaper = 'A5',
+): PrintTemplateInput {
+  return presetInput(defaultPresetKey(docType, paper), docType);
 }
 
 /** The real size of the page in millimetres (landscape turns a standard paper on its side). */

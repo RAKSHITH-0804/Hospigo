@@ -7,6 +7,8 @@ import { opdError, OpdErrorCode } from '../opd-visits/opd-visit.errors';
 import type { Actor } from '../opd-visits/opd-visits.service';
 import {
   defaultInput,
+  type DefaultPaper,
+  DEFAULT_PAPERS,
   PRESETS,
   PRINT_DOC_TYPES,
   pageSizeMm,
@@ -107,6 +109,18 @@ function rowToInput(
   }
 }
 
+/** The hospital's default paper (a setting); A5 when nothing is saved yet. */
+async function defaultPaperOf(tx: TenantTx, tenantId: string): Promise<DefaultPaper> {
+  const row = await tx.opdSettings.findUnique({
+    where: { tenantId },
+    select: { defaultPrintPaper: true },
+  });
+  const paper = row?.defaultPrintPaper;
+  return (DEFAULT_PAPERS as readonly string[]).includes(paper ?? '')
+    ? (paper as DefaultPaper)
+    : 'A5';
+}
+
 function effective(
   docType: PrintDocType,
   input: PrintTemplateInput,
@@ -175,8 +189,11 @@ export class PrintTemplatesService {
     ]);
     return this.tenantDb.withTenant(async (tx) => {
       const rows = await this.rowsFor(tx, actor);
+      const paper = await defaultPaperOf(tx, actor.tenantId);
       return {
-        items: PRINT_DOC_TYPES.map((docType) => this.effectiveIn(docType, rows, actor.branchId)),
+        items: PRINT_DOC_TYPES.map((docType) =>
+          this.effectiveIn(docType, rows, actor.branchId, paper),
+        ),
         canChange: { branch: canBranch, hospital: canHospital },
       };
     });
@@ -196,7 +213,7 @@ export class PrintTemplatesService {
     const input = validateTemplate(docType, body);
     const branchId = scope === 'branch' ? actor.branchId : null;
     return this.tenantDb.withTenant(async (tx) => {
-      const where = { tenantId: actor.tenantId, branchId, docType };
+      const where = { tenantId: actor.tenantId, branchId, docType, retiredAt: null };
       const existing = await tx.printTemplate.findFirst({ where });
       const data = this.toData(input, actor.userId);
       let created = false;
@@ -217,7 +234,9 @@ export class PrintTemplatesService {
       const previous =
         existing ??
         (branchId ? rows.find((r) => r.docType === docType && r.branchId === null) : undefined);
-      const before = previous ? rowToInput(previous, docType) : defaultInput(docType);
+      const before = previous
+        ? rowToInput(previous, docType)
+        : defaultInput(docType, await defaultPaperOf(tx, actor.tenantId));
       const changed = TOP_LEVEL.filter(
         (key) => JSON.stringify(before[key]) !== JSON.stringify(input[key]),
       );
@@ -268,7 +287,7 @@ export class PrintTemplatesService {
     const branchId = scope === 'branch' ? actor.branchId : null;
     return this.tenantDb.withTenant(async (tx) => {
       const removed = await tx.printTemplate.deleteMany({
-        where: { tenantId: actor.tenantId, branchId, docType },
+        where: { tenantId: actor.tenantId, branchId, docType, retiredAt: null },
       });
       if (removed.count > 0) {
         await tx.auditLog.create({
@@ -294,6 +313,7 @@ export class PrintTemplatesService {
     return tx.printTemplate.findMany({
       where: {
         tenantId: actor.tenantId,
+        retiredAt: null,
         OR: [{ branchId: null }, { branchId: actor.branchId }],
       },
     });
@@ -304,10 +324,16 @@ export class PrintTemplatesService {
       where: {
         tenantId: actor.tenantId,
         docType,
+        retiredAt: null,
         OR: [{ branchId: null }, { branchId: actor.branchId }],
       },
     });
-    return this.effectiveIn(docType, rows, actor.branchId);
+    return this.effectiveIn(
+      docType,
+      rows,
+      actor.branchId,
+      await defaultPaperOf(tx, actor.tenantId),
+    );
   }
 
   /** The lookup: the branch's own template, then the hospital's, then the built-in default. */
@@ -315,6 +341,7 @@ export class PrintTemplatesService {
     docType: PrintDocType,
     rows: Array<Prisma.PrintTemplateGetPayload<object>>,
     branchId: string,
+    paper: DefaultPaper = 'A5',
   ): EffectiveTemplate {
     const ofDoc = rows.filter((r) => r.docType === docType);
     const own = ofDoc.find((r) => r.branchId === branchId);
@@ -325,7 +352,7 @@ export class PrintTemplatesService {
     if (wide) {
       return effective(docType, rowToInput(wide, docType), 'HOSPITAL', wide.updatedAt);
     }
-    return effective(docType, defaultInput(docType), 'DEFAULT', null);
+    return effective(docType, defaultInput(docType, paper), 'DEFAULT', null);
   }
 
   private toData(input: PrintTemplateInput, userId: string) {

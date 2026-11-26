@@ -25,6 +25,7 @@ export type CreateVisitInput = {
   /** Split payment: one line per mode; replaces paymentModeCode / referenceNo. */
   payments?: Array<{ paymentModeCode: string; amountPaise: number; referenceNo?: string }>;
   expectedTotalPaise?: number;
+  receptionSymptoms?: string;
 };
 
 export type PreviewInput = Pick<CreateVisitInput, 'patientId' | 'doctorProfileId' | 'visitType'>;
@@ -46,6 +47,7 @@ const VISIT_INCLUDE = {
   patient: { select: { id: true, uhid: true, name: true } },
   doctor: { select: { id: true, code: true, user: { select: { displayName: true } } } },
   branch: { select: { id: true, name: true } },
+  creator: { select: { displayName: true } },
   bills: { include: BILL_INCLUDE },
 } satisfies Prisma.OpdVisitInclude;
 
@@ -97,6 +99,10 @@ export type VisitView = {
   token: { date: string; no: number; label: string } | null;
   queuedAt: string | null;
   createdAt: string;
+  /** What the patient told reception (Step 2.1a); editable until the doctor starts. */
+  receptionSymptoms: string | null;
+  /** The receptionist who billed the visit (printed on the receipt and the patient card). */
+  createdByName: string;
   /** Present only for callers with opd.billing.read (doctors and nurses never see money). */
   bill?: BillView | null;
 };
@@ -185,6 +191,8 @@ function toVisitView(
         : null,
     queuedAt: row.queuedAt ? row.queuedAt.toISOString() : null,
     createdAt: row.createdAt.toISOString(),
+    receptionSymptoms: row.receptionSymptoms,
+    createdByName: row.creator.displayName,
     ...(opts.withMoney
       ? { bill: consultationBill ? toBillView(consultationBill, opts.detail) : null }
       : {}),
@@ -418,6 +426,7 @@ export class OpdVisitsService {
         visitDate: today,
         previousVisitId,
         createdBy: userId,
+        receptionSymptoms: input.receptionSymptoms?.trim() ? input.receptionSymptoms.trim() : null,
       },
     });
     const bill = await tx.bill.create({
@@ -815,6 +824,44 @@ export class OpdVisitsService {
         withMoney: scope.withMoney,
         detail: true,
       });
+    });
+  }
+
+  /**
+   * Reception changes (or clears) the symptoms of a visit. Only until the doctor starts the
+   * consultation (the database refuses it afterwards too), and only in the active branch.
+   */
+  async setReceptionSymptoms(visitId: string, text: string, actor: Actor): Promise<VisitView> {
+    return this.tenantDb.withTenant(async (tx) => {
+      const row = await tx.opdVisit.findFirst({
+        where: { id: visitId, tenantId: actor.tenantId, branchId: actor.branchId },
+        select: { id: true, status: true, consultationStartedAt: true },
+      });
+      if (!row) {
+        throw opdError(404, OpdErrorCode.VISIT_NOT_FOUND);
+      }
+      if (row.consultationStartedAt !== null || ['COMPLETED', 'CANCELLED'].includes(row.status)) {
+        throw opdError(409, OpdErrorCode.CONSULTATION_STARTED);
+      }
+      const value = text.trim() ? text.trim() : null;
+      await tx.opdVisit.updateMany({
+        where: { id: row.id, tenantId: actor.tenantId },
+        data: { receptionSymptoms: value },
+      });
+      await tx.auditLog.create({
+        data: {
+          tenantId: actor.tenantId,
+          actorUserId: actor.userId,
+          branchId: actor.branchId,
+          action: 'OPD_VISIT_SYMPTOMS_CHANGE',
+          entityType: 'opd_visit',
+          entityId: row.id,
+          // the words are never stored in the audit log, only that they changed
+          metadata: { changed: ['receptionSymptoms'], cleared: value === null },
+        },
+      });
+      const scope = await this.readScope(tx, actor);
+      return this.viewInTx(tx, actor, row.id, { withMoney: scope.withMoney, detail: true });
     });
   }
 

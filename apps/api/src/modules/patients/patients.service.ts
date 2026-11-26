@@ -11,6 +11,7 @@ import { requireContext } from '../../common/request-context';
 import { TenantDb } from '../../database/tenant-db';
 import { OPD_SETTINGS_DEFAULTS } from '../opd-masters/opd-settings.defaults';
 import { zonedParts } from './uhid.util';
+import { ageParts, dobFromAge, type AgeParts } from '../../common/age';
 import { PatientFieldsService, type PatientFieldPayload } from './patient-fields.service';
 import { UhidService } from './uhid.service';
 import { mergePatientFieldErrors } from './patient-dto-validation';
@@ -36,6 +37,8 @@ export type RegisterPatientInput = PatientFieldPayload & {
   createdBy: string;
   confirmDuplicate?: boolean;
   ageYears?: number;
+  ageMonths?: number;
+  ageDays?: number;
   /** Soft class-validator codes from HospigoValidationPipe (optional). */
   dtoFieldErrors?: PatientFieldErrors;
   dtoMessages?: string[];
@@ -43,6 +46,8 @@ export type RegisterPatientInput = PatientFieldPayload & {
 
 export type UpdatePatientInput = PatientFieldPayload & {
   ageYears?: number;
+  ageMonths?: number;
+  ageDays?: number;
   dtoFieldErrors?: PatientFieldErrors;
   dtoMessages?: string[];
 };
@@ -54,6 +59,8 @@ export type PatientListItem = {
   gender: string | null;
   dateOfBirth: string | null;
   ageYears: number | null;
+  /** Years, months and days from the date of birth to today (the screens decide how to show them). */
+  age: AgeParts | null;
   dobIsEstimated: boolean;
   phone: string | null;
   registeredBranchId: string;
@@ -207,7 +214,11 @@ export class PatientsService {
       serviceErrors.date_of_birth !== PatientFieldErrorCode.AGE_AND_DOB_BOTH &&
       serviceErrors.ageYears !== PatientFieldErrorCode.INVALID;
     if (canApplyAge) {
-      const dob = await this.estimatedDobFromAge(input.tenantId, input.ageYears!);
+      const dob = await this.estimatedDobFromAge(input.tenantId, {
+        years: input.ageYears!,
+        months: input.ageMonths ?? 0,
+        days: input.ageDays ?? 0,
+      });
       payload.dateOfBirth = dob;
       payload.dobIsEstimated = true;
     }
@@ -629,6 +640,7 @@ export class PatientsService {
       const patient = await tx.patient.findFirst({
         where: { tenantId, id },
         include: {
+          creator: { select: { displayName: true } },
           customFieldValues: {
             include: { field: true, option: true },
           },
@@ -660,6 +672,7 @@ export class PatientsService {
         gender: patient.gender,
         dateOfBirth: patient.dateOfBirth ? patient.dateOfBirth.toISOString().slice(0, 10) : null,
         ageYears: ageYearsFromDob(patient.dateOfBirth, timeZone),
+        age: ageOfDob(patient.dateOfBirth, timeZone),
         dobIsEstimated: patient.dobIsEstimated,
         phone: patient.phone,
         email: patient.email,
@@ -670,6 +683,8 @@ export class PatientsService {
         addressState: patient.addressState,
         addressPincode: patient.addressPincode,
         registeredBranchId: patient.registeredBranchId,
+        /** The person who registered the patient (printed on the slip and the patient card). */
+        createdByName: patient.creator.displayName,
         isActive: patient.isActive,
         customFieldValues: patient.customFieldValues.map((v) => ({
           code: v.field.code,
@@ -689,6 +704,8 @@ export class PatientsService {
     actorUserId: string,
     patch: Partial<PatientFieldPayload> & {
       ageYears?: number;
+      ageMonths?: number;
+      ageDays?: number;
       uhid?: unknown;
       registeredBranchId?: unknown;
       tenantId?: unknown;
@@ -748,8 +765,17 @@ export class PatientsService {
       if (!Number.isInteger(patch.ageYears) || patch.ageYears < 0 || patch.ageYears > 150) {
         serviceErrors.ageYears = PatientFieldErrorCode.INVALID;
       } else {
-        next.dateOfBirth = await this.estimatedDobFromAge(tenantId, patch.ageYears);
-        next.dobIsEstimated = true;
+        if (existing.dateOfBirth && !existing.dobIsEstimated) {
+          // a real date of birth is never replaced by an age that someone says
+          serviceErrors.ageYears = PatientFieldErrorCode.DOB_KNOWN;
+        } else {
+          next.dateOfBirth = await this.estimatedDobFromAge(tenantId, {
+            years: patch.ageYears,
+            months: patch.ageMonths ?? 0,
+            days: patch.ageDays ?? 0,
+          });
+          next.dobIsEstimated = true;
+        }
       }
     }
 
@@ -958,13 +984,12 @@ export class PatientsService {
     }
   }
 
-  private async estimatedDobFromAge(tenantId: string, ageYears: number): Promise<Date> {
+  private async estimatedDobFromAge(tenantId: string, age: AgeParts): Promise<Date> {
     return this.tenantDb.withTenant(async (tx) => {
       const opd = await tx.opdSettings.findUnique({ where: { tenantId } });
       const timeZone = opd?.timezone ?? OPD_SETTINGS_DEFAULTS.timezone;
-      const { year, month, day } = zonedParts(new Date(), timeZone);
-      const y = year - ageYears;
-      return new Date(Date.UTC(y, month - 1, day));
+      const dob = dobFromAge(zonedParts(new Date(), timeZone), age);
+      return new Date(Date.UTC(dob.year, dob.month - 1, dob.day));
     });
   }
 
@@ -989,6 +1014,7 @@ export class PatientsService {
       gender: row.gender,
       dateOfBirth: row.date_of_birth ? row.date_of_birth.toISOString().slice(0, 10) : null,
       ageYears: ageYearsFromDob(row.date_of_birth, timeZone),
+      age: ageOfDob(row.date_of_birth, timeZone),
       dobIsEstimated: row.dob_is_estimated,
       phone: row.phone,
       registeredBranchId: row.registered_branch_id,
@@ -1018,6 +1044,16 @@ export class PatientsService {
       registeredBranchName: row.registered_branch_name,
     };
   }
+}
+
+function ageOfDob(dob: Date | null, timeZone: string): AgeParts | null {
+  if (!dob) {
+    return null;
+  }
+  return ageParts(
+    { year: dob.getUTCFullYear(), month: dob.getUTCMonth() + 1, day: dob.getUTCDate() },
+    zonedParts(new Date(), timeZone),
+  );
 }
 
 function ageYearsFromDob(dob: Date | null, timeZone: string): number | null {

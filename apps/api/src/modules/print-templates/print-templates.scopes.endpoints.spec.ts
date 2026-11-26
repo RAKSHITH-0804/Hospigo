@@ -18,8 +18,10 @@ type Cast = {
 };
 
 // A body that is valid for the receipt: a preset copied as it is (the same as the older spec does).
-const bodyOf = (preset: string, docType: 'RECEIPT' | 'REGISTRATION_SLIP' | 'PRESCRIPTION') =>
-  JSON.parse(JSON.stringify(presetInput(preset, docType)));
+const bodyOf = (
+  preset: string,
+  docType: 'RECEIPT' | 'REGISTRATION_SLIP' | 'PRESCRIPTION' | 'PATIENT_REPORT',
+) => JSON.parse(JSON.stringify(presetInput(preset, docType)));
 
 describe('Print templates per branch (HTTP, hospigo_test)', () => {
   const owner = createOwnerPrisma();
@@ -81,7 +83,7 @@ describe('Print templates per branch (HTTP, hospigo_test)', () => {
 
   it('with nothing saved, every branch gets the built-in default (scope DEFAULT)', async () => {
     const res = await http().get('/print-templates').set(auth(A.admin)).expect(200);
-    expect(res.body.items).toHaveLength(3);
+    expect(res.body.items).toHaveLength(5);
     for (const item of res.body.items) {
       expect(item.scope).toBe('DEFAULT');
       expect(item.source).toBe('DEFAULT');
@@ -286,5 +288,149 @@ describe('Print templates per branch (HTTP, hospigo_test)', () => {
     // resetting in B changes nothing in A
     await http().delete('/print-templates/RECEIPT?scope=branch').set(auth(B.admin)).expect(200);
     expect((await effective(A.admin)).scope).toBe('BRANCH');
+  });
+  describe('Step 2.1a: default paper, separate documents, retired templates', () => {
+    it('a hospital that chooses A4 as its default paper gets A4 defaults (the patient card stays a label), and A5 is the default', async () => {
+      const before = await http().get('/print-templates').set(auth(A.admin)).expect(200);
+      expect(
+        Object.fromEntries(
+          before.body.items.map((i: { docType: string; paper: string }) => [i.docType, i.paper]),
+        ),
+      ).toEqual({
+        REGISTRATION_SLIP: 'A5',
+        RECEIPT: 'A5',
+        PRESCRIPTION: 'A5',
+        PATIENT_REPORT: 'A5',
+        PATIENT_CARD: 'LABEL',
+      });
+      await http()
+        .put('/settings/opd-rules')
+        .set(auth(A.admin))
+        .send({ defaultPrintPaper: 'A4' })
+        .expect(200);
+      try {
+        const after = await http().get('/print-templates').set(auth(A.admin)).expect(200);
+        expect(
+          Object.fromEntries(
+            after.body.items.map((i: { docType: string; paper: string }) => [i.docType, i.paper]),
+          ),
+        ).toEqual({
+          REGISTRATION_SLIP: 'A4',
+          RECEIPT: 'A4',
+          PRESCRIPTION: 'A4',
+          PATIENT_REPORT: 'A4',
+          PATIENT_CARD: 'LABEL',
+        });
+        // saved templates are untouched by the setting
+        await http()
+          .put('/print-templates/RECEIPT')
+          .set(auth(A.admin))
+          .send(bodyOf('A5_FULL', 'RECEIPT'))
+          .expect(200);
+        expect((await effective(A.admin)).paper).toBe('A5');
+        // a wrong value is refused
+        const bad = await http()
+          .put('/settings/opd-rules')
+          .set(auth(A.admin))
+          .send({ defaultPrintPaper: 'LABEL' });
+        expect(bad.status).toBe(400);
+      } finally {
+        await http()
+          .put('/settings/opd-rules')
+          .set(auth(A.admin))
+          .send({ defaultPrintPaper: 'A5', patientCardAutoPrint: false })
+          .expect(200);
+      }
+    });
+
+    it('the patient card automatic print is OFF by default and is a hospital setting', async () => {
+      const rules = await http().get('/settings/opd-rules').set(auth(A.admin)).expect(200);
+      expect(rules.body.patientCardAutoPrint).toBe(false);
+      expect(rules.body.defaultPrintPaper).toBe('A5');
+      const on = await http()
+        .put('/settings/opd-rules')
+        .set(auth(A.admin))
+        .send({ patientCardAutoPrint: true })
+        .expect(200);
+      expect(on.body.patientCardAutoPrint).toBe(true);
+      expect(
+        (
+          await http()
+            .put('/settings/opd-rules')
+            .set(auth(A.admin))
+            .send({ patientCardAutoPrint: 'yes' })
+        ).status,
+      ).toBe(400);
+      await http()
+        .put('/settings/opd-rules')
+        .set(auth(A.admin))
+        .send({ patientCardAutoPrint: false })
+        .expect(200);
+    });
+
+    it('the prescription and the patient report are different documents with their own fields', async () => {
+      const rx = (await effective(A.admin, 'PRESCRIPTION')).layout.elements
+        .flatMap((e: { content?: { paragraphs: Array<{ runs: Array<{ field?: string }> }> } }) =>
+          (e.content?.paragraphs ?? []).flatMap((p) => p.runs.map((r) => r.field)),
+        )
+        .filter(Boolean);
+      expect(rx).toEqual(expect.arrayContaining(['patientName', 'medicines', 'doctorSignature']));
+      for (const never of [
+        'vitals',
+        'diagnosis',
+        'tests',
+        'advice',
+        'complaints',
+        'receptionSymptoms',
+      ]) {
+        expect(rx).not.toContain(never);
+      }
+      // a layout of the report is refused as a prescription (no vitals boxes on the slim document)
+      const refused = await http()
+        .put('/print-templates/PRESCRIPTION')
+        .set(auth(A.admin))
+        .send(bodyOf('A5_FULL', 'PATIENT_REPORT'));
+      expect(refused.status).toBe(400);
+      expect(refused.body.reason).toBe('UNKNOWN_FIELD');
+      expect(await owner.printTemplate.count({ where: { tenantId: A.h.tenant } })).toBe(0);
+    });
+
+    it('a retired template is never read, and does not block a new template of the same document', async () => {
+      const admin = await owner.user.findFirstOrThrow({
+        where: { tenantId: A.h.tenant },
+        select: { id: true },
+      });
+      const base = presetInput('A4_FULL', 'RECEIPT');
+      await owner.printTemplate.create({
+        data: {
+          tenantId: A.h.tenant,
+          docType: 'PRESCRIPTION',
+          paper: 'A4',
+          layout: JSON.parse(JSON.stringify(base.layout)),
+          createdBy: admin.id,
+          updatedBy: admin.id,
+          retiredAt: new Date(),
+        },
+      });
+      expect((await effective(A.admin, 'PRESCRIPTION')).scope).toBe('DEFAULT');
+      await http()
+        .put('/print-templates/PRESCRIPTION')
+        .set(auth(A.admin))
+        .send(bodyOf('A5_FULL', 'PRESCRIPTION'))
+        .expect(200);
+      expect((await effective(A.admin, 'PRESCRIPTION')).scope).toBe('HOSPITAL');
+      const rows = await owner.printTemplate.findMany({
+        where: { tenantId: A.h.tenant, docType: 'PRESCRIPTION' },
+      });
+      expect(rows).toHaveLength(2);
+      expect(rows.filter((r) => r.retiredAt === null)).toHaveLength(1);
+      // a reset removes only the live one
+      await http().delete('/print-templates/PRESCRIPTION').set(auth(A.admin)).expect(200);
+      expect(
+        await owner.printTemplate.count({
+          where: { tenantId: A.h.tenant, docType: 'PRESCRIPTION' },
+        }),
+      ).toBe(1);
+    });
   });
 });

@@ -71,6 +71,22 @@ export class RegisterPatientDto {
   @Max(150)
   ageYears?: number;
 
+  @ApiPropertyOptional({ example: 5, description: 'With ageYears: months (0 to 11)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(11)
+  ageMonths?: number;
+
+  @ApiPropertyOptional({ example: 12, description: 'With ageYears: days (0 to 30)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(30)
+  ageDays?: number;
+
   @ApiPropertyOptional({ example: '9876543210' })
   @IsOptional()
   @IsString()
@@ -155,6 +171,22 @@ export class UpdatePatientDto {
   @Min(0)
   @Max(150)
   ageYears?: number;
+
+  @ApiPropertyOptional({ example: 5, description: 'With ageYears: months (0 to 11)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(11)
+  ageMonths?: number;
+
+  @ApiPropertyOptional({ example: 12, description: 'With ageYears: days (0 to 30)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(30)
+  ageDays?: number;
 
   @ApiPropertyOptional()
   @IsOptional()

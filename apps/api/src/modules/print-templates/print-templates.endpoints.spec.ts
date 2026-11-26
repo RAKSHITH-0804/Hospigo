@@ -259,9 +259,11 @@ describe('print templates (HTTP)', () => {
     it('a hospital that saved nothing gets the built-in default of each document', async () => {
       const res = await get(A, 'reception', '/print-templates');
       expect(res.body.items.map((i: Loose) => [i.docType, i.source, i.paper, i.mode])).toEqual([
-        ['REGISTRATION_SLIP', 'DEFAULT', 'A4', 'FULL'],
+        ['REGISTRATION_SLIP', 'DEFAULT', 'A5', 'FULL'],
         ['RECEIPT', 'DEFAULT', 'A5', 'FULL'],
-        ['PRESCRIPTION', 'DEFAULT', 'A4', 'FULL'],
+        ['PRESCRIPTION', 'DEFAULT', 'A5', 'FULL'],
+        ['PATIENT_REPORT', 'DEFAULT', 'A5', 'FULL'],
+        ['PATIENT_CARD', 'DEFAULT', 'LABEL', 'FULL'],
       ]);
       const one = await get(A, 'reception', '/print-templates/RECEIPT');
       expect(one.body).toMatchObject({
@@ -280,16 +282,19 @@ describe('print templates (HTTP)', () => {
       });
     });
 
-    it('lists the four built-in presets with what each gives every document', async () => {
+    it('lists the five built-in presets with what each gives every document', async () => {
       const res = await get(A, 'admin', '/print-templates/presets');
       expect(res.body.items.map((i: Loose) => i.key)).toEqual([
         'A4_FULL',
         'A5_FULL',
         'LABEL_SLIP',
+        'CARD_LABEL',
         'PREPRINTED_BILL',
       ]);
       for (const item of res.body.items) {
         expect(Object.keys(item.templates).sort()).toEqual([
+          'PATIENT_CARD',
+          'PATIENT_REPORT',
           'PRESCRIPTION',
           'RECEIPT',
           'REGISTRATION_SLIP',
@@ -369,6 +374,8 @@ describe('print templates (HTTP)', () => {
         ['REGISTRATION_SLIP', 'DEFAULT'],
         ['RECEIPT', 'CUSTOM'],
         ['PRESCRIPTION', 'DEFAULT'],
+        ['PATIENT_REPORT', 'DEFAULT'],
+        ['PATIENT_CARD', 'DEFAULT'],
       ]);
       const row = (await rows(A, 'RECEIPT'))[0]!;
       expect(row.branchId).toBeNull(); // hospital-wide
@@ -420,7 +427,7 @@ describe('print templates (HTTP)', () => {
 
     it('bad templates are refused with the field and the reason, and nothing is stored', async () => {
       const before = (await rows(A)).length;
-      const good = () => JSON.parse(JSON.stringify(presetInput('A5_FULL', 'PRESCRIPTION')));
+      const good = () => JSON.parse(JSON.stringify(presetInput('A5_FULL', 'PATIENT_REPORT')));
       const box = (run: Record<string, unknown> = { t: 'field', field: 'diagnosis' }) => ({
         id: 'a',
         type: 'RICH',
@@ -507,19 +514,19 @@ describe('print templates (HTTP)', () => {
         [{ ...good(), preset: 'MY_OWN' }, 'preset', 'UNKNOWN_PRESET'],
       ];
       for (const [body, field, reason] of cases) {
-        const res = await put(A, 'admin', '/print-templates/PRESCRIPTION', body);
+        const res = await put(A, 'admin', '/print-templates/PATIENT_REPORT', body);
         expect({ field, status: res.status }).toEqual({ field, status: 400 });
         expect(res.body).toMatchObject({ code: 'PRINT_TEMPLATE_INVALID', field, reason });
       }
       for (const nonsense of [null, 'text', 5, [], '']) {
         const res = await http()
-          .put('/print-templates/PRESCRIPTION')
+          .put('/print-templates/PATIENT_REPORT')
           .set(as(A, 'admin'))
           .set('Content-Type', 'application/json')
           .send(JSON.stringify(nonsense));
         expect({ nonsense, status: res.status }).toEqual({ nonsense, status: 400 });
       }
-      expect(await rows(A, 'PRESCRIPTION')).toHaveLength(0);
+      expect(await rows(A, 'PATIENT_REPORT')).toHaveLength(0);
       expect((await rows(A)).length).toBe(before);
     });
 
@@ -557,13 +564,13 @@ describe('print templates (HTTP)', () => {
     });
 
     it('two first saves at the same moment: both succeed, still one row', async () => {
-      const body = JSON.parse(JSON.stringify(presetInput('A4_FULL', 'PRESCRIPTION')));
+      const body = JSON.parse(JSON.stringify(presetInput('A4_FULL', 'PATIENT_REPORT')));
       const [a, b] = await Promise.all([
-        put(A, 'admin', '/print-templates/PRESCRIPTION', body),
-        put(A, 'admin', '/print-templates/PRESCRIPTION', body),
+        put(A, 'admin', '/print-templates/PATIENT_REPORT', body),
+        put(A, 'admin', '/print-templates/PATIENT_REPORT', body),
       ]);
       expect([a.status, b.status]).toEqual([200, 200]);
-      expect(await rows(A, 'PRESCRIPTION')).toHaveLength(1);
+      expect(await rows(A, 'PATIENT_REPORT')).toHaveLength(1);
     });
   });
 

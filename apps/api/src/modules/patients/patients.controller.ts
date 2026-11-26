@@ -155,6 +155,8 @@ export class PatientsController {
       gender: body.gender,
       dateOfBirth: body.dateOfBirth ? new Date(body.dateOfBirth) : undefined,
       ageYears: body.ageYears,
+      ageMonths: body.ageMonths,
+      ageDays: body.ageDays,
       phone: body.phone,
       email: body.email,
       addressStreet: body.addressStreet,
@@ -191,6 +193,8 @@ export class PatientsController {
         ? { dateOfBirth: body.dateOfBirth ? new Date(body.dateOfBirth) : null }
         : {}),
       ...(body.ageYears !== undefined ? { ageYears: body.ageYears } : {}),
+      ...(body.ageMonths !== undefined ? { ageMonths: body.ageMonths } : {}),
+      ...(body.ageDays !== undefined ? { ageDays: body.ageDays } : {}),
       ...(body.phone !== undefined ? { phone: body.phone } : {}),
       ...(body.email !== undefined ? { email: body.email } : {}),
       ...(body.addressStreet !== undefined ? { addressStreet: body.addressStreet } : {}),

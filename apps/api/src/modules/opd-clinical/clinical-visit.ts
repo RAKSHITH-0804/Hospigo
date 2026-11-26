@@ -1,6 +1,7 @@
 import type { Prisma } from '../../generated/prisma';
 import type { TenantTx } from '../../database/tenant-db';
 import type { Actor } from '../opd-visits/opd-visits.service';
+import { ageParts, type AgeParts } from '../../common/age';
 import { clinicalError, ClinicalErrorCode } from './opd-clinical.errors';
 
 /** What the clinical screens show about a visit (no money, ever). */
@@ -14,7 +15,18 @@ export const CLINICAL_VISIT_SELECT = {
   consultationStartedAt: true,
   completedAt: true,
   doctorProfileId: true,
-  patient: { select: { id: true, uhid: true, name: true, gender: true, dateOfBirth: true } },
+  receptionSymptoms: true,
+  creator: { select: { displayName: true } },
+  patient: {
+    select: {
+      id: true,
+      uhid: true,
+      name: true,
+      gender: true,
+      dateOfBirth: true,
+      dobIsEstimated: true,
+    },
+  },
   doctor: { select: { id: true, code: true, user: { select: { displayName: true } } } },
 } as const;
 
@@ -34,7 +46,12 @@ export type VisitSummary = {
     name: string;
     gender: string | null;
     ageYears: number | null;
+    age: AgeParts | null;
+    dobIsEstimated: boolean;
   };
+  /** What the patient told reception, and who billed the visit. */
+  receptionSymptoms: string | null;
+  receptionistName: string;
   doctor: { id: string; code: string; name: string };
 };
 
@@ -80,7 +97,24 @@ export function toVisitSummary(
       name: row.patient.name,
       gender: row.patient.gender,
       ageYears: ageInYears(row.patient.dateOfBirth, today),
+      age: row.patient.dateOfBirth
+        ? ageParts(
+            {
+              year: row.patient.dateOfBirth.getUTCFullYear(),
+              month: row.patient.dateOfBirth.getUTCMonth() + 1,
+              day: row.patient.dateOfBirth.getUTCDate(),
+            },
+            {
+              year: today.getUTCFullYear(),
+              month: today.getUTCMonth() + 1,
+              day: today.getUTCDate(),
+            },
+          )
+        : null,
+      dobIsEstimated: row.patient.dobIsEstimated,
     },
+    receptionSymptoms: row.receptionSymptoms,
+    receptionistName: row.creator.displayName,
     doctor: { id: row.doctor.id, code: row.doctor.code, name: row.doctor.user.displayName },
   };
 }

@@ -12,6 +12,10 @@ import {
 export type OpdRules = {
   followUpFreeDays: number;
   repeatVisitFreeHours: number;
+  /** Default paper of new documents (A4 or A5); the patient card is always the label. */
+  defaultPrintPaper: 'A4' | 'A5';
+  /** Print the patient card automatically after payment (off by default). */
+  patientCardAutoPrint: boolean;
 };
 
 export type OpdRulesView = OpdRules & {
@@ -21,6 +25,7 @@ export type OpdRulesView = OpdRules & {
     followUpFreeDays: { min: number; max: number };
     repeatVisitFreeHours: { min: number; max: number };
   };
+  paperChoices: readonly ('A4' | 'A5')[];
 };
 
 const LIMITS = {
@@ -30,6 +35,8 @@ const LIMITS = {
     max: OPD_REPEAT_VISIT_FREE_HOURS_MAX,
   },
 };
+
+const PAPER_CHOICES = ['A4', 'A5'] as const;
 
 function refuse(field: string, reason: string): never {
   throw opdError(400, OpdErrorCode.SETTINGS_INVALID, { field, reason });
@@ -62,8 +69,11 @@ export class OpdRulesService {
         followUpFreeDays: row?.followUpFreeDays ?? OPD_SETTINGS_DEFAULTS.followUpFreeDays,
         repeatVisitFreeHours:
           row?.repeatVisitFreeHours ?? OPD_SETTINGS_DEFAULTS.repeatVisitFreeHours,
+        defaultPrintPaper: row?.defaultPrintPaper === 'A4' ? 'A4' : 'A5',
+        patientCardAutoPrint: row?.patientCardAutoPrint ?? false,
         persisted: row !== null,
         limits: LIMITS,
+        paperChoices: PAPER_CHOICES,
       };
     });
   }
@@ -78,7 +88,26 @@ export class OpdRulesService {
       input.repeatVisitFreeHours,
       'repeatVisitFreeHours',
     );
-    if (followUpFreeDays === undefined && repeatVisitFreeHours === undefined) {
+    let defaultPrintPaper: 'A4' | 'A5' | undefined;
+    if (input.defaultPrintPaper !== undefined) {
+      if (!(PAPER_CHOICES as readonly unknown[]).includes(input.defaultPrintPaper)) {
+        refuse('defaultPrintPaper', 'INVALID');
+      }
+      defaultPrintPaper = input.defaultPrintPaper as 'A4' | 'A5';
+    }
+    let patientCardAutoPrint: boolean | undefined;
+    if (input.patientCardAutoPrint !== undefined) {
+      if (typeof input.patientCardAutoPrint !== 'boolean') {
+        refuse('patientCardAutoPrint', 'INVALID');
+      }
+      patientCardAutoPrint = input.patientCardAutoPrint;
+    }
+    if (
+      followUpFreeDays === undefined &&
+      repeatVisitFreeHours === undefined &&
+      defaultPrintPaper === undefined &&
+      patientCardAutoPrint === undefined
+    ) {
       refuse('body', 'REQUIRED');
     }
 
@@ -90,6 +119,8 @@ export class OpdRulesService {
           data: {
             ...(followUpFreeDays !== undefined ? { followUpFreeDays } : {}),
             ...(repeatVisitFreeHours !== undefined ? { repeatVisitFreeHours } : {}),
+            ...(defaultPrintPaper !== undefined ? { defaultPrintPaper } : {}),
+            ...(patientCardAutoPrint !== undefined ? { patientCardAutoPrint } : {}),
           },
         });
       } else {
@@ -101,6 +132,8 @@ export class OpdRulesService {
               repeatVisitFreeHours ?? OPD_SETTINGS_DEFAULTS.repeatVisitFreeHours,
             tokenPrefix: OPD_SETTINGS_DEFAULTS.tokenPrefix,
             timezone: OPD_SETTINGS_DEFAULTS.timezone,
+            ...(defaultPrintPaper !== undefined ? { defaultPrintPaper } : {}),
+            ...(patientCardAutoPrint !== undefined ? { patientCardAutoPrint } : {}),
           },
         });
       }
@@ -116,6 +149,8 @@ export class OpdRulesService {
             changed: [
               ...(followUpFreeDays !== undefined ? ['followUpFreeDays'] : []),
               ...(repeatVisitFreeHours !== undefined ? ['repeatVisitFreeHours'] : []),
+              ...(defaultPrintPaper !== undefined ? ['defaultPrintPaper'] : []),
+              ...(patientCardAutoPrint !== undefined ? ['patientCardAutoPrint'] : []),
             ],
           },
         },

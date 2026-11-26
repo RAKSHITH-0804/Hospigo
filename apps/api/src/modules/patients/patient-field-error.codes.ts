@@ -6,6 +6,8 @@ export const PatientFieldErrorCode = {
   REQUIRED: 'REQUIRED',
   INVALID: 'INVALID',
   AGE_AND_DOB_BOTH: 'AGE_AND_DOB_BOTH',
+  /** An age cannot replace a real date of birth that is already stored. */
+  DOB_KNOWN: 'DOB_KNOWN',
 } as const;
 
 export type PatientFieldErrorCode =

@@ -2073,4 +2073,100 @@ describe('OPD visits and billing endpoints (HTTP)', () => {
       );
     });
   });
+  // ------------------------------------------------------------------ Step 2.1a: reception symptoms
+
+  describe('symptoms typed by reception (Step 2.1a)', () => {
+    const put = (who: string, visitId: string, receptionSymptoms: unknown) =>
+      http()
+        .put(`/opd/visits/${visitId}/reception-symptoms`)
+        .set('Authorization', `Bearer ${A.tokens[who]}`)
+        .send({ receptionSymptoms });
+
+    it('symptoms given while billing are stored and shown with the receptionist name; the audit never holds the words', async () => {
+      const patientId = await newPatient(A);
+      const res = await create(A, 'recv', {
+        patientId,
+        doctorProfileId: A.doc1,
+        visitType: 'NEW',
+        idempotencyKey: uniq('KEY-SYMP'),
+        receptionSymptoms: '  Cold cough with fever since yesterday ',
+      });
+      expect(res.status).toBe(201);
+      expect(res.body.receptionSymptoms).toBe('Cold cough with fever since yesterday');
+      expect(typeof res.body.createdByName).toBe('string');
+      expect(res.body.createdByName.length).toBeGreaterThan(0);
+      const read = await http()
+        .get(`/opd/visits/${res.body.id}`)
+        .set('Authorization', `Bearer ${A.tokens.recv}`);
+      expect(read.body.receptionSymptoms).toBe('Cold cough with fever since yesterday');
+      const audits = await owner.auditLog.findMany({ where: { tenantId: A.tenant } });
+      expect(JSON.stringify(audits)).not.toContain('Cold cough');
+    });
+
+    it('is optional, and an empty text means none', async () => {
+      const { res } = await visit(A);
+      expect(res.body.receptionSymptoms).toBeNull();
+      const blank = await create(A, 'recv', {
+        patientId: await newPatient(A),
+        doctorProfileId: A.doc1,
+        visitType: 'NEW',
+        idempotencyKey: uniq('KEY-BLANK'),
+        receptionSymptoms: '   ',
+      });
+      expect(blank.body.receptionSymptoms).toBeNull();
+    });
+
+    it('reception can change and clear it until the doctor starts; the audit says only that it changed', async () => {
+      const { res } = await visit(A);
+      const id = res.body.id as string;
+      const set = await put('recv', id, 'Headache');
+      expect(set.status).toBe(200);
+      expect(set.body.receptionSymptoms).toBe('Headache');
+      const cleared = await put('recv', id, '');
+      expect(cleared.status).toBe(200);
+      expect(cleared.body.receptionSymptoms).toBeNull();
+      const log = await owner.auditLog.findMany({
+        where: { tenantId: A.tenant, action: 'OPD_VISIT_SYMPTOMS_CHANGE', entityId: id },
+      });
+      expect(log).toHaveLength(2);
+      expect(JSON.stringify(log.map((l) => l.metadata))).not.toContain('Headache');
+    });
+
+    it('once the doctor has started it is read-only (409), and the database refuses it too', async () => {
+      const { res } = await visit(A);
+      const id = res.body.id as string;
+      await put('recv', id, 'Fever');
+      await asOwner((c) =>
+        c.query(
+          `UPDATE opd_visits SET status='IN_CONSULTATION', consultation_started_at=now(), updated_at=now() WHERE id=$1`,
+          [id],
+        ),
+      );
+      const late = await put('recv', id, 'Something else');
+      expect(late.status).toBe(409);
+      expect(late.body.code).toBe('CONSULTATION_STARTED');
+      await expect(
+        asOwner((c) => c.query(`UPDATE opd_visits SET reception_symptoms='x' WHERE id=$1`, [id])),
+      ).rejects.toThrow(/cannot change once the doctor has started/);
+      const back = await http()
+        .get(`/opd/visits/${id}`)
+        .set('Authorization', `Bearer ${A.tokens.recv}`);
+      expect(back.body.receptionSymptoms).toBe('Fever');
+    });
+
+    it('limits and permissions: 500 characters, a visit of another branch is 404, no permission is 403', async () => {
+      const { res } = await visit(A);
+      const id = res.body.id as string;
+      expect((await put('recv', id, 'x'.repeat(501))).status).toBe(400);
+      expect((await put('recv', id, 5)).status).toBe(400);
+      expect((await put('recvEast', id, 'Fever')).status).toBe(404);
+      expect((await put('nurse', id, 'Fever')).status).toBe(403);
+      expect((await put('nobody', id, 'Fever')).status).toBe(403);
+      const other = await http()
+        .put(`/opd/visits/${id}/reception-symptoms`)
+        .set('Authorization', `Bearer ${B.tokens.recv}`)
+        .send({ receptionSymptoms: 'Fever' });
+      expect(other.status).toBe(404);
+    });
+  });
 });

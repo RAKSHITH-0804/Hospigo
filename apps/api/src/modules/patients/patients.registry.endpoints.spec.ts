@@ -691,6 +691,57 @@ describe('Patients registry endpoints (HTTP)', () => {
     expect(badPhone.body.fieldErrors?.phone).toBe('INVALID');
   });
 
+  it('age entry takes years, months and days (a baby), shows the live age, and never replaces a real date of birth', async () => {
+    const recv = await hospitalLogin(northAccess, northRecvEmail);
+    const post = (body: Record<string, unknown>) =>
+      request(app.getHttpServer())
+        .post('/patients')
+        .set('Authorization', `Bearer ${recv}`)
+        .send({ phone: uniqueValidTestPhone(), ...body });
+
+    const baby = await post({ name: 'Baby Age', ageYears: 0, ageMonths: 5, ageDays: 12 }).expect(
+      (res) => expect([200, 201]).toContain(res.status),
+    );
+    const babyDetail = await request(app.getHttpServer())
+      .get(`/patients/${baby.body.id}`)
+      .set('Authorization', `Bearer ${recv}`)
+      .expect(200);
+    expect(babyDetail.body.dobIsEstimated).toBe(true);
+    expect(babyDetail.body.age).toEqual({ years: 0, months: 5, days: 12 });
+    expect(babyDetail.body.ageYears).toBe(0);
+    expect(typeof babyDetail.body.createdByName).toBe('string');
+
+    // a month over 11 or a day over 30 is refused, with the field named
+    const badMonth = await post({ name: 'Bad Month', ageYears: 1, ageMonths: 12 }).expect(400);
+    expect(badMonth.body.fieldErrors?.ageMonths).toBeDefined();
+    const badDay = await post({ name: 'Bad Day', ageYears: 1, ageDays: 31 }).expect(400);
+    expect(badDay.body.fieldErrors?.ageDays).toBeDefined();
+
+    // an age cannot replace a real date of birth
+    const real = await post({ name: 'Real Dob', dateOfBirth: '1990-01-01' }).expect((res) =>
+      expect([200, 201]).toContain(res.status),
+    );
+    const refused = await request(app.getHttpServer())
+      .patch(`/patients/${real.body.id}`)
+      .set('Authorization', `Bearer ${recv}`)
+      .send({ ageYears: 50 });
+    expect(refused.status).toBe(400);
+    expect(refused.body.fieldErrors?.ageYears).toBe('DOB_KNOWN');
+    const stillThere = await request(app.getHttpServer())
+      .get(`/patients/${real.body.id}`)
+      .set('Authorization', `Bearer ${recv}`)
+      .expect(200);
+    expect(stillThere.body.dateOfBirth).toBe('1990-01-01');
+    expect(stillThere.body.dobIsEstimated).toBe(false);
+
+    // an estimated one can be corrected with a new age
+    const fixed = await request(app.getHttpServer())
+      .patch(`/patients/${baby.body.id}`)
+      .set('Authorization', `Bearer ${recv}`)
+      .send({ ageYears: 0, ageMonths: 6 });
+    expect(fixed.status).toBe(200);
+  });
+
   it('20 parallel registrations across two branches give distinct UHIDs', async () => {
     const mainTok = await hospitalLogin(northAccess, northRecvEmail);
     const eastTok = await hospitalLogin(northEastAccess, northRecvEmail);

@@ -18,6 +18,8 @@ const DTO_PROP_TO_FIELD_KEY: Record<string, string> = {
   gender: 'gender',
   dateOfBirth: 'date_of_birth',
   ageYears: 'ageYears',
+  ageMonths: 'ageMonths',
+  ageDays: 'ageDays',
   phone: 'phone',
   email: 'email',
   addressStreet: 'address_street',

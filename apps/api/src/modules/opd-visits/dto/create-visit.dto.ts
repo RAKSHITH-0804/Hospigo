@@ -101,6 +101,15 @@ export class CreateVisitDto extends PreviewVisitDto {
   @Type(() => PaymentLineDto)
   payments?: PaymentLineDto[];
 
+  @ApiPropertyOptional({
+    description:
+      'Symptoms the patient told reception (optional, up to 500 characters). Editable until the doctor starts the consultation.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  receptionSymptoms?: string;
+
   @ApiPropertyOptional({ description: 'Payment mode code from the master (default CASH)' })
   @IsOptional()
   @IsString()
@@ -113,4 +122,12 @@ export class CreateVisitDto extends PreviewVisitDto {
   @IsString()
   @MaxLength(C.referenceMaxLength)
   referenceNo?: string;
+}
+
+/** Symptoms typed by reception; an empty text clears them. Only until the doctor starts. */
+export class UpdateReceptionSymptomsDto {
+  @ApiProperty({ description: 'Up to 500 characters; empty clears' })
+  @IsString()
+  @MaxLength(500)
+  receptionSymptoms!: string;
 }
