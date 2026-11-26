@@ -254,13 +254,13 @@ function bill(page: Page, kind: HeaderKind, serif: boolean, title: string): Prin
   y += 9;
   els.push(
     rule('t1', m, y, inner),
-    box('thead', m, y + 0.8, inner - 40, 6, [para([t('Particulars', { bold: true })])]),
+    box('thead', m, y + 0.8, inner - 40, 6, [para([t('Sl No   Particulars', { bold: true })])]),
     box('theadamt', m + inner - 40, y + 0.8, 40, 6, [para([t('Amount', { bold: true })], 'RIGHT')]),
     rule('t2', m, y + 7, inner),
   );
   y += 8;
   const room = page.h - page.m - 9 - y - 46;
-  els.push(box('lines', m, y, inner, Math.max(room, 30), [para([f('lines')])]));
+  els.push(box('lines', m, y, inner, Math.max(room, 30), [para([f('linesNumbered')])]));
   y += Math.max(room, 30) + 1;
   els.push(
     rule('t3', m, y, inner),

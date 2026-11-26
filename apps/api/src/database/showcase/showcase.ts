@@ -5,6 +5,7 @@ import { Test } from '@nestjs/testing';
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import type { PrismaClient } from '../../generated/prisma';
 import { CLOCK, FakeClock } from '../../common/clock';
+import { seedApprovals } from './showcase-approvals';
 import { chooseDesigns, seedLibrary } from './showcase-library';
 import { ensureSystemRolesForTenant, SYSTEM_ROLE_CODES } from '../system-roles';
 import { defaultStarterOptions, runHospitalStarter } from '../hospital-starter/hospital-starter';
@@ -669,6 +670,7 @@ export async function seedShowcase(prisma: PrismaClient, options: ShowcaseOption
       const made = await makeHistory(app, clock, tokens, prisma, setup, options, 1000 + index);
       console.log(`${setup.hospital.name}: ${made.visits} visits, ${made.refunds} refunds.`);
     }
+    await seedApprovals(app, tokens, prisma, setups);
   } finally {
     await app.close();
   }

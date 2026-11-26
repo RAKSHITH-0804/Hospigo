@@ -38,6 +38,11 @@ const quote = (s) => `"${s.replace(/"/g, '""')}"`;
 const superUrl = need('POSTGRES_SUPERUSER_URL');
 const client = new pg.Client({ connectionString: superUrl, connectionTimeoutMillis: 8000 });
 await client.connect();
+if (process.argv.includes('--reset')) {
+  // drop it completely (demo:reset): every demo hospital and all its history goes
+  await client.query(`DROP DATABASE IF EXISTS ${quote(DB)} WITH (FORCE)`);
+  console.log(`dropped_database ${DB}`);
+}
 const exists = await client.query('SELECT 1 FROM pg_database WHERE datname = $1', [DB]);
 if (exists.rowCount === 0) {
   await client.query(`CREATE DATABASE ${quote(DB)} OWNER hospigo_owner`);

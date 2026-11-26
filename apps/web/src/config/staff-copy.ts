@@ -1416,6 +1416,7 @@ export const staffCopy = {
       registeredOn: 'Registered on',
       branchName: 'Branch',
       vitalsLine: 'Vitals (one line)',
+      linesNumbered: 'Items (numbered)',
       billNumber: 'Bill no.',
       receiptNumber: 'Receipt no.',
       token: 'Token',

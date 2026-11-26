@@ -93,6 +93,14 @@ export function receiptItems(visit: VisitView, hospitalName: string): PrintItem[
         formatPaise(line.lineTotalPaise),
       ]),
     ),
+    // the same items with a serial number (Sl No), for the designed bills
+    pairs(
+      'linesNumbered',
+      (bill?.lines ?? []).map((line, index) => [
+        `${index + 1}. ${billLineName(line.kind, line.description, line.pricingNote)}`,
+        formatPaise(line.lineTotalPaise),
+      ]),
+    ),
     text('total', bill ? formatPaise(bill.totalPaise) : ''),
     text(
       'paid',

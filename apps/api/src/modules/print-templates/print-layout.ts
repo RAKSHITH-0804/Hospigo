@@ -282,6 +282,7 @@ export const FIELD_CAPTIONS: Record<string, string> = {
   registeredOn: 'Registered on',
   branchName: 'Branch',
   vitalsLine: 'Vitals',
+  linesNumbered: 'Items (numbered)',
   billNumber: 'Bill no.',
   receiptNumber: 'Receipt no.',
   token: 'Token',

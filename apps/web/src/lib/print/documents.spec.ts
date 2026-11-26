@@ -199,14 +199,24 @@ describe('receiptItems', () => {
     const items = receiptItems(visit, 'Demo Hospital');
     // the designed templates also use the patient's age and gender on the bill (Step 2.1f): extra values
     const keys = items.map((i) => i.key);
-    expect(keys.filter((k) => k !== 'age' && k !== 'gender')).toEqual([...API_FIELDS.RECEIPT]);
-    expect(keys).toEqual(expect.arrayContaining(['age', 'gender']));
+    expect(keys.filter((k) => !['age', 'gender', 'linesNumbered'].includes(k))).toEqual([
+      ...API_FIELDS.RECEIPT,
+    ]);
+    expect(keys).toEqual(expect.arrayContaining(['age', 'gender', 'linesNumbered']));
     for (const item of items) {
       expect({ key: item.key, label: item.label }).toEqual({
         key: item.key,
         label: staffCopy.print.fields[item.key],
       });
     }
+  });
+
+  it('numbers the items 1, 2, 3 in a separate value and leaves the plain items as they were', () => {
+    const items = receiptItems(visit, 'Demo Hospital');
+    const plain = items.find((i) => i.key === 'lines');
+    const numbered = items.find((i) => i.key === 'linesNumbered');
+    expect(JSON.stringify(numbered)).toContain('1. ');
+    expect(JSON.stringify(plain)).not.toContain('1. ');
   });
 
   it('writes money from whole paise and shows a split receipt number once', () => {

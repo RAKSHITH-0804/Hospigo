@@ -171,7 +171,7 @@ export const PRINT_FIELDS: Record<PrintDocType, readonly string[]> = {
  * PRINT_FIELDS would crowd the default page). The designed library templates use them.
  */
 export const PRINT_EXTRA_FIELDS: Partial<Record<PrintDocType, readonly string[]>> = {
-  RECEIPT: ['age', 'gender'],
+  RECEIPT: ['age', 'gender', 'linesNumbered'],
   PATIENT_REPORT: ['vitalsLine'],
 };
 
