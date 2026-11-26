@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useRef, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
+import { PasswordInput } from '@/components/ui/password-input';
 import { sessionConfig } from '@/config/session';
 import { staffCopy } from '@/config/staff-copy';
 
@@ -107,9 +108,9 @@ export default function ChangePasswordPage() {
         >
           <label className="field-label">
             {copy.currentPassword}
-            <input
+            <PasswordInput
               name="currentPassword"
-              type="password"
+
               autoComplete="current-password"
               className="field-input"
               required
@@ -118,9 +119,9 @@ export default function ChangePasswordPage() {
           </label>
           <label className="field-label">
             {copy.newPassword}
-            <input
+            <PasswordInput
               name="newPassword"
-              type="password"
+
               autoComplete="new-password"
               className="field-input"
               required
@@ -129,9 +130,9 @@ export default function ChangePasswordPage() {
           </label>
           <label className="field-label">
             {copy.confirmNewPassword}
-            <input
+            <PasswordInput
               name="confirmPassword"
-              type="password"
+
               autoComplete="new-password"
               className="field-input"
               required

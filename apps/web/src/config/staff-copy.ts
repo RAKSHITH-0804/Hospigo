@@ -2665,6 +2665,8 @@ export const staffCopy = {
   },
   field: {
     requiredMark: '*',
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
   },
 } as const;
 

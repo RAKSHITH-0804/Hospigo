@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
+import { PasswordInput } from '@/components/ui/password-input';
 import { sessionConfig } from '@/config/session';
 import { takeActionTokenFromHash } from '@/lib/auth/action-token-hash';
 import { staffCopy } from '@/config/staff-copy';
@@ -155,9 +156,9 @@ export default function ResetPasswordPage() {
         >
           <label className="field-label">
             {copy.newPassword}
-            <input
+            <PasswordInput
               name="newPassword"
-              type="password"
+
               autoComplete="new-password"
               className="field-input"
               required
@@ -166,9 +167,9 @@ export default function ResetPasswordPage() {
           </label>
           <label className="field-label">
             {copy.confirmNewPassword}
-            <input
+            <PasswordInput
               name="confirmPassword"
-              type="password"
+
               autoComplete="new-password"
               className="field-input"
               required

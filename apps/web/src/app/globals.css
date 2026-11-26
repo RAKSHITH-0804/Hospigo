@@ -411,6 +411,42 @@
     outline: none;
   }
 
+  .password-wrap {
+    position: relative;
+    display: block;
+    width: 100%;
+  }
+
+  .password-wrap > .password-input {
+    width: 100%;
+    padding-inline-end: calc(var(--size-icon-button) + var(--space-2));
+  }
+
+  .password-eye {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-end: var(--space-1);
+    margin-block: auto;
+    width: var(--size-icon-button);
+    height: var(--size-icon-button);
+    padding: var(--space-1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-control);
+    color: var(--muted-foreground);
+    background: transparent;
+  }
+
+  .password-eye:hover {
+    color: var(--foreground);
+  }
+
+  .password-eye:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--ring);
+  }
+
   .field-input:focus-visible {
     box-shadow: 0 0 0 2px var(--ring);
   }

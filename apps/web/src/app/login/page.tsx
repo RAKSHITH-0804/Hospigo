@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
+import { PasswordInput } from '@/components/ui/password-input';
 import { sessionConfig } from '@/config/session';
 import { staffCopy } from '@/config/staff-copy';
 
@@ -171,9 +172,9 @@ export default function LoginPage() {
             </label>
             <label className="field-label">
               {copy.password}
-              <input
+              <PasswordInput
                 name="password"
-                type="password"
+
                 autoComplete="current-password"
                 className="field-input"
                 required

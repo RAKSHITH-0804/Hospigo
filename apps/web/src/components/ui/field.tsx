@@ -9,6 +9,7 @@ import {
   type TextareaHTMLAttributes,
 } from 'react';
 import { staffCopy } from '@/config/staff-copy';
+import { PasswordInput } from './password-input';
 import { cn } from '@/lib/utils';
 
 type FieldShellProps = {
@@ -73,6 +74,12 @@ function FieldShell({
 
 export const fieldControlClass =
   'field-control min-h-[var(--size-input-height)] h-[var(--size-input-height)] w-full rounded-[var(--radius-control)] border bg-card px-[var(--space-2)] text-[length:var(--font-size-input)] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
+function omitType<T extends { type?: string }>(p: T): Omit<T, 'type'> {
+  const { type: _type, ...rest } = p;
+  void _type;
+  return rest;
+}
 
 export type InputFieldProps = InputHTMLAttributes<HTMLInputElement> & {
   label: string;
@@ -143,6 +150,17 @@ export const InputField = forwardRef<HTMLInputElement, InputFieldProps>(function
             {...props}
           />
         </div>
+      ) : props.type === 'password' ? (
+        <PasswordInput
+          ref={ref}
+          id={fieldId}
+          aria-label={hideLabel ? label : undefined}
+          aria-invalid={error ? true : undefined}
+          aria-required={required ? true : undefined}
+          aria-describedby={describedBy}
+          className={cn(fieldControlClass, borderClass, widthClass, className)}
+          {...omitType(props)}
+        />
       ) : (
         <input
           ref={ref}
