@@ -1631,6 +1631,97 @@ describe('OPD tests ordering, investigations bill, refunds and cancellation (HTT
       ).not.toEqual(expect.arrayContaining([expect.objectContaining({ billId: v.billId })]));
     });
 
+    it('an amend of a completed note may ADD tests (they wait to be billed) and can never remove or change a billed test (Step 2.1g)', async () => {
+      const { visit } = await paidTests(A);
+      await finish(A, 'doc1', visit.id);
+      const perms = await owner.permission.findMany({
+        where: { code: { in: ['opd.visits.read', 'opd.notes.read', 'opd.notes.amend'] } },
+      });
+      const u = await owner.user.create({
+        data: {
+          tenantId: A.tenant,
+          code: uniq('AM').slice(0, 40),
+          email: `${uniq('am')}@example.test`,
+          displayName: 'Amender',
+          passwordHash: 'x',
+        },
+      });
+      await owner.userBranch.create({
+        data: { tenantId: A.tenant, userId: u.id, branchId: A.main },
+      });
+      const role = await owner.role.create({
+        data: { tenantId: A.tenant, code: uniq('R_AM'), name: 'AM' },
+      });
+      for (const p of perms) {
+        await owner.rolePermission.create({
+          data: { tenantId: A.tenant, roleId: role.id, permissionId: p.id },
+        });
+      }
+      const assignment = await owner.roleAssignment.create({
+        data: { tenantId: A.tenant, userId: u.id, roleId: role.id, scopeType: 'BRANCH' },
+      });
+      await owner.roleAssignmentBranch.create({
+        data: { tenantId: A.tenant, assignmentId: assignment.id, branchId: A.main },
+      });
+      const token = tokenService.signHospitalAccess({
+        tenantId: A.tenant,
+        userId: u.id,
+        branchId: A.main,
+      });
+      const amend = (body: object) =>
+        http()
+          .post(`/opd/visits/${visit.id}/consultation/amend`)
+          .set({ Authorization: `Bearer ${token}` })
+          .send(body);
+      const billedBefore = await owner.investigationOrder.findMany({
+        where: { visitId: visit.id },
+        orderBy: { codeSnapshot: 'asc' },
+        select: { id: true, codeSnapshot: true, status: true, billLineId: true },
+      });
+      expect(billedBefore.map((o) => o.status)).toEqual(['BILLED', 'BILLED']);
+
+      // a doctor may not amend; the Admin adds one new test and names a billed one again
+      expect(
+        (
+          await post(A, 'doc1', `/opd/visits/${visit.id}/consultation/amend`, {
+            reason: 'extra test',
+            addTestIds: [A.items.free],
+          })
+        ).status,
+      ).toBe(403);
+      await amend({
+        reason: 'the doctor also wants a free test',
+        addTestIds: [A.items.free, A.items.a],
+      }).expect(201);
+      const after = await owner.investigationOrder.findMany({
+        where: { visitId: visit.id },
+        orderBy: { codeSnapshot: 'asc' },
+        select: { id: true, codeSnapshot: true, status: true, billLineId: true },
+      });
+      expect(after.map((o) => [o.codeSnapshot, o.status])).toEqual([
+        ['INVA', 'BILLED'],
+        ['INVB', 'BILLED'],
+        ['INVZ', 'ORDERED'],
+      ]);
+      // the billed ones are exactly as before (same rows, same bill lines)
+      expect(after.slice(0, 2)).toEqual(billedBefore);
+      // the new one waits to be billed
+      const pending = await get(A, 'recv', '/opd/investigations/pending');
+      expect(JSON.stringify(pending.body)).toContain(visit.id);
+      // the same again changes nothing: refused, and no second order appears
+      expect((await amend({ reason: 'again the same', addTestIds: [A.items.free] })).status).toBe(
+        409,
+      );
+      expect(await owner.investigationOrder.count({ where: { visitId: visit.id } })).toBe(3);
+      // an inactive or unknown test is refused and nothing is added
+      expect((await amend({ reason: 'old test', addTestIds: [A.items.off] })).status).toBe(404);
+      expect((await amend({ reason: 'no such test', addTestIds: ['nope'] })).status).toBe(404);
+      expect(await owner.investigationOrder.count({ where: { visitId: visit.id } })).toBe(3);
+      // there is no way to remove a test through an amend: an empty list changes nothing
+      expect((await amend({ reason: 'remove them all', addTestIds: [] })).status).toBe(409);
+      expect(await owner.investigationOrder.count({ where: { visitId: visit.id } })).toBe(3);
+    });
+
     it('the dashboard summary (Step 2.1d): real counts, blocks follow permissions, other branch and hospital not mixed in', async () => {
       const summary = async (h: Hospital, who: string) => {
         const res = await get(h, who, '/dashboard/summary');

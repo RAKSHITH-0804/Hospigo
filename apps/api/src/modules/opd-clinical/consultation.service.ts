@@ -22,6 +22,8 @@ import type {
 } from './dto/clinical.dto';
 import { OPD_CLINICAL_AUDIT as AUDIT, OPD_CLINICAL_CONFIG as C } from './opd-clinical.config';
 import { clinicalError, ClinicalErrorCode as E } from './opd-clinical.errors';
+import { OPD_INVESTIGATIONS_CONFIG as INVESTIGATIONS_C } from '../opd-investigations/opd-investigations.config';
+import { opdError, OpdErrorCode } from '../opd-visits/opd-visit.errors';
 
 const isoDate = (d: Date): string => d.toISOString().slice(0, 10);
 const clean = (s: string | undefined): string | null => {
@@ -523,70 +525,117 @@ export class ConsultationService {
     if (reason === null || reason.length < C.amendReasonMinLength) {
       throw clinicalError(400, E.AMEND_REASON_REQUIRED);
     }
-    return this.tenantDb.withTenant(async (tx) => {
-      await lockVisit(tx, actor, visitId, null);
-      const visit = await findClinicalVisit(tx, actor, visitId, null);
-      const { prefix, today } = await this.dayInfo(tx, actor);
-      const note = await this.findNote(tx, actor, visit.id);
-      if (!note || note.status !== 'COMPLETED' || visit.status !== 'COMPLETED') {
-        throw clinicalError(409, E.AMEND_NEEDS_COMPLETED_NOTE);
-      }
-      const before = effectiveSnapshot(note);
-      const after: NoteSnapshot = {
-        complaints: body.complaints === undefined ? before.complaints : clean(body.complaints),
-        diagnosis: body.diagnosis === undefined ? before.diagnosis : clean(body.diagnosis),
-        advice: body.advice === undefined ? before.advice : clean(body.advice),
-        followUpDate:
-          body.followUpDate === undefined
-            ? before.followUpDate
-            : (() => {
-                const parsed = this.parseFollowUp(body.followUpDate, visit.visitDate);
-                return parsed ? isoDate(parsed) : null;
-              })(),
-        prescription:
-          body.prescription === undefined
-            ? before.prescription
-            : (await this.resolvePrescription(tx, actor, body.prescription)).map((r, index) => ({
-                lineNo: index + 1,
-                ...r,
-              })),
-      };
-      const changed = (
-        ['complaints', 'diagnosis', 'advice', 'followUpDate', 'prescription'] as const
-      ).filter((key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]));
-      if (changed.length === 0) {
-        throw clinicalError(409, E.AMEND_NOTHING_CHANGED);
-      }
-      if (after.complaints === null && after.diagnosis === null) {
-        throw clinicalError(400, E.NOTE_EMPTY);
-      }
-      const versionNo = note.versions.length + 1;
-      const version = await tx.consultationVersion.create({
-        data: {
-          tenantId: actor.tenantId,
-          branchId: actor.branchId,
-          consultationId: note.id,
+    return this.tenantDb.withTenant(
+      async (tx) => {
+        await lockVisit(tx, actor, visitId, null);
+        const visit = await findClinicalVisit(tx, actor, visitId, null);
+        const { prefix, today } = await this.dayInfo(tx, actor);
+        const note = await this.findNote(tx, actor, visit.id);
+        if (!note || note.status !== 'COMPLETED' || visit.status !== 'COMPLETED') {
+          throw clinicalError(409, E.AMEND_NEEDS_COMPLETED_NOTE);
+        }
+        const before = effectiveSnapshot(note);
+        const after: NoteSnapshot = {
+          complaints: body.complaints === undefined ? before.complaints : clean(body.complaints),
+          diagnosis: body.diagnosis === undefined ? before.diagnosis : clean(body.diagnosis),
+          advice: body.advice === undefined ? before.advice : clean(body.advice),
+          followUpDate:
+            body.followUpDate === undefined
+              ? before.followUpDate
+              : (() => {
+                  const parsed = this.parseFollowUp(body.followUpDate, visit.visitDate);
+                  return parsed ? isoDate(parsed) : null;
+                })(),
+          prescription:
+            body.prescription === undefined
+              ? before.prescription
+              : (await this.resolvePrescription(tx, actor, body.prescription)).map((r, index) => ({
+                  lineNo: index + 1,
+                  ...r,
+                })),
+        };
+        const changed = (
+          ['complaints', 'diagnosis', 'advice', 'followUpDate', 'prescription'] as const
+        ).filter((key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]));
+        // Tests may only be ADDED here: a test that is already ordered (billed or not) is never touched
+        const wantedTests = [...new Set(body.addTestIds ?? [])];
+        let testsAdded = 0;
+        if (wantedTests.length > 0) {
+          const items = await tx.chargeItem.findMany({
+            where: {
+              tenantId: actor.tenantId,
+              id: { in: wantedTests },
+              kind: 'INVESTIGATION',
+              active: true,
+            },
+            select: { id: true, code: true, name: true },
+          });
+          if (items.length !== wantedTests.length) {
+            throw opdError(404, OpdErrorCode.TEST_NOT_FOUND);
+          }
+          const existing = await tx.investigationOrder.findMany({
+            where: { tenantId: actor.tenantId, visitId: visit.id },
+            select: { chargeItemId: true },
+          });
+          const have = new Set(existing.map((o) => o.chargeItemId));
+          const add = items.filter((i) => !have.has(i.id));
+          if (existing.length + add.length > INVESTIGATIONS_C.maxTestsPerVisit) {
+            throw opdError(400, OpdErrorCode.TOO_MANY_TESTS, {
+              max: INVESTIGATIONS_C.maxTestsPerVisit,
+            });
+          }
+          for (const item of add) {
+            await tx.investigationOrder.create({
+              data: {
+                tenantId: actor.tenantId,
+                branchId: actor.branchId,
+                visitId: visit.id,
+                doctorProfileId: visit.doctorProfileId,
+                chargeItemId: item.id,
+                codeSnapshot: item.code,
+                nameSnapshot: item.name,
+                orderedBy: actor.userId,
+              },
+            });
+          }
+          testsAdded = add.length;
+        }
+        if (changed.length === 0 && testsAdded === 0) {
+          throw clinicalError(409, E.AMEND_NOTHING_CHANGED);
+        }
+        if (after.complaints === null && after.diagnosis === null) {
+          throw clinicalError(400, E.NOTE_EMPTY);
+        }
+        const versionNo = note.versions.length + 1;
+        const version = await tx.consultationVersion.create({
+          data: {
+            tenantId: actor.tenantId,
+            branchId: actor.branchId,
+            consultationId: note.id,
+            visitId: visit.id,
+            versionNo,
+            reason,
+            snapshot: after as unknown as Prisma.InputJsonValue,
+            editedBy: actor.userId,
+          },
+        });
+        // Audit: which parts changed and the version number, never the words.
+        await this.audit(tx, actor, AUDIT.noteAmended, 'consultation_version', version.id, {
           visitId: visit.id,
+          consultationId: note.id,
           versionNo,
-          reason,
-          snapshot: after as unknown as Prisma.InputJsonValue,
-          editedBy: actor.userId,
-        },
-      });
-      // Audit: which parts changed and the version number, never the words.
-      await this.audit(tx, actor, AUDIT.noteAmended, 'consultation_version', version.id, {
-        visitId: visit.id,
-        consultationId: note.id,
-        versionNo,
-        changed,
-      });
-      const fresh = await this.findNote(tx, actor, visit.id);
-      return {
-        visit: toVisitSummary(visit, prefix, today),
-        doctorDetails: await loadDoctorDetails(tx, actor, visit.doctorProfileId, fresh),
-        ...toNoteView(fresh),
-      };
-    });
+          changed: testsAdded > 0 ? [...changed, 'testsAdded'] : changed,
+          testsAdded,
+        });
+        const fresh = await this.findNote(tx, actor, visit.id);
+        return {
+          visit: toVisitSummary(visit, prefix, today),
+          doctorDetails: await loadDoctorDetails(tx, actor, visit.doctorProfileId, fresh),
+          ...toNoteView(fresh),
+        };
+      },
+      { amendAddsTests: (body.addTestIds?.length ?? 0) > 0 },
+    );
   }
 
   // ---------------------------------------------------------------------------------- read

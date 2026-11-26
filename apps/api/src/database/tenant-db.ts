@@ -20,7 +20,7 @@ export class TenantDb {
    */
   async withTenant<T>(
     fn: (tx: TenantTx) => Promise<T>,
-    options?: { timeoutMs?: number; indigoEnter?: boolean },
+    options?: { timeoutMs?: number; indigoEnter?: boolean; amendAddsTests?: boolean },
   ): Promise<T> {
     const ctx = requireContext();
     if (ctx.kind === 'HQ' || ctx.kind === 'PATIENT') {
@@ -36,6 +36,10 @@ export class TenantDb {
         if (options?.indigoEnter) {
           // Only the Indigo entry passes this: the database lets it, and nothing else, create the hidden Indigo user.
           await tx.$executeRaw`SELECT set_config('app.indigo_enter', 'on', true)`;
+        }
+        if (options?.amendAddsTests) {
+          // Only an amend of a completed note that adds tests passes this (the order trigger checks for it).
+          await tx.$executeRaw`SELECT set_config('app.amend_tests', 'on', true)`;
         }
         return fn(tx);
       },

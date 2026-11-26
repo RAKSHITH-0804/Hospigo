@@ -184,4 +184,17 @@ export class AmendConsultationDto {
   @ValidateNested({ each: true })
   @Type(() => PrescriptionItemDto)
   prescription?: PrescriptionItemDto[];
+
+  @ApiPropertyOptional({
+    type: [String],
+    description:
+      'Tests to ADD to the visit (charge item ids). They go to the tests waiting to be billed. A test already ordered is left as it is; nothing can be removed or changed this way.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @IsString({ each: true })
+  @MinLength(1, { each: true })
+  @MaxLength(C.idMaxLength, { each: true })
+  addTestIds?: string[];
 }
