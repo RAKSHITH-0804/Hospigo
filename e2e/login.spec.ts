@@ -28,7 +28,7 @@ test.describe('Indigo sign in (one form, a blank access code)', () => {
     await expect(page.getByRole('heading', { name: 'Hospitals' })).toBeVisible();
     // a specific hospital by name (the list may hold other hospitals), never "the first one"
     const card = page
-      .getByRole('heading', { name: 'Demo North Clinic' })
+      .getByText('Demo North Clinic', { exact: true })
       .locator('xpath=ancestor::*[.//button[normalize-space()="Enter hospital"]][1]');
     await card.getByRole('button', { name: 'Enter hospital' }).click();
     await page.waitForURL(/\/app/);
