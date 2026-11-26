@@ -127,6 +127,17 @@ Tick a line only when you saw the result. If a line fails, write the line number
 26. Reports: the collection report shows the day's totals for any branch you choose; refund requests can be approved by an Admin who did not ask for them. Approve a request someone else asked: the money returns, the visit is cancelled, the token shows cancelled.
 27. Sign out and sign in as an Admin of the other hospital (`superadmin@demo-south.example.test`): none of the values, templates, leave requests, payment modes, fees or patients of Demo North show.
 
+## H. Phase 2.1a (quick wins)
+
+1. Any password box (login, activate, forgot, reset, change password, My profile): the eye button shows and hides the typed password; it works with the keyboard (Tab, then Enter or Space).
+2. Reception, **New visit**: type Symptoms (for example "Cold cough with fever since yesterday"), take payment. The receipt page shows the Symptoms box (editable until the doctor starts).
+3. Doctor, consultation of that visit: a line "<Receptionist name>: Cold cough with fever since yesterday" is shown, and an empty **Symptoms** box for the doctor's own words. After the doctor starts, reception can no longer change the text.
+4. Doctor, completed consultation: two buttons, **Print prescription** (header, medicines, signature only) and **Print patient report** (everything, with vitals and symptoms).
+5. Settings, OPD rules: **Default paper of printouts** (A5 or A4); **Offer the patient card after payment** (off by default). Settings, Printing: five documents including Patient report and Patient card; on Patient card press **Print a test card**.
+6. Patient page: **Print patient card** shows the label at 100 x 50 mm. With the offer switched on, the receipt page has **Print patient card**.
+7. Register a patient: **Date of birth** is the first choice; choose **Age** and enter 0 years 5 months 12 days: the patient shows "~5 m 12 d"; a patient with a real date of birth shows for example "26 y".
+8. The receipt, slip and card show the receptionist's name (in templates saved before this step, add the Receptionist box in the designer).
+
 ## F. After the checklist
 
 Write down every line that failed, with the role, the page and what you saw. Do not fix by hand in the database. Open a new step in the tracker for each real problem.

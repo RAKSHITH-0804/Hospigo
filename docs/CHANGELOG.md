@@ -29,6 +29,14 @@
 
 ## Unreleased
 
+## 2026-11-26 — Phase 2.1 Step 2.1a — Quick wins and clinical flow (branch `feature/step-2-1a-quick-wins`, not pushed)
+
+- **What changed:** eye button on every password input; default paper A5 (hospital setting); Symptoms label and `opd_visits.reception_symptoms` (reception types it, doctor sees it, prints it); Prescription (slim, pharmacy) and Patient report (full) are separate print types, saved prescription templates copied to the report and retired; patient card label print (`PATIENT_CARD`); date of birth is the default entry, age takes years, months and days, live age display; receptionist name on receipt, slip and card.
+- **Files:** API `print-templates`, `opd-visits`, `patients`, `opd-masters/opd-rules`, `common/age.ts`; web print pages (`report`, `prescription`, card, card test), consult and new-visit screens, patient form, OPD rules form; two migrations.
+- **Tests:** API 1045 to 1065, web 1795 to 1816; lint, format check, API and web builds green.
+- **Decisions:** `docs/decisions/decisions-2-1.md` (Step 2.1a table).
+- **Follow-ups and open items:** existing saved slip and receipt templates need the Receptionist box added in the designer; the first real card print needs the test card page and a label printer; the raw TSPL option is written up in `docs/guides/patient-card-printing.md`, not built.
+
 ## 2026-11-24 — Phase 2 Step 9 — OPD hardening and exit (branch `feature/step-9-hardening-exit`, not pushed)
 
 - **Commit hash(es):** see `git log` on the branch (one commit per item).
