@@ -26,7 +26,11 @@ test.describe('Indigo sign in (one form, a blank access code)', () => {
     // the list of real hospitals, not a sample
     await page.waitForURL(/\/admin/);
     await expect(page.getByRole('heading', { name: 'Hospitals' })).toBeVisible();
-    await page.getByRole('button', { name: 'Enter hospital' }).first().click();
+    // a specific hospital by name (the list may hold other hospitals), never "the first one"
+    const card = page
+      .getByRole('heading', { name: 'Demo North Clinic' })
+      .locator('xpath=ancestor::*[.//button[normalize-space()="Enter hospital"]][1]');
+    await card.getByRole('button', { name: 'Enter hospital' }).click();
     await page.waitForURL(/\/app/);
     await expect(page.locator('body')).toContainText('(Indigo)');
     // the Indigo owner may change printouts: the Printing page is not read-only
