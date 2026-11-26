@@ -5,6 +5,7 @@ import { Test } from '@nestjs/testing';
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import type { PrismaClient } from '../../generated/prisma';
 import { CLOCK, FakeClock } from '../../common/clock';
+import { chooseDesigns, seedLibrary } from './showcase-library';
 import { ensureSystemRolesForTenant, SYSTEM_ROLE_CODES } from '../system-roles';
 import { defaultStarterOptions, runHospitalStarter } from '../hospital-starter/hospital-starter';
 import { ROLE_TEMPLATES } from '../../modules/staff/staff.config';
@@ -149,10 +150,10 @@ async function setupHospital(prisma: PrismaClient, hospital: ShowcaseHospital): 
       code: hospital.code,
       name: hospital.name,
       status: 'ACTIVE',
-      isTest: true,
+      isTest: false,
       isActive: true,
     },
-    update: { name: hospital.name, status: 'ACTIVE', isActive: true },
+    update: { name: hospital.name, status: 'ACTIVE', isActive: true, isTest: false },
   });
   const tenantId = row.id;
   const branchIds: Record<string, string> = {};
@@ -643,6 +644,7 @@ export async function seedShowcase(prisma: PrismaClient, options: ShowcaseOption
     setups.push(await setupHospital(prisma, hospital));
     console.log(`Showcase hospital ready: ${hospital.name}`);
   }
+  const library = await seedLibrary(prisma, setups);
   const clock = new FakeClock(new Date());
   const { AppModule } = await import('../../app.module');
   const { TokenService } = await import('../../modules/auth/token.service');
@@ -657,6 +659,7 @@ export async function seedShowcase(prisma: PrismaClient, options: ShowcaseOption
   await app.init();
   try {
     const tokens = app.get(TokenService);
+    await chooseDesigns(app, tokens, setups, library);
     for (const [index, setup] of setups.entries()) {
       const existing = await prisma.opdVisit.count({ where: { tenantId: setup.tenantId } });
       if (existing > 0) {

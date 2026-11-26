@@ -19,6 +19,9 @@ export type ShowcaseHospital = {
   code: string;
   name: string;
   slug: string;
+  /** The header and footer lines of the printouts (fictional) and the colour of the logo mark. */
+  contact: { address: string; phone: string; email: string; web: string; footer: string };
+  logo: { name: string; colour: [number, number, number]; variant: 'CROSS' | 'HEART' };
   branches: Array<{ code: string; name: string; accessCode: string; isMain: boolean }>;
   superAdmin: string;
   admin: string;
@@ -32,6 +35,15 @@ export const SHOWCASE_HOSPITALS: ShowcaseHospital[] = [
     code: 'NANDAVANA',
     name: 'Nandavana Multispeciality Hospital',
     slug: 'nandavana',
+    contact: {
+      address: '14, Keshwapur Main Road, Hubballi, Karnataka 580023',
+      phone: '0836 2255 0100',
+      email: 'care@nandavana-hospital.example',
+      web: 'www.nandavana-hospital.example',
+      footer:
+        'Open 24 hours. Emergency: 0836 2255 0111. Thank you for trusting us with your health.',
+    },
+    logo: { name: 'Nandavana mark', colour: [14, 116, 144], variant: 'CROSS' },
     branches: [
       { code: 'HUBBALLI', name: 'Hubballi Main', accessCode: 'nandavana-hubballi', isMain: true },
       { code: 'DHARWAD', name: 'Dharwad Clinic', accessCode: 'nandavana-dharwad', isMain: false },
@@ -87,6 +99,14 @@ export const SHOWCASE_HOSPITALS: ShowcaseHospital[] = [
     code: 'SAGARIKA',
     name: 'Sagarika Heart and Eye Centre',
     slug: 'sagarika',
+    contact: {
+      address: '42, Beach Road, Karwar, Karnataka 581301',
+      phone: '08382 226 400',
+      email: 'hello@sagarika-centre.example',
+      web: 'www.sagarika-centre.example',
+      footer: 'Heart and eye care by the sea. Appointments: 08382 226 401.',
+    },
+    logo: { name: 'Sagarika mark', colour: [153, 27, 27], variant: 'HEART' },
     branches: [
       { code: 'MANGALURU', name: 'Mangaluru Main', accessCode: 'sagarika-mangaluru', isMain: true },
       { code: 'UDUPI', name: 'Udupi Clinic', accessCode: 'sagarika-udupi', isMain: false },

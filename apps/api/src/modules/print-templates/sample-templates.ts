@@ -107,14 +107,13 @@ function header(page: Page, kind: HeaderKind, serif: boolean): { els: RichElemen
         f(V(SAMPLE_VALUE_KEYS.phone), { ...GREY, font }),
         t('   E-mail: ', { ...GREY, font }),
         f(V(SAMPLE_VALUE_KEYS.email), { ...GREY, font }),
-        t('   ', GREY),
-        f(V(SAMPLE_VALUE_KEYS.web), { ...GREY, font }),
       ],
       align,
     ),
+    para([f(V(SAMPLE_VALUE_KEYS.web), { ...GREY, font })], align),
   ];
   if (kind === 'LEFT') {
-    const size = page.paper === 'A4' ? 20 : 17;
+    const size = page.paper === 'A4' ? 23 : 22;
     return {
       els: [
         logo(m, m, size),
@@ -132,21 +131,21 @@ function header(page: Page, kind: HeaderKind, serif: boolean): { els: RichElemen
         box('hname', m + 17, m, inner - 17, 7, [
           para([f('hospitalName', { ...name, size: name.size! - 1 })]),
         ]),
-        box('hcontact', m + 17, m + 7, inner - 17, 8, contact('LEFT')),
-        rule('hrule', m, m + 16, inner),
-        rule('hrule2', m, m + 16.8, inner),
+        box('hcontact', m + 17, m + 7, inner - 17, 13, contact('LEFT')),
+        rule('hrule', m, m + 21, inner),
+        rule('hrule2', m, m + 21.8, inner),
       ],
-      y: m + 20,
+      y: m + 25,
     };
   }
   return {
     els: [
       logo(m, m, 14),
       box('hname', m + 17, m, inner - 34, 8, [para([f('hospitalName', name)], 'CENTER')]),
-      box('hcontact', m + 17, m + 8, inner - 34, 8, contact('CENTER')),
-      rule('hrule', m, m + 18, inner),
+      box('hcontact', m + 17, m + 8, inner - 34, 13, contact('CENTER')),
+      rule('hrule', m, m + 22, inner),
     ],
-    y: m + 21,
+    y: m + 25,
   };
 }
 
@@ -197,7 +196,7 @@ function slip(page: Page, kind: HeaderKind, serif: boolean, title: string): Prin
       para([t('Registered on: ', { bold: true }), f('registeredOn')]),
     ]),
     box('r1', m + half + 4, y, half, 14, [
-      para([t('Age / Gender: ', { bold: true }), f('age'), t(' / '), f('gender')]),
+      para([t('Age: ', { bold: true }), f('age'), t('   Gender: ', { bold: true }), f('gender')]),
       para([t('Branch: ', { bold: true }), f('branchName')]),
     ]),
   );
@@ -242,7 +241,7 @@ function bill(page: Page, kind: HeaderKind, serif: boolean, title: string): Prin
     ]),
     box('m2', m + half + 4, y, half, 20, [
       para([t('Date: ', { bold: true }), f('visitDate')]),
-      para([t('Age / Gender: ', { bold: true }), f('age'), t(' / '), f('gender')]),
+      para([t('Age: ', { bold: true }), f('age'), t('   Gender: ', { bold: true }), f('gender')]),
       para([t('Doctor: ', { bold: true }), f('doctorName')]),
     ]),
   );
@@ -255,12 +254,8 @@ function bill(page: Page, kind: HeaderKind, serif: boolean, title: string): Prin
   y += 9;
   els.push(
     rule('t1', m, y, inner),
-    box('thead', m, y + 0.8, inner, 6, [
-      para([
-        t('Sl No   Particulars', { bold: true }),
-        t('                                   Amount', { bold: true }),
-      ]),
-    ]),
+    box('thead', m, y + 0.8, inner - 40, 6, [para([t('Particulars', { bold: true })])]),
+    box('theadamt', m + inner - 40, y + 0.8, 40, 6, [para([t('Amount', { bold: true })], 'RIGHT')]),
     rule('t2', m, y + 7, inner),
   );
   y += 8;
@@ -315,9 +310,9 @@ function patientStrip(page: Page, y: number): { els: RichElement[]; y: number } 
         para([
           t('Patient: ', { bold: true }),
           f('patientName', { bold: true }),
-          t('   Age / Gender: ', { bold: true }),
+          t('   Age: ', { bold: true }),
           f('age'),
-          t(' / '),
+          t('   Gender: ', { bold: true }),
           f('gender'),
           t('   UHID: ', { bold: true }),
           f('uhid'),

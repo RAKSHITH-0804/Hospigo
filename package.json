@@ -16,7 +16,8 @@
     "format:check": "prettier --check .",
     "prepare": "husky",
     "e2e": "playwright test",
-    "e2e:stack": "node e2e/test-stack.mjs"
+    "e2e:stack": "node e2e/test-stack.mjs",
+    "demo:stack": "node e2e/demo-stack.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.57.0",

@@ -230,6 +230,10 @@ describe('Indigo library, terminology, branch modules and starter (HTTP, hospigo
       .set(auth(saA))
       .expect(200);
     expect(chosen.body.scope).toBe('HOSPITAL');
+    // choosing the same design again, or another one for the same document, replaces it (no error)
+    await http().put(`/print-library/templates/${ids[0]}/choose`).set(auth(saA)).expect(200);
+    await http().put(`/print-library/templates/${ids[1]}/choose`).set(auth(saA)).expect(200);
+    await http().put(`/print-library/templates/${ids[0]}/choose`).set(auth(saA)).expect(200);
     expect(
       (
         await http()

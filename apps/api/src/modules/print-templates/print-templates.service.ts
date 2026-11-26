@@ -227,10 +227,18 @@ export class PrintTemplatesService {
       };
       let created = false;
       if (existing) {
+        const { libraryTemplateId, ...plain } = data;
         await tx.printTemplate.updateMany({
           where: { id: existing.id, tenantId: actor.tenantId },
-          data,
+          data: plain,
         });
+        // the library marker is a relation column: updateMany does not take it, update does
+        if ((existing.libraryTemplateId ?? null) !== libraryTemplateId) {
+          await tx.printTemplate.update({
+            where: { tenantId_id: { tenantId: actor.tenantId, id: existing.id } },
+            data: { libraryTemplateId },
+          });
+        }
       } else {
         created = true;
         await tx.printTemplate.create({

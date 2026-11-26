@@ -98,8 +98,6 @@ export const PRINT_FIELDS: Record<PrintDocType, readonly string[]> = {
     'token',
     'patientName',
     'uhid',
-    'age',
-    'gender',
     'doctorName',
     'visitDate',
     'branchName',
@@ -166,6 +164,14 @@ export const PRINT_FIELDS: Record<PrintDocType, readonly string[]> = {
     'phone',
     'receptionistName',
   ],
+};
+
+/**
+ * Values a template MAY show but that the automatic starting layout does not place (adding them to
+ * PRINT_FIELDS would crowd the default page). The designed library templates use them.
+ */
+export const PRINT_EXTRA_FIELDS: Partial<Record<PrintDocType, readonly string[]>> = {
+  RECEIPT: ['age', 'gender'],
 };
 
 /** The older (version 1) layout: fields switched on or off, positions only for pre-printed stationery. */
@@ -550,7 +556,11 @@ export function validateTemplate(docType: PrintDocType, raw: unknown): PrintTemp
  * switched off or missing prints nothing for it, so a template never breaks.
  */
 function isKnownField(docType: PrintDocType, field: string): boolean {
-  return PRINT_FIELDS[docType].includes(field) || isPrintValueField(field);
+  return (
+    PRINT_FIELDS[docType].includes(field) ||
+    (PRINT_EXTRA_FIELDS[docType] ?? []).includes(field) ||
+    isPrintValueField(field)
+  );
 }
 
 /** True when some box of the layout holds the value (a mail-merge field) of this field. */

@@ -60,6 +60,9 @@ ALTER TABLE "print_templates" ADD COLUMN "library_template_id" TEXT;
 ALTER TABLE "print_templates" ADD CONSTRAINT "print_templates_library_fkey"
   FOREIGN KEY ("library_template_id") REFERENCES "print_library_templates"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
+-- The app role may change this one column (which library template is in use) like the other setting columns.
+GRANT UPDATE ("library_template_id") ON TABLE "print_templates" TO hospigo_app;
+
 -- The words a hospital prefers for a few terms (hospital, key, text); set by Indigo only.
 CREATE TABLE "terminology_overrides" (
   "id" TEXT NOT NULL,

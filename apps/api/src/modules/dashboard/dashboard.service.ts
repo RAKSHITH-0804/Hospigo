@@ -67,6 +67,7 @@ export class DashboardService {
         dayKey(new Date(now.getTime() - (DASHBOARD_TREND_DAYS - 1 - i) * DAY_MS)),
       );
       const since = new Date(now.getTime() - (DASHBOARD_WINDOW_DAYS + 1) * DAY_MS);
+      const sinceDay = new Date(`${dayKey(since)}T00:00:00.000Z`);
       const recent = new Date(now.getTime() - 2 * DAY_MS);
       const own = await ownDoctorId(tx, actor);
 
@@ -75,19 +76,21 @@ export class DashboardService {
             where: {
               tenantId: actor.tenantId,
               branchId: actor.branchId,
-              createdAt: { gte: since },
+              visitDate: { gte: sinceDay },
               status: { not: 'CANCELLED' },
             },
             select: {
               id: true,
-              createdAt: true,
+              visitDate: true,
               status: true,
               doctorProfileId: true,
               doctor: { select: { user: { select: { displayName: true } } } },
             },
           })
         : [];
-      const todays = visits.filter((v) => dayKey(v.createdAt) === today);
+      // a visit belongs to its visit date (the business day), not to the moment the row was written
+      const visitDay = (v: { visitDate: Date }) => v.visitDate.toISOString().slice(0, 10);
+      const todays = visits.filter((v) => visitDay(v) === today);
 
       const newPatients = await tx.patient.findMany({
         where: {
@@ -153,7 +156,7 @@ export class DashboardService {
         },
         trend: keys.map((date) => ({
           date,
-          visits: visits.filter((v) => dayKey(v.createdAt) === date).length,
+          visits: visits.filter((v) => visitDay(v) === date).length,
           collectionPaise: money ? (collectionByDay.get(date) ?? 0) : null,
         })),
         paymentMix: [...mix]
