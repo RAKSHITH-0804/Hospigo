@@ -268,11 +268,11 @@ export async function ensureSystemRolesForTenant(
     create: {
       tenantId,
       code: SYSTEM_ROLE_CODES.BRANCH_ADMIN,
-      name: 'Branch Admin',
-      description: 'Branch-scope administration',
+      name: 'Admin',
+      description: 'Administers one or more branches',
       isSystem: true,
     },
-    update: { name: 'Branch Admin', isActive: true, isSystem: true },
+    update: { name: 'Admin', isActive: true, isSystem: true },
   });
 
   const roles = [

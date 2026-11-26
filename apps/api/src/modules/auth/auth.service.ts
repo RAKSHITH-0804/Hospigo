@@ -10,7 +10,7 @@ import type { AuthConfig } from './auth.config';
 import { AuthRedisService } from './auth-redis.service';
 import { authFailed } from './auth.errors';
 import { HospitalLoginHelper } from './hospital-login.helper';
-import { userHasHospitalScope } from './hospital-scope';
+import { canSwitchBranches, userHasHospitalScope } from './hospital-scope';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 import type { AccessClaims, HospitalAccessClaims, HqAccessClaims } from './token.types';
@@ -57,8 +57,10 @@ export type AuthMeResponse = {
    * (AccessService snapshot / can() without a module gate). Empty for HQ.
    */
   permissions: string[];
-  /** True when the user holds an active hospital-wide role (branch switcher). HQ: false. */
+  /** True when the person has a branch switcher: hospital-wide, or two or more branches of their own. HQ: false. */
   canSwitchBranch: boolean;
+  /** True when the person holds an active hospital-wide role (not just several branches). HQ: false. */
+  hospitalWide: boolean;
 };
 
 @Injectable()
@@ -519,9 +521,8 @@ export class AuthService {
               activeBranchId: activeBranch?.id ?? hospitalClaims.branchId,
               activeBranchName: activeBranch?.name ?? null,
               enabledModules,
-              canSwitchBranch:
-                user.isActive &&
-                user.roleAssignments.some((a) => a.scopeType === 'HOSPITAL' && a.role.isActive),
+              canSwitchBranch: user.isActive && (await canSwitchBranches(tx, user.id)),
+              hospitalWide: user.isActive && (await userHasHospitalScope(tx, user.id)),
             };
           });
           if (!data) {
@@ -550,6 +551,7 @@ export class AuthService {
             enabledModules: data.enabledModules,
             permissions,
             canSwitchBranch: data.canSwitchBranch,
+            hospitalWide: data.hospitalWide,
           };
         },
       );
@@ -577,6 +579,7 @@ export class AuthService {
       enabledModules: [],
       permissions: [],
       canSwitchBranch: false,
+      hospitalWide: false,
     };
   }
 

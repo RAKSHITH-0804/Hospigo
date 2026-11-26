@@ -60,6 +60,12 @@ export class AuthMeResponseDto {
   canSwitchBranch!: boolean;
 
   @ApiProperty({
+    description:
+      'Hospital: true when the user holds an active hospital-wide role (not just several branches of their own). HQ: false.',
+  })
+  hospitalWide!: boolean;
+
+  @ApiProperty({
     type: [String],
     description:
       'Hospital: permission codes allowed on the active branch (AccessService.can without module gate). HQ: [].',

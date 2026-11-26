@@ -12,7 +12,7 @@ import { TenantDb, type TenantTx } from '../../database/tenant-db';
 import type { AuthConfig } from './auth.config';
 import { AuthRedisService } from './auth-redis.service';
 import { authFailed } from './auth.errors';
-import { userHasHospitalScope } from './hospital-scope';
+import { canSwitchBranches, switchableBranchIds } from './hospital-scope';
 import { TokenService } from './token.service';
 import type { HospitalAccessClaims } from './token.types';
 import type { TokenPairResponse } from './auth.service';
@@ -72,12 +72,13 @@ export class BranchSwitchService {
           !!hospital &&
           hospital.isActive &&
           hospital.status === 'ACTIVE' &&
-          (await userHasHospitalScope(tx, claims.userId));
+          (await canSwitchBranches(tx, claims.userId));
         if (!allowed) {
           return null;
         }
+        const scope = await switchableBranchIds(tx, claims.userId);
         return tx.branch.findMany({
-          where: { isActive: true },
+          where: { isActive: true, ...(scope.all ? {} : { id: { in: scope.ids } }) },
           select: { id: true, name: true, isMain: true },
           orderBy: [{ isMain: 'desc' }, { name: 'asc' }],
         });
@@ -156,9 +157,10 @@ export class BranchSwitchService {
     }
 
     // 1. Who may switch (re-read from the database on every call, never from the token).
-    if (!(await userHasHospitalScope(tx, user.id))) {
+    if (!(await canSwitchBranches(tx, user.id))) {
       return { type: 'denied', reason: 'NOT_SWITCHER' };
     }
+    const scope = await switchableBranchIds(tx, user.id);
 
     // 2. The refresh session must be this user's own, live, and the secret must match.
     const session = await tx.authSession.findFirst({ where: { id: parts.sessionId } });
@@ -182,7 +184,14 @@ export class BranchSwitchService {
     }
 
     // 3. The target: same hospital (RLS), active. One answer for every other case.
-    const target = await tx.branch.findFirst({ where: { id: targetBranchId, isActive: true } });
+    const target = await tx.branch.findFirst({
+      where: {
+        id: targetBranchId,
+        isActive: true,
+        // a person with branches of their own can only go to those (one answer for every other case)
+        ...(scope.all ? {} : { id: { in: scope.ids.includes(targetBranchId) ? [targetBranchId] : [] } }),
+      },
+    });
     if (!target) {
       return { type: 'denied', reason: 'BRANCH_NOT_AVAILABLE' };
     }
