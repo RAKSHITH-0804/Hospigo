@@ -44,6 +44,8 @@ import { TokenService } from './token.service';
     { provide: APP_GUARD, useExisting: AuthGuard },
   ],
   exports: [
+    HqPrismaService,
+    IndigoAccessService,
     PasswordService,
     TokenService,
     AuthGuard,

@@ -1,14 +1,15 @@
 import type { Metadata } from 'next';
-import { IndigoHospitals, type IndigoHospital } from '@/components/admin/indigo-hospitals';
+import { IndigoHospitals } from '@/components/admin/indigo-hospitals';
 import { staffCopy } from '@/config/staff-copy';
+import type { IndigoOverview } from '@/lib/indigo/types';
 import { errorMessageFor } from '@/lib/patients/client';
 import { fetchStaffOnServer, serverErrorCode } from '@/lib/patients/server';
 
 export const metadata: Metadata = { title: staffCopy.pageTitles.admin };
 
-/** The real hospitals the signed-in Indigo person may enter (Step 2.1b). */
+/** The real hospitals the signed-in Indigo person may see and enter (Steps 2.1b and 2.1e). */
 export default async function AdminPage() {
-  const result = await fetchStaffOnServer<{ items: IndigoHospital[] }>('/auth/indigo/hospitals');
+  const result = await fetchStaffOnServer<IndigoOverview>('/indigo/hospitals');
   if (result.status !== 'ok') {
     return (
       <p role="alert" className="type-label text-destructive">
@@ -16,5 +17,5 @@ export default async function AdminPage() {
       </p>
     );
   }
-  return <IndigoHospitals hospitals={result.data.items} />;
+  return <IndigoHospitals overview={result.data} />;
 }

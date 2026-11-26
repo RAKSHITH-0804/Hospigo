@@ -2,7 +2,13 @@ import type { ReactNode } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
 import { staffCopy } from '@/config/staff-copy';
 import { requireKind } from '@/lib/auth/guards';
-import { hqConceptNavItems } from '@/mock/hq';
+import type { ShellNavItem } from '@/config/modules';
+
+const indigoNav: ShellNavItem[] = [
+  { href: '/admin', label: staffCopy.admin.console.navHospitals, icon: 'hospitals' },
+  { href: '/admin/onboard', label: staffCopy.admin.console.navOnboard, icon: 'modules' },
+  { href: '/admin/employees', label: staffCopy.admin.console.navEmployees, icon: 'staff' },
+];
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const session = await requireKind('HQ');
@@ -13,7 +19,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       <AppShell
         brandLabel={staffCopy.brand}
         title={staffCopy.hqTitle}
-        groups={[{ label: '', items: hqConceptNavItems }]}
+        groups={[{ label: '', items: indigoNav }]}
         userDisplayName={session.displayName}
         userEmail={session.email}
         roleCodes={roleCodes}

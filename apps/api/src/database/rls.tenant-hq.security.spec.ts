@@ -16,6 +16,8 @@ const HQ_ALLOWED: Record<string, Priv> = {
   hospitals: { select: true, insert: true, update: true, delete: true },
   branches: { select: true, insert: true, update: true, delete: true },
   hospital_module_subscriptions: { select: true, insert: true, update: true, delete: true },
+  // Step 2.1e: the Indigo console reads the module catalog (global, no hospital data).
+  modules: { select: true, insert: false, update: false, delete: false },
   branch_modules: { select: true, insert: true, update: true, delete: true },
   // Narrow first-SuperAdmin needs: HQ may append audit only; user/role writes go through SECURITY DEFINER.
   audit_logs: { select: false, insert: true, update: false, delete: false },
