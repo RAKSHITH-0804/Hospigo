@@ -36,6 +36,7 @@ const common = {
   ...process.env,
   NODE_ENV: 'development',
   DATABASE_URL: testUrl('DATABASE_URL_TEST', 'DATABASE_URL'),
+  DATABASE_URL_OWNER: testUrl('DATABASE_URL_OWNER_TEST', 'DATABASE_URL_OWNER'),
   DATABASE_URL_HQ: testUrl('DATABASE_URL_HQ'),
   DATABASE_URL_PATIENT: testUrl('DATABASE_URL_PATIENT'),
 };
