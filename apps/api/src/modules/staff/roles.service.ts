@@ -7,6 +7,7 @@ import {
   ROLE_TEMPLATES,
   STAFF_LIMITS,
   BRANCH_ADMIN_ROLE_CODE,
+  INDIGO_ROLE_CODES,
   SUPER_ADMIN_ROLE_CODE,
 } from './staff.config';
 import { isRecord, readText, refuse, StaffReason } from './staff.rules';
@@ -60,7 +61,8 @@ export class RolesService {
     const canWrite = await this.isWide('role.write');
     return this.tenantDb.withTenant(async (tx) => {
       const rows = await tx.role.findMany({
-        where: { tenantId: actor.tenantId },
+        // the Indigo roles are never shown to hospital users
+        where: { tenantId: actor.tenantId, code: { notIn: [...INDIGO_ROLE_CODES] } },
         include: ROLE_INCLUDE,
         orderBy: [{ isSystem: 'desc' }, { name: 'asc' }],
       });

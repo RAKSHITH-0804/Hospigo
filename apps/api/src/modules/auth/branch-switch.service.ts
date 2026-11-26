@@ -13,6 +13,7 @@ import type { AuthConfig } from './auth.config';
 import { AuthRedisService } from './auth-redis.service';
 import { authFailed } from './auth.errors';
 import { canSwitchBranches, switchableBranchIds } from './hospital-scope';
+import { IndigoCheckService } from './indigo-check.service';
 import { TokenService } from './token.service';
 import type { HospitalAccessClaims } from './token.types';
 import type { TokenPairResponse } from './auth.service';
@@ -57,6 +58,7 @@ export class BranchSwitchService {
     private readonly tenantDb: TenantDb,
     private readonly tokens: TokenService,
     private readonly redis: AuthRedisService,
+    private readonly indigoCheck: IndigoCheckService,
     config: ConfigService<ApiEnv, true>,
   ) {
     this.auth = config.getOrThrow('auth', { infer: true });
@@ -156,6 +158,14 @@ export class BranchSwitchService {
       return { type: 'fail' };
     }
 
+    // 0. An Indigo person must still be allowed in this hospital (checked against the HQ side every time).
+    if (
+      user.indigoHqUserId &&
+      !(await this.indigoCheck.allowed(user.indigoHqUserId, claims.tenantId))
+    ) {
+      return { type: 'fail' };
+    }
+
     // 1. Who may switch (re-read from the database on every call, never from the token).
     if (!(await canSwitchBranches(tx, user.id))) {
       return { type: 'denied', reason: 'NOT_SWITCHER' };
@@ -189,7 +199,9 @@ export class BranchSwitchService {
         id: targetBranchId,
         isActive: true,
         // a person with branches of their own can only go to those (one answer for every other case)
-        ...(scope.all ? {} : { id: { in: scope.ids.includes(targetBranchId) ? [targetBranchId] : [] } }),
+        ...(scope.all
+          ? {}
+          : { id: { in: scope.ids.includes(targetBranchId) ? [targetBranchId] : [] } }),
       },
     });
     if (!target) {

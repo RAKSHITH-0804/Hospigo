@@ -293,6 +293,7 @@ async function seedOpdMasters(
     [OPD_ROLE_CODES.DOCTOR]: [
       'opd.masters.read',
       'patients.registry.read',
+      'patients.history.view_all',
       'opd.visits.read',
       'opd.queue.read',
       'opd.vitals.read',

@@ -52,13 +52,46 @@ model HqUser {
   passwordChangedAt  DateTime? @map("password_changed_at") @db.Timestamptz(3)
   lastLoginAt        DateTime? @map("last_login_at") @db.Timestamptz(3)
   isActive           Boolean   @default(true) @map("is_active")
+  /// OWNER (full power) or EMPLOYEE (assigned hospitals only), Step 2.1b.
+  indigoRole         String    @default("OWNER") @map("indigo_role")
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  hospitals    HqUserHospital[]
   sessions     HqAuthSession[]
   actionTokens HqAuthActionToken[]
 
   @@map("hq_users")
+}
+
+/// The hospitals an Indigo Employee may enter (an Owner may enter every hospital).
+model HqUserHospital {
+  id        String   @id @default(cuid())
+  hqUserId  String   @map("hq_user_id")
+  tenantId  String   @map("tenant_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  hqUser   HqUser   @relation(fields: [hqUserId], references: [id], onDelete: Cascade)
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([hqUserId, tenantId])
+  @@map("hq_user_hospitals")
+}
+
+/// Who from Indigo entered a hospital, and when (append-only, Step 2.1b).
+model IndigoAccessLog {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  hqUserId  String   @map("hq_user_id")
+  userId    String   @map("user_id")
+  action    String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([hqUserId, createdAt(sort: Desc)])
+  @@map("indigo_access_log")
 }
 
 /// HQ password-reset action tokens (global). Store token_hash only.
@@ -215,6 +248,10 @@ enum HospitalStatus {
 }
 
 model Hospital {
+  hqUserHospitals HqUserHospital[]
+  indigoAccessLogs IndigoAccessLog[]
+  consultationVersions ConsultationVersion[]
+  patientViewLogs PatientViewLog[]
   id         String         @id @default(cuid())
   code       String         @unique
   name       String
@@ -304,6 +341,7 @@ model HospitalSetting {
 }
 
 model Branch {
+  patientViewLogs PatientViewLog[]
   id         String   @id @default(cuid())
   tenantId   String   @map("tenant_id")
   code       String
@@ -388,6 +426,8 @@ model User {
   isActive           Boolean   @default(true) @map("is_active")
   /// Optional phone number the person keeps in My profile.
   phone              String?
+  /// Set only by the Indigo entry: this user stands for one Indigo person and is hidden from the hospital (Step 2.1b).
+  indigoHqUserId     String?   @map("indigo_hq_user_id")
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -408,6 +448,8 @@ model User {
   doctorProfiles DoctorProfile[]
   chargeItemPricesCreated ChargeItemPrice[] @relation("ChargeItemPriceCreatedBy")
   doctorFeesCreated DoctorFee[] @relation("DoctorFeeCreatedBy")
+  consultationVersionsEdited ConsultationVersion[] @relation("ConsultationVersionEditor")
+  patientViewsLogged PatientViewLog[] @relation("PatientViewLogViewer")
   leaveRequestsMade DoctorLeaveRequest[] @relation("LeaveRequestedBy")
   leaveRequestsDecided DoctorLeaveRequest[] @relation("LeaveDecidedBy")
   opdVisitsCreated OpdVisit[] @relation("OpdVisitCreatedBy")
@@ -611,6 +653,7 @@ model AuditLog {
 // --- Patients (Step 3b-1). Consultant belongs on visits later. ---
 
 model Patient {
+  viewLogs PatientViewLog[]
   id                 String    @id @default(cuid())
   tenantId           String    @map("tenant_id")
   uhid               String
@@ -1570,6 +1613,7 @@ model Consultation {
   visit             OpdVisit               @relation(fields: [tenantId, visitId, branchId], references: [tenantId, id, branchId], onDelete: Restrict)
   doctor            DoctorProfile          @relation(fields: [tenantId, doctorProfileId], references: [tenantId, id], onDelete: Restrict)
   addenda           ConsultationAddendum[]
+  versions          ConsultationVersion[]
   prescriptionItems PrescriptionItem[]
 
   @@unique([tenantId, id])
@@ -1886,6 +1930,47 @@ model PrintValue {
   @@unique([tenantId, id])
   @@index([tenantId, branchId])
   @@map("print_values")
+}
+
+/// A change of a completed consultation (Step 2.1b): who, when and why. Append-only; the original stays in Consultation.
+model ConsultationVersion {
+  id             String   @id @default(cuid())
+  tenantId       String   @map("tenant_id")
+  branchId       String   @map("branch_id")
+  consultationId String   @map("consultation_id")
+  visitId        String   @map("visit_id")
+  versionNo      Int      @map("version_no")
+  reason         String
+  snapshot       Json
+  editedBy       String   @map("edited_by")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  hospital     Hospital     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  consultation Consultation @relation(fields: [tenantId, consultationId, visitId, branchId], references: [tenantId, id, visitId, branchId], onDelete: Restrict)
+  editor       User         @relation("ConsultationVersionEditor", fields: [tenantId, editedBy], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, consultationId, versionNo])
+  @@index([tenantId, visitId])
+  @@map("consultation_versions")
+}
+
+/// A doctor opened a patient they had no open visit with (Step 2.1b). Append-only, ids only.
+model PatientViewLog {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  branchId     String   @map("branch_id")
+  viewerUserId String   @map("viewer_user_id")
+  patientId    String   @map("patient_id")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  hospital Hospital @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  branch   Branch   @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict)
+  viewer   User     @relation("PatientViewLogViewer", fields: [tenantId, viewerUserId], references: [tenantId, id], onDelete: Restrict)
+  patient  Patient  @relation(fields: [tenantId, patientId], references: [tenantId, id], onDelete: Restrict)
+
+  @@index([tenantId, patientId, createdAt(sort: Desc)])
+  @@index([tenantId, viewerUserId, patientId, createdAt(sort: Desc)])
+  @@map("patient_view_log")
 }
 
 model PrintTemplate {

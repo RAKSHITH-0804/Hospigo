@@ -25,6 +25,8 @@ export const STAFF_CODE_LIMITS = {
 /** The system roles every hospital has (created with the hospital, never edited here). */
 export const SUPER_ADMIN_ROLE_CODE = 'SUPER_ADMIN';
 export const BRANCH_ADMIN_ROLE_CODE = 'BRANCH_ADMIN';
+/** The two roles only the Indigo entry gives (Step 2.1b); hospital users never see or give them. */
+export const INDIGO_ROLE_CODES: readonly string[] = ['TENANT_ADMIN', 'INDIGO_EMPLOYEE'];
 
 /** The permission that makes a person a doctor: giving a role that holds it creates the doctor profile. */
 export const DOCTOR_PERMISSION_CODE = 'opd.doctors.own';

@@ -39,7 +39,9 @@ import { TokenResponseDto } from './dto/token-response.dto';
 import { AuthenticatedOnly } from '../access/permission.decorators';
 import { Public } from './public.decorator';
 import { TokenKinds } from './token-kinds.decorator';
-import type { AccessClaims, HospitalAccessClaims } from './token.types';
+import { IndigoEnterDto } from './dto/indigo-enter.dto';
+import { IndigoAccessService } from './indigo-access.service';
+import type { AccessClaims, HospitalAccessClaims, HqAccessClaims } from './token.types';
 
 type HttpReq = {
   ip?: string;
@@ -58,6 +60,7 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly authEmail: AuthEmailService,
     private readonly branchSwitch: BranchSwitchService,
+    private readonly indigo: IndigoAccessService,
   ) {}
 
   @Public()
@@ -144,6 +147,42 @@ export class AuthController {
       throw new UnauthorizedException('Missing auth context');
     }
     return this.auth.me(req.auth);
+  }
+
+  @Get('indigo/hospitals')
+  @AuthenticatedOnly()
+  @TokenKinds('HQ')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'The hospitals an Indigo person may enter now (Step 2.1b)' })
+  async indigoHospitals(@Req() req: HttpReq) {
+    if (!req.auth) {
+      throw new UnauthorizedException('Missing auth context');
+    }
+    return { items: await this.indigo.hospitals((req.auth as HqAccessClaims).userId) };
+  }
+
+  @Post('indigo/enter')
+  @HttpCode(200)
+  @AuthenticatedOnly()
+  @TokenKinds('HQ')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'An Indigo person enters one hospital and gets an ordinary hospital token (Step 2.1b). One answer for every refusal.',
+  })
+  @ApiOkResponse({ type: TokenResponseDto })
+  async indigoEnter(
+    @Body() body: IndigoEnterDto,
+    @Req() req: HttpReq,
+    @Res({ passthrough: true }) res: HttpRes,
+  ): Promise<TokenResponseDto> {
+    if (!req.auth) {
+      throw new UnauthorizedException('Missing auth context');
+    }
+    const hqUserId = (req.auth as HqAccessClaims).userId;
+    return this.wrapRateLimit(res, () =>
+      this.indigo.enter(hqUserId, body.hospitalId, clientMeta(req)),
+    );
   }
 
   @Get('switchable-branches')

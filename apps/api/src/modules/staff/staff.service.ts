@@ -15,6 +15,7 @@ import {
   DOCTOR_CODE_WIDTH,
   DOCTOR_PERMISSION_CODE,
   STAFF_LIMITS,
+  INDIGO_ROLE_CODES,
   SUPER_ADMIN_ROLE_CODE,
 } from './staff.config';
 import {
@@ -119,6 +120,8 @@ export class StaffService {
     const page = Math.max(Math.trunc(query.page ?? 1), 1);
     const where: Prisma.UserWhereInput = {
       tenantId: actor.tenantId,
+      // the hidden users that stand for Indigo people are never listed or counted (Step 2.1b)
+      indigoHqUserId: null,
       ...(readScope.wide
         ? {}
         : {
@@ -182,7 +185,11 @@ export class StaffService {
         (b) => write.wide || write.branchIds.includes(b.id),
       );
       const roles = await tx.role.findMany({
-        where: { tenantId: actor.tenantId, isActive: true },
+        where: {
+          tenantId: actor.tenantId,
+          isActive: true,
+          code: { notIn: [...INDIGO_ROLE_CODES] },
+        },
         orderBy: [{ isSystem: 'desc' }, { name: 'asc' }],
       });
       const allBranchIds = (await this.activeBranches(tx, actor.tenantId)).map((b) => b.id);
@@ -468,7 +475,8 @@ export class StaffService {
 
   private async target(tx: TenantTx, actor: Actor, id: string, scope: Scope): Promise<UserRow> {
     const row = await tx.user.findFirst({
-      where: { id, tenantId: actor.tenantId },
+      // an Indigo user cannot be opened, changed, switched off or given roles by hospital users
+      where: { id, tenantId: actor.tenantId, indigoHqUserId: null },
       include: USER_INCLUDE,
     });
     if (!row || !this.manageable(row, scope)) {
@@ -541,6 +549,8 @@ export class StaffService {
         tenantId: actor.tenantId,
         id: { in: assignments.map((a) => a.roleId) },
         isActive: true,
+        // hospital users can never give the Indigo roles (they look like roles that do not exist)
+        code: { notIn: [...INDIGO_ROLE_CODES] },
       },
     });
     const byId = new Map(roles.map((r) => [r.id, r]));

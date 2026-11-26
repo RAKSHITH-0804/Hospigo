@@ -11,6 +11,9 @@ import { AuthGuard } from './auth.guard';
 import { AuthRedisService } from './auth-redis.service';
 import { AuthService } from './auth.service';
 import { BranchSwitchService } from './branch-switch.service';
+import { IndigoAccessLogController } from './indigo-access-log.controller';
+import { IndigoAccessService } from './indigo-access.service';
+import { IndigoCheckService } from './indigo-check.service';
 import { HospitalLoginHelper } from './hospital-login.helper';
 import { MembershipHelper } from './membership.helper';
 import { PasswordService } from './password.service';
@@ -22,7 +25,7 @@ import { TokenService } from './token.service';
  */
 @Module({
   imports: [MailModule, AccessModule],
-  controllers: [AuthController],
+  controllers: [AuthController, IndigoAccessLogController],
   providers: [
     PasswordService,
     TokenService,
@@ -33,6 +36,8 @@ import { TokenService } from './token.service';
     AuthRedisService,
     AuthService,
     BranchSwitchService,
+    IndigoCheckService,
+    IndigoAccessService,
     ActionTokenService,
     AuthEmailService,
     MailProcessor,
