@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { FakeClock } from '../../common/clock';
-import { createOwnerPrisma } from '../../database/db-test.util';
+import { createOwnerPrisma, createPgClient } from '../../database/db-test.util';
 import { bootApp, createKit, prepareTestEnv } from '../../database/hospital-test-kit';
 import type { KitHospital } from '../../database/hospital-test-kit';
 import { AuthRedisService } from '../auth/auth-redis.service';
@@ -138,6 +138,59 @@ describe('Indigo console (HTTP, hospigo_test)', () => {
       ).status,
     ).toBe(403);
     expect(await owner.hospital.count({ where: { code: body('emp').code } })).toBe(0);
+  });
+
+  it('first-SuperAdmin creation (Step 2.1f gate): an Employee, an inactive Indigo user and a hospital user cannot do it; the hospital login has no right to the function', async () => {
+    // an Employee, even for a hospital he is assigned to, and a hospital user: refused, nothing created
+    const empBody = body('gate1');
+    expect(
+      (
+        await http()
+          .post('/indigo/hospitals')
+          .set(auth(hq(employeeHq)))
+          .send(empBody)
+      ).status,
+    ).toBe(403);
+    expect((await http().post('/indigo/hospitals').set(auth(saA)).send(empBody)).status).toBe(401);
+    // an Owner who has been switched off (directly in the database) is refused at once
+    const gone = await makeHq('gone', 'OWNER');
+    await owner.hqUser.update({ where: { id: gone }, data: { isActive: false } });
+    const goneBody = body('gate2');
+    expect(
+      (
+        await http()
+          .post('/indigo/hospitals')
+          .set(auth(hq(gone)))
+          .send(goneBody)
+      ).status,
+    ).toBe(403);
+    expect(
+      await owner.hospital.count({ where: { code: { in: [empBody.code, goneBody.code] } } }),
+    ).toBe(0);
+    // the hospital login (the app role) may not run the function at all
+    const pg = createPgClient('app');
+    await pg.connect();
+    try {
+      await expect(
+        pg.query("SELECT hq_create_first_superadmin($1, 'X1', 'x@example.test', 'X', 'x')", [
+          A.tenant,
+        ]),
+      ).rejects.toThrow(/permission denied/i);
+    } finally {
+      await pg.end();
+    }
+    // even the HQ login cannot add a second SuperAdmin to a hospital that already has one
+    const hqPg = createPgClient('hq');
+    await hqPg.connect();
+    try {
+      await expect(
+        hqPg.query("SELECT hq_create_first_superadmin($1, 'X2', 'y@example.test', 'Y', 'y')", [
+          A.tenant,
+        ]),
+      ).rejects.toThrow(/already has a SuperAdmin/i);
+    } finally {
+      await hqPg.end();
+    }
   });
 
   it('the Owner onboards a hospital: branches, modules, roles, a first SuperAdmin who can sign in, and an audit entry without the password', async () => {
