@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpException,
@@ -40,8 +41,8 @@ import { AuthenticatedOnly } from '../access/permission.decorators';
 import { Public } from './public.decorator';
 import { TokenKinds } from './token-kinds.decorator';
 import { IndigoEnterDto } from './dto/indigo-enter.dto';
-import { IndigoAccessService } from './indigo-access.service';
-import type { AccessClaims, HospitalAccessClaims, HqAccessClaims } from './token.types';
+import { INDIGO_HOSPITAL_UNAVAILABLE, IndigoAccessService } from './indigo-access.service';
+import type { AccessClaims, HospitalAccessClaims } from './token.types';
 
 type HttpReq = {
   ip?: string;
@@ -151,20 +152,21 @@ export class AuthController {
 
   @Get('indigo/hospitals')
   @AuthenticatedOnly()
-  @TokenKinds('HQ')
+  @TokenKinds('HQ', 'HOSPITAL')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'The hospitals an Indigo person may enter now (Step 2.1b)' })
   async indigoHospitals(@Req() req: HttpReq) {
     if (!req.auth) {
       throw new UnauthorizedException('Missing auth context');
     }
-    return { items: await this.indigo.hospitals((req.auth as HqAccessClaims).userId) };
+    const person = await this.indigo.personOf(req.auth);
+    return { items: person ? await this.indigo.hospitals(person) : [] };
   }
 
   @Post('indigo/enter')
   @HttpCode(200)
   @AuthenticatedOnly()
-  @TokenKinds('HQ')
+  @TokenKinds('HQ', 'HOSPITAL')
   @ApiBearerAuth()
   @ApiOperation({
     summary:
@@ -179,7 +181,11 @@ export class AuthController {
     if (!req.auth) {
       throw new UnauthorizedException('Missing auth context');
     }
-    const hqUserId = (req.auth as HqAccessClaims).userId;
+    // an Indigo token, or the token of an Indigo person already inside a hospital (switching hospital)
+    const hqUserId = await this.indigo.personOf(req.auth);
+    if (!hqUserId) {
+      throw new ForbiddenException(INDIGO_HOSPITAL_UNAVAILABLE);
+    }
     return this.wrapRateLimit(res, () =>
       this.indigo.enter(hqUserId, body.hospitalId, clientMeta(req)),
     );

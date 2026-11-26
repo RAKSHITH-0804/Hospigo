@@ -1,3 +1,4 @@
+import type { AccessClaims } from './token.types';
 import { randomUUID } from 'node:crypto';
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { runWithContext } from '../../common/request-context';
@@ -30,6 +31,24 @@ export class IndigoAccessService {
     private readonly redis: AuthRedisService,
     private readonly auth: AuthService,
   ) {}
+
+  /**
+   * Who the caller is for the Indigo entry: an Indigo (HQ) token is the person itself; a HOSPITAL token
+   * counts only when its user is the hidden user of an Indigo person (that is how an Indigo person already
+   * inside a hospital switches to another one). Anyone else: null, answered like every other refusal.
+   */
+  async personOf(auth: AccessClaims): Promise<string | null> {
+    if (auth.tokenType === 'HQ') {
+      return auth.userId;
+    }
+    if (auth.tokenType !== 'HOSPITAL') {
+      return null;
+    }
+    const user = await this.tenantDb.withTenant((tx) =>
+      tx.user.findFirst({ where: { id: auth.userId }, select: { indigoHqUserId: true } }),
+    );
+    return user?.indigoHqUserId ?? null;
+  }
 
   /** The hospitals this person may enter now (an Owner: all active ones; an Employee: the assigned ones). */
   async hospitals(hqUserId: string): Promise<IndigoHospital[]> {

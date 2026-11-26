@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { sessionConfig } from '@/config/session';
-import { indigoEnterUpstream } from '@/lib/auth/api-client';
+import { indigoEnterUpstream, logoutUpstream } from '@/lib/auth/api-client';
 import { applyClearCookies, applySessionCookies } from '@/lib/auth/cookies';
 import {
   assertJsonContentType,
@@ -67,6 +67,11 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
   if (!upstream.data.refreshToken) {
     return NextResponse.json({ code: 'UNKNOWN' }, { status: 500 });
+  }
+  // the session we came from (the Indigo list, or the hospital we are leaving) ends now
+  const oldRefresh = jar.get(sessionConfig.cookieRefreshName)?.value;
+  if (oldRefresh) {
+    await logoutUpstream(request, oldRefresh).catch(() => undefined);
   }
   const response = NextResponse.json({ ok: true });
   applySessionCookies(response, {

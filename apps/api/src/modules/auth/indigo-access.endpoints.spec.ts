@@ -127,8 +127,12 @@ describe('Indigo access (HTTP, hospigo_test)', () => {
         'patients.registry.read',
       ]),
     );
-    // and the token is a hospital token: the HQ routes refuse it
-    await http().get('/auth/indigo/hospitals').set(auth(res.body.accessToken)).expect(401);
+    // inside the hospital the Indigo person can list the hospitals they may switch to
+    const mine = await http()
+      .get('/auth/indigo/hospitals')
+      .set(auth(res.body.accessToken))
+      .expect(200);
+    expect(mine.body.items.length).toBeGreaterThan(1);
   });
 
   it('the Employee has configuration power but no patient data, no templates, no Indigo log', async () => {
@@ -187,10 +191,14 @@ describe('Indigo access (HTTP, hospigo_test)', () => {
     expect((await http().post('/auth/indigo/enter').send({ hospitalId: A.tenant })).status).toBe(
       401,
     );
+    // an ordinary hospital user is not an Indigo person: the same refusal as any other
     expect(
       (await http().post('/auth/indigo/enter').set(auth(saA)).send({ hospitalId: A.tenant }))
         .status,
-    ).toBe(401);
+    ).toBe(403);
+    expect((await http().get('/auth/indigo/hospitals').set(auth(saA))).body.items ?? []).toEqual(
+      [],
+    );
     expect(
       (
         await http()
@@ -353,5 +361,34 @@ describe('Indigo access (HTTP, hospigo_test)', () => {
       .set(auth(hqToken(ownerId)))
       .expect(200);
     expect(list.body.items.map((h: { id: string }) => h.id)).not.toContain(hospital.id);
+  });
+
+  it('an Indigo person inside a hospital switches to another one: a new token for it, audited like an entry; an ordinary user or an unassigned hospital is refused', async () => {
+    const inA = await enter(ownerId, A.tenant).expect(200);
+    const before = await owner.indigoAccessLog.count({ where: { hqUserId: ownerHq } });
+    const inB = await http()
+      .post('/auth/indigo/enter')
+      .set(auth(inA.body.accessToken))
+      .send({ hospitalId: B.tenant })
+      .expect(200);
+    const me = await http().get('/auth/me').set(auth(inB.body.accessToken)).expect(200);
+    expect(me.body.displayName).toBe('Indigo owner (Indigo)');
+    expect(me.body.hospitalName).toBeDefined();
+    // audited in the hospital that was entered
+    expect(await owner.indigoAccessLog.count({ where: { hqUserId: ownerHq } })).toBe(before + 1);
+    expect(
+      await owner.indigoAccessLog.count({
+        where: { hqUserId: ownerHq, tenantId: B.tenant, action: 'ENTER' },
+      }),
+    ).toBeGreaterThan(0);
+    // an Employee inside A cannot switch to an unassigned hospital (the same refusal as everywhere)
+    const empInA = await enter(employeeId, A.tenant).expect(200);
+    const refused = await http()
+      .post('/auth/indigo/enter')
+      .set(auth(empInA.body.accessToken))
+      .send({ hospitalId: B.tenant });
+    expect(refused.status).toBe(403);
+    const unknown = await enter(employeeId, 'does-not-exist');
+    expect(refused.body).toEqual(unknown.body);
   });
 });

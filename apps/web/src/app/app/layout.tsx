@@ -3,6 +3,7 @@ import { PendingApprovalsProvider } from '@/components/opd/pending-approvals';
 import { AppShell } from '@/components/shell/app-shell';
 import { shellNavFromEnabledModules, type ShellNavItem } from '@/config/modules';
 import { staffCopy } from '@/config/staff-copy';
+import { IndigoSwitch } from '@/components/shell/indigo-switch';
 import { requireKind } from '@/lib/auth/guards';
 import { hospitalTerms, termOr } from '@/lib/terminology/server';
 import { enterTerms } from '@/lib/terminology/terms-server';
@@ -60,6 +61,13 @@ export default async function StaffLayout({ children }: { children: ReactNode })
             hospitalName={hospitalTitle}
             profileHref="/app/profile"
             canApprove={canApprove}
+            extra={
+              (session.roleCodes ?? []).some(
+                (r) => r === 'TENANT_ADMIN' || r === 'INDIGO_EMPLOYEE',
+              ) ? (
+                <IndigoSwitch currentName={hospitalTitle} />
+              ) : null
+            }
           >
             {children}
           </AppShell>

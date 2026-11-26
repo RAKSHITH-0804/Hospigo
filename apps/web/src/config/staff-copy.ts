@@ -2274,6 +2274,11 @@ const baseCopy = {
     retry: 'Retry',
   },
   admin: {
+    switchHospital: {
+      label: 'Switch hospital',
+      button: 'Switch hospital',
+      failed: 'You could not be moved to that hospital.',
+    },
     console: {
       navHospitals: 'Hospitals',
       navOnboard: 'Onboard hospital',

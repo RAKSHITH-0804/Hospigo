@@ -136,6 +136,7 @@ export function AppShell({
   hospitalName,
   profileHref,
   canApprove = false,
+  extra,
   children,
 }: {
   title: ReactNode;
@@ -155,6 +156,8 @@ export function AppShell({
   profileHref?: string | null;
   /** The person may approve refunds and cancellations: the bell and the badges are shown. */
   canApprove?: boolean;
+  /** Something for the top bar (for example the Indigo hospital switch). */
+  extra?: ReactNode;
   children: ReactNode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -376,6 +379,7 @@ export function AppShell({
               ) : null}
             </div>
             <div className="shell-topbar-right">
+              {extra}
               <ApprovalsBell enabled={canApprove} />
               {userDisplayName && userEmail ? (
                 <UserMenu
