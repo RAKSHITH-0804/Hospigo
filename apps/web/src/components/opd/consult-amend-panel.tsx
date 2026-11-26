@@ -1,12 +1,20 @@
 'use client';
 
 import { useRef, useState, type FormEvent } from 'react';
+import { PrescriptionEditor } from '@/components/opd/prescription-editor';
 import { Button } from '@/components/ui/button';
 import { InputField, TextareaField } from '@/components/ui/field';
 import { staffCopy } from '@/config/staff-copy';
 import { amendConsultation } from '@/lib/opd/clinical-client';
 import { fill, formatDateTime } from '@/lib/opd/clinical-format';
-import type { ConsultationResponse, NoteVersionView, NoteView } from '@/lib/opd/clinical-types';
+import type {
+  ConsultationResponse,
+  NoteVersionView,
+  NoteView,
+  PrescriptionRowView,
+} from '@/lib/opd/clinical-types';
+import { rxFromView, toRxPayload, type RxDraft } from '@/lib/opd/prescription-draft';
+import type { MedicineSearchSettings } from '@/components/opd/prescription-editor';
 import { opdErrorMessageFor } from '@/lib/opd/client';
 
 const copy = staffCopy.opd.clinical.amend;
@@ -21,12 +29,17 @@ export function ConsultAmendPanel({
   note,
   versions,
   canAmend,
+  prescription,
+  search,
   onAmended,
 }: {
   visitId: string;
   note: NoteView;
   versions: NoteVersionView[];
   canAmend: boolean;
+  /** The prescription as it is now (the form edits the whole list). */
+  prescription: PrescriptionRowView[];
+  search: MedicineSearchSettings;
   /** The note as it is after the change (the screen shows the latest version at once). */
   onAmended: (result: ConsultationResponse) => void;
 }) {
@@ -35,6 +48,9 @@ export function ConsultAmendPanel({
   const [diagnosis, setDiagnosis] = useState(note.diagnosis ?? '');
   const [advice, setAdvice] = useState(note.advice ?? '');
   const [followUp, setFollowUp] = useState(note.followUpDate ?? '');
+  const [rows, setRows] = useState<RxDraft[]>(() => rxFromView(prescription));
+  const nextRowId = useRef(prescription.length + 2);
+  const original = useRef(JSON.stringify(toRxPayload(rxFromView(prescription)).items));
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const inFlight = useRef(false);
@@ -48,6 +64,12 @@ export function ConsultAmendPanel({
       setMessage({ kind: 'error', text: copy.reasonRequired });
       return;
     }
+    const payload = toRxPayload(rows);
+    if (payload.incomplete > 0) {
+      setMessage({ kind: 'error', text: copy.prescriptionIncomplete });
+      return;
+    }
+    const prescriptionChanged = JSON.stringify(payload.items) !== original.current;
     inFlight.current = true;
     setBusy(true);
     setMessage(null);
@@ -57,6 +79,7 @@ export function ConsultAmendPanel({
       diagnosis,
       advice,
       followUpDate: followUp.trim(),
+      ...(prescriptionChanged ? { prescription: payload.items } : {}),
     });
     inFlight.current = false;
     setBusy(false);
@@ -126,6 +149,17 @@ export function ConsultAmendPanel({
             disabled={busy}
             onChange={(e) => setAdvice(e.target.value)}
           />
+          <div className="flex flex-col gap-[var(--space-1)]">
+            <h4 className="type-small font-medium">{copy.prescriptionHeading}</h4>
+            <PrescriptionEditor
+              rows={rows}
+              onChange={setRows}
+              nextId={() => nextRowId.current++}
+              readOnly={busy}
+              search={search}
+              hideHeading
+            />
+          </div>
           <InputField
             label={copy.followUp}
             value={followUp}

@@ -1993,6 +1993,8 @@ export const staffCopy = {
         saved: 'Saved as a new version.',
         nothingChanged: 'Nothing was changed.',
         reasonRequired: 'Write the reason for the change.',
+        prescriptionHeading: 'Prescription (the whole list as it should be)',
+        prescriptionIncomplete: 'Finish or remove the unfinished medicine lines first.',
         needsCompleted: 'Only a completed note can be changed this way.',
       },
       addenda: {

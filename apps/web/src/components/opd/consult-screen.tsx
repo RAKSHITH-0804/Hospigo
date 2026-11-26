@@ -98,6 +98,8 @@ export function ConsultScreen({
   });
   const [addenda, setAddenda] = useState<AddendumView[]>(initial.addenda);
   const [versions, setVersions] = useState(initial.versions ?? []);
+  // the prescription as stored (the amend form starts from it and is rebuilt after each change)
+  const [rxView, setRxView] = useState(initial.prescription);
   const [noteView, setNoteView] = useState(initial.consultation);
   const [tests, setTests] = useState<TestChip[]>(() => chipsFromOrders(initialTests));
   const testsRef = useRef(tests);
@@ -413,11 +415,14 @@ export function ConsultScreen({
                   note={noteView}
                   versions={versions}
                   canAmend={canAmend}
+                  prescription={rxView}
+                  search={settings}
                   onAmended={(result) => {
                     setNoteView(result.consultation);
                     setVersions(result.versions ?? []);
                     setNote(noteFromView(result.consultation));
                     setRows(rxFromView(result.prescription));
+                    setRxView(result.prescription);
                   }}
                 />
               </section>

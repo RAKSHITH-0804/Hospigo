@@ -86,6 +86,8 @@ export function amendConsultation(
     diagnosis?: string;
     advice?: string;
     followUpDate?: string;
+    /** The whole prescription as it should be; left out when it is not changed. */
+    prescription?: PrescriptionItemPayload[];
   },
 ): Promise<PatientsApiResult<ConsultationResponse>> {
   return patientsApi<ConsultationResponse>(visitApi(visitId, '/consultation/amend'), {
