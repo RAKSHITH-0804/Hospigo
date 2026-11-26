@@ -32,7 +32,7 @@ describe('login form', () => {
     render(<LoginPage />);
     expect(screen.queryByRole('tab')).toBeNull();
     expect(screen.queryByText('Indigo HQ')).toBeNull();
-    expect(screen.getByText('Leave this empty if you work for Indigo.')).toBeTruthy();
+    expect(screen.queryByText(/work for Indigo/)).toBeNull();
   });
 
   it('a blank access code signs in as Indigo (email and password only), an access code as a hospital user', async () => {

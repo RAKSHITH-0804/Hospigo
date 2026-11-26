@@ -8,6 +8,7 @@ import { applyCors } from './config/cors';
 import { assertNoTestTenantsInProduction } from './config/production-seed-guard';
 import { setupSwagger } from './setup-swagger';
 import type { ApiEnv } from './config/env';
+import { behindMessage, checkMigrations } from './database/migrations-check';
 import { HospigoValidationPipe } from './modules/patients/patient-dto-validation';
 
 async function bootstrap(): Promise<void> {
@@ -22,6 +23,15 @@ async function bootstrap(): Promise<void> {
     nodeEnv,
     config.getOrThrow('DATABASE_URL_OWNER', { infer: true }),
   );
+
+  // the database must have every migration of this code: say so loudly (development refuses to start)
+  const migrations = await checkMigrations(config.get('DATABASE_URL_OWNER', { infer: true }));
+  if (migrations.status === 'behind') {
+    console.error(behindMessage(migrations.missing));
+    if (nodeEnv === 'development') {
+      process.exit(1);
+    }
+  }
 
   if (auth.trustedProxy === 'none') {
     app.set('trust proxy', false);

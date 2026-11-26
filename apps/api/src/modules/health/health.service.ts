@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { cachedMigrationsState } from '../../database/migrations-check';
 import { PostgresChecker } from './checkers/postgres.checker';
 import { QueueChecker } from './checkers/queue.checker';
 import { RedisChecker } from './checkers/redis.checker';
@@ -31,13 +32,17 @@ export class HealthService {
         this.queue.check(),
       ]);
       const services = { postgres, redis, storage, websocket, queue };
-      const status = Object.values(services).every((service) => service.status === 'up')
-        ? 'ok'
-        : 'degraded';
+      const state = await cachedMigrationsState();
+      const status =
+        Object.values(services).every((service) => service.status === 'up') &&
+        state.status !== 'behind'
+          ? 'ok'
+          : 'degraded';
 
       return {
         status,
         checkedAt: new Date().toISOString(),
+        migrations: { status: state.status, missing: state.missing },
         services,
       };
     } catch (error) {
@@ -45,6 +50,7 @@ export class HealthService {
       return {
         status: 'degraded',
         checkedAt,
+        migrations: { status: 'unknown', missing: [] },
         services: {
           postgres: down,
           redis: down,

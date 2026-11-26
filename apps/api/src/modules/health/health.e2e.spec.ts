@@ -119,8 +119,13 @@ describe('Health endpoints', () => {
 
     const names = ['postgres', 'redis', 'storage', 'websocket', 'queue'] as const;
     const services = names.map((name) => readService(body['services'], name));
+    // the database being behind the code (Step 2.1g) also makes the status degraded
+    const migrations = body['migrations'] as { status: string; missing: string[] };
+    expect(['ok', 'behind', 'unknown']).toContain(migrations.status);
     expect(body['status']).toBe(
-      services.every((service) => service.status === 'up') ? 'ok' : 'degraded',
+      services.every((service) => service.status === 'up') && migrations.status !== 'behind'
+        ? 'ok'
+        : 'degraded',
     );
 
     const storage = readService(body['services'], 'storage');

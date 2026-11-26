@@ -123,13 +123,9 @@ export default function LoginPage() {
                 name="accessCode"
                 autoComplete="organization"
                 className="field-input"
-                aria-describedby="login-access-code-hint"
                 disabled={pending}
               />
             </label>
-            <p id="login-access-code-hint" className="type-small text-muted-foreground">
-              {copy.accessCodeHint}
-            </p>
             <label className="field-label">
               {copy.email}
               <input

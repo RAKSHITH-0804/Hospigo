@@ -2238,7 +2238,6 @@ export const staffCopy = {
   auth: {
     brandTagline: 'One platform. Every hospital.',
     product: 'A product by Indigo',
-    accessCodeHint: 'Leave this empty if you work for Indigo.',
     signIn: 'Sign in',
     signingIn: 'Signing in…',
     tabHospital: 'Hospital staff',

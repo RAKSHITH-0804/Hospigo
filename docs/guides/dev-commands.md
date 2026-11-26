@@ -79,6 +79,14 @@ $env:NODE_ENV="development"; npm run prisma:seed-showcase -w @hospigo/api
 
 (Open a new terminal afterwards: the first line changes the variable for that terminal.) The seed refuses any database not named `hospigo_demo` and any database that holds a test hospital. To run the API and web on it, start them with `DATABASE_URL` and `DATABASE_URL_HQ` pointing at `hospigo_demo`.
 
+### The database must match the code
+
+When the API starts it compares the migrations applied in the database with the folders in `apps/api/prisma/migrations`. If the database is behind, it prints one loud error naming the missing migrations and the command, and in development it refuses to start; `/health/details` shows `migrations: ok` or `behind`. Nothing is applied automatically. The command:
+
+```powershell
+npm run prisma:migrate -w @hospigo/api
+```
+
 ## 8. Tests, lint, format
 
 ```

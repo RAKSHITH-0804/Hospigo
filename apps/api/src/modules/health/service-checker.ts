@@ -16,6 +16,8 @@ export interface ServiceHealth extends HealthMetrics {
 export interface HealthDetails {
   status: 'ok' | 'degraded';
   checkedAt: string;
+  /** ok: the database has every migration of this code. behind: it does not (run the migrate command). unknown: not checked. */
+  migrations: { status: 'ok' | 'behind' | 'unknown'; missing: string[] };
   services: {
     postgres: ServiceHealth;
     redis: ServiceHealth;
