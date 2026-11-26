@@ -71,6 +71,10 @@ jest.mock('next/link', () => {
 });
 
 describe('web shell smoke', () => {
+  beforeEach(() => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: false }) as unknown as typeof fetch;
+  });
+
   it('redirects / to /login', () => {
     expect(() => HomePage()).toThrow('REDIRECT:/login');
   });

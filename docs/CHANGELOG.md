@@ -30,6 +30,7 @@
 ## Unreleased
 
 ## 2026-11-26 — Phase 2.1 Step 2.1d — Showcase data and real dashboards (branch `feature/step-2-1d-showcase`, not pushed)
+
 - **What changed:** showcase seed (fictional hospitals, doctors, masters and history through the real routes); `GET /dashboard/summary`; dashboard on `/app` with KPI cards, bar, line and donut charts from theme tokens.
 - **Files:** API `database/showcase/*`, `modules/dashboard/*`, `package.json` script; web `components/dashboard/*`, `lib/dashboard/types.ts`, route `api/staff/dashboard/summary`, copy, CSS tokens.
 - **Tests:** API 1 (summary counts, permission blocks, other branch and hospital), web 3 (numbers, hidden blocks, empty and error).
