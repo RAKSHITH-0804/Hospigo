@@ -96,6 +96,16 @@ export class OpdRefundsController {
     return result;
   }
 
+  @Get('opd/refund-requests/pending-count')
+  @RequirePermission('opd.refunds.approve', { module: 'OPD' })
+  @ApiOperation({
+    summary:
+      'How many requests wait for a decision, in the branches where the caller may approve (the badge next to the OPD queue)',
+  })
+  async pendingCount(@Req() req: HttpReq) {
+    return this.refunds.pendingCount(actorOf(req));
+  }
+
   @Get('opd/refund-requests')
   @RequirePermission('opd.billing.read', { module: 'OPD' })
   @ApiOperation({ summary: 'Refund and cancellation requests of the active branch, newest first' })

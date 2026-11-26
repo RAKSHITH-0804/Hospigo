@@ -29,6 +29,14 @@
 
 ## Unreleased
 
+## 2026-11-26 — Phase 2.1 Step 2.1c — Approvals badge and notification (branch `feature/step-2-1c-approvals`, not pushed)
+
+- **What changed:** pending-approvals count endpoint and badge, bell and message for people who may approve.
+- **Files:** API `opd-refunds` (service, controller, module); web `components/opd/pending-approvals.tsx`, app shell, OPD tabs, layout, config, CSS.
+- **Tests:** API 1 (counts per branch, only for approvers, down when decided), web 5 (badge, zero, new-request message, no polling for non-approvers, failed poll).
+- **Decisions:** `docs/decisions/decisions-2-1.md` (Step 2.1c).
+- **Follow-ups and open items:** a real push (WebSocket) channel for staff, then SMS, WhatsApp and push notifications, later.
+
 ## 2026-11-26 — Phase 2.1 Step 2.1e — Indigo console (branch `feature/step-2-1e-indigo-console`, not pushed)
 
 - **What changed:** the Indigo console at `/admin`: real hospitals with Enter, onboard a hospital, module switches, Indigo employees and their hospitals; API `/indigo/*` (HQ token only; Owner for changes, an Employee only sees assigned hospitals without access codes).

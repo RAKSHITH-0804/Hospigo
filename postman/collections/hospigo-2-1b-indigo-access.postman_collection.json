@@ -877,6 +877,104 @@
               }
             }
           ]
+        },
+        {
+          "name": "21b The pending-approvals count for someone who may approve (Step 2.1c)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{xSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/refund-requests/pending-count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "refund-requests",
+                "pending-count"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('a whole number', () => { const c = pm.response.json().count; pm.expect(c).to.be.a('number'); pm.expect(c % 1).to.eql(0); pm.expect(c).to.be.at.least(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "21c The receptionist cannot ask for it (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{xRecv}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/refund-requests/pending-count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "refund-requests",
+                "pending-count"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "21d No token = 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/opd/refund-requests/pending-count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "refund-requests",
+                "pending-count"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },

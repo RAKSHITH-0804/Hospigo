@@ -9,6 +9,8 @@ export type OpdWebConfig = {
   receiptPageMargin: string;
   /** Visits per page on the patient record. */
   visitsPageSize: number;
+  /** How often the pending-approvals count is asked again (seconds). The app has no push channel for staff yet. */
+  approvalsPollSeconds: number;
   /** Query parameter for the visits / bills page on the patient record. */
   visitsPageParam: string;
   /** Doctor / nurse queue: seconds between automatic refreshes (0 turns them off). */
@@ -45,6 +47,7 @@ const DEFAULTS = {
   receiptPaperSize: 'A5',
   receiptPageMargin: '0',
   visitsPageSize: 10,
+  approvalsPollSeconds: 20,
   visitsPageParam: 'vp',
   queueRefreshSeconds: 20,
   autosaveSeconds: 5,
@@ -111,6 +114,13 @@ export function loadOpdWebConfig(
   return {
     receiptPaperSize: strEnv(env, 'WEB_RECEIPT_PAPER_SIZE', DEFAULTS.receiptPaperSize),
     receiptPageMargin: strEnv(env, 'WEB_RECEIPT_PAGE_MARGIN', DEFAULTS.receiptPageMargin),
+    approvalsPollSeconds: intEnv(
+      env,
+      'WEB_APPROVALS_POLL_SECONDS',
+      DEFAULTS.approvalsPollSeconds,
+      5,
+      600,
+    ),
     visitsPageSize: intEnv(
       env,
       'WEB_OPD_VISITS_PAGE_SIZE',

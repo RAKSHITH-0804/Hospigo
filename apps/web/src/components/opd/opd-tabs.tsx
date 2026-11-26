@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { PendingBadge } from '@/components/opd/pending-approvals';
 import { buttonVariants } from '@/components/ui/button';
 import { staffCopy } from '@/config/staff-copy';
 import { cn } from '@/lib/utils';
@@ -39,6 +40,7 @@ export function OpdTabs({ items }: { items: OpdTabItem[] }) {
           )}
         >
           {item.label}
+          {item.href === '/app/opd/refunds' ? <PendingBadge /> : null}
         </Link>
       ))}
     </nav>

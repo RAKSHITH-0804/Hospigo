@@ -156,6 +156,13 @@ Tick a line only when you saw the result. If a line fails, write the line number
 4. **Indigo employees**: add an employee (a one-time password is shown once), tick the hospitals he may enter, save. Sign in as that employee: only those hospitals are listed, with no access codes, and no Onboard page.
 5. Switch the employee off: he cannot enter any more and his open sessions end at the next refresh.
 
+## K. Phase 2.1c (approvals badge)
+
+1. Reception: ask for a refund or a visit cancellation (Refund request on a bill, Cancel visit on a waiting visit).
+2. As the SuperAdmin or Admin (leave the page open, do not refresh): within about 20 seconds a number appears next to **OPD queue** and on the **Refund requests** tab, the bell in the top bar shows the number, and a short message says a request is waiting.
+3. Approve or reject it: within 20 seconds the number goes down, and disappears at zero.
+4. As the receptionist or a nurse there is no bell and no number.
+
 ## F. After the checklist
 
 Write down every line that failed, with the role, the page and what you saw. Do not fix by hand in the database. Open a new step in the tracker for each real problem.

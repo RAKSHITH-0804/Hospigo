@@ -193,6 +193,8 @@
   --size-header-height: 2.75rem;
   --size-icon-menu: 1rem;
   --size-icon-button: 1.75rem;
+  --size-badge-min: 1.25rem;
+  --radius-pill: 62.4375rem;
   --size-selection-min-height: 2.75rem;
 
   /* Radius / containers */
@@ -409,6 +411,56 @@
     font-size: var(--font-size-input);
     color: var(--foreground);
     outline: none;
+  }
+
+  /* A number badge (pending approvals) that sits after a label, and the bell in the top bar. */
+  .count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--size-badge-min);
+    margin-inline-start: var(--space-2);
+    padding-inline: var(--space-1);
+    border-radius: var(--radius-pill);
+    background: var(--destructive);
+    color: var(--primary-foreground);
+    font-size: var(--font-size-small);
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .approvals-bell {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    width: var(--size-icon-button);
+    height: var(--size-icon-button);
+    padding: var(--space-1);
+    color: var(--muted-foreground);
+    border-radius: var(--radius-control);
+  }
+
+  .approvals-bell:hover {
+    color: var(--foreground);
+  }
+
+  .approvals-bell .count-badge {
+    position: absolute;
+    inset-block-start: calc(var(--space-1) * -1);
+    inset-inline-end: calc(var(--space-1) * -1);
+    margin: 0;
+  }
+
+  .approvals-toast {
+    position: fixed;
+    inset-block-end: var(--space-4);
+    inset-inline-end: var(--space-4);
+    z-index: 50;
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-control);
+    background: var(--foreground);
+    color: var(--background);
+    box-shadow: 0 0.25rem 1rem oklch(0 0 0 / 0.2);
   }
 
   .password-wrap {

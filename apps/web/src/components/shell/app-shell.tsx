@@ -9,6 +9,7 @@ import { BranchSwitcher } from '@/components/shell/branch-switcher';
 import { BranchSync } from '@/components/shell/branch-sync';
 import { NavIcon } from '@/components/shell/nav-icon';
 import { PoweredBy } from '@/components/shell/powered-by';
+import { ApprovalsBell, PendingBadge } from '@/components/opd/pending-approvals';
 import { UserMenu } from '@/components/shell/user-menu';
 import { Kbd } from '@/components/ui/kbd';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -102,6 +103,7 @@ function NavLinks({
                   <span className={cn('shell-nav-label', collapsed && 'visually-hidden')}>
                     {item.label}
                   </span>
+                  {item.href === '/app/opd' ? <PendingBadge /> : null}
                 </Link>
               );
               if (!collapsed) {
@@ -133,6 +135,7 @@ export function AppShell({
   roleCodes,
   hospitalName,
   profileHref,
+  canApprove = false,
   children,
 }: {
   title: ReactNode;
@@ -150,6 +153,8 @@ export function AppShell({
   hospitalName?: string | null;
   /** Link to the doctor's own profile page (only given to people who have a doctor profile). */
   profileHref?: string | null;
+  /** The person may approve refunds and cancellations: the bell and the badges are shown. */
+  canApprove?: boolean;
   children: ReactNode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -371,6 +376,7 @@ export function AppShell({
               ) : null}
             </div>
             <div className="shell-topbar-right">
+              <ApprovalsBell enabled={canApprove} />
               {userDisplayName && userEmail ? (
                 <UserMenu
                   displayName={userDisplayName}

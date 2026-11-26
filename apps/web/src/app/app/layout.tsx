@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { PendingApprovalsProvider } from '@/components/opd/pending-approvals';
 import { AppShell } from '@/components/shell/app-shell';
 import { shellNavFromEnabledModules, type ShellNavItem } from '@/config/modules';
 import { staffCopy } from '@/config/staff-copy';
@@ -30,26 +31,30 @@ export default async function StaffLayout({ children }: { children: ReactNode })
     });
   }
 
+  const canApprove = (session.permissions ?? []).includes('opd.refunds.approve');
   const hospitalTitle = session.hospitalName?.trim() || staffCopy.brand;
   const branchName = session.activeBranchName?.trim() || '—';
 
   return (
-    <div className="viewport-fill">
-      <AppShell
-        brandLabel={staffCopy.brand}
-        title={hospitalTitle}
-        groups={[{ label: '', items: navItems }]}
-        branchName={branchName}
-        activeBranchId={session.activeBranchId}
-        canSwitchBranch={session.canSwitchBranch === true}
-        userDisplayName={session.displayName}
-        userEmail={session.email}
-        roleCodes={session.roleCodes ?? []}
-        hospitalName={hospitalTitle}
-        profileHref="/app/profile"
-      >
-        {children}
-      </AppShell>
-    </div>
+    <PendingApprovalsProvider enabled={canApprove}>
+      <div className="viewport-fill">
+        <AppShell
+          brandLabel={staffCopy.brand}
+          title={hospitalTitle}
+          groups={[{ label: '', items: navItems }]}
+          branchName={branchName}
+          activeBranchId={session.activeBranchId}
+          canSwitchBranch={session.canSwitchBranch === true}
+          userDisplayName={session.displayName}
+          userEmail={session.email}
+          roleCodes={session.roleCodes ?? []}
+          hospitalName={hospitalTitle}
+          profileHref="/app/profile"
+          canApprove={canApprove}
+        >
+          {children}
+        </AppShell>
+      </div>
+    </PendingApprovalsProvider>
   );
 }

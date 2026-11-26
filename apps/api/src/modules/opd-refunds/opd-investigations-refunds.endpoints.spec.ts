@@ -1493,6 +1493,35 @@ describe('OPD tests ordering, investigations bill, refunds and cancellation (HTT
       );
     });
 
+    it('the pending-approvals count (Step 2.1c): only for people who may decide, only requests waiting, only their branches, down when decided', async () => {
+      const count = async (h: Hospital, who: string) => {
+        const res = await get(h, who, '/opd/refund-requests/pending-count');
+        expect(res.status).toBe(200);
+        return res.body.count as number;
+      };
+      const before = await count(A, 'admin');
+      const v = await waiting(A);
+      const r = await reqRefund(A, 'recv', v.billId, 500);
+      const cancel = await reqCancel(A, 'recv', (await waiting(A)).id);
+      expect(r.status).toBe(201);
+      expect(cancel.status).toBe(201);
+      // refund and cancellation requests both count; the other branch's admin and the other hospital do not
+      expect(await count(A, 'admin')).toBe(before + 2);
+      expect(await count(A, 'admin2')).toBe(before + 2);
+      expect(await count(A, 'adminEast')).toBe(0);
+      expect(await count(B, 'admin')).toBe(0);
+      // deciding lowers the count by one each time, approve or reject
+      await reject(A, 'admin', r.body.request.id).expect(200);
+      expect(await count(A, 'admin')).toBe(before + 1);
+      await approve(A, 'admin', cancel.body.request.id).expect(200);
+      expect(await count(A, 'admin')).toBe(before);
+      // people who cannot decide are refused (deny by default), and there is no token
+      for (const who of ['recv', 'recvNoCollect', 'nurse', 'docNoProfile', 'nobody']) {
+        expect((await get(A, who, '/opd/refund-requests/pending-count')).status).toBe(403);
+      }
+      expect((await http().get('/opd/refund-requests/pending-count')).status).toBe(401);
+    });
+
     it('lists newest first with a status filter and paging; a wrong status is 400', async () => {
       const v = await waiting(A);
       const a = await reqRefund(A, 'recv', v.billId, 100);

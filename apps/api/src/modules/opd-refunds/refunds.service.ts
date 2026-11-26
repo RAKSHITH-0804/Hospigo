@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma';
 import { CLOCK, type Clock } from '../../common/clock';
 import { TenantDb, type TenantTx } from '../../database/tenant-db';
+import { AccessService } from '../access/access.service';
 import { NumberSeriesService } from '../numbering/number-series.service';
 import { OPD_SETTINGS_DEFAULTS } from '../opd-masters/opd-settings.defaults';
 import { allocateBillingNumber } from '../opd-visits/billing-helpers';
@@ -129,6 +130,7 @@ export class RefundsService {
   constructor(
     private readonly tenantDb: TenantDb,
     private readonly numbering: NumberSeriesService,
+    private readonly access: AccessService,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -286,6 +288,23 @@ export class RefundsService {
   }
 
   // ------------------------------------------------------------------------- read
+
+  /**
+   * How many requests wait for a decision (status REQUESTED), in the branches where the caller may
+   * approve (Step 2.1c). It is what the badge next to the OPD queue shows; the route needs the
+   * approve permission, so only people who can decide ever ask.
+   */
+  async pendingCount(actor: Actor): Promise<{ count: number }> {
+    const branchIds = await this.access.permittedBranches('opd.refunds.approve', 'OPD');
+    if (branchIds.length === 0) {
+      return { count: 0 };
+    }
+    return this.tenantDb.withTenant(async (tx) => ({
+      count: await tx.refundRequest.count({
+        where: { tenantId: actor.tenantId, status: 'REQUESTED', branchId: { in: branchIds } },
+      }),
+    }));
+  }
 
   async list(actor: Actor, filter: { status?: string; page: number; pageSize: number }) {
     return this.tenantDb.withTenant(async (tx) => {

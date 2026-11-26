@@ -1539,6 +1539,12 @@ export const staffCopy = {
       scopeForbidden: 'You can see all branches only with hospital-wide access.',
       backToBranch: 'Show this branch',
     },
+    approvals: {
+      badge: '{count} waiting for approval',
+      toast: 'A request is waiting for your approval.',
+      bell: 'Requests waiting for approval',
+      bellNone: 'No requests waiting for approval',
+    },
     symptoms: {
       label: 'Symptoms',
       hint: 'What the patient says is wrong (optional). The doctor sees this line. You can change it until the doctor starts.',
