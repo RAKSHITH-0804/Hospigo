@@ -117,7 +117,15 @@ const visit: VisitView = {
   visitType: 'NEW',
   visitDate: '2026-11-20',
   branch: { id: 'b1', name: 'Main Branch' },
-  patient: { id: 'p1', uhid: 'HSP-0001', name: 'Asha Rao' },
+  patient: {
+    id: 'p1',
+    uhid: 'HSP-0001',
+    name: 'Asha Rao',
+    gender: 'F',
+    dobIsEstimated: false,
+    ageYears: 30,
+    age: { years: 30, months: 0, days: 5 },
+  },
   doctor: { id: 'd1', code: 'DR1', name: 'Dr Meena' },
   previousVisitId: null,
   token: { date: '2026-11-20', no: 7, label: 'T-007' },
@@ -189,7 +197,10 @@ describe('the hospital name', () => {
 describe('receiptItems', () => {
   it('has exactly the receipt fields of the API, in the API order, each with a caption', () => {
     const items = receiptItems(visit, 'Demo Hospital');
-    expect(items.map((i) => i.key)).toEqual([...API_FIELDS.RECEIPT]);
+    // the designed templates also use the patient's age and gender on the bill (Step 2.1f): extra values
+    const keys = items.map((i) => i.key);
+    expect(keys.filter((k) => k !== 'age' && k !== 'gender')).toEqual([...API_FIELDS.RECEIPT]);
+    expect(keys).toEqual(expect.arrayContaining(['age', 'gender']));
     for (const item of items) {
       expect({ key: item.key, label: item.label }).toEqual({
         key: item.key,
@@ -400,9 +411,12 @@ const consultation: ConsultationResponse = {
 
 describe('patientReportItems (the patient copy, the full print)', () => {
   it('has exactly the prescription fields of the API, in order', () => {
-    expect(
-      patientReportItems({ consultation, hospitalName: 'Demo Hospital' }).map((i) => i.key),
-    ).toEqual([...API_FIELDS.PATIENT_REPORT]);
+    // 'vitalsLine' (all the vitals on one line) is an extra value for the designed templates (Step 2.1f)
+    const keys = patientReportItems({ consultation, hospitalName: 'Demo Hospital' }).map(
+      (i) => i.key,
+    );
+    expect(keys.filter((k) => k !== 'vitalsLine')).toEqual([...API_FIELDS.PATIENT_REPORT]);
+    expect(keys).toContain('vitalsLine');
   });
 
   it('numbers the medicines in prescription order and adds the instructions', () => {

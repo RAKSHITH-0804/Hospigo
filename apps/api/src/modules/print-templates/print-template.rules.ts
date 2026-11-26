@@ -172,6 +172,7 @@ export const PRINT_FIELDS: Record<PrintDocType, readonly string[]> = {
  */
 export const PRINT_EXTRA_FIELDS: Partial<Record<PrintDocType, readonly string[]>> = {
   RECEIPT: ['age', 'gender'],
+  PATIENT_REPORT: ['vitalsLine'],
 };
 
 /** The older (version 1) layout: fields switched on or off, positions only for pre-printed stationery. */

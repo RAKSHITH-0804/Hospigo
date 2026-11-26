@@ -91,7 +91,15 @@ export type VisitView = {
   visitType: VisitType;
   visitDate: string;
   branch: { id: string; name: string };
-  patient: { id: string; uhid: string; name: string };
+  patient: {
+    id: string;
+    uhid: string;
+    name: string;
+    gender: string | null;
+    dobIsEstimated: boolean;
+    ageYears: number | null;
+    age: { years: number; months: number; days: number } | null;
+  };
   doctor: { id: string; code: string; name: string };
   previousVisitId: string | null;
   token: { date: string; no: number; label: string } | null;

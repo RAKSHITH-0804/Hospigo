@@ -195,7 +195,7 @@
   --size-icon-button: 1.75rem;
   --size-kpi-min: 9rem;
   --size-chart-min: 15rem;
-  --size-chart-height: 8rem;
+  --size-chart-height: 14rem;
   --size-kpi-skeleton: 4.5rem;
   --size-donut: 6rem;
   --size-badge-min: 1.25rem;
@@ -469,6 +469,12 @@
   }
 
   /* Dashboard: KPI cards and small charts, theme tokens only. */
+  .dash-insights {
+    display: grid;
+    gap: var(--space-3);
+    margin-block-start: var(--space-3);
+  }
+
   .kpi-grid,
   .chart-grid {
     display: grid;

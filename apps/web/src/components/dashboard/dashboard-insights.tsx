@@ -57,14 +57,20 @@ export function DashboardInsights() {
     );
   }
   if (!data) {
-    return <div className="kpi-grid kpi-skeleton" aria-busy="true" aria-label={copy.loading} />;
+    return (
+      <div
+        className="dash-insights kpi-grid kpi-skeleton"
+        aria-busy="true"
+        aria-label={copy.loading}
+      />
+    );
   }
   const s = data.sections;
   const days = data.trend.map((t) => shortDay(t.date));
   const mixTotal = data.paymentMix.reduce((a, m) => a + m.amountPaise, 0);
   const hasVisits = data.trend.some((t) => t.visits > 0);
   return (
-    <section className="stack gap-[var(--space-3)]" aria-label={copy.title}>
+    <section className="dash-insights" aria-label={copy.title}>
       <div className="kpi-grid">
         {s.queue ? <Kpi label={copy.visitsToday} value={data.today.visits} /> : null}
         {s.queue ? <Kpi label={copy.waiting} value={data.today.waiting} /> : null}

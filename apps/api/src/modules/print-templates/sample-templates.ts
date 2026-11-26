@@ -113,7 +113,7 @@ function header(page: Page, kind: HeaderKind, serif: boolean): { els: RichElemen
     para([f(V(SAMPLE_VALUE_KEYS.web), { ...GREY, font })], align),
   ];
   if (kind === 'LEFT') {
-    const size = page.paper === 'A4' ? 23 : 22;
+    const size = page.paper === 'A4' ? 27 : 26;
     return {
       els: [
         logo(m, m, size),
@@ -131,21 +131,21 @@ function header(page: Page, kind: HeaderKind, serif: boolean): { els: RichElemen
         box('hname', m + 17, m, inner - 17, 7, [
           para([f('hospitalName', { ...name, size: name.size! - 1 })]),
         ]),
-        box('hcontact', m + 17, m + 7, inner - 17, 13, contact('LEFT')),
-        rule('hrule', m, m + 21, inner),
-        rule('hrule2', m, m + 21.8, inner),
+        box('hcontact', m + 17, m + 7, inner - 17, 17, contact('LEFT')),
+        rule('hrule', m, m + 25, inner),
+        rule('hrule2', m, m + 25.8, inner),
       ],
-      y: m + 25,
+      y: m + 29,
     };
   }
   return {
     els: [
       logo(m, m, 14),
       box('hname', m + 17, m, inner - 34, 8, [para([f('hospitalName', name)], 'CENTER')]),
-      box('hcontact', m + 17, m + 8, inner - 34, 13, contact('CENTER')),
-      rule('hrule', m, m + 22, inner),
+      box('hcontact', m + 17, m + 8, inner - 34, 17, contact('CENTER')),
+      rule('hrule', m, m + 26, inner),
     ],
-    y: m + 25,
+    y: m + 29,
   };
 }
 
@@ -286,17 +286,17 @@ function doctorBlock(page: Page, y: number): { els: RichElement[]; y: number } {
   const half = inner / 2 - 2;
   return {
     els: [
-      box('doc', m, y, half, 14, [
+      box('doc', m, y, half, 19, [
         para([f('doctorName', { bold: true, size: 11 })]),
         para([f('doctorQualifications', GREY)]),
         para([f('doctorSpeciality', GREY)]),
       ]),
-      box('docreg', m + half + 4, y, half, 14, [
+      box('docreg', m + half + 4, y, half, 19, [
         para([t('Reg. no: ', GREY), f('doctorRegistrationNo', GREY)], 'RIGHT'),
         para([f('doctorDepartment', GREY)], 'RIGHT'),
       ]),
     ],
-    y: y + 15,
+    y: y + 20,
   };
 }
 
@@ -378,11 +378,11 @@ function report(page: Page, kind: HeaderKind, serif: boolean): PrintTemplateInpu
     y += height + 6;
   };
   els.push(
-    box('vit', m, y, inner, 6, [
-      para([t('Vitals: ', { bold: true, size: body }), f('vitals', { size: body })]),
+    box('vit', m, y, inner, small ? 12 : 11, [
+      para([t('Vitals: ', { bold: true, size: body }), f('vitalsLine', { size: body })]),
     ]),
   );
-  y += small ? 12 : 9;
+  y += small ? 15 : 14;
   section('sym', 'Symptoms', 'receptionSymptoms', small ? 1 : 2);
   section('cmp', 'Complaints', 'complaints', small ? 2 : 3);
   section('dia', 'Diagnosis', 'diagnosis', small ? 1 : 2);

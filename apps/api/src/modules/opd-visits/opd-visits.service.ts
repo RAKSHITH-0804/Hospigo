@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma';
+import { ageParts, type AgeParts } from '../../common/age';
 import { CLOCK, type Clock } from '../../common/clock';
 import { TenantDb, type TenantTx } from '../../database/tenant-db';
 import { AccessService } from '../access/access.service';
@@ -44,7 +45,16 @@ export const BILL_INCLUDE = {
 } satisfies Prisma.BillInclude;
 
 const VISIT_INCLUDE = {
-  patient: { select: { id: true, uhid: true, name: true } },
+  patient: {
+    select: {
+      id: true,
+      uhid: true,
+      name: true,
+      gender: true,
+      dateOfBirth: true,
+      dobIsEstimated: true,
+    },
+  },
   doctor: { select: { id: true, code: true, user: { select: { displayName: true } } } },
   branch: { select: { id: true, name: true } },
   creator: { select: { displayName: true } },
@@ -93,7 +103,16 @@ export type VisitView = {
   visitType: string;
   visitDate: string;
   branch: { id: string; name: string };
-  patient: { id: string; uhid: string; name: string };
+  /** Age is counted to the visit date (the printed bill shows it). */
+  patient: {
+    id: string;
+    uhid: string;
+    name: string;
+    gender: string | null;
+    dobIsEstimated: boolean;
+    ageYears: number | null;
+    age: AgeParts | null;
+  };
   doctor: { id: string; code: string; name: string };
   previousVisitId: string | null;
   token: { date: string; no: number; label: string } | null;
@@ -172,6 +191,23 @@ export function toBillView(bill: VisitRow['bills'][number], detail: boolean): Bi
   };
 }
 
+const ymd = (d: Date) => ({
+  year: d.getUTCFullYear(),
+  month: d.getUTCMonth() + 1,
+  day: d.getUTCDate(),
+});
+
+function ageAtVisit(
+  dateOfBirth: Date | null,
+  visitDate: Date,
+): { ageYears: number | null; age: AgeParts | null } {
+  if (!dateOfBirth) {
+    return { ageYears: null, age: null };
+  }
+  const age = ageParts(ymd(dateOfBirth), ymd(visitDate));
+  return { ageYears: age.years, age };
+}
+
 function toVisitView(
   row: VisitRow,
   tokenPrefix: string,
@@ -184,7 +220,14 @@ function toVisitView(
     visitType: row.visitType,
     visitDate: isoDate(row.visitDate),
     branch: row.branch,
-    patient: row.patient,
+    patient: {
+      id: row.patient.id,
+      uhid: row.patient.uhid,
+      name: row.patient.name,
+      gender: row.patient.gender,
+      dobIsEstimated: row.patient.dobIsEstimated,
+      ...ageAtVisit(row.patient.dateOfBirth, row.visitDate),
+    },
     doctor: { id: row.doctor.id, code: row.doctor.code, name: row.doctor.user.displayName },
     previousVisitId: row.previousVisitId,
     token:

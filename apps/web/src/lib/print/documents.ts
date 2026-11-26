@@ -207,6 +207,19 @@ export function patientReportItems(input: {
         fill(medicineCopy.vitalLine, { name: f.name, value: String(f.value), unit: f.unit }).trim(),
       ),
     ),
+    // all the vitals on one line (for the designed templates; 'vitals' stays the list)
+    text(
+      'vitalsLine',
+      (input.vitals?.fields ?? [])
+        .map((f) =>
+          fill(medicineCopy.vitalLine, {
+            name: f.name,
+            value: String(f.value),
+            unit: f.unit,
+          }).trim(),
+        )
+        .join(' · '),
+    ),
     text(
       'receptionSymptoms',
       visit.receptionSymptoms

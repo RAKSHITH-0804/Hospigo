@@ -1385,6 +1385,7 @@ export const staffCopy = {
       address: 'Address',
       registeredOn: 'Registered on',
       branchName: 'Branch',
+      vitalsLine: 'Vitals (one line)',
       billNumber: 'Bill no.',
       receiptNumber: 'Receipt no.',
       token: 'Token',
