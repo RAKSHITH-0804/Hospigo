@@ -28,12 +28,44 @@ describe('login form', () => {
     expect(document.body.textContent?.toLowerCase().includes(['mi', 'nio'].join(''))).toBe(false);
   });
 
-  it('switches to Indigo HQ and hides the access code field', () => {
+  it('has one form and no Indigo HQ tab', () => {
     render(<LoginPage />);
-    fireEvent.click(screen.getByRole('tab', { name: 'Indigo HQ' }));
-    expect(screen.queryByLabelText('Access code')).toBeNull();
-    expect(screen.getByLabelText('Email')).toBeTruthy();
-    expect(screen.getByLabelText('Password')).toBeTruthy();
+    expect(screen.queryByRole('tab')).toBeNull();
+    expect(screen.queryByText('Indigo HQ')).toBeNull();
+    expect(screen.getByText('Leave this empty if you work for Indigo.')).toBeTruthy();
+  });
+
+  it('a blank access code signs in as Indigo (email and password only), an access code as a hospital user', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ mustChangePassword: false }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    render(<LoginPage />);
+    fireEvent.change(screen.getByLabelText('Email'), {
+      target: { value: 'owner@indigo.example.test' },
+    });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'secret-value' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(String(fetchMock.mock.calls[0]![0])).toBe('/api/auth/hq-login');
+    expect(JSON.parse(String((fetchMock.mock.calls[0]![1] as RequestInit).body))).toEqual({
+      email: 'owner@indigo.example.test',
+      password: 'secret-value',
+    });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Sign in' })).toBeTruthy());
+    fireEvent.change(screen.getByLabelText('Access code'), {
+      target: { value: 'demo-north-main' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(String(fetchMock.mock.calls[1]![0])).toBe('/api/auth/hospital-login');
+    expect(JSON.parse(String((fetchMock.mock.calls[1]![1] as RequestInit).body))).toEqual({
+      accessCode: 'demo-north-main',
+      email: 'owner@indigo.example.test',
+      password: 'secret-value',
+    });
   });
 
   it('shows loading then generic error for INVALID_CREDENTIALS without secrets in the DOM', async () => {

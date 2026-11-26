@@ -197,6 +197,20 @@ export function switchBranchUpstream(
   });
 }
 
+/** An Indigo person enters one hospital (Step 2.1b): an HQ access token in, a hospital token pair out. */
+export function indigoEnterUpstream(
+  request: Request,
+  accessToken: string,
+  hospitalId: string,
+): Promise<UpstreamResult<TokenPairResponse>> {
+  return callApi(request, '/auth/indigo/enter', {
+    method: 'POST',
+    json: { hospitalId },
+    timeoutMs: sessionConfig.staffUpstreamTimeoutMs,
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
 export function logoutUpstream(
   request: Request,
   refreshToken: string,

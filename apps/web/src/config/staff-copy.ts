@@ -2012,6 +2012,7 @@ export const staffCopy = {
   auth: {
     brandTagline: 'One platform. Every hospital.',
     product: 'A product by Indigo',
+    accessCodeHint: 'Leave this empty if you work for Indigo.',
     signIn: 'Sign in',
     signingIn: 'Signing in…',
     tabHospital: 'Hospital staff',
@@ -2047,6 +2048,17 @@ export const staffCopy = {
     retry: 'Retry',
   },
   admin: {
+    indigo: {
+      title: 'Hospitals',
+      hint: 'Choose a hospital to work in. Everything you do there is recorded, and the hospital can see that you entered.',
+      enter: 'Enter hospital',
+      entering: 'Entering…',
+      emptyTitle: 'No hospitals for you yet',
+      emptyHint: 'Ask the Indigo owner to assign hospitals to you.',
+      notAvailable: 'That hospital is not available to you.',
+      rateLimited: 'Too many tries. Wait a minute and try again.',
+      failed: 'Could not enter the hospital. Try again.',
+    },
     hospitals: {
       title: 'Hospitals',
       onboard: 'Onboard hospital',

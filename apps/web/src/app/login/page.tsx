@@ -10,12 +10,10 @@ import { staffCopy } from '@/config/staff-copy';
 
 const copy = staffCopy.auth;
 
-type LoginTab = 'hospital' | 'hq';
 type FormError = 'invalid' | 'rate_limited' | 'unavailable' | null;
 
 export default function LoginPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<LoginTab>('hospital');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<FormError>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -38,8 +36,10 @@ export default function LoginPage() {
     const password = String(form.get('password') ?? '');
     const accessCode = String(form.get('accessCode') ?? '');
 
-    const path = tab === 'hospital' ? '/api/auth/hospital-login' : '/api/auth/hq-login';
-    const body = tab === 'hospital' ? { accessCode, email, password } : { email, password };
+    // One form: a blank access code is an Indigo person, an access code is a hospital user.
+    const indigo = accessCode.trim() === '';
+    const path = indigo ? '/api/auth/hq-login' : '/api/auth/hospital-login';
+    const body = indigo ? { email, password } : { accessCode, email, password };
 
     try {
       const response = await fetch(path, {
@@ -69,7 +69,7 @@ export default function LoginPage() {
         router.refresh();
         return;
       }
-      router.replace(tab === 'hq' ? sessionConfig.homeHq : sessionConfig.homeHospital);
+      router.replace(indigo ? sessionConfig.homeHq : sessionConfig.homeHospital);
       router.refresh();
     } catch {
       setError('unavailable');
@@ -87,8 +87,7 @@ export default function LoginPage() {
           ? sessionConfig.errorUnavailable
           : null;
 
-  const forgotHref =
-    tab === 'hq' ? `${sessionConfig.forgotPasswordPath}?tab=hq` : sessionConfig.forgotPasswordPath;
+  const forgotHref = sessionConfig.forgotPasswordPath;
 
   return (
     <div className="login-page">
@@ -117,48 +116,20 @@ export default function LoginPage() {
             </p>
           ) : null}
 
-          <div role="tablist" aria-label={copy.signInType} className="login-tabs">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'hospital'}
-              className="login-tab"
-              disabled={pending}
-              onClick={() => {
-                setTab('hospital');
-                setError(null);
-              }}
-            >
-              {copy.tabHospital}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'hq'}
-              className="login-tab"
-              disabled={pending}
-              onClick={() => {
-                setTab('hq');
-                setError(null);
-              }}
-            >
-              {copy.tabHq}
-            </button>
-          </div>
-
           <form className="login-form" onSubmit={onSubmit} noValidate>
-            {tab === 'hospital' ? (
-              <label className="field-label">
-                {copy.accessCode}
-                <input
-                  name="accessCode"
-                  autoComplete="organization"
-                  className="field-input"
-                  required
-                  disabled={pending}
-                />
-              </label>
-            ) : null}
+            <label className="field-label">
+              {copy.accessCode}
+              <input
+                name="accessCode"
+                autoComplete="organization"
+                className="field-input"
+                aria-describedby="login-access-code-hint"
+                disabled={pending}
+              />
+            </label>
+            <p id="login-access-code-hint" className="type-small text-muted-foreground">
+              {copy.accessCodeHint}
+            </p>
             <label className="field-label">
               {copy.email}
               <input
