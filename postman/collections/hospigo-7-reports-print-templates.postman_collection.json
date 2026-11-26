@@ -995,7 +995,7 @@
                 "exec": [
                   "pm.test('200', () => pm.response.to.have.status(200));",
                   "const j = pm.response.json();",
-                  "pm.test('the three documents, and the receipt is back on its built-in default', () => { pm.expect(j.items.map(i => i.docType)).to.eql(['REGISTRATION_SLIP','RECEIPT','PRESCRIPTION']); pm.expect(j.items.find(i => i.docType === 'RECEIPT').source).to.eql('DEFAULT'); });",
+                  "pm.test('the five documents, and the receipt is back on its built-in default', () => { pm.expect(j.items.map(i => i.docType)).to.eql(['REGISTRATION_SLIP','RECEIPT','PRESCRIPTION','PATIENT_REPORT','PATIENT_CARD']); pm.expect(j.items.find(i => i.docType === 'RECEIPT').source).to.eql('DEFAULT'); });",
                   "pm.test('the real page size is given', () => { const r = j.items.find(i => i.docType === 'RECEIPT'); pm.expect(r.pageWidthMm).to.eql(148); pm.expect(r.pageHeightMm).to.eql(210); });"
                 ]
               }
@@ -1030,7 +1030,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200', () => pm.response.to.have.status(200));",
-                  "pm.test('four presets', () => pm.expect(pm.response.json().items.map(i => i.key)).to.eql(['A4_FULL','A5_FULL','LABEL_SLIP','PREPRINTED_BILL']));"
+                  "pm.test('five presets', () => pm.expect(pm.response.json().items.map(i => i.key)).to.eql(['A4_FULL','A5_FULL','LABEL_SLIP','CARD_LABEL','PREPRINTED_BILL']));"
                 ]
               }
             }

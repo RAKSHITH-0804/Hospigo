@@ -21,7 +21,7 @@ async function registerPatient(page: Page, label: string): Promise<{ name: strin
   const name = `E2E ${label} ${stamp}${seq}`;
   await page.goto('/app/patients/new');
   await page.getByLabel('Full name *').fill(name);
-  await page.getByLabel('Age in years').fill('34');
+  await page.getByLabel('Date of birth').fill('1992-04-10');
   await page.getByLabel('Phone *').fill(`9${String(stamp + seq).slice(-9)}`);
   await page.getByRole('button', { name: 'Register', exact: true }).click();
   await page.waitForURL(/\/app\/patients\/(?!new)[a-z0-9]+$/);
@@ -75,7 +75,7 @@ test('the doctor writes a consultation, completes it, and the prescription print
   await doctor.goto(`/app/opd/visits/${visitId}/consult`);
   await doctor.getByRole('button', { name: 'Start consultation' }).click();
   await doctor.getByRole('button', { name: 'Save draft' }).waitFor();
-  await doctor.getByLabel('Complaints').fill('Fever and cough for two days');
+  await doctor.getByLabel('Symptoms').fill('Fever and cough for two days');
   await doctor.getByLabel('Diagnosis').fill('Viral fever');
   await doctor.getByRole('button', { name: 'Complete consultation' }).click();
   await expect(doctor.locator('main')).toContainText('This consultation is completed');

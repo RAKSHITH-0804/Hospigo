@@ -2679,7 +2679,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "const b = pm.response.json(); pm.test('three documents', () => pm.expect(b.items.length).to.eql(3)); pm.test('each says which one applies', () => b.items.forEach(i => pm.expect(['BRANCH','HOSPITAL','DEFAULT']).to.include(i.scope))); pm.test('receptionist cannot change', () => pm.expect(b.canChange).to.eql({branch: false, hospital: false}));"
+                  "const b = pm.response.json(); pm.test('five documents', () => pm.expect(b.items.length).to.eql(5)); pm.test('each says which one applies', () => b.items.forEach(i => pm.expect(['BRANCH','HOSPITAL','DEFAULT']).to.include(i.scope))); pm.test('receptionist cannot change', () => pm.expect(b.canChange).to.eql({branch: false, hospital: false}));"
                 ]
               }
             }

@@ -34,7 +34,7 @@ test('prepare: a patient with a paid visit that the doctor has started', async (
   const stamp = Date.now();
   await page.goto('/app/patients/new');
   await page.getByLabel('Full name *').fill(`E2E Screens ${stamp}`);
-  await page.getByLabel('Age in years').fill('45');
+  await page.getByLabel('Date of birth').fill('1981-02-11');
   await page.getByLabel('Phone *').fill(`9${String(stamp).slice(-9)}`);
   await page.getByRole('button', { name: 'Register', exact: true }).click();
   await page.waitForURL(/\/app\/patients\/(?!new)[a-z0-9]+$/);
