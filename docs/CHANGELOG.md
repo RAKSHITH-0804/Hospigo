@@ -29,6 +29,14 @@
 
 ## Unreleased
 
+## 2026-11-26 — Phase 2.1 Step 2.1e — Indigo console (branch `feature/step-2-1e-indigo-console`, not pushed)
+
+- **What changed:** the Indigo console at `/admin`: real hospitals with Enter, onboard a hospital, module switches, Indigo employees and their hospitals; API `/indigo/*` (HQ token only; Owner for changes, an Employee only sees assigned hospitals without access codes).
+- **Files:** API `indigo` module (service, controller), `database/system-roles.ts` (moved out of the seed so the API can create roles for a new hospital), migration `20261129094000_hq_reads_modules`; web `admin` pages and components, console client.
+- **Tests:** API 8 console tests (Owner-only, onboarding incl. the first SuperAdmin signing in, refusals, modules, employees and sessions); web 10 console tests; Postman folder 3 in the 2.1b collection.
+- **Decisions:** `docs/decisions/decisions-2-1.md` (Step 2.1e).
+- **Follow-ups and open items:** template library (several named templates per type, one active, assigned to hospitals) and terminology overrides are NOT built; the starter masters after onboarding still need the starter command; a hospital that fails halfway through onboarding stays as created (no automatic clean-up).
+
 ## 2026-11-26 — Phase 2.1 Step 2.1b — Roles and access (branch `feature/step-2-1b-roles-access`, not pushed)
 
 - **What changed:** the system role is shown as Admin and a multi-branch Admin gets a switcher limited to his branches (`hospitalWide` flag in `/auth/me`); one sign-in form, a blank access code signs in an Indigo person; `/admin` lists the REAL hospitals with Enter; Indigo Owner (`TENANT_ADMIN`) and Employee (`INDIGO_EMPLOYEE`) roles, entry through a hidden flagged user, access log; amend (versions) of a completed consultation, addenda retired, Amended mark on prints; doctor clinical history of any patient with a view log; templates and logos need `print.templates.manage` (Indigo Owner only).

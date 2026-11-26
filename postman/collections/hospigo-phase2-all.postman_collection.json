@@ -108,7 +108,7 @@
   ],
   "item": [
     {
-      "name": "2-1b-indigo-access: Hospigo 2.1b Indigo access",
+      "name": "2-1b-indigo-access: Hospigo 2.1b and 2.1e Indigo access and console",
       "item": [
         {
           "name": "0 Setup",
@@ -942,6 +942,395 @@
                 "body": {
                   "mode": "raw",
                   "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('403', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "3 Indigo console (Step 2.1e)",
+          "item": [
+            {
+              "name": "22 The Owner overview: hospitals with branches, access codes and modules",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqOwner}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "const j = pm.response.json(); pm.test('Owner may manage and sees access codes', () => { pm.expect(j.canManage).to.eql(true); pm.expect(JSON.stringify(j)).to.include('accessCode'); pm.expect(j.moduleCatalog.length).to.be.above(0); });",
+                      "const north = j.items.find(h => h.code === 'DEMO_NORTH'); pm.test('Demo North with its branches and OPD', () => { pm.expect(north.branches.length).to.be.at.least(2); pm.expect(north.modules).to.include('OPD'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "23 The Employee overview: only assigned hospitals, no access codes, cannot manage",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqEmp}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "const j = pm.response.json(); pm.test('read-only view', () => { pm.expect(j.canManage).to.eql(false); pm.expect(JSON.stringify(j)).to.not.include('accessCode'); pm.expect(j.items.map(h => h.code)).to.eql(['DEMO_NORTH']); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "24 The Employee cannot onboard a hospital (403)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqEmp}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('403', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "25 The Employee cannot manage Indigo employees (403)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqEmp}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/employees",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "employees"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('403', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "26 A hospital token cannot use the console (401)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xSuper}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('401', () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "27 No token = 401",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('401', () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "28 The Owner: a hospital with nothing in it is refused (400), nothing is created",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqOwner}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('400', () => pm.response.to.have.status(400));",
+                      "pm.test('names the field', () => pm.expect(pm.response.json().code).to.eql('INDIGO_INVALID'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "29 The Owner: unknown fields are refused (400)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqOwner}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"code\":\"ZZZ_NEVER\",\"name\":\"X\",\"branches\":[],\"moduleCodes\":[\"OPD\"],\"superAdmin\":{\"name\":\"A\",\"email\":\"a@example.test\"},\"surprise\":1}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('400', () => pm.response.to.have.status(400));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "30 The Owner lists Indigo employees",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqOwner}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/employees",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "employees"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.test('the demo employee is listed', () => pm.expect(pm.response.json().items.map(e => e.email)).to.include('employee@indigo-demo.example.test'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "31 The Owner: an unknown hospital for a module change is refused (403)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{xHqOwner}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals/no-such-hospital/modules",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals",
+                    "no-such-hospital",
+                    "modules"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"moduleCodes\":[\"OPD\"]}",
                   "options": {
                     "raw": {
                       "language": "json"

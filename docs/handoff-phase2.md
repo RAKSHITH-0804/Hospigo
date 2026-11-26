@@ -4,6 +4,8 @@
 
 Everything below this section is history. Where it disagrees with this section, this section is right. **Do not redo anything listed as done.**
 
+**Phase 2.1 Step 2.1e (Indigo console) is BUILT on `feature/step-2-1e-indigo-console` (stacked on `feature/step-2-1b-roles-access`), NOT pushed** (2026-11-26). Done: hospitals list, onboarding, module switches, Indigo employees (see decisions-2-1). NOT done: template library, terminology overrides, per-branch modules, starter from the console. NEXT: Step 2.1c (approvals badge) on `feature/step-2-1c-approvals`, then 2.1d.
+
 **Phase 2.1 Step 2.1b (Roles and access) is BUILT on `feature/step-2-1b-roles-access` (stacked on `feature/step-2-1a-quick-wins`), NOT pushed** (2026-11-26). Done: items 8, 15, 4, 5 and the Indigo roles and template permission (see `docs/decisions/decisions-2-1.md`). Migrations `20261129092000_indigo_access` and `20261129093000_consultation_versions_view_log` (applied to `hospigo_test` only). To try the Indigo entry: add `SEED_INDIGO_PASSWORD` to `.env`, run the dev seed (creates `owner@indigo-demo.example.test` and `employee@indigo-demo.example.test`), sign in with an EMPTY access code. NEXT: Step 2.1e on `feature/step-2-1e-indigo-console`.
 
 **Phase 2.1 Step 2.1a (Quick wins and clinical flow) is BUILT on `feature/step-2-1a-quick-wins` (stacked on `develop (at ef46910, Step 9 merged)`), NOT pushed** (2026-11-26). Done: items 1, 2, 3, 6, 10, 14, 16 (see `docs/decisions/decisions-2-1.md`). Migrations `20261129090000_print_doc_types` and `20261129091000_symptoms_card_paper` (applied to `hospigo_test` only; Rakshith migrates dev). Baseline API 1045, web 1795; now API 1065, web 1816. NEXT: Step 2.1b on `feature/step-2-1b-roles-access`.

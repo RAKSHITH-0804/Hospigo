@@ -148,6 +148,14 @@ Tick a line only when you saw the result. If a line fails, write the line number
 6. Doctor: complete a consultation. As the SuperAdmin or an Admin open the same visit's consultation page: **Changes to this note** shows the form; change the diagnosis, write a reason, save: the page shows **Amended (version 1)**, the history shows who and why, and the printed patient report and prescription show Amended. The doctor can no longer change the note.
 7. Doctor: open a patient another doctor saw: press **Show the history**: every visit in every branch is listed, read-only. (Opening it is recorded; the hospital SuperAdmin can read the Indigo log through the API.)
 
+## J. Phase 2.1e (Indigo console)
+
+1. Sign in with an empty access code as `owner@indigo-demo.example.test`: **Hospitals** shows every hospital with its status, branches with access codes, modules and an **Enter hospital** button. The menu has Hospitals, Onboard hospital and Indigo employees.
+2. Switch a module on for a demo hospital and press **Save modules**; enter that hospital and see the module in the menu. OPD cannot be switched off.
+3. **Onboard hospital**: fill the form with a new code, a branch with an access code (at least 6 letters, digits or dashes), a SuperAdmin name and email; the next page shows the access codes, the one-time password of the SuperAdmin and the starter command. Run the starter command for that hospital, then sign in with the access code and the one-time password; the SuperAdmin must change the password.
+4. **Indigo employees**: add an employee (a one-time password is shown once), tick the hospitals he may enter, save. Sign in as that employee: only those hospitals are listed, with no access codes, and no Onboard page.
+5. Switch the employee off: he cannot enter any more and his open sessions end at the next refresh.
+
 ## F. After the checklist
 
 Write down every line that failed, with the role, the page and what you saw. Do not fix by hand in the database. Open a new step in the tracker for each real problem.
