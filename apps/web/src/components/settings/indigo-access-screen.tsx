@@ -2,12 +2,10 @@ import Link from 'next/link';
 import { EmptyState } from '@/components/states/empty-state';
 import { staffCopy } from '@/config/staff-copy';
 import { fill } from '@/lib/opd/clinical-format';
+import { formatDateTime } from '@/lib/format-datetime';
 import type { AccessLogResponse } from '@/lib/indigo/library';
 
 const copy = staffCopy.indigoLog;
-
-const when = (iso: string): string =>
-  new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
 /** Who from Indigo entered this hospital, newest first (read-only; the SuperAdmin only). */
 export function IndigoAccessScreen({
@@ -43,7 +41,7 @@ export function IndigoAccessScreen({
           <tbody>
             {data.items.map((row) => (
               <tr key={row.id}>
-                <td>{when(row.at)}</td>
+                <td>{formatDateTime(row.at)}</td>
                 <td>{row.person ?? '—'}</td>
                 <td>{copy.actions[row.action] ?? row.action}</td>
               </tr>

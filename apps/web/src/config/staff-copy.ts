@@ -421,6 +421,34 @@ export const staffCopy = {
             'An Admin can change the values of their own branch only.',
           ],
         },
+        'print-library': {
+          what: 'Indigo made print designs for your hospital. Here you choose which design prints for each document, and which logo.',
+          steps: [
+            'Find the document (for example Receipt) and read the names of the designs.',
+            'Press Use this design on the one you want. The design in use is marked.',
+            'A SuperAdmin chooses for the whole hospital and the logo; an Admin chooses for the own branch only.',
+          ],
+          example:
+            'Choose Modern bill for Receipt, then print any receipt: it shows the new design with your address and phone from Print values.',
+          good: [
+            'Nothing changes until you press Use this design.',
+            'The header and footer words come from Print values, not from the design.',
+            'Ask Indigo if a design you need is not listed.',
+          ],
+        },
+        'indigo-access': {
+          what: 'This list shows every time a person from Indigo entered your hospital, newest first.',
+          steps: [
+            'Read the person and the time of each entry.',
+            'Use Next and Previous to move through older entries.',
+          ],
+          example:
+            'An entry says Indigo Owner entered at 10:15: Indigo looked at your setup that morning.',
+          good: [
+            'Only the person and the time are kept, never what they looked at.',
+            'Nobody can change or remove an entry.',
+          ],
+        },
         'vitals-fields': {
           what: 'These are the readings a nurse records for each visit, such as pulse and blood pressure.',
           steps: [

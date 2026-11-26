@@ -123,6 +123,15 @@ npm run prisma:migrate -w @hospigo/api
 npm run prisma:seed -w @hospigo/api
 ```
 
+**Showcase database (Step 2.1f).** The fictional showcase hospitals live in their OWN database `hospigo_demo`, never in `hospigo_test`. Create it once, migrate it, fill it:
+
+```bash
+node scripts/db/create-demo-db.mjs
+npm run prisma:seed-showcase -w @hospigo/api
+```
+
+Details and the migrate line: `docs/guides/dev-commands.md`, section "Showcase database".
+
 Generate the Prisma Client when needed:
 
 ```bash

@@ -170,6 +170,18 @@ Tick a line only when you saw the result. If a line fails, write the line number
 3. As a receptionist there is no approvals card; as a doctor you see your own waiting and seen counts; as a nurse you see the vitals card and no money.
 4. Narrow the window to a phone width: cards and charts stack, nothing scrolls sideways.
 
+## M. Phase 2.1f (library, terminology, console setup, amend, access log)
+
+1. Indigo Owner, **Template library**: press **Add the designed samples** (a message says how many were added; pressing again adds none). Each document shows 2 to 3 templates. Add a logo (a small PNG).
+2. Same screen, **What each hospital may choose from**: choose a hospital, tick some templates and a logo, **Save for this hospital**.
+3. Hospital SuperAdmin, **Settings, Print designs**: the ticked designs are listed per document; press **Use this design** for the bill, open any receipt: the new design prints with the hospital's header from **Print values** (address, phone, email, web, footer). Choose the logo too.
+4. Hospital Admin of one branch: only **For this branch only**, no logo list. A receptionist has no Print designs menu.
+5. Indigo console, **Terminology**: set "Patients" to another word for a hospital and save; after the next page load the menu shows it; clear it and the standard word returns. An Employee can do this only for the hospitals assigned to them.
+6. Indigo console, hospital card (Owner): **Modules of a branch** (OPD stays on), **Create the starter masters** (press twice: the second time everything is "already there").
+7. Hospital Admin or SuperAdmin, a COMPLETED consultation: **Change this completed note** now also edits the prescription (change a dose, give a reason); the history shows the new version and the printed prescription says Amended.
+8. Hospital SuperAdmin, **Settings, Indigo access**: every entry of a person from Indigo, newest first.
+9. Showcase hospitals (`hospigo_demo`): the Dashboard shows the cards and charts with believable numbers over 14 and 30 days, in every role.
+
 ## F. After the checklist
 
 Write down every line that failed, with the role, the page and what you saw. Do not fix by hand in the database. Open a new step in the tracker for each real problem.

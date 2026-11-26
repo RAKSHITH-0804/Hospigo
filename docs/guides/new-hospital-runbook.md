@@ -26,6 +26,10 @@ There is no script for it. The dev seed (`apps/api/prisma/seeds/dev-tenants.ts`,
 
 Run it with the **owner** login (`DATABASE_URL_OWNER`), never from the application server. Check the result by signing in with the access code.
 
+## 2b. From the Indigo console (Step 2.1f)
+
+The Indigo Owner can do most of this without the command line: **Onboard hospital** creates the hospital, branches, modules, roles and the first SuperAdmin; on the hospital card **Create the starter masters** runs the same starter as the script below (safe to press twice); **Modules of a branch** switches modules for one branch; **Template library** assigns designed print templates and logos to the hospital (its SuperAdmin or Admin then chooses under Settings, Print designs); **Terminology** sets the hospital's own words for about 24 terms. The script below stays available for the command line and for `--reference-fields`.
+
 ## 3. What the starter script does
 
 ```powershell

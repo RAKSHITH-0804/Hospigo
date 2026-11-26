@@ -108,7 +108,9 @@ for (const code of ONLY) {
     const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     const page = await signIn(context, access, who[role], PASSWORDS[role]);
     await page.goto(`${BASE}/app`);
-    await page.waitForSelector('.kpi-card, [role="alert"]', { timeout: 30000 }).catch(() => undefined);
+    await page
+      .waitForSelector('.kpi-card, [role="alert"]', { timeout: 30000 })
+      .catch(() => undefined);
     await shoot(page, `${code}-dash-${role}`);
     if (role === 'SUPER_ADMIN') {
       const prints = [
@@ -129,5 +131,7 @@ for (const code of ONLY) {
 }
 await browser.close();
 await db.end();
-console.log(sideways.length ? `Sideways scrolling in: ${sideways.join(', ')}` : 'No sideways scrolling.');
+console.log(
+  sideways.length ? `Sideways scrolling in: ${sideways.join(', ')}` : 'No sideways scrolling.',
+);
 console.log(`Pictures are in ${OUT}`);
