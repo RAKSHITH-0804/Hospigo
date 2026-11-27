@@ -1,8 +1,9 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Put, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Put, Query, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthenticatedOnly } from '../access/permission.decorators';
 import { TokenKinds } from '../auth/token-kinds.decorator';
 import type { AccessClaims, HqAccessClaims } from '../auth/token.types';
+import { HqMonitoringService } from './hq-monitoring.service';
 import { IndigoConsoleService } from './indigo-console.service';
 
 type HttpReq = { auth?: AccessClaims };
@@ -18,7 +19,10 @@ const hqId = (req: HttpReq): string => (req.auth as HqAccessClaims).userId;
 @Controller('indigo')
 @TokenKinds('HQ')
 export class IndigoController {
-  constructor(private readonly console: IndigoConsoleService) {}
+  constructor(
+    private readonly console: IndigoConsoleService,
+    private readonly monitoring: HqMonitoringService,
+  ) {}
 
   @Get('hospitals')
   @AuthenticatedOnly()
@@ -89,5 +93,59 @@ export class IndigoController {
   @ApiOperation({ summary: 'Switch an Employee on again (Owner only)' })
   reactivate(@Req() req: HttpReq, @Param('id') id: string) {
     return this.console.setEmployeeActive(hqId(req), id, true);
+  }
+
+  @Put('employees/:id/permissions')
+  @HttpCode(200)
+  @AuthenticatedOnly()
+  @ApiOperation({ summary: 'Set the tick-box permissions of one HQ Staff person (HQ Admin only)' })
+  setPermissions(@Req() req: HttpReq, @Param('id') id: string, @Body() body: unknown) {
+    return this.console.setEmployeePermissions(hqId(req), id, body);
+  }
+
+  @Get('monitoring')
+  @AuthenticatedOnly()
+  @ApiOperation({
+    summary: 'Counts per hospital: visits, active users, last activity (no names, no money)',
+  })
+  counts(@Req() req: HttpReq) {
+    return this.monitoring.counts(hqId(req));
+  }
+
+  @Get('health')
+  @AuthenticatedOnly()
+  @ApiOperation({ summary: 'One system status: API, database, storage, migrations' })
+  health(@Req() req: HttpReq) {
+    return this.monitoring.systemHealth(hqId(req));
+  }
+
+  @Get('activity')
+  @AuthenticatedOnly()
+  @ApiOperation({ summary: 'The HQ activity log (HQ Admin only)' })
+  activity(@Req() req: HttpReq, @Query('page') page?: string) {
+    return this.monitoring.activity(hqId(req), Number(page ?? 1));
+  }
+
+  @Get('hospitals/:id/super-admins')
+  @AuthenticatedOnly()
+  @ApiOperation({ summary: 'The Super Admin accounts of a hospital' })
+  superAdmins(@Req() req: HttpReq, @Param('id') id: string) {
+    return this.monitoring.superAdmins(hqId(req), id);
+  }
+
+  @Post('hospitals/:id/super-admins')
+  @HttpCode(201)
+  @AuthenticatedOnly()
+  @ApiOperation({ summary: 'Create the first Super Admin of a hospital that has none' })
+  createSuperAdmin(@Req() req: HttpReq, @Param('id') id: string, @Body() body: unknown) {
+    return this.monitoring.createSuperAdmin(hqId(req), id, body);
+  }
+
+  @Post('hospitals/:id/super-admins/:userId/reset')
+  @HttpCode(200)
+  @AuthenticatedOnly()
+  @ApiOperation({ summary: 'One-time password for a Super Admin (shown once; old sessions end)' })
+  resetSuperAdmin(@Req() req: HttpReq, @Param('id') id: string, @Param('userId') userId: string) {
+    return this.monitoring.resetSuperAdmin(hqId(req), id, userId);
   }
 }

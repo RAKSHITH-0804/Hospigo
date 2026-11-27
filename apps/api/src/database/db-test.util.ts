@@ -14,6 +14,8 @@ export const GLOBAL_TABLES = new Set([
   'hq_auth_action_tokens',
   // Step 2.1b: the hospitals an Indigo Employee may enter; the hospital login has no access at all.
   'hq_user_hospitals',
+  'hq_user_permissions',
+  'hq_activity_log',
   // Step 2.1f: the Indigo template library has no hospital column (a hospital sees only what is assigned).
   'print_library_templates',
   'print_library_logos',

@@ -74,6 +74,18 @@ describe('Indigo library, terminology, branch modules and starter (HTTP, hospigo
     otherEmployeeHq = await makeHq('other', 'EMPLOYEE');
     await owner.hqUserHospital.create({ data: { hqUserId: employeeHq, tenantId: A.tenant } });
     await owner.hqUserHospital.create({ data: { hqUserId: otherEmployeeHq, tenantId: B.tenant } });
+    await owner.hqUserPermission.createMany({
+      data: ['hq.hospitals.view', 'hq.terminology'].map((permission) => ({
+        hqUserId: employeeHq,
+        permission,
+      })),
+    });
+    await owner.hqUserPermission.createMany({
+      data: ['hq.hospitals.view', 'hq.terminology'].map((permission) => ({
+        hqUserId: otherEmployeeHq,
+        permission,
+      })),
+    });
   });
 
   afterAll(async () => {

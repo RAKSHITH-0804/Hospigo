@@ -78,6 +78,32 @@ model HqUserHospital {
   @@map("hq_user_hospitals")
 }
 
+/// What an HQ Staff person may do (tick-boxes, Phase 2.2). An HQ Admin has every permission and no rows.
+model HqUserPermission {
+  id         String   @id @default(cuid())
+  hqUserId   String   @map("hq_user_id")
+  permission String
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@unique([hqUserId, permission])
+  @@map("hq_user_permissions")
+}
+
+/// Who in HQ changed what, in which hospital (names and ids only; append-only, Phase 2.2).
+model HqActivityLog {
+  id         String   @id @default(cuid())
+  hqUserId   String   @map("hq_user_id")
+  tenantId   String?  @map("tenant_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  detail     Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([createdAt(sort: Desc)])
+  @@map("hq_activity_log")
+}
+
 /// Who from Indigo entered a hospital, and when (append-only, Step 2.1b).
 model IndigoAccessLog {
   id        String   @id @default(cuid())

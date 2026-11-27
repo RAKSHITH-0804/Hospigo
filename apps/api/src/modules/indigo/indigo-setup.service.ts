@@ -9,6 +9,7 @@ import {
 } from '../../database/hospital-starter/hospital-starter';
 import { TenantDb } from '../../database/tenant-db';
 import type { PrismaClient } from '../../generated/prisma';
+import { HqPermissionsService, type HqPermission } from './hq-permissions.service';
 import { HqScopeService } from './hq-scope.service';
 
 function invalid(field: string, reason: string): never {
@@ -34,23 +35,20 @@ export class IndigoSetupService {
     private readonly hq: HqPrismaService,
     private readonly tenantDb: TenantDb,
     private readonly access: HqScopeService,
+    private readonly perms: HqPermissionsService,
   ) {}
 
-  private async requireOwner(hqUserId: string): Promise<void> {
-    const person = await this.hq.hqUser.findUnique({
-      where: { id: hqUserId },
-      select: { isActive: true, indigoRole: true },
-    });
-    if (!person?.isActive || person.indigoRole !== 'OWNER') {
-      throw new ForbiddenException();
-    }
-  }
-
-  /** The Owner for any hospital, an Employee only for the assigned ones; unknown or other: the same 403. */
-  private async requireHospital(hqUserId: string, hospitalId: string): Promise<void> {
-    const visible = await this.access.hospitals(hqUserId);
-    if (!visible.some((h) => h.id === hospitalId)) {
-      throw new ForbiddenException();
+  private async need(
+    hqUserId: string,
+    permission: HqPermission,
+    hospitalId?: string,
+  ): Promise<void> {
+    await this.perms.require(hqUserId, permission);
+    if (hospitalId !== undefined) {
+      const visible = await this.access.hospitals(hqUserId);
+      if (!visible.some((h) => h.id === hospitalId)) {
+        throw new ForbiddenException();
+      }
     }
   }
 
@@ -74,12 +72,13 @@ export class IndigoSetupService {
         },
       ],
     });
+    await this.perms.activity(hqUserId, tenantId, action, entityType, entityId, metadata);
   }
 
   // ---------------------------------------------------------------------------- terminology
 
   async terms(hqUserId: string, hospitalId: string) {
-    await this.requireHospital(hqUserId, hospitalId);
+    await this.need(hqUserId, 'hq.terminology', hospitalId);
     const rows = await this.hq.terminologyOverride.findMany({
       where: { tenantId: hospitalId },
       select: { key: true, text: true },
@@ -90,7 +89,7 @@ export class IndigoSetupService {
 
   /** `{ items: { key: "text" | null } }`: a text sets the word, null (or empty) takes the override away. */
   async setTerms(hqUserId: string, hospitalId: string, body: unknown) {
-    await this.requireHospital(hqUserId, hospitalId);
+    await this.need(hqUserId, 'hq.terminology', hospitalId);
     if (!isObject(body) || !isObject(body.items) || Object.keys(body).length !== 1) {
       invalid('items', 'INVALID');
     }
@@ -141,7 +140,7 @@ export class IndigoSetupService {
 
   /** The module set of ONE branch. The hospital must hold the module; OPD cannot be switched off. */
   async setBranchModules(hqUserId: string, hospitalId: string, branchId: string, body: unknown) {
-    await this.requireOwner(hqUserId);
+    await this.need(hqUserId, 'hq.modules', hospitalId);
     if (!isObject(body) || !Array.isArray(body.moduleCodes) || Object.keys(body).length !== 1) {
       invalid('moduleCodes', 'INVALID');
     }
@@ -197,7 +196,7 @@ export class IndigoSetupService {
    * Safe to press twice: what exists is kept. Runs through the hospital's own database door.
    */
   async runStarter(hqUserId: string, hospitalId: string) {
-    await this.requireOwner(hqUserId);
+    await this.need(hqUserId, 'hq.onboard', hospitalId);
     const hospital = await this.hq.hospital.findUnique({
       where: { id: hospitalId },
       select: { id: true, code: true },

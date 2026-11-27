@@ -10,6 +10,10 @@ import path from 'node:path';
  */
 const RAW_SQL_ALLOWLIST = new Map<string, string>([
   [
+    'modules/indigo/hq-monitoring.service.ts',
+    'HQ monitoring and Super Admin reset call fixed SECURITY DEFINER functions (counts only, list and reset of Super Admins) through the HQ login, values bound as parameters',
+  ],
+  [
     'modules/indigo/indigo-console.service.ts',
     'Onboarding calls the fixed hq_create_first_superadmin function through the HQ login, values bound as parameters',
   ],

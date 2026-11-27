@@ -28,6 +28,8 @@ const HQ_ALLOWED: Record<string, Priv> = {
   // Step 2.1b: Indigo access. The HQ login reads and appends the access log (never changes it).
   hq_user_hospitals: { select: true, insert: true, update: false, delete: true },
   indigo_access_log: { select: true, insert: true, update: false, delete: false },
+  hq_user_permissions: { select: true, insert: true, update: false, delete: true },
+  hq_activity_log: { select: true, insert: true, update: false, delete: false },
   // Step 2.1f: the Indigo template library, its assignments and the terminology overrides.
   print_library_templates: { select: true, insert: true, update: true, delete: false },
   print_library_logos: { select: true, insert: true, update: false, delete: false },

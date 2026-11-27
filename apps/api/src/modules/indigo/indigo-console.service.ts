@@ -6,6 +6,7 @@ import { HqPrismaService } from '../../database/hq-prisma.service';
 import { ensureSystemRolesForTenant } from '../../database/system-roles';
 import { TenantDb } from '../../database/tenant-db';
 import type { PrismaClient } from '../../generated/prisma';
+import { HQ_PERMISSIONS, HqPermissionsService, type HqPermission } from './hq-permissions.service';
 import { HqScopeService } from './hq-scope.service';
 
 /** Limits of what the console accepts (checked again by the database where it can). */
@@ -149,15 +150,20 @@ export class IndigoConsoleService {
     private readonly hq: HqPrismaService,
     private readonly tenantDb: TenantDb,
     private readonly access: HqScopeService,
+    private readonly perms: HqPermissionsService,
   ) {}
 
-  private async requireOwner(hqUserId: string): Promise<void> {
-    const person = await this.hq.hqUser.findUnique({
-      where: { id: hqUserId },
-      select: { isActive: true, indigoRole: true },
-    });
-    if (!person?.isActive || person.indigoRole !== 'OWNER') {
-      throw new ForbiddenException();
+  private async need(
+    hqUserId: string,
+    permission: HqPermission,
+    hospitalId?: string,
+  ): Promise<void> {
+    await this.perms.require(hqUserId, permission);
+    if (hospitalId !== undefined) {
+      const visible = await this.access.hospitals(hqUserId);
+      if (!visible.some((h) => h.id === hospitalId)) {
+        throw new ForbiddenException();
+      }
     }
   }
 
@@ -183,6 +189,7 @@ export class IndigoConsoleService {
         },
       ],
     });
+    await this.perms.activity(hqUserId, tenantId, action, entityType, entityId, metadata);
   }
 
   /** The hospitals this person may see, with branches and modules. Access codes only for the Owner. */
@@ -191,7 +198,9 @@ export class IndigoConsoleService {
       where: { id: hqUserId },
       select: { indigoRole: true },
     });
-    const visible = await this.access.hospitals(hqUserId);
+    const mine = await this.perms.listFor(hqUserId);
+    // HQ Staff without the "view hospitals" tick see nothing (deny by default)
+    const visible = mine.includes('hq.hospitals.view') ? await this.access.hospitals(hqUserId) : [];
     const ids = visible.map((h) => h.id);
     const [hospitals, branches, subs, modules, branchModules] = await Promise.all([
       this.hq.hospital.findMany({
@@ -229,6 +238,7 @@ export class IndigoConsoleService {
     const owner = person.indigoRole === 'OWNER';
     return {
       canManage: owner,
+      permissions: mine,
       moduleCatalog: modules,
       items: hospitals.map((h) => ({
         ...h,
@@ -260,7 +270,7 @@ export class IndigoConsoleService {
    * starter masters (payment modes, number series ...) still need the starter command once.
    */
   async onboard(hqUserId: string, body: unknown) {
-    await this.requireOwner(hqUserId);
+    await this.need(hqUserId, 'hq.onboard');
     const input = readOnboard(body);
     if (await this.hq.hospital.findUnique({ where: { code: input.code }, select: { id: true } })) {
       conflict('code', 'TAKEN');
@@ -351,7 +361,7 @@ export class IndigoConsoleService {
 
   /** The module set of a hospital (and of all its branches), changed by the Owner only. */
   async setModules(hqUserId: string, hospitalId: string, body: unknown) {
-    await this.requireOwner(hqUserId);
+    await this.need(hqUserId, 'hq.modules', hospitalId);
     if (
       typeof body !== 'object' ||
       body === null ||
@@ -439,7 +449,7 @@ export class IndigoConsoleService {
   // ------------------------------------------------------------------------------ employees
 
   async employees(hqUserId: string) {
-    await this.requireOwner(hqUserId);
+    await this.need(hqUserId, 'hq.staff.manage');
     const rows = await this.hq.hqUser.findMany({
       where: { indigoRole: 'EMPLOYEE' },
       select: {
@@ -451,8 +461,17 @@ export class IndigoConsoleService {
       },
       orderBy: { displayName: 'asc' },
     });
+    const ticks = await this.hq.hqUserPermission.findMany({
+      where: { hqUserId: { in: rows.map((r) => r.id) } },
+      select: { hqUserId: true, permission: true },
+    });
     return {
+      permissionCatalog: [...HQ_PERMISSIONS],
       items: rows.map((r) => ({
+        permissions: ticks
+          .filter((t) => t.hqUserId === r.id)
+          .map((t) => t.permission)
+          .sort(),
         id: r.id,
         email: r.email,
         displayName: r.displayName,
@@ -464,7 +483,7 @@ export class IndigoConsoleService {
 
   /** Only an Owner creates an Employee; the password is shown once and the person must change it. */
   async createEmployee(hqUserId: string, body: unknown) {
-    await this.requireOwner(hqUserId);
+    await this.need(hqUserId, 'hq.staff.manage');
     if (typeof body !== 'object' || body === null) {
       invalid('body', 'REQUIRED');
     }
@@ -492,12 +511,51 @@ export class IndigoConsoleService {
         indigoRole: 'EMPLOYEE',
       },
     });
+    await this.perms.activity(hqUserId, null, 'HQ_STAFF_CREATE', 'hq_user', row.id, {});
     return { id: row.id, email, displayName, temporaryPassword: password };
   }
 
   /** The hospitals an Employee may enter (the whole list is replaced). */
+  /** The tick-boxes of one HQ Staff person: replaces the whole set; unknown names are refused. */
+  async setEmployeePermissions(hqUserId: string, employeeId: string, body: unknown) {
+    await this.need(hqUserId, 'hq.staff.manage');
+    const raw =
+      typeof body === 'object' && body !== null && !Array.isArray(body)
+        ? (body as Record<string, unknown>)
+        : null;
+    if (
+      !raw ||
+      Object.keys(raw).some((k) => k !== 'permissions') ||
+      !Array.isArray(raw.permissions)
+    ) {
+      invalid('permissions', 'INVALID');
+    }
+    const known = new Set<string>(HQ_PERMISSIONS);
+    const wanted = [...new Set(raw.permissions as unknown[])];
+    if (wanted.some((p) => typeof p !== 'string' || !known.has(p))) {
+      invalid('permissions', 'UNKNOWN_PERMISSION');
+    }
+    const person = await this.hq.hqUser.findUnique({
+      where: { id: employeeId },
+      select: { indigoRole: true },
+    });
+    if (!person || person.indigoRole !== 'EMPLOYEE') {
+      throw new ForbiddenException();
+    }
+    await this.hq.hqUserPermission.deleteMany({ where: { hqUserId: employeeId } });
+    if (wanted.length > 0) {
+      await this.hq.hqUserPermission.createMany({
+        data: (wanted as string[]).map((permission) => ({ hqUserId: employeeId, permission })),
+      });
+    }
+    await this.perms.activity(hqUserId, null, 'HQ_STAFF_PERMISSIONS', 'hq_user', employeeId, {
+      permissions: (wanted as string[]).sort(),
+    });
+    return { permissions: (wanted as string[]).sort() };
+  }
+
   async setEmployeeHospitals(hqUserId: string, employeeId: string, body: unknown) {
-    await this.requireOwner(hqUserId);
+    await this.need(hqUserId, 'hq.staff.manage');
     const ids = (body as { hospitalIds?: unknown } | null)?.hospitalIds;
     if (!Array.isArray(ids) || ids.some((x) => typeof x !== 'string') || ids.length > 500) {
       invalid('hospitalIds', 'INVALID');
@@ -544,7 +602,7 @@ export class IndigoConsoleService {
   }
 
   async setEmployeeActive(hqUserId: string, employeeId: string, active: boolean) {
-    await this.requireOwner(hqUserId);
+    await this.need(hqUserId, 'hq.staff.manage');
     const done = await this.hq.hqUser.updateMany({
       where: { id: employeeId, indigoRole: 'EMPLOYEE' },
       data: { isActive: active },

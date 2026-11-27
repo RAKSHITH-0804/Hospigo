@@ -61,6 +61,9 @@ describe('HQ without entry (HTTP, hospigo_test)', () => {
     hqAdmin = await makeHq('admin', 'OWNER');
     hqStaff = await makeHq('staff', 'EMPLOYEE');
     await owner.hqUserHospital.create({ data: { hqUserId: hqStaff, tenantId: A.tenant } });
+    await owner.hqUserPermission.createMany({
+      data: ['hq.hospitals.view'].map((permission) => ({ hqUserId: hqStaff, permission })),
+    });
   });
 
   afterAll(async () => {

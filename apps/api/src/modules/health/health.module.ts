@@ -10,6 +10,7 @@ import { HealthService } from './health.service';
 
 @Module({
   controllers: [HealthController],
+  exports: [HealthService],
   providers: [
     HealthService,
     HealthGateway,

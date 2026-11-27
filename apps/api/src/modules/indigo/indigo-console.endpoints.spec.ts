@@ -56,6 +56,9 @@ describe('Indigo console (HTTP, hospigo_test)', () => {
     ownerHq = await makeHq('owner', 'OWNER');
     employeeHq = await makeHq('employee', 'EMPLOYEE');
     await owner.hqUserHospital.create({ data: { hqUserId: employeeHq, tenantId: A.tenant } });
+    await owner.hqUserPermission.createMany({
+      data: ['hq.hospitals.view'].map((permission) => ({ hqUserId: employeeHq, permission })),
+    });
   });
 
   afterAll(async () => {
@@ -388,6 +391,11 @@ describe('Indigo console (HTTP, hospigo_test)', () => {
     ).toBe(400);
 
     const id: string = made.body.id;
+    await http()
+      .put(`/indigo/employees/${id}/permissions`)
+      .set(o)
+      .send({ permissions: ['hq.hospitals.view'] })
+      .expect(200);
     // not yet assigned: the Employee sees no hospital
     expect(
       (
@@ -462,6 +470,9 @@ describe('Indigo console (HTTP, hospigo_test)', () => {
     const o = auth(hq(ownerHq));
     const id = await makeHq('toggle', 'EMPLOYEE');
     await owner.hqUserHospital.create({ data: { hqUserId: id, tenantId: A.tenant } });
+    await owner.hqUserPermission.create({
+      data: { hqUserId: id, permission: 'hq.hospitals.view' },
+    });
     await http()
       .get('/indigo/hospitals')
       .set(auth(hq(id)))

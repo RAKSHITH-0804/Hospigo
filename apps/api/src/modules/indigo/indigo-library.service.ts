@@ -1,6 +1,7 @@
 import { ForbiddenException, HttpException, Injectable } from '@nestjs/common';
 import { HqPrismaService } from '../../database/hq-prisma.service';
 import type { Prisma } from '../../generated/prisma';
+import { HqPermissionsService, type HqPermission } from './hq-permissions.service';
 import { HqScopeService } from './hq-scope.service';
 import { ImageRefused, sniffImage } from '../images/image-sniff';
 import {
@@ -35,15 +36,20 @@ export class IndigoLibraryService {
   constructor(
     private readonly hq: HqPrismaService,
     private readonly access: HqScopeService,
+    private readonly perms: HqPermissionsService,
   ) {}
 
-  private async requireOwner(hqUserId: string): Promise<void> {
-    const person = await this.hq.hqUser.findUnique({
-      where: { id: hqUserId },
-      select: { isActive: true, indigoRole: true },
-    });
-    if (!person?.isActive || person.indigoRole !== 'OWNER') {
-      throw new ForbiddenException();
+  private async need(
+    hqUserId: string,
+    permission: HqPermission,
+    hospitalId?: string,
+  ): Promise<void> {
+    await this.perms.require(hqUserId, permission);
+    if (hospitalId !== undefined) {
+      const visible = await this.access.hospitals(hqUserId);
+      if (!visible.some((h) => h.id === hospitalId)) {
+        throw new ForbiddenException();
+      }
     }
   }
 
@@ -66,10 +72,11 @@ export class IndigoLibraryService {
         },
       ],
     });
+    await this.perms.activity(hqUserId, tenantId, action, 'print_library', entityId, metadata);
   }
 
   async overview(hqUserId: string) {
-    await this.requireOwner(hqUserId);
+    await this.need(hqUserId, 'hq.print');
     const [templates, logos, assignments] = await Promise.all([
       this.hq.printLibraryTemplate.findMany({ orderBy: [{ docType: 'asc' }, { name: 'asc' }] }),
       this.hq.printLibraryLogo.findMany({
@@ -102,7 +109,7 @@ export class IndigoLibraryService {
 
   /** Adds the built-in designed samples that are not in the library yet (safe to press twice). */
   async addSamples(hqUserId: string): Promise<{ added: number }> {
-    await this.requireOwner(hqUserId);
+    await this.need(hqUserId, 'hq.print');
     const have = new Set(
       (await this.hq.printLibraryTemplate.findMany({ select: { key: true } })).map((t) => t.key),
     );
@@ -134,7 +141,7 @@ export class IndigoLibraryService {
    * name. The result goes through the same checks as any saved template.
    */
   async createTemplate(hqUserId: string, body: unknown) {
-    await this.requireOwner(hqUserId);
+    await this.need(hqUserId, 'hq.print');
     if (!isObject(body)) {
       invalid('body', 'REQUIRED');
     }
@@ -198,7 +205,7 @@ export class IndigoLibraryService {
   }
 
   async retireTemplate(hqUserId: string, id: string): Promise<{ ok: true }> {
-    await this.requireOwner(hqUserId);
+    await this.need(hqUserId, 'hq.print');
     const done = await this.hq.printLibraryTemplate.updateMany({
       where: { id, retiredAt: null },
       data: { retiredAt: new Date() },
@@ -210,7 +217,7 @@ export class IndigoLibraryService {
   }
 
   async addLogo(hqUserId: string, name: unknown, bytes: Buffer | undefined) {
-    await this.requireOwner(hqUserId);
+    await this.need(hqUserId, 'hq.print');
     const clean = typeof name === 'string' ? name.trim() : '';
     if (clean.length < 1 || clean.length > LIBRARY_LIMITS.nameMax) {
       invalid('name', 'INVALID');
@@ -256,7 +263,7 @@ export class IndigoLibraryService {
   }
 
   async logoImage(hqUserId: string, id: string) {
-    await this.requireOwner(hqUserId);
+    await this.need(hqUserId, 'hq.print');
     const logo = await this.hq.printLibraryLogo.findUnique({ where: { id } });
     if (!logo) {
       invalid('id', 'NOT_FOUND');
@@ -266,7 +273,7 @@ export class IndigoLibraryService {
 
   /** Replaces what one hospital may choose from. */
   async assign(hqUserId: string, hospitalId: string, body: unknown) {
-    await this.requireOwner(hqUserId);
+    await this.need(hqUserId, 'hq.print', hospitalId);
     if (
       !isObject(body) ||
       !Array.isArray(body.templateIds) ||
@@ -324,7 +331,7 @@ export class IndigoLibraryService {
 
   /** What one hospital may choose from (for the assign screen). */
   async assignedTo(hqUserId: string, hospitalId: string) {
-    await this.requireOwner(hqUserId);
+    await this.need(hqUserId, 'hq.print', hospitalId);
     const rows = await this.hq.printLibraryAssignment.findMany({
       where: { tenantId: hospitalId },
       select: { templateId: true, logoId: true },
