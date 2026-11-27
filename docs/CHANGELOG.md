@@ -29,6 +29,13 @@
 
 ## Unreleased
 
+## 2026-11-27 — Phase 2.2 checkpoint 2 — HQ console and branches (branch `feature/step-2-2b-hq-console`, not pushed)
+
+- **Added:** HQ Staff tick-box permissions; append-only HQ activity log; counts-only monitoring and one system health status; Super Admin list, create and one-time reset without entry; HQ sets the active design and logo of a hospital (tenant door) and edits library templates in the designer; HQ home table, one page per hospital, 3-step onboarding; `branch=ALL` on the dashboard, OPD queue and refund requests with the "All my branches" link; cross-branch approve and reject inside the assigned branches. Postman `hospigo-2-2b-hq-console`.
+- **Database:** migrations `20261129098000_hq_permissions_activity_monitoring` and `20261129099000_hq_superadmin_reset` (new tables are HQ-only and global; two SECURITY DEFINER read functions and one reset function; column-limited grants).
+- **Tests:** API 1131 and web 1865 unit and endpoint tests (Newman and e2e at the end of Phase 2).
+- **Decisions:** `docs/decisions/decisions-2-2.md` (checkpoint 2 and its security table).
+
 ## 2026-11-27 — Phase 2.2 checkpoint 1 — Cleanup and privacy: HQ never enters a hospital (branch `feature/step-2-2a-cleanup`, not pushed)
 
 - **Added:** `npm run dev:reset` (dev database with only Nandavana and Sagarika plus HQ Admin and HQ Staff); `HqScopeService`; Postman collection `hospigo-2-2a-hq-without-entry` (generator `scripts/make-postman-2-2a.mjs`).

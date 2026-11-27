@@ -1160,6 +1160,16 @@ async function seedIndigoDemoPeople(prisma: PrismaClient): Promise<void> {
       create: { ...person, passwordHash, mustChangePassword: false, passwordChangedAt: new Date() },
       update: { ...person, passwordHash, mustChangePassword: false, isActive: true },
     });
+    if (person.indigoRole === 'EMPLOYEE') {
+      // the demo HQ Staff may see the hospitals and the counts (an HQ Admin changes the ticks)
+      await prisma.hqUserPermission.createMany({
+        data: ['hq.hospitals.view', 'hq.monitor'].map((permission) => ({
+          hqUserId: row.id,
+          permission,
+        })),
+        skipDuplicates: true,
+      });
+    }
     if (person.indigoRole === 'EMPLOYEE' && north) {
       await prisma.hqUserHospital.upsert({
         where: { hqUserId_tenantId: { hqUserId: row.id, tenantId: north.id } },

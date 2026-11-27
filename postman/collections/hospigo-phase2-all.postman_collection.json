@@ -2572,6 +2572,701 @@
       ]
     },
     {
+      "name": "2-2b-hq-console: Hospigo 2.2b: HQ console (tick-boxes, monitoring, activity)",
+      "item": [
+        {
+          "name": "0 Setup",
+          "item": [
+            {
+              "name": "1 Login HQ Admin",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/hq/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "hq",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"email\":\"{{hqAdminEmail}}\",\"password\":\"{{indigoPassword}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.collectionVariables.set('hqAdmin', pm.response.json().accessToken);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "2 Login HQ Staff",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/hq/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "hq",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"email\":\"{{hqStaffEmail}}\",\"password\":\"{{indigoPassword}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.collectionVariables.set('hqStaff', pm.response.json().accessToken);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "3 Login Super Admin (north main)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/hospital/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "hospital",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{superEmail}}\",\"password\":\"{{superadminPassword}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.collectionVariables.set('hSuper', pm.response.json().accessToken);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "4 HQ Admin finds north and HQ Staff",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqAdmin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "const north = pm.response.json().items.find(h => h.code === 'DEMO_NORTH');",
+                      "pm.test('north is listed', () => pm.expect(north).to.exist);",
+                      "pm.collectionVariables.set('northId', north.id);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "5 HQ Admin lists HQ Staff",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqAdmin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/employees",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "employees"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "const staff = pm.response.json().items.find(e => e.email === pm.collectionVariables.get('hqStaffEmail'));",
+                      "pm.test('staff found', () => pm.expect(staff).to.exist);",
+                      "pm.collectionVariables.set('staffId', staff.id);"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "1 Tick-box permissions",
+          "item": [
+            {
+              "name": "6 An unknown permission is refused (400)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqAdmin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/employees/{{staffId}}/permissions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "employees",
+                    "{{staffId}}",
+                    "permissions"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"permissions\":[\"hq.nope\"]}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('400', () => pm.response.to.have.status(400));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "7 HQ Staff cannot tick their own permissions (403)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqStaff}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/employees/{{staffId}}/permissions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "employees",
+                    "{{staffId}}",
+                    "permissions"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"permissions\":[\"hq.print\"]}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('403', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "8 HQ Admin gives HQ Staff: view hospitals and monitor only",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqAdmin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/employees/{{staffId}}/permissions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "employees",
+                    "{{staffId}}",
+                    "permissions"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"permissions\":[\"hq.hospitals.view\",\"hq.monitor\"]}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "2 Counts, health and activity",
+          "item": [
+            {
+              "name": "9 HQ Staff reads counts for the assigned hospitals",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqStaff}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/monitoring",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "monitoring"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.test('counts only', () => { const t = pm.response.text(); pm.expect(t).to.not.match(/patient|amount|paise/i); pm.response.json().items.forEach(i => pm.expect(Object.keys(i).sort()).to.eql(['activeUsers30d','hospitalId','lastActivity','visits30d','visits7d','visitsToday'])); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "10 One system status",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqStaff}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/health",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "health"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.test('one status', () => pm.expect(pm.response.json()).to.have.keys(['status','checkedAt','api','database','storage','migrations']));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "11 HQ Staff cannot read the activity log (403)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqStaff}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/activity",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "activity"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('403', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "12 HQ Admin reads the activity log",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqAdmin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/activity",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "activity"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "13 A hospital token is refused (401)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hSuper}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/monitoring",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "monitoring"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('401', () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "3 Without the tick",
+          "item": [
+            {
+              "name": "14 HQ Staff without the tick cannot list Super Admins (403)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqStaff}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals/{{northId}}/super-admins",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals",
+                    "{{northId}}",
+                    "super-admins"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('403', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "15 HQ Staff without the tick cannot set a design (403)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqStaff}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals/{{northId}}/print-design",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals",
+                    "{{northId}}",
+                    "print-design"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"templateId\":\"x\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('403', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "16 HQ Admin lists the Super Admins of north",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqAdmin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals/{{northId}}/super-admins",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals",
+                    "{{northId}}",
+                    "super-admins"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.test('a list', () => pm.expect(pm.response.json().items).to.be.an('array'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "17 HQ Admin sees which designs are active in north",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqAdmin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals/{{northId}}/print",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals",
+                    "{{northId}}",
+                    "print"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.test('shape', () => pm.expect(pm.response.json()).to.have.keys(['designs','hasLogo']));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "3d-branch-switch: Hospigo 3d branch switcher",
       "item": [
         {

@@ -14,3 +14,35 @@ Plan: `docs/plans/phase-2-2-roles-hq-ui.md` (it wins over Phase 2.1 documents wh
 **Consequence Rakshith must know (decided by the plan, built in checkpoint 2).** With the Indigo Owner gone, nobody inside a hospital holds `print.templates.manage` (the Super Admin never had it). Until checkpoint 2 adds the HQ side (HQ sets the active design and logo through the tenant door, HQ designer for new templates), the hospital screens for editing a template and uploading a logo cannot be used by any hospital role. Super Admin and Admin can still CHOOSE among designs HQ assigned. The Postman steps that used the entered Owner for template and logo changes (collections 7, 7e, 7f, 8c) were removed; they return as HQ steps in checkpoint 2.
 
 **Not done on purpose.** DB role values not renamed; `indigo_access_log` and the `indigo_hq_user_id` column not dropped; console URLs still start with `/indigo/` (internal names, not shown on screen).
+
+## Checkpoint 2: HQ console and branches (branch `feature/step-2-2b-hq-console`, from `feature/step-2-2a-cleanup`, not pushed)
+
+1. **HQ Staff tick-boxes.** Table `hq_user_permissions`; catalog in `hq-permissions.service.ts` (`hq.hospitals.view`, `hq.monitor`, `hq.onboard`, `hq.modules`, `hq.print`, `hq.terminology`, `hq.superadmin.reset`). An HQ Admin has all of them and no rows. `hq.staff.manage` and `hq.activity.read` are never tickable (HQ Admin only). Deny by default, read from the database on every call. Every console service now asks for a permission (and, for a hospital, the assignment in `hq_user_hospitals`) instead of "is Owner". HQ Staff without the "view hospitals" tick see an empty list. The demo HQ Staff is seeded with view and monitor.
+2. **HQ activity log.** Table `hq_activity_log`, append-only (triggers refuse update, delete, truncate), written by every HQ change (names and ids only), read by `GET /indigo/activity` for an HQ Admin only. No hospital login can read it.
+3. **Counts-only monitoring.** `hq_hospital_counts(date)` is a SECURITY DEFINER function owned by `hospigo_security`. It may read only `opd_visits(id, tenant_id, visit_date, created_at)` and `users(id, tenant_id, last_login_at)` (column grants, a tenant-scoped SELECT policy for that role on `opd_visits`), one hospital at a time. HQ gets EXECUTE on the function and nothing else; the HQ login still cannot read any clinical table. Numbers: visits today, 7 days, 30 days, active users (signed in in 30 days), last activity. "Today" uses `HQ_MONITOR_TIMEZONE` (default `Asia/Kolkata`). `GET /indigo/health`: one status (API, database, storage, migrations).
+4. **Super Admin without entry.** Migration `20261129099000_hq_superadmin_reset`: `hq_list_superadmins`, and `hq_reset_superadmin` (one-time password, `must_change_password`, ends the old sessions, writes the hospital audit line). Creating the first Super Admin uses the old `hq_create_first_superadmin` (refuses a second one). The password is shown once and never logged.
+5. **Print design and logo by HQ.** `PUT /indigo/hospitals/:id/print-design` and `/logo` work through the tenant door (RLS applies). The written rows need a hospital user as technical owner, so the hospital's first active Super Admin is used for the row; the hospital audit line has `actor_user_id` NULL and names the HQ person in its metadata. The library item is added to the hospital's assignment so the hospital can switch among the designs. Needs a Super Admin (else 409). **Designer:** `PrintingSettings` got an optional `saveFn`; `/admin/library/:id` opens it on a library template with sample values and saves with `PUT /indigo/library/templates/:id` (same validation as any template). Hospitals keep their own copy until HQ sets the design again.
+6. **Admin branches.** The Super Admin's Staff form already ticks the branches of a person; its label now says "for an Admin: the branches this Admin may operate". `branch=ALL` (the API takes only the word ALL, never an id) on the dashboard, OPD queue and refund list: allowed only when the permission is held on two or more branches, and shows exactly those branches. Approve and reject of a request of another assigned branch run in that request's own branch (money, number series and visit stay in that branch); a request of a branch the caller may not decide in is not found. Web: an "All my branches" link (`?branch=ALL`) on those three pages, shown when the person has the branch switcher. Reports already took a branch choice (2.1) and are unchanged.
+7. **Web.** HQ home (hospital count, HQ Staff accounts, system health, hospitals table with visits today and last activity), one page per hospital (Overview, Branches, Modules, Print design and logo, Terminology link, Super Admin), onboarding in 3 steps, tick-boxes on the HQ Staff cards, activity page, the designer page. HQ Staff do not see the Onboard, HQ Staff and Activity menu items.
+
+**Not done on purpose or not done.** Reports have no "All my branches" link in the UI (the API already takes a branch choice). The cross-branch approve has no endpoint test of its own (existing refund tests pass; test it by hand). The terminology tab links to the existing terminology page. HQ cannot yet add or switch off branches of an existing hospital.
+
+### Security review, checkpoint 2
+
+| Attack | Result |
+|---|---|
+| HQ Staff with no ticks: hospitals, monitoring, health, activity, library, Super Admin routes | Empty list or 403 |
+| HQ Staff ticks their own permissions, or ticks `hq.staff.manage` / `hq.activity.read` / unknown names | 403 / 400 |
+| HQ Staff with every tick on a hospital outside the assignment | 403 on every read and write |
+| HQ Staff reads the activity log or lists HQ Staff, even with every tick | 403 |
+| Activity log changed or deleted (even by the owner login) | Refused by the database |
+| Monitoring answer holds a name, a patient or an amount | No: exactly six keys; the HQ login still has no clinical table grant |
+| Hospital token on any new HQ route | 401 |
+| Reset a Super Admin through the wrong hospital, or reset a user who is not a Super Admin | 403 |
+| Password in the log or the HQ activity detail | Not there (tested) |
+| Print design or logo set by HQ Staff without the print tick, or on another hospital | 403; another hospital's branch id as target: 400 |
+| HQ library edit reaches a hospital copy | No; the hospital row is unchanged until HQ sets it again |
+| `branch=ALL` with one branch, or with a branch id instead of ALL | 403 / 400 |
+| Admin2 (branch 3) sees branches of Admin1 (1 and 2); another hospital's branches | No; the combined view lists exactly the assigned branches |
+
+**Verdict: safe to approve, with two decisions for Rakshith:** (a) the technical owner of rows HQ writes is the hospital's Super Admin (the audit line names HQ); (b) `hospigo_security` got column-limited read of `opd_visits` and `users` for the counts function. Alternatives cost more tables or a stored counter; say if you prefer one.
