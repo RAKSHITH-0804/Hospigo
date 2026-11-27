@@ -518,7 +518,11 @@ describe('patients pages', () => {
       periodYear: 0,
       periodLabel: null,
     };
-    const section = (id: string) => ({ params: Promise.resolve({ section: id }) });
+    const section = (id: string) => ({
+      params: Promise.resolve({ section: id }),
+      // Staff, Roles and Doctors live in Administration since Phase 2.3
+      ...(['staff', 'roles', 'doctors'].includes(id) ? { area: 'administration' as const } : {}),
+    });
 
     it('/app/settings without hospital.settings.read gets the no-permission redirect (not an empty page)', async () => {
       requireKindMock.mockResolvedValue(hospitalSession(['patients.registry.read']));
@@ -630,7 +634,7 @@ describe('patients pages', () => {
         initialErrorCode: null,
         filterToActiveBranch: false,
       });
-      const nav = screen.getByRole('navigation', { name: staffCopy.settings.navAria });
+      const nav = screen.getByRole('navigation', { name: staffCopy.administration.navAria });
       expect(nav.textContent).toContain(staffCopy.settings.sections.doctors);
       unmount();
       // without the doctors permission the menu does not list it
@@ -708,7 +712,7 @@ describe('patients pages', () => {
         initialErrorCode: null,
         canWrite: true,
       });
-      const nav = screen.getByRole('navigation', { name: staffCopy.settings.navAria });
+      const nav = screen.getByRole('navigation', { name: staffCopy.administration.navAria });
       expect(nav.textContent).toContain(staffCopy.settings.sections.staff);
     });
 
@@ -773,7 +777,9 @@ describe('patients pages', () => {
 
     it('the section list comes from one config list with the required fields', () => {
       for (const entry of SETTINGS_SECTIONS) {
-        expect(entry.route).toBe(`/app/settings/${entry.id}`);
+        expect(entry.route).toBe(
+          `${entry.area === 'administration' ? '/app/administration' : '/app/settings'}/${entry.id}`,
+        );
         expect(staffCopy.settings.sections[entry.copyKey]).toBeTruthy();
         // every page needs settings read; Doctors, Staff and Roles also need their own permission
         const own: Record<string, string> = {

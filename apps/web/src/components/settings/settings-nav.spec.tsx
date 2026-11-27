@@ -16,10 +16,12 @@ jest.mock('next/link', () => {
 
 const groups = staffCopy.settings.groups;
 const labels = staffCopy.settings.sections;
-const all = visibleSettingsSections(
-  SETTINGS_SECTIONS.map((s) => s.permission),
-  { canSwitchBranch: true },
-);
+const everything = SETTINGS_SECTIONS.map((s) => s.permission);
+// Staff, Roles and Doctors are in Administration now; the menu code is the same for both lists
+const all = [
+  ...visibleSettingsSections(everything, { canSwitchBranch: true }),
+  ...visibleSettingsSections(everything, { canSwitchBranch: true, area: 'administration' }),
+];
 const heading = (name: string) => screen.getByRole('button', { name });
 const link = (name: string) => screen.queryByRole('link', { name });
 
@@ -61,7 +63,7 @@ describe('the settings menu (groups that open and close)', () => {
     render(<SettingsNav sections={all} activeId="roles" />);
     expect(link(labels.roles)!.getAttribute('aria-current')).toBe('page');
     expect(link(labels.staff)!.getAttribute('aria-current')).toBeNull();
-    expect(link(labels.roles)!.getAttribute('href')).toBe('/app/settings/roles');
+    expect(link(labels.roles)!.getAttribute('href')).toBe('/app/administration/roles');
   });
 
   it('with no current page the first group is open', () => {

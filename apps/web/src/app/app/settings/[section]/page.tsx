@@ -24,7 +24,7 @@ import { importScreenConfig } from '@/config/imports';
 import { sessionConfig } from '@/config/session';
 import { findSettingsSection, visibleSettingsSections } from '@/config/settings-sections';
 import { staffCopy } from '@/config/staff-copy';
-import { requirePermission } from '@/lib/auth/guards';
+import { requireKind, requirePermission } from '@/lib/auth/guards';
 import { errorMessageFor } from '@/lib/patients/client';
 import { API_UHID_START_NUMBER, fetchStaffOnServer, serverErrorCode } from '@/lib/patients/server';
 import type { UhidStartNumberResponse } from '@/lib/patients/types';
@@ -92,21 +92,32 @@ export const metadata: Metadata = { title: staffCopy.pageTitles.settings };
 export default async function SettingsSectionPage({
   params,
   searchParams,
+  area = 'settings',
 }: {
   params: Promise<{ section: string }>;
   searchParams?: Promise<{ q?: string; kind?: string; page?: string }>;
+  /** Administration (Staff, Roles, Doctors) uses this same page with its own menu. */
+  area?: 'settings' | 'administration';
 }) {
-  // Viewing any settings needs hospital.settings.read; without it: the usual no-permission redirect.
-  const session = await requirePermission('hospital.settings.read');
+  // Settings need hospital.settings.read; Administration only the permission of its own section.
+  const session =
+    area === 'administration'
+      ? await requireKind('HOSPITAL')
+      : await requirePermission('hospital.settings.read');
   const { section: sectionId } = await params;
   const sections = visibleSettingsSections(session.permissions, {
     canSwitchBranch: (session.hospitalWide ?? session.canSwitchBranch) === true,
+    area,
   });
   const section = findSettingsSection(sectionId);
+  // a section asked for in the wrong place goes to where it lives now (old bookmarks keep working)
+  if (section && (section.area ?? 'settings') !== area) {
+    redirect(section.route);
+  }
 
   if (!section) {
     return (
-      <SettingsShell sections={sections}>
+      <SettingsShell sections={sections} area={area}>
         <EmptyState
           title={staffCopy.settings.notFoundTitle}
           description={staffCopy.settings.notFoundDescription}
@@ -350,6 +361,7 @@ export default async function SettingsSectionPage({
   return (
     <SettingsShell
       sections={sections}
+      area={area}
       activeId={section.id}
       wide={WIDE_SECTIONS.includes(section.id)}
     >

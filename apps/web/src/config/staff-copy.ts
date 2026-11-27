@@ -70,6 +70,7 @@ const baseCopy = {
     patients: 'Patients',
     patientsDescription: 'Search and register patients',
     settings: 'Settings',
+    administration: 'Administration',
     openMenu: 'Open menu',
     closeMenu: 'Close menu',
     branchCaption: 'Branch',
@@ -253,6 +254,12 @@ const baseCopy = {
       registered: 'Registered',
     },
   },
+  administration: {
+    title: 'Administration',
+    description: 'Staff, roles and doctors of the hospital',
+    navAria: 'Administration sections',
+    navLabel: 'Administration',
+  },
   settings: {
     title: 'Settings',
     description: 'Hospital settings',
@@ -278,7 +285,7 @@ const baseCopy = {
     },
     groups: {
       hospital: 'Hospital',
-      people: 'People',
+      people: 'Staff and doctors',
       patients: 'Patients',
       opd: 'OPD',
       billing: 'Billing',

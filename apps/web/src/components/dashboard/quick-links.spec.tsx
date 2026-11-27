@@ -11,13 +11,7 @@ jest.mock('next/link', () => ({
 }));
 
 const show = (_permissions?: string[]) =>
-  render(
-    <QuickLinks
-      displayName="Dr Meena"
-      branchName="Main Branch"
-      hospitalName="Demo Clinic"
-    />,
-  );
+  render(<QuickLinks displayName="Dr Meena" branchName="Main Branch" hospitalName="Demo Clinic" />);
 
 describe('quickLinksFor', () => {
   it('gives only the links whose permission the person holds, in a fixed order', () => {

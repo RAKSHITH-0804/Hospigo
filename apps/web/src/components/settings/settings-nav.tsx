@@ -28,7 +28,14 @@ export function SettingsNav({
   const [open, setOpen] = useState<SettingsGroup | null>(activeGroup);
 
   return (
-    <nav aria-label={staffCopy.settings.navAria} className="settings-nav">
+    <nav
+      aria-label={
+        sections.some((s) => s.area === 'administration')
+          ? staffCopy.administration.navAria
+          : staffCopy.settings.navAria
+      }
+      className="settings-nav"
+    >
       {groups.map(({ group, sections: inGroup }) => {
         const isOpen = open === group;
         const listId = `${baseId}-${group}`;

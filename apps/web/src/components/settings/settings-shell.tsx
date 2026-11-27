@@ -13,17 +13,29 @@ export function SettingsShell({
   sections,
   activeId,
   wide,
+  area = 'settings',
   children,
 }: {
   sections: readonly SettingsSection[];
   activeId?: string;
   /** A section that needs the whole width of the screen (the print designer). */
   wide?: boolean;
+  /** Settings or Administration: the title and the menu label follow it. */
+  area?: 'settings' | 'administration';
   children: ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-[var(--space-3)]">
-      <PageHeader title={staffCopy.settings.title} description={staffCopy.settings.description} />
+      <PageHeader
+        title={
+          area === 'administration' ? staffCopy.administration.title : staffCopy.settings.title
+        }
+        description={
+          area === 'administration'
+            ? staffCopy.administration.description
+            : staffCopy.settings.description
+        }
+      />
       <div className="settings-layout">
         <SettingsNav sections={sections} activeId={activeId} />
         <div className={wide ? 'settings-content settings-content-wide' : 'settings-content'}>

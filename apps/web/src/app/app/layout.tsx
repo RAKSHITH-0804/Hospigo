@@ -31,6 +31,15 @@ export default async function StaffLayout({ children }: { children: ReactNode })
     });
   }
   navItems.push(...modules);
+  if (
+    ['user.read', 'role.read', 'opd.doctors.read'].some((p) => session.permissions?.includes(p))
+  ) {
+    navItems.push({
+      href: '/app/administration',
+      label: staffCopy.nav.administration,
+      icon: 'staff',
+    });
+  }
   if (session.permissions?.includes('hospital.settings.read')) {
     navItems.push({
       href: '/app/settings',

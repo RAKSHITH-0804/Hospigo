@@ -87,9 +87,9 @@ describe('the settings menu', () => {
     expect(groupSettingsSections([])).toEqual([]);
   });
 
-  it('a person with the people permissions sees the People heading with only what they may open', () => {
+  it('a person with the people permissions sees the Administration list with only what they may open', () => {
     const grouped = groupSettingsSections(
-      visibleSettingsSections(['hospital.settings.read', 'user.read']),
+      visibleSettingsSections(['hospital.settings.read', 'user.read'], { area: 'administration' }),
     );
     expect(grouped.find((g) => g.group === 'people')!.sections.map((s) => s.id)).toEqual(['staff']);
   });

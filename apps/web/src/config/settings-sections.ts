@@ -9,6 +9,10 @@
  */
 
 export const SETTINGS_BASE_ROUTE = '/app/settings';
+/** Staff, Roles and Doctors are management, not configuration: they live in Administration (Phase 2.3). */
+export const ADMINISTRATION_BASE_ROUTE = '/app/administration';
+
+export type SettingsArea = 'settings' | 'administration';
 
 /** The headings of the settings menu, in the order they are shown. */
 export const SETTINGS_GROUPS = ['hospital', 'people', 'patients', 'opd', 'billing'] as const;
@@ -37,6 +41,8 @@ export type SettingsSection = {
     | 'vitalsFields'
     | 'billNumbers';
   route: string;
+  /** Where it lives: Settings (configuration, the default) or Administration (people). */
+  area?: 'administration';
   /** Permission needed to view the section (changing needs the matching write permission). */
   permission: string;
   /**
@@ -81,21 +87,24 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     id: 'staff',
     group: 'people',
     copyKey: 'staff',
-    route: `${SETTINGS_BASE_ROUTE}/staff`,
+    route: `${ADMINISTRATION_BASE_ROUTE}/staff`,
+    area: 'administration',
     permission: 'user.read',
   },
   {
     id: 'roles',
     group: 'people',
     copyKey: 'roles',
-    route: `${SETTINGS_BASE_ROUTE}/roles`,
+    route: `${ADMINISTRATION_BASE_ROUTE}/roles`,
+    area: 'administration',
     permission: 'role.read',
   },
   {
     id: 'doctors',
     group: 'people',
     copyKey: 'doctors',
-    route: `${SETTINGS_BASE_ROUTE}/doctors`,
+    route: `${ADMINISTRATION_BASE_ROUTE}/doctors`,
+    area: 'administration',
     permission: 'opd.doctors.read',
   },
   // Patients
@@ -165,10 +174,14 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
 /** Sections the user may see, in list order. */
 export function visibleSettingsSections(
   permissions: readonly string[] | undefined,
-  opts?: { canSwitchBranch?: boolean },
+  opts?: { canSwitchBranch?: boolean; area?: SettingsArea },
 ): SettingsSection[] {
   const hospitalWide = opts?.canSwitchBranch === true;
+  const area = opts?.area ?? 'settings';
   return SETTINGS_SECTIONS.filter((section) => {
+    if ((section.area ?? 'settings') !== area) {
+      return false;
+    }
     if (!permissions?.includes(section.permission)) {
       return false;
     }
