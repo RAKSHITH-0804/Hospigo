@@ -1,145 +1,13 @@
 {
   "info": {
     "name": "Hospigo 7 reports and print templates",
-    "description": "Step 7 (API): the daily collection report (JSON and CSV, one branch and all branches), and print templates. BEFORE RUNNING: (1) npm run prisma:migrate -w @hospigo/api  (2) re-run the dev seed so Admin roles get the new report permission: NODE_ENV=development npm run prisma:seed -w @hospigo/api  (3) start the API on port 3000. Select the Hospigo Local environment (staffPassword and superadminPassword). Run collection. About 4 logins count against the login IP limit (20 per minute). The collection makes ONE paid visit and restores the receipt template to the default at the end.",
+    "description": "Step 7 (API): the daily collection report (JSON and CSV, one branch and all branches), and print templates. BEFORE RUNNING: (1) npm run prisma:migrate -w @hospigo/api  (2) re-run the dev seed so Admin roles get the new report permission: NODE_ENV=development npm run prisma:seed -w @hospigo/api  (3) start the API on port 3000. Select the Hospigo Local environment (staffPassword and superadminPassword). Run collection. About 4 logins count against the login IP limit (20 per minute). The collection makes ONE paid visit and restores the receipt template to the default at the end. Phase 2.2: the steps that used the Indigo Owner inside a hospital were removed (HQ never enters a hospital); template and logo changes return with the HQ console.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
       "name": "0 Setup",
       "item": [
-        {
-          "name": "O1 Login Indigo Owner (no access code)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/auth/hq/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "hq",
-                "login"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\"email\":\"{{indigoOwnerEmail}}\",\"password\":\"{{indigoPassword}}\"}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('login 200', () => pm.response.to.have.status(200));",
-                  "const j = pm.response.json();",
-                  "pm.collectionVariables.set('hqOwnerAccess', j.accessToken);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "O2 The Owner sees the hospitals and picks Demo North",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{hqOwnerAccess}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/auth/indigo/hospitals",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "indigo",
-                "hospitals"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('200', () => pm.response.to.have.status(200));",
-                  "const north = pm.response.json().items.find(h => h.code === 'DEMO_NORTH');",
-                  "pm.test('Demo North is listed', () => pm.expect(north).to.exist);",
-                  "pm.collectionVariables.set('northHospitalId', north.id);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "O3 Enter Demo North as the Indigo Owner",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{hqOwnerAccess}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/auth/indigo/enter",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "indigo",
-                "enter"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\"hospitalId\":\"{{northHospitalId}}\"}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('200', () => pm.response.to.have.status(200));",
-                  "const j = pm.response.json();",
-                  "pm.test('a hospital token pair', () => { pm.expect(j.accessToken).to.be.a('string'); pm.expect(j.refreshToken).to.be.a('string'); });",
-                  "pm.collectionVariables.set('rOwner', j.accessToken);"
-                ]
-              }
-            }
-          ]
-        },
         {
           "name": "1 Login Receptionist (north main)",
           "request": {
@@ -274,84 +142,6 @@
                   "const j = pm.response.json();",
                   "pm.test('has a token', () => pm.expect(j.accessToken).to.be.a('string'));",
                   "pm.collectionVariables.set('rSouth', j.accessToken);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "3a Setup: remove any leftover branch-level receipt template (SuperAdmin)",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{rOwner}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=branch",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "print-templates",
-                "RECEIPT"
-              ],
-              "query": [
-                {
-                  "key": "scope",
-                  "value": "branch"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('200 (nothing left at this level)', () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "3b Setup: remove any leftover hospital-level receipt template (SuperAdmin)",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{rOwner}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=hospital",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "print-templates",
-                "RECEIPT"
-              ],
-              "query": [
-                {
-                  "key": "scope",
-                  "value": "hospital"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('200 (nothing left at this level)', () => pm.response.to.have.status(200));"
                 ]
               }
             }
@@ -1060,46 +850,6 @@
       "name": "2 Print templates",
       "item": [
         {
-          "name": "19 Start clean: back to the default (SuperAdmin)",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{rOwner}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=hospital",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "print-templates",
-                "RECEIPT"
-              ],
-              "query": [
-                {
-                  "key": "scope",
-                  "value": "hospital"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('200', () => pm.response.to.have.status(200));",
-                  "pm.test('default A5', () => { const j = pm.response.json(); pm.expect(j.source).to.eql('DEFAULT'); pm.expect(j.paper).to.eql('A5'); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
           "name": "20 Reception can READ the templates (to print)",
           "request": {
             "method": "GET",
@@ -1215,60 +965,6 @@
           ]
         },
         {
-          "name": "23 SuperAdmin saves a pre-printed receipt on 240 x 140 mm stationery",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{rOwner}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=hospital",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "print-templates",
-                "RECEIPT"
-              ],
-              "query": [
-                {
-                  "key": "scope",
-                  "value": "hospital"
-                }
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\"enabled\": true, \"preset\": null, \"paper\": \"CUSTOM\", \"widthMm\": 240, \"heightMm\": 140, \"orientation\": \"LANDSCAPE\", \"margins\": {\"topMm\": 0, \"rightMm\": 0, \"bottomMm\": 0, \"leftMm\": 0}, \"mode\": \"PREPRINTED\", \"layout\": {\"version\": 1, \"fontSizePt\": 10, \"headerText\": \"Postman test\", \"footerText\": \"\", \"showLogo\": false, \"fields\": {\"billNumber\": true, \"receiptNumber\": true, \"token\": true, \"patientName\": true, \"uhid\": true, \"doctorName\": true, \"visitDate\": true, \"branchName\": true, \"lines\": true, \"total\": true, \"paid\": true, \"refunded\": true, \"paymentModes\": true, \"referenceNo\": true}, \"offset\": {\"xMm\": 1.5, \"yMm\": -1}, \"positions\": {\"billNumber\": {\"xMm\": 20, \"yMm\": 30}, \"total\": {\"xMm\": 200, \"yMm\": 120}}}}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('200', () => pm.response.to.have.status(200));",
-                  "const j = pm.response.json();",
-                  "pm.test('saved as custom, with the page size and the nudge', () => { pm.expect(j.source).to.eql('CUSTOM'); pm.expect(j.pageWidthMm).to.eql(240); pm.expect(j.pageHeightMm).to.eql(140); pm.expect(j.mode).to.eql('PREPRINTED'); pm.expect(j.layout.offset).to.eql({ xMm: 1.5, yMm: -1 }); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
           "name": "24 Reception now reads the saved template",
           "request": {
             "method": "GET",
@@ -1297,99 +993,6 @@
                 "exec": [
                   "pm.test('200', () => pm.response.to.have.status(200));",
                   "pm.test('custom, pre-printed', () => { const j = pm.response.json(); pm.expect(j.source).to.eql('CUSTOM'); pm.expect(j.mode).to.eql('PREPRINTED'); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "25 A bad template is refused with the field and the reason (400)",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{rOwner}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/print-templates/RECEIPT",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "print-templates",
-                "RECEIPT"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\"enabled\": true, \"preset\": null, \"paper\": \"CUSTOM\", \"widthMm\": 240, \"heightMm\": 140, \"orientation\": \"LANDSCAPE\", \"margins\": {\"topMm\": 99, \"rightMm\": 99, \"bottomMm\": 99, \"leftMm\": 99}, \"mode\": \"PREPRINTED\", \"layout\": {\"version\": 1, \"fontSizePt\": 10, \"headerText\": \"Postman test\", \"footerText\": \"\", \"showLogo\": false, \"fields\": {\"billNumber\": true, \"receiptNumber\": true, \"token\": true, \"patientName\": true, \"uhid\": true, \"doctorName\": true, \"visitDate\": true, \"branchName\": true, \"lines\": true, \"total\": true, \"paid\": true, \"refunded\": true, \"paymentModes\": true, \"referenceNo\": true}, \"offset\": {\"xMm\": 1.5, \"yMm\": -1}, \"positions\": {\"billNumber\": {\"xMm\": 20, \"yMm\": 30}, \"total\": {\"xMm\": 200, \"yMm\": 120}}}}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('400', () => pm.response.to.have.status(400));",
-                  "pm.test('PRINT_TEMPLATE_INVALID with the field', () => { const j = pm.response.json(); pm.expect(j.code).to.eql('PRINT_TEMPLATE_INVALID'); pm.expect(j.field).to.eql('margins'); pm.expect(j.reason).to.be.oneOf(['NO_ROOM_TO_PRINT_DOWN', 'NO_ROOM_TO_PRINT_ACROSS']); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "26 An unknown field is refused (400)",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{rOwner}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/print-templates/RECEIPT",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "print-templates",
-                "RECEIPT"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\"enabled\": true, \"preset\": null, \"paper\": \"CUSTOM\", \"widthMm\": 240, \"heightMm\": 140, \"orientation\": \"LANDSCAPE\", \"margins\": {\"topMm\": 0, \"rightMm\": 0, \"bottomMm\": 0, \"leftMm\": 0}, \"mode\": \"PREPRINTED\", \"layout\": {\"version\": 1, \"fontSizePt\": 10, \"headerText\": \"Postman test\", \"footerText\": \"\", \"showLogo\": false, \"fields\": {\"billNumber\": true, \"receiptNumber\": true, \"token\": true, \"patientName\": true, \"uhid\": true, \"doctorName\": true, \"visitDate\": true, \"branchName\": true, \"lines\": true, \"total\": true, \"paid\": true, \"refunded\": true, \"paymentModes\": true, \"referenceNo\": true}, \"offset\": {\"xMm\": 1.5, \"yMm\": -1}, \"positions\": {\"billNumber\": {\"xMm\": 20, \"yMm\": 30}, \"total\": {\"xMm\": 200, \"yMm\": 120}}}, \"tenantId\": \"x\"}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('400', () => pm.response.to.have.status(400));"
                 ]
               }
             }
@@ -1464,46 +1067,6 @@
           ]
         },
         {
-          "name": "29 Go back to the default",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{rOwner}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=hospital",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "print-templates",
-                "RECEIPT"
-              ],
-              "query": [
-                {
-                  "key": "scope",
-                  "value": "hospital"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('200', () => pm.response.to.have.status(200));",
-                  "pm.test('default again', () => pm.expect(pm.response.json().source).to.eql('DEFAULT'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
           "name": "30 No token = 401",
           "request": {
             "method": "GET",
@@ -1549,10 +1112,6 @@
     {
       "key": "southSuperEmail",
       "value": "superadmin@demo-south.example.test"
-    },
-    {
-      "key": "indigoOwnerEmail",
-      "value": "owner@indigo-demo.example.test"
     }
   ]
 }

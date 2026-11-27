@@ -116,11 +116,11 @@ After Step 5b the dev Receptionist role also holds `opd.queue.read`: reception s
 
 - After `npm run prisma:migrate -w @hospigo/api` and a restart (no seed change): the SuperAdmin of a demo hospital uploads the logo (Settings, Logo); Doctors upload their own signature or stamp in My profile; Receptionist and Nurse can only see the logo through the printed documents. Test pictures made by the Postman 7e collection are removed at its end (they stay on record).
 
-## Indigo people (Step 2.1b; the sign-in form with an EMPTY access code)
+## HQ people (Phase 2.2; the sign-in form with an EMPTY access code)
 
-When `SEED_INDIGO_PASSWORD` is set in `.env`, the dev seed creates two fake Indigo accounts (never in production):
+HQ (Indigo, the software owners) never enters a hospital. When `SEED_INDIGO_PASSWORD` is set in `.env` (the showcase seed falls back to `SEED_STAFF_PASSWORD`), the seeds create two fake HQ accounts (never in production):
 
-- `owner@indigo-demo.example.test`: Indigo Owner, may enter every hospital with full power.
-- `employee@indigo-demo.example.test`: Indigo Employee, assigned to Demo North only; configuration and data loading, no patient data.
+- `hq.admin@indigo.example.org`: HQ Admin, sees every hospital, creates hospitals, switches modules, makes HQ Staff.
+- `hq.staff@indigo.example.org`: HQ Staff, sees only the hospitals an HQ Admin assigned (in the test database: Demo North), no access codes, cannot create hospitals.
 
-Both use the password in `SEED_INDIGO_PASSWORD`. Sign in with the access code left empty, choose a hospital on the Hospitals page. In Postman add `indigoPassword` to the Hospigo Local environment.
+Both use that password. Sign in with the access code left empty: the Hospitals page opens; there is no Enter button. In Postman add `indigoPassword` to the Hospigo Local environment. The old accounts `owner@indigo-demo.example.test` and `employee@indigo-demo.example.test` are gone.

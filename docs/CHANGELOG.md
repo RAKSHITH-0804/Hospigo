@@ -29,6 +29,15 @@
 
 ## Unreleased
 
+## 2026-11-27 — Phase 2.2 checkpoint 1 — Cleanup and privacy: HQ never enters a hospital (branch `feature/step-2-2a-cleanup`, not pushed)
+
+- **Added:** `npm run dev:reset` (dev database with only Nandavana and Sagarika plus HQ Admin and HQ Staff); `HqScopeService`; Postman collection `hospigo-2-2a-hq-without-entry` (generator `scripts/make-postman-2-2a.mjs`).
+- **Changed:** names HQ Admin, HQ Staff, Super Admin, Admin; HQ demo accounts `hq.admin@` and `hq.staff@indigo.example.org`; `/auth/me` returns `HQ_ADMIN` or `HQ_STAFF`.
+- **Removed:** `/auth/indigo/enter`, `/auth/indigo/hospitals`, Enter hospital and Switch hospital, the Indigo access screen and permission, the roles `TENANT_ADMIN` and `INDIGO_EMPLOYEE`, `demo:reset`, `demo:stack`, `showcase:dev`, `hospigo_demo`.
+- **Database:** migration `20261129097000_remove_hq_entry` (switches off old hidden users, the two roles and the permission; nothing deleted, RLS and append-only tables untouched).
+- **Decisions:** `docs/decisions/decisions-2-2.md`.
+- **Follow-ups and open items:** template and logo changes in hospitals wait for the HQ console (checkpoint 2).
+
 ## 2026-11-26 — Phase 2.1 Step 2.1f — Finish: demo database, template library, terminology, console setup, amend and access log screens (branch `feature/step-2-1f-finish`, not pushed)
 
 - **What changed:** `hospigo_demo` database for the showcase (create script, guards); designed sample templates and logos; template library in the Indigo console and Print designs for hospitals; terminology overrides; prescription in the amend form; Indigo access screen; branch module switch and starter from the console; dashboard counts visits by visit date; age and gender on the bill.

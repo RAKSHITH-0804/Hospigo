@@ -141,17 +141,17 @@ Tick a line only when you saw the result. If a line fails, write the line number
 ## I. Phase 2.1b (roles and access)
 
 1. Sign-in page: there is one form and no Indigo HQ tab. With the access code of a hospital the hospital staff sign in as before.
-2. Add `SEED_INDIGO_PASSWORD` to `.env`, run the dev seed. Sign in with an EMPTY access code as `owner@indigo-demo.example.test`: the page **Hospitals** lists the real hospitals. Press **Enter hospital** on Demo North: you are inside, your name shows with "(Indigo)", and Settings, Printing is not read-only.
-3. Sign out. As the hospital SuperAdmin of Demo North: Settings, Staff does not list the Indigo person; Settings, Printing says printouts are set up by Indigo and cannot be changed.
-4. As `employee@indigo-demo.example.test` only Demo North is listed; inside you can use Staff, Roles, Prices and Excel uploads but not the Patients page.
+2. (Phase 2.2: HQ never enters a hospital, steps 2 to 4 changed.) Sign in with an EMPTY access code as `hq.admin@indigo.example.org`: **Hospitals** lists the real hospitals and there is NO Enter button.
+3. Sign out. As the hospital Super Admin: Settings, Staff lists no HQ person, and Settings has no **Indigo access** page.
+4. As `hq.staff@indigo.example.org` only the assigned hospitals are listed, with no access codes and no Onboard page; there is no way into a hospital.
 5. As an Admin of two branches (give one person two branches in Settings, Staff): the branch switcher shows only those two branches.
 6. Doctor: complete a consultation. As the SuperAdmin or an Admin open the same visit's consultation page: **Changes to this note** shows the form; change the diagnosis, write a reason, save: the page shows **Amended (version 1)**, the history shows who and why, and the printed patient report and prescription show Amended. The doctor can no longer change the note.
 7. Doctor: open a patient another doctor saw: press **Show the history**: every visit in every branch is listed, read-only. (Opening it is recorded; the hospital SuperAdmin can read the Indigo log through the API.)
 
 ## J. Phase 2.1e (Indigo console)
 
-1. Sign in with an empty access code as `owner@indigo-demo.example.test`: **Hospitals** shows every hospital with its status, branches with access codes, modules and an **Enter hospital** button. The menu has Hospitals, Onboard hospital and Indigo employees.
-2. Switch a module on for a demo hospital and press **Save modules**; enter that hospital and see the module in the menu. OPD cannot be switched off.
+1. Sign in with an empty access code as `hq.admin@indigo.example.org`: **Hospitals** shows every hospital with its status, branches with access codes, modules (no Enter hospital button: HQ never enters a hospital). The menu has Hospitals, Onboard hospital and Indigo employees.
+2. Switch a module on for a demo hospital and press **Save modules**; a hospital user of that hospital (sign in with their access code) sees the module in the menu. OPD cannot be switched off.
 3. **Onboard hospital**: fill the form with a new code, a branch with an access code (at least 6 letters, digits or dashes), a SuperAdmin name and email; the next page shows the access codes, the one-time password of the SuperAdmin and the starter command. Run the starter command for that hospital, then sign in with the access code and the one-time password; the SuperAdmin must change the password.
 4. **Indigo employees**: add an employee (a one-time password is shown once), tick the hospitals he may enter, save. Sign in as that employee: only those hospitals are listed, with no access codes, and no Onboard page.
 5. Switch the employee off: he cannot enter any more and his open sessions end at the next refresh.
@@ -180,7 +180,7 @@ Tick a line only when you saw the result. If a line fails, write the line number
 6. Indigo console, hospital card (Owner): **Modules of a branch** (OPD stays on), **Create the starter masters** (press twice: the second time everything is "already there").
 7. Hospital Admin or SuperAdmin, a COMPLETED consultation: **Change this completed note** now also edits the prescription (change a dose, give a reason); the history shows the new version and the printed prescription says Amended.
 8. Hospital SuperAdmin, **Settings, Indigo access**: every entry of a person from Indigo, newest first.
-9. Showcase hospitals (`hospigo_demo`): the Dashboard shows the cards and charts with believable numbers over 14 and 30 days, in every role.
+9. Dev database after `npm run dev:reset` (Nandavana and Sagarika): the Dashboard shows the cards and charts with believable numbers over 14 and 30 days, in every role.
 
 ## F. After the checklist
 

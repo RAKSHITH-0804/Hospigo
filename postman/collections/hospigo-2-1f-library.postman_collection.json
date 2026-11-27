@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "Hospigo 2.1f: template library, terminology, branch modules, starter, access log, dashboard",
+    "name": "Hospigo 2.1f: template library, terminology, branch modules, starter, dashboard",
     "description": "Step 2.1f. Needs the Hospigo Local environment (baseUrl, staffPassword, superadminPassword, branchAdminPassword, indigoPassword) and the demo seed with the Indigo demo people (SEED_INDIGO_PASSWORD). Cleans up after itself (designs removed, assignment taken away, words cleared).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
@@ -18,12 +18,12 @@
       "value": "receptionist1@demo-north.example.test"
     },
     {
-      "key": "indigoOwnerEmail",
-      "value": "owner@indigo-demo.example.test"
+      "key": "hqAdminEmail",
+      "value": "hq.admin@indigo.example.org"
     },
     {
-      "key": "indigoEmployeeEmail",
-      "value": "employee@indigo-demo.example.test"
+      "key": "hqStaffEmail",
+      "value": "hq.staff@indigo.example.org"
     }
   ],
   "item": [
@@ -163,7 +163,7 @@
           ]
         },
         {
-          "name": "Login Indigo Owner",
+          "name": "Login HQ Admin",
           "request": {
             "method": "POST",
             "header": [
@@ -185,7 +185,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\"email\":\"{{indigoOwnerEmail}}\",\"password\":\"{{indigoPassword}}\"}",
+              "raw": "{\"email\":\"{{hqAdminEmail}}\",\"password\":\"{{indigoPassword}}\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -207,7 +207,7 @@
           ]
         },
         {
-          "name": "Login Indigo Employee",
+          "name": "Login HQ Staff",
           "request": {
             "method": "POST",
             "header": [
@@ -229,7 +229,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\"email\":\"{{indigoEmployeeEmail}}\",\"password\":\"{{indigoPassword}}\"}",
+              "raw": "{\"email\":\"{{hqStaffEmail}}\",\"password\":\"{{indigoPassword}}\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -251,7 +251,7 @@
           ]
         },
         {
-          "name": "The Owner finds north and south",
+          "name": "The HQ Admin finds north and south",
           "request": {
             "method": "GET",
             "header": [
@@ -292,7 +292,7 @@
       ]
     },
     {
-      "name": "1 Library (Indigo Owner)",
+      "name": "1 Library (HQ Admin)",
       "item": [
         {
           "name": "Only the Owner: an Employee gets 403",
@@ -361,7 +361,7 @@
           ]
         },
         {
-          "name": "The Owner adds the designed samples",
+          "name": "The HQ Admin adds the designed samples",
           "request": {
             "method": "POST",
             "header": [
@@ -638,7 +638,7 @@
           ]
         },
         {
-          "name": "The Owner assigns two bills to north",
+          "name": "The HQ Admin assigns two bills to north",
           "request": {
             "method": "PUT",
             "header": [
@@ -1057,7 +1057,7 @@
       "name": "3 Terminology",
       "item": [
         {
-          "name": "The Owner sets a word",
+          "name": "The HQ Admin sets a word",
           "request": {
             "method": "PUT",
             "header": [
@@ -1186,7 +1186,7 @@
           ]
         },
         {
-          "name": "An Employee assigned to north clears it",
+          "name": "HQ Staff assigned to north clears it",
           "request": {
             "method": "PUT",
             "header": [
@@ -1234,7 +1234,7 @@
           ]
         },
         {
-          "name": "An Employee cannot touch south (403)",
+          "name": "HQ Staff cannot touch south (403)",
           "request": {
             "method": "PUT",
             "header": [
@@ -1317,10 +1317,10 @@
       ]
     },
     {
-      "name": "4 Branch modules, starter, access log, dashboard",
+      "name": "4 Branch modules, starter, dashboard",
       "item": [
         {
-          "name": "The Owner sets the main branch modules to what it already has",
+          "name": "The HQ Admin sets the main branch modules to what it already has",
           "request": {
             "method": "PUT",
             "header": [
@@ -1420,7 +1420,7 @@
           ]
         },
         {
-          "name": "An Employee cannot switch branch modules (403)",
+          "name": "HQ Staff cannot switch branch modules (403)",
           "request": {
             "method": "PUT",
             "header": [
@@ -1470,7 +1470,7 @@
           ]
         },
         {
-          "name": "The Owner runs the starter masters (safe to press twice)",
+          "name": "The HQ Admin runs the starter masters (safe to press twice)",
           "request": {
             "method": "POST",
             "header": [
@@ -1519,7 +1519,7 @@
           ]
         },
         {
-          "name": "An Employee cannot run it (403)",
+          "name": "HQ Staff cannot run it (403)",
           "request": {
             "method": "POST",
             "header": [
@@ -1552,71 +1552,6 @@
                   "language": "json"
                 }
               }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('403', () => pm.response.to.have.status(403));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "The SuperAdmin reads the Indigo access log of the own hospital",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{xSuper}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/indigo-access-log",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "indigo-access-log"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('200', () => pm.response.to.have.status(200));",
-                  "pm.test('a page of entries', () => pm.expect(pm.response.json().items).to.be.an('array'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "The receptionist cannot (403)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{xRecv}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/indigo-access-log",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "indigo-access-log"
-              ]
             }
           },
           "event": [
@@ -1706,132 +1641,6 @@
     {
       "name": "5 Clean up",
       "item": [
-        {
-          "name": "The Owner enters north (to clean up the chosen designs)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{xHqOwner}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/auth/indigo/enter",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "indigo",
-                "enter"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\"hospitalId\":\"{{xNorthId}}\"}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('200', () => pm.response.to.have.status(200));",
-                  "pm.collectionVariables.set('xOwnerInside', pm.response.json().accessToken);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "The branch design is removed",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{xOwnerInside}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=branch",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "print-templates",
-                "RECEIPT"
-              ],
-              "query": [
-                {
-                  "key": "scope",
-                  "value": "branch"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('200', () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "The hospital design is removed",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{xOwnerInside}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=hospital",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "print-templates",
-                "RECEIPT"
-              ],
-              "query": [
-                {
-                  "key": "scope",
-                  "value": "hospital"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('200', () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
-        },
         {
           "name": "The assignment is taken away again",
           "request": {

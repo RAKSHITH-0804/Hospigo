@@ -1,0 +1,821 @@
+{
+  "info": {
+    "name": "Hospigo 2.2a: HQ without entry (HQ never enters a hospital)",
+    "description": "Phase 2.2, checkpoint 1. Needs the Hospigo Local environment (baseUrl, staffPassword, superadminPassword, indigoPassword) and the test seed with the HQ demo people (SEED_INDIGO_PASSWORD): hq.admin@indigo.example.org and hq.staff@indigo.example.org. Changes nothing (reads and refusals only).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:3000"
+    },
+    {
+      "key": "superEmail",
+      "value": "superadmin@demo-north.example.test"
+    },
+    {
+      "key": "receptionEmail",
+      "value": "receptionist1@demo-north.example.test"
+    },
+    {
+      "key": "hqAdminEmail",
+      "value": "hq.admin@indigo.example.org"
+    },
+    {
+      "key": "hqStaffEmail",
+      "value": "hq.staff@indigo.example.org"
+    }
+  ],
+  "item": [
+    {
+      "name": "0 Setup",
+      "item": [
+        {
+          "name": "1 Login Super Admin (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{superEmail}}\",\"password\":\"{{superadminPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('hSuper', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 Login Receptionist (north main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hospital/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hospital",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{receptionEmail}}\",\"password\":\"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('hRecv', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3 Login HQ Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hq/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hq",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"{{hqAdminEmail}}\",\"password\":\"{{indigoPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('hqAdmin', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4 Login HQ Staff",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/hq/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "hq",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"{{hqStaffEmail}}\",\"password\":\"{{indigoPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('hqStaff', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1 HQ has no door into a hospital",
+      "item": [
+        {
+          "name": "5 The old entry route is gone (HQ Admin gets 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{hqAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/indigo/enter",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "indigo",
+                "enter"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"hospitalId\":\"any\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6 The old hospital list for entering is gone (404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{hqAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/indigo/hospitals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "indigo",
+                "hospitals"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7 An HQ token is refused on a hospital route (401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{hqAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8 An HQ token is refused on the OPD queue (401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{hqStaff}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opd/queue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "opd",
+                "queue"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9 A hospital token is refused on the HQ console (401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{hSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/indigo/hospitals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "indigo",
+                "hospitals"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 No token on the HQ console (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/indigo/hospitals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "indigo",
+                "hospitals"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 HQ Admin profile names the role HQ_ADMIN and has no hospital",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{hqAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('HQ Admin', () => { const b = pm.response.json(); pm.expect(b.kind).to.eql('HQ'); pm.expect(b.roleCodes).to.eql(['HQ_ADMIN']); pm.expect(b.hospitalName).to.eql(null); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 HQ Staff profile names the role HQ_STAFF",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{hqStaff}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('HQ Staff', () => pm.expect(pm.response.json().roleCodes).to.eql(['HQ_STAFF']));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 The hospital sees no HQ trace",
+      "item": [
+        {
+          "name": "13 The hospital staff list shows no HQ person",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{hSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/staff?pageSize=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "staff"
+              ],
+              "query": [
+                {
+                  "key": "pageSize",
+                  "value": "100"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('no HQ person', () => { const t = pm.response.text(); pm.expect(t).to.not.include('(Indigo)'); pm.expect(t).to.not.include('indigo.invalid'); pm.expect(t).to.not.include('indigo.example.org'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 The role list has only roles a hospital owns",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{hSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/roles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "roles"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('no retired roles', () => { const codes = pm.response.json().items.map(r => r.code); pm.expect(codes).to.not.include('TENANT_ADMIN'); pm.expect(codes).to.not.include('INDIGO_EMPLOYEE'); pm.expect(codes).to.include('SUPER_ADMIN'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 The Indigo access log screen is gone (404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{hSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/indigo-access-log",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "indigo-access-log"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 The Super Admin profile has no Indigo access permission",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{hSuper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('no indigo.access.read', () => pm.expect(pm.response.json().permissions).to.not.include('indigo.access.read'));",
+                  "pm.test('Super Admin role code', () => pm.expect(pm.response.json().roleCodes).to.include('SUPER_ADMIN'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 The HQ console (counts and setup only)",
+      "item": [
+        {
+          "name": "17 HQ Admin sees the hospitals (with access codes) and can manage",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{hqAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/indigo/hospitals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "indigo",
+                "hospitals"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('HQ Admin overview', () => { const b = pm.response.json(); pm.expect(b.canManage).to.eql(true); pm.expect(b.items.length).to.be.above(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "18 HQ Staff sees only assigned hospitals, no access codes, cannot manage",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{hqStaff}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/indigo/hospitals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "indigo",
+                "hospitals"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('HQ Staff overview', () => { const b = pm.response.json(); pm.expect(b.canManage).to.eql(false); pm.expect(pm.response.text()).to.not.include('accessCode'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "19 HQ Staff cannot onboard a hospital (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{hqStaff}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/indigo/hospitals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "indigo",
+                "hospitals"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "20 HQ Staff cannot manage HQ Staff (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{hqStaff}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/indigo/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "indigo",
+                "employees"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "21 HQ Admin lists HQ Staff",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{hqAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/indigo/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "indigo",
+                "employees"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

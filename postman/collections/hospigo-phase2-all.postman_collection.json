@@ -46,12 +46,12 @@
       "value": "receptionist1@demo-north.example.test"
     },
     {
-      "key": "indigoOwnerEmail",
-      "value": "owner@indigo-demo.example.test"
+      "key": "hqAdminEmail",
+      "value": "hq.admin@indigo.example.org"
     },
     {
-      "key": "indigoEmployeeEmail",
-      "value": "employee@indigo-demo.example.test"
+      "key": "hqStaffEmail",
+      "value": "hq.staff@indigo.example.org"
     },
     {
       "key": "nurseEmail",
@@ -108,1352 +108,7 @@
   ],
   "item": [
     {
-      "name": "2-1b-indigo-access: Hospigo 2.1b and 2.1e Indigo access and console",
-      "item": [
-        {
-          "name": "0 Setup",
-          "item": [
-            {
-              "name": "1 Login SuperAdmin (north main)",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/hospital/login",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "hospital",
-                    "login"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{superEmail}}\",\"password\":\"{{superadminPassword}}\"}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "pm.collectionVariables.set('xSuper', pm.response.json().accessToken);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "2 Login Receptionist (north main)",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/hospital/login",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "hospital",
-                    "login"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{receptionEmail}}\",\"password\":\"{{staffPassword}}\"}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "pm.collectionVariables.set('xRecv', pm.response.json().accessToken);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "3 Login Indigo Owner (no access code)",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/hq/login",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "hq",
-                    "login"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"email\":\"{{indigoOwnerEmail}}\",\"password\":\"{{indigoPassword}}\"}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "pm.collectionVariables.set('xHqOwner', pm.response.json().accessToken);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "4 Login Indigo Employee (no access code)",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/hq/login",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "hq",
-                    "login"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"email\":\"{{indigoEmployeeEmail}}\",\"password\":\"{{indigoPassword}}\"}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "pm.collectionVariables.set('xHqEmp', pm.response.json().accessToken);"
-                    ]
-                  }
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "name": "1 Indigo entry",
-          "item": [
-            {
-              "name": "5 The Owner sees every hospital and picks north and south",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xHqOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/indigo/hospitals",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "indigo",
-                    "hospitals"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "const items = pm.response.json().items;",
-                      "const north = items.find(h => h.code === 'DEMO_NORTH'); const south = items.find(h => h.code === 'DEMO_SOUTH');",
-                      "pm.test('both demo hospitals are listed', () => { pm.expect(north).to.exist; pm.expect(south).to.exist; });",
-                      "pm.collectionVariables.set('xNorthId', north.id); pm.collectionVariables.set('xSouthId', south.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "6 The Employee sees only the assigned hospital (north)",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xHqEmp}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/indigo/hospitals",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "indigo",
-                    "hospitals"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "pm.test('only north', () => pm.expect(pm.response.json().items.map(h => h.code)).to.eql(['DEMO_NORTH']));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "7 The Owner enters north",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xHqOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/indigo/enter",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "indigo",
-                    "enter"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"hospitalId\":\"{{xNorthId}}\"}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "const j = pm.response.json(); pm.test('a hospital token pair', () => { pm.expect(j.accessToken).to.be.a('string'); pm.expect(j.refreshToken).to.be.a('string'); });",
-                      "pm.collectionVariables.set('xOwnerNorth', j.accessToken);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "8 The Owner is the Indigo Owner inside, hospital-wide",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xOwnerNorth}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/me",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "me"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "const j = pm.response.json(); pm.test('Owner role, hospital-wide, named', () => { pm.expect(j.roleCodes).to.eql(['TENANT_ADMIN']); pm.expect(j.hospitalWide).to.eql(true); pm.expect(j.displayName).to.include('(Indigo)'); });",
-                      "pm.test('may change templates', () => pm.expect(j.permissions).to.include('print.templates.manage'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "9 The Employee enters north: configuration only, no patient data",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xHqEmp}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/indigo/enter",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "indigo",
-                    "enter"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"hospitalId\":\"{{xNorthId}}\"}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "pm.collectionVariables.set('xEmpNorth', pm.response.json().accessToken);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "10 The Employee has no patient, template or notes permission",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xEmpNorth}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/me",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "me"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "const p = pm.response.json().permissions; pm.test('configuration yes', () => pm.expect(p).to.include('user.write'));",
-                      "pm.test('no patient data, no templates, no notes', () => { ['patients.registry.read','opd.notes.read','opd.visits.read','print.templates.manage','indigo.access.read'].forEach(x => pm.expect(p).to.not.include(x)); });"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "11 The Employee cannot read patients (403)",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xEmpNorth}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/patients",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "patients"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('403', () => pm.response.to.have.status(403));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "12 The Employee cannot enter south (same refusal as an unknown hospital)",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xHqEmp}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/indigo/enter",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "indigo",
-                    "enter"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"hospitalId\":\"{{xSouthId}}\"}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('403', () => pm.response.to.have.status(403));",
-                      "pm.collectionVariables.set('xRefusal', pm.response.text());"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "13 An unknown hospital gets the very same answer (403)",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xHqEmp}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/indigo/enter",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "indigo",
-                    "enter"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"hospitalId\":\"no-such-hospital\"}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('403', () => pm.response.to.have.status(403));",
-                      "pm.test('identical body, nothing to learn', () => pm.expect(pm.response.text()).to.eql(pm.collectionVariables.get('xRefusal')));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "14 A hospital token cannot enter (it is not an Indigo token)",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xSuper}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/indigo/enter",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "indigo",
-                    "enter"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"hospitalId\":\"{{xNorthId}}\"}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('refused', () => pm.expect(pm.response.code).to.be.oneOf([401, 403]));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "15 No token = 401",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/indigo/enter",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "indigo",
-                    "enter"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"hospitalId\":\"{{xNorthId}}\"}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('401', () => pm.response.to.have.status(401));"
-                    ]
-                  }
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "name": "2 What the hospital sees",
-          "item": [
-            {
-              "name": "16 The hospital staff list never shows the Indigo people",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xSuper}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/staff?pageSize=100",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "staff"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "pm.test('no hidden Indigo user', () => { const t = pm.response.text(); pm.expect(t).to.not.include('(Indigo)'); pm.expect(t).to.not.include('indigo.invalid'); });"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "17 The role list never shows the Indigo roles",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xSuper}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/roles",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "roles"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "pm.test('no Indigo roles', () => { const codes = pm.response.json().items.map(r => r.code); pm.expect(codes).to.not.include('TENANT_ADMIN'); pm.expect(codes).to.not.include('INDIGO_EMPLOYEE'); });"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "18 The hospital SuperAdmin sees who from Indigo entered",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xSuper}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/indigo-access-log",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "indigo-access-log"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "const j = pm.response.json(); pm.test('entries with ids and a name only', () => { pm.expect(j.total).to.be.at.least(2); pm.expect(Object.keys(j.items[0]).sort()).to.eql(['action','at','id','person']); pm.expect(j.items[0].action).to.eql('ENTER'); });"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "19 The receptionist cannot read it (403)",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xRecv}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/indigo-access-log",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "indigo-access-log"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('403', () => pm.response.to.have.status(403));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "20 No token = 401",
-              "request": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{baseUrl}}/indigo-access-log",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "indigo-access-log"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('401', () => pm.response.to.have.status(401));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "21 An Admin or SuperAdmin cannot change templates any more (403)",
-              "request": {
-                "method": "PUT",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xSuper}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=branch",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "print-templates",
-                    "RECEIPT"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('403', () => pm.response.to.have.status(403));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "21b The pending-approvals count for someone who may approve (Step 2.1c)",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xSuper}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/opd/refund-requests/pending-count",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "opd",
-                    "refund-requests",
-                    "pending-count"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "pm.test('a whole number', () => { const c = pm.response.json().count; pm.expect(c).to.be.a('number'); pm.expect(c % 1).to.eql(0); pm.expect(c).to.be.at.least(0); });"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "21c The receptionist cannot ask for it (403)",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xRecv}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/opd/refund-requests/pending-count",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "opd",
-                    "refund-requests",
-                    "pending-count"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('403', () => pm.response.to.have.status(403));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "21d No token = 401",
-              "request": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{baseUrl}}/opd/refund-requests/pending-count",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "opd",
-                    "refund-requests",
-                    "pending-count"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('401', () => pm.response.to.have.status(401));"
-                    ]
-                  }
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "name": "3 Indigo console (Step 2.1e)",
-          "item": [
-            {
-              "name": "22 The Owner overview: hospitals with branches, access codes and modules",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xHqOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/indigo/hospitals",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "indigo",
-                    "hospitals"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "const j = pm.response.json(); pm.test('Owner may manage and sees access codes', () => { pm.expect(j.canManage).to.eql(true); pm.expect(JSON.stringify(j)).to.include('accessCode'); pm.expect(j.moduleCatalog.length).to.be.above(0); });",
-                      "const north = j.items.find(h => h.code === 'DEMO_NORTH'); pm.test('Demo North with its branches and OPD', () => { pm.expect(north.branches.length).to.be.at.least(2); pm.expect(north.modules).to.include('OPD'); });"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "23 The Employee overview: only assigned hospitals, no access codes, cannot manage",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xHqEmp}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/indigo/hospitals",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "indigo",
-                    "hospitals"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "const j = pm.response.json(); pm.test('read-only view', () => { pm.expect(j.canManage).to.eql(false); pm.expect(JSON.stringify(j)).to.not.include('accessCode'); pm.expect(j.items.map(h => h.code)).to.eql(['DEMO_NORTH']); });"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "24 The Employee cannot onboard a hospital (403)",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xHqEmp}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/indigo/hospitals",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "indigo",
-                    "hospitals"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('403', () => pm.response.to.have.status(403));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "25 The Employee cannot manage Indigo employees (403)",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xHqEmp}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/indigo/employees",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "indigo",
-                    "employees"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('403', () => pm.response.to.have.status(403));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "26 A hospital token cannot use the console (401)",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xSuper}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/indigo/hospitals",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "indigo",
-                    "hospitals"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('401', () => pm.response.to.have.status(401));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "27 No token = 401",
-              "request": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{baseUrl}}/indigo/hospitals",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "indigo",
-                    "hospitals"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('401', () => pm.response.to.have.status(401));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "28 The Owner: a hospital with nothing in it is refused (400), nothing is created",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xHqOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/indigo/hospitals",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "indigo",
-                    "hospitals"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('400', () => pm.response.to.have.status(400));",
-                      "pm.test('names the field', () => pm.expect(pm.response.json().code).to.eql('INDIGO_INVALID'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "29 The Owner: unknown fields are refused (400)",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xHqOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/indigo/hospitals",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "indigo",
-                    "hospitals"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"code\":\"ZZZ_NEVER\",\"name\":\"X\",\"branches\":[],\"moduleCodes\":[\"OPD\"],\"superAdmin\":{\"name\":\"A\",\"email\":\"a@example.test\"},\"surprise\":1}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('400', () => pm.response.to.have.status(400));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "30 The Owner lists Indigo employees",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xHqOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/indigo/employees",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "indigo",
-                    "employees"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "pm.test('the demo employee is listed', () => pm.expect(pm.response.json().items.map(e => e.email)).to.include('employee@indigo-demo.example.test'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "31 The Owner: an unknown hospital for a module change is refused (403)",
-              "request": {
-                "method": "PUT",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xHqOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/indigo/hospitals/no-such-hospital/modules",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "indigo",
-                    "hospitals",
-                    "no-such-hospital",
-                    "modules"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"moduleCodes\":[\"OPD\"]}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('403', () => pm.response.to.have.status(403));"
-                    ]
-                  }
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "2-1f-library: Hospigo 2.1f: template library, terminology, branch modules, starter, access log, dashboard",
+      "name": "2-1f-library: Hospigo 2.1f: template library, terminology, branch modules, starter, dashboard",
       "item": [
         {
           "name": "0 Setup",
@@ -1591,7 +246,7 @@
               ]
             },
             {
-              "name": "Login Indigo Owner",
+              "name": "Login HQ Admin",
               "request": {
                 "method": "POST",
                 "header": [
@@ -1613,7 +268,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\"email\":\"{{indigoOwnerEmail}}\",\"password\":\"{{indigoPassword}}\"}",
+                  "raw": "{\"email\":\"{{hqAdminEmail}}\",\"password\":\"{{indigoPassword}}\"}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1635,7 +290,7 @@
               ]
             },
             {
-              "name": "Login Indigo Employee",
+              "name": "Login HQ Staff",
               "request": {
                 "method": "POST",
                 "header": [
@@ -1657,7 +312,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\"email\":\"{{indigoEmployeeEmail}}\",\"password\":\"{{indigoPassword}}\"}",
+                  "raw": "{\"email\":\"{{hqStaffEmail}}\",\"password\":\"{{indigoPassword}}\"}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1679,7 +334,7 @@
               ]
             },
             {
-              "name": "The Owner finds north and south",
+              "name": "The HQ Admin finds north and south",
               "request": {
                 "method": "GET",
                 "header": [
@@ -1720,7 +375,7 @@
           ]
         },
         {
-          "name": "1 Library (Indigo Owner)",
+          "name": "1 Library (HQ Admin)",
           "item": [
             {
               "name": "Only the Owner: an Employee gets 403",
@@ -1789,7 +444,7 @@
               ]
             },
             {
-              "name": "The Owner adds the designed samples",
+              "name": "The HQ Admin adds the designed samples",
               "request": {
                 "method": "POST",
                 "header": [
@@ -2066,7 +721,7 @@
               ]
             },
             {
-              "name": "The Owner assigns two bills to north",
+              "name": "The HQ Admin assigns two bills to north",
               "request": {
                 "method": "PUT",
                 "header": [
@@ -2485,7 +1140,7 @@
           "name": "3 Terminology",
           "item": [
             {
-              "name": "The Owner sets a word",
+              "name": "The HQ Admin sets a word",
               "request": {
                 "method": "PUT",
                 "header": [
@@ -2614,7 +1269,7 @@
               ]
             },
             {
-              "name": "An Employee assigned to north clears it",
+              "name": "HQ Staff assigned to north clears it",
               "request": {
                 "method": "PUT",
                 "header": [
@@ -2662,7 +1317,7 @@
               ]
             },
             {
-              "name": "An Employee cannot touch south (403)",
+              "name": "HQ Staff cannot touch south (403)",
               "request": {
                 "method": "PUT",
                 "header": [
@@ -2745,10 +1400,10 @@
           ]
         },
         {
-          "name": "4 Branch modules, starter, access log, dashboard",
+          "name": "4 Branch modules, starter, dashboard",
           "item": [
             {
-              "name": "The Owner sets the main branch modules to what it already has",
+              "name": "The HQ Admin sets the main branch modules to what it already has",
               "request": {
                 "method": "PUT",
                 "header": [
@@ -2848,7 +1503,7 @@
               ]
             },
             {
-              "name": "An Employee cannot switch branch modules (403)",
+              "name": "HQ Staff cannot switch branch modules (403)",
               "request": {
                 "method": "PUT",
                 "header": [
@@ -2898,7 +1553,7 @@
               ]
             },
             {
-              "name": "The Owner runs the starter masters (safe to press twice)",
+              "name": "The HQ Admin runs the starter masters (safe to press twice)",
               "request": {
                 "method": "POST",
                 "header": [
@@ -2947,7 +1602,7 @@
               ]
             },
             {
-              "name": "An Employee cannot run it (403)",
+              "name": "HQ Staff cannot run it (403)",
               "request": {
                 "method": "POST",
                 "header": [
@@ -2980,71 +1635,6 @@
                       "language": "json"
                     }
                   }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('403', () => pm.response.to.have.status(403));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "The SuperAdmin reads the Indigo access log of the own hospital",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xSuper}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/indigo-access-log",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "indigo-access-log"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "pm.test('a page of entries', () => pm.expect(pm.response.json().items).to.be.an('array'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "The receptionist cannot (403)",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xRecv}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/indigo-access-log",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "indigo-access-log"
-                  ]
                 }
               },
               "event": [
@@ -3135,132 +1725,6 @@
           "name": "5 Clean up",
           "item": [
             {
-              "name": "The Owner enters north (to clean up the chosen designs)",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xHqOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/indigo/enter",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "indigo",
-                    "enter"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"hospitalId\":\"{{xNorthId}}\"}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "pm.collectionVariables.set('xOwnerInside', pm.response.json().accessToken);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "The branch design is removed",
-              "request": {
-                "method": "DELETE",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xOwnerInside}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=branch",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "print-templates",
-                    "RECEIPT"
-                  ],
-                  "query": [
-                    {
-                      "key": "scope",
-                      "value": "branch"
-                    }
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "The hospital design is removed",
-              "request": {
-                "method": "DELETE",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{xOwnerInside}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=hospital",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "print-templates",
-                    "RECEIPT"
-                  ],
-                  "query": [
-                    {
-                      "key": "scope",
-                      "value": "hospital"
-                    }
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
               "name": "The assignment is taken away again",
               "request": {
                 "method": "PUT",
@@ -3294,6 +1758,801 @@
                       "language": "json"
                     }
                   }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2-2a-hq-without-entry: Hospigo 2.2a: HQ without entry (HQ never enters a hospital)",
+      "item": [
+        {
+          "name": "0 Setup",
+          "item": [
+            {
+              "name": "1 Login Super Admin (north main)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/hospital/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "hospital",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{superEmail}}\",\"password\":\"{{superadminPassword}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.collectionVariables.set('hSuper', pm.response.json().accessToken);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "2 Login Receptionist (north main)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/hospital/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "hospital",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"accessCode\":\"demo-north-main\",\"email\":\"{{receptionEmail}}\",\"password\":\"{{staffPassword}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.collectionVariables.set('hRecv', pm.response.json().accessToken);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "3 Login HQ Admin",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/hq/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "hq",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"email\":\"{{hqAdminEmail}}\",\"password\":\"{{indigoPassword}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.collectionVariables.set('hqAdmin', pm.response.json().accessToken);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "4 Login HQ Staff",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/hq/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "hq",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"email\":\"{{hqStaffEmail}}\",\"password\":\"{{indigoPassword}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.collectionVariables.set('hqStaff', pm.response.json().accessToken);"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "1 HQ has no door into a hospital",
+          "item": [
+            {
+              "name": "5 The old entry route is gone (HQ Admin gets 404)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqAdmin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/indigo/enter",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "indigo",
+                    "enter"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"hospitalId\":\"any\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('404', () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "6 The old hospital list for entering is gone (404)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqAdmin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/indigo/hospitals",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "indigo",
+                    "hospitals"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('404', () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "7 An HQ token is refused on a hospital route (401)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqAdmin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/patients",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "patients"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('401', () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "8 An HQ token is refused on the OPD queue (401)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqStaff}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/opd/queue",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "opd",
+                    "queue"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('401', () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "9 A hospital token is refused on the HQ console (401)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hSuper}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('401', () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "10 No token on the HQ console (401)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('401', () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "11 HQ Admin profile names the role HQ_ADMIN and has no hospital",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqAdmin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/me",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "me"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.test('HQ Admin', () => { const b = pm.response.json(); pm.expect(b.kind).to.eql('HQ'); pm.expect(b.roleCodes).to.eql(['HQ_ADMIN']); pm.expect(b.hospitalName).to.eql(null); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "12 HQ Staff profile names the role HQ_STAFF",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqStaff}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/me",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "me"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.test('HQ Staff', () => pm.expect(pm.response.json().roleCodes).to.eql(['HQ_STAFF']));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "2 The hospital sees no HQ trace",
+          "item": [
+            {
+              "name": "13 The hospital staff list shows no HQ person",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hSuper}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/staff?pageSize=100",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "staff"
+                  ],
+                  "query": [
+                    {
+                      "key": "pageSize",
+                      "value": "100"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.test('no HQ person', () => { const t = pm.response.text(); pm.expect(t).to.not.include('(Indigo)'); pm.expect(t).to.not.include('indigo.invalid'); pm.expect(t).to.not.include('indigo.example.org'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "14 The role list has only roles a hospital owns",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hSuper}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/roles",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "roles"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.test('no retired roles', () => { const codes = pm.response.json().items.map(r => r.code); pm.expect(codes).to.not.include('TENANT_ADMIN'); pm.expect(codes).to.not.include('INDIGO_EMPLOYEE'); pm.expect(codes).to.include('SUPER_ADMIN'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "15 The Indigo access log screen is gone (404)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hSuper}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo-access-log",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo-access-log"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('404', () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "16 The Super Admin profile has no Indigo access permission",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hSuper}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/me",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "me"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.test('no indigo.access.read', () => pm.expect(pm.response.json().permissions).to.not.include('indigo.access.read'));",
+                      "pm.test('Super Admin role code', () => pm.expect(pm.response.json().roleCodes).to.include('SUPER_ADMIN'));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "3 The HQ console (counts and setup only)",
+          "item": [
+            {
+              "name": "17 HQ Admin sees the hospitals (with access codes) and can manage",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqAdmin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.test('HQ Admin overview', () => { const b = pm.response.json(); pm.expect(b.canManage).to.eql(true); pm.expect(b.items.length).to.be.above(0); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "18 HQ Staff sees only assigned hospitals, no access codes, cannot manage",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqStaff}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.test('HQ Staff overview', () => { const b = pm.response.json(); pm.expect(b.canManage).to.eql(false); pm.expect(pm.response.text()).to.not.include('accessCode'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "19 HQ Staff cannot onboard a hospital (403)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqStaff}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/hospitals",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "hospitals"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('403', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "20 HQ Staff cannot manage HQ Staff (403)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqStaff}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/employees",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "employees"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('403', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "21 HQ Admin lists HQ Staff",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{hqAdmin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/indigo/employees",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "indigo",
+                    "employees"
+                  ]
                 }
               },
               "event": [
@@ -12154,138 +11413,6 @@
           "name": "0 Setup",
           "item": [
             {
-              "name": "O1 Login Indigo Owner (no access code)",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/hq/login",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "hq",
-                    "login"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"email\":\"{{indigoOwnerEmail}}\",\"password\":\"{{indigoPassword}}\"}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('login 200', () => pm.response.to.have.status(200));",
-                      "const j = pm.response.json();",
-                      "pm.collectionVariables.set('hqOwnerAccess', j.accessToken);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "O2 The Owner sees the hospitals and picks Demo North",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{hqOwnerAccess}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/indigo/hospitals",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "indigo",
-                    "hospitals"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "const north = pm.response.json().items.find(h => h.code === 'DEMO_NORTH');",
-                      "pm.test('Demo North is listed', () => pm.expect(north).to.exist);",
-                      "pm.collectionVariables.set('northHospitalId', north.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "O3 Enter Demo North as the Indigo Owner",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{hqOwnerAccess}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/indigo/enter",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "indigo",
-                    "enter"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"hospitalId\":\"{{northHospitalId}}\"}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "const j = pm.response.json();",
-                      "pm.test('a hospital token pair', () => { pm.expect(j.accessToken).to.be.a('string'); pm.expect(j.refreshToken).to.be.a('string'); });",
-                      "pm.collectionVariables.set('rOwner', j.accessToken);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
               "name": "1 Login Receptionist (north main)",
               "request": {
                 "method": "POST",
@@ -12419,84 +11546,6 @@
                       "const j = pm.response.json();",
                       "pm.test('has a token', () => pm.expect(j.accessToken).to.be.a('string'));",
                       "pm.collectionVariables.set('rSouth', j.accessToken);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "3a Setup: remove any leftover branch-level receipt template (SuperAdmin)",
-              "request": {
-                "method": "DELETE",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=branch",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "print-templates",
-                    "RECEIPT"
-                  ],
-                  "query": [
-                    {
-                      "key": "scope",
-                      "value": "branch"
-                    }
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200 (nothing left at this level)', () => pm.response.to.have.status(200));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "3b Setup: remove any leftover hospital-level receipt template (SuperAdmin)",
-              "request": {
-                "method": "DELETE",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=hospital",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "print-templates",
-                    "RECEIPT"
-                  ],
-                  "query": [
-                    {
-                      "key": "scope",
-                      "value": "hospital"
-                    }
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200 (nothing left at this level)', () => pm.response.to.have.status(200));"
                     ]
                   }
                 }
@@ -13205,46 +12254,6 @@
           "name": "2 Print templates",
           "item": [
             {
-              "name": "19 Start clean: back to the default (SuperAdmin)",
-              "request": {
-                "method": "DELETE",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=hospital",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "print-templates",
-                    "RECEIPT"
-                  ],
-                  "query": [
-                    {
-                      "key": "scope",
-                      "value": "hospital"
-                    }
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "pm.test('default A5', () => { const j = pm.response.json(); pm.expect(j.source).to.eql('DEFAULT'); pm.expect(j.paper).to.eql('A5'); });"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
               "name": "20 Reception can READ the templates (to print)",
               "request": {
                 "method": "GET",
@@ -13360,60 +12369,6 @@
               ]
             },
             {
-              "name": "23 SuperAdmin saves a pre-printed receipt on 240 x 140 mm stationery",
-              "request": {
-                "method": "PUT",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=hospital",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "print-templates",
-                    "RECEIPT"
-                  ],
-                  "query": [
-                    {
-                      "key": "scope",
-                      "value": "hospital"
-                    }
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"enabled\": true, \"preset\": null, \"paper\": \"CUSTOM\", \"widthMm\": 240, \"heightMm\": 140, \"orientation\": \"LANDSCAPE\", \"margins\": {\"topMm\": 0, \"rightMm\": 0, \"bottomMm\": 0, \"leftMm\": 0}, \"mode\": \"PREPRINTED\", \"layout\": {\"version\": 1, \"fontSizePt\": 10, \"headerText\": \"Postman test\", \"footerText\": \"\", \"showLogo\": false, \"fields\": {\"billNumber\": true, \"receiptNumber\": true, \"token\": true, \"patientName\": true, \"uhid\": true, \"doctorName\": true, \"visitDate\": true, \"branchName\": true, \"lines\": true, \"total\": true, \"paid\": true, \"refunded\": true, \"paymentModes\": true, \"referenceNo\": true}, \"offset\": {\"xMm\": 1.5, \"yMm\": -1}, \"positions\": {\"billNumber\": {\"xMm\": 20, \"yMm\": 30}, \"total\": {\"xMm\": 200, \"yMm\": 120}}}}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "const j = pm.response.json();",
-                      "pm.test('saved as custom, with the page size and the nudge', () => { pm.expect(j.source).to.eql('CUSTOM'); pm.expect(j.pageWidthMm).to.eql(240); pm.expect(j.pageHeightMm).to.eql(140); pm.expect(j.mode).to.eql('PREPRINTED'); pm.expect(j.layout.offset).to.eql({ xMm: 1.5, yMm: -1 }); });"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
               "name": "24 Reception now reads the saved template",
               "request": {
                 "method": "GET",
@@ -13442,99 +12397,6 @@
                     "exec": [
                       "pm.test('200', () => pm.response.to.have.status(200));",
                       "pm.test('custom, pre-printed', () => { const j = pm.response.json(); pm.expect(j.source).to.eql('CUSTOM'); pm.expect(j.mode).to.eql('PREPRINTED'); });"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "25 A bad template is refused with the field and the reason (400)",
-              "request": {
-                "method": "PUT",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/print-templates/RECEIPT",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "print-templates",
-                    "RECEIPT"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"enabled\": true, \"preset\": null, \"paper\": \"CUSTOM\", \"widthMm\": 240, \"heightMm\": 140, \"orientation\": \"LANDSCAPE\", \"margins\": {\"topMm\": 99, \"rightMm\": 99, \"bottomMm\": 99, \"leftMm\": 99}, \"mode\": \"PREPRINTED\", \"layout\": {\"version\": 1, \"fontSizePt\": 10, \"headerText\": \"Postman test\", \"footerText\": \"\", \"showLogo\": false, \"fields\": {\"billNumber\": true, \"receiptNumber\": true, \"token\": true, \"patientName\": true, \"uhid\": true, \"doctorName\": true, \"visitDate\": true, \"branchName\": true, \"lines\": true, \"total\": true, \"paid\": true, \"refunded\": true, \"paymentModes\": true, \"referenceNo\": true}, \"offset\": {\"xMm\": 1.5, \"yMm\": -1}, \"positions\": {\"billNumber\": {\"xMm\": 20, \"yMm\": 30}, \"total\": {\"xMm\": 200, \"yMm\": 120}}}}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('400', () => pm.response.to.have.status(400));",
-                      "pm.test('PRINT_TEMPLATE_INVALID with the field', () => { const j = pm.response.json(); pm.expect(j.code).to.eql('PRINT_TEMPLATE_INVALID'); pm.expect(j.field).to.eql('margins'); pm.expect(j.reason).to.be.oneOf(['NO_ROOM_TO_PRINT_DOWN', 'NO_ROOM_TO_PRINT_ACROSS']); });"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "26 An unknown field is refused (400)",
-              "request": {
-                "method": "PUT",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/print-templates/RECEIPT",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "print-templates",
-                    "RECEIPT"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"enabled\": true, \"preset\": null, \"paper\": \"CUSTOM\", \"widthMm\": 240, \"heightMm\": 140, \"orientation\": \"LANDSCAPE\", \"margins\": {\"topMm\": 0, \"rightMm\": 0, \"bottomMm\": 0, \"leftMm\": 0}, \"mode\": \"PREPRINTED\", \"layout\": {\"version\": 1, \"fontSizePt\": 10, \"headerText\": \"Postman test\", \"footerText\": \"\", \"showLogo\": false, \"fields\": {\"billNumber\": true, \"receiptNumber\": true, \"token\": true, \"patientName\": true, \"uhid\": true, \"doctorName\": true, \"visitDate\": true, \"branchName\": true, \"lines\": true, \"total\": true, \"paid\": true, \"refunded\": true, \"paymentModes\": true, \"referenceNo\": true}, \"offset\": {\"xMm\": 1.5, \"yMm\": -1}, \"positions\": {\"billNumber\": {\"xMm\": 20, \"yMm\": 30}, \"total\": {\"xMm\": 200, \"yMm\": 120}}}, \"tenantId\": \"x\"}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('400', () => pm.response.to.have.status(400));"
                     ]
                   }
                 }
@@ -13603,46 +12465,6 @@
                     "exec": [
                       "pm.test('200', () => pm.response.to.have.status(200));",
                       "pm.test('south is untouched: default', () => pm.expect(pm.response.json().source).to.eql('DEFAULT'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "29 Go back to the default",
-              "request": {
-                "method": "DELETE",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=hospital",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "print-templates",
-                    "RECEIPT"
-                  ],
-                  "query": [
-                    {
-                      "key": "scope",
-                      "value": "hospital"
-                    }
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "pm.test('default again', () => pm.expect(pm.response.json().source).to.eql('DEFAULT'));"
                     ]
                   }
                 }
@@ -20053,138 +18875,6 @@
           "name": "0 Setup",
           "item": [
             {
-              "name": "O1 Login Indigo Owner (no access code)",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/hq/login",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "hq",
-                    "login"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"email\":\"{{indigoOwnerEmail}}\",\"password\":\"{{indigoPassword}}\"}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('login 200', () => pm.response.to.have.status(200));",
-                      "const j = pm.response.json();",
-                      "pm.collectionVariables.set('hqOwnerAccess', j.accessToken);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "O2 The Owner sees the hospitals and picks Demo North",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{hqOwnerAccess}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/indigo/hospitals",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "indigo",
-                    "hospitals"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "const north = pm.response.json().items.find(h => h.code === 'DEMO_NORTH');",
-                      "pm.test('Demo North is listed', () => pm.expect(north).to.exist);",
-                      "pm.collectionVariables.set('northHospitalId', north.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "O3 Enter Demo North as the Indigo Owner",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{hqOwnerAccess}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/indigo/enter",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "indigo",
-                    "enter"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"hospitalId\":\"{{northHospitalId}}\"}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "const j = pm.response.json();",
-                      "pm.test('a hospital token pair', () => { pm.expect(j.accessToken).to.be.a('string'); pm.expect(j.refreshToken).to.be.a('string'); });",
-                      "pm.collectionVariables.set('rOwner', j.accessToken);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
               "name": "1 Login SuperAdmin (north)",
               "request": {
                 "method": "POST",
@@ -20439,40 +19129,6 @@
               ]
             },
             {
-              "name": "7 The Indigo Owner may change it",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/settings/branding",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "settings",
-                    "branding"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "pm.test('canWrite', () => pm.expect(pm.response.json().canWrite).to.eql(true));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
               "name": "8 The receptionist cannot upload a logo (403)",
               "request": {
                 "method": "PUT",
@@ -20562,291 +19218,6 @@
                     "type": "text/javascript",
                     "exec": [
                       "pm.test('403', () => pm.response.to.have.status(403));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "10 No file at all is refused (REQUIRED)",
-              "request": {
-                "method": "PUT",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "multipart/form-data; boundary=pm7e"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/settings/branding/logo",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "settings",
-                    "branding",
-                    "logo"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "--pm7e--\r\n",
-                  "options": {
-                    "raw": {
-                      "language": "text"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('refused with the field and the reason', () => { const j = pm.response.json(); pm.response.to.have.status(400); pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('file'); pm.expect(j.reason).to.eql('REQUIRED'); });"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "11 A text file with a .png name is refused (NOT_AN_IMAGE): the bytes decide, not the name",
-              "request": {
-                "method": "PUT",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "multipart/form-data; boundary=pm7e"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/settings/branding/logo",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "settings",
-                    "branding",
-                    "logo"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "--pm7e\r\nContent-Disposition: form-data; name=\"file\"; filename=\"logo.png\"\r\nContent-Type: image/png\r\n\r\nthis is only some text, not a picture\r\n--pm7e--\r\n",
-                  "options": {
-                    "raw": {
-                      "language": "text"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('refused with the field and the reason', () => { const j = pm.response.json(); pm.response.to.have.status(400); pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('file'); pm.expect(j.reason).to.eql('NOT_AN_IMAGE'); });"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "12 An SVG (it can carry scripts) is refused",
-              "request": {
-                "method": "PUT",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "multipart/form-data; boundary=pm7e"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/settings/branding/logo",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "settings",
-                    "branding",
-                    "logo"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "--pm7e\r\nContent-Disposition: form-data; name=\"file\"; filename=\"logo.png\"\r\nContent-Type: image/png\r\n\r\n<svg xmlns=\"http://www.w3.org/2000/svg\"><script>alert(1)</script></svg>\r\n--pm7e--\r\n",
-                  "options": {
-                    "raw": {
-                      "language": "text"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('refused with the field and the reason', () => { const j = pm.response.json(); pm.response.to.have.status(400); pm.expect(j.code).to.eql('SETTINGS_INVALID'); pm.expect(j.field).to.eql('file'); pm.expect(j.reason).to.eql('NOT_AN_IMAGE'); });"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "13 Extra form fields are refused",
-              "request": {
-                "method": "PUT",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "multipart/form-data; boundary=pm7e"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/settings/branding/logo",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "settings",
-                    "branding",
-                    "logo"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "--pm7e\r\nContent-Disposition: form-data; name=\"tenantId\"\r\n\r\nother\r\n--pm7e\r\nContent-Disposition: form-data; name=\"file\"; filename=\"a.webp\"\r\nContent-Type: image/webp\r\n\r\nRIFF\u0016\u0000\u0000\u0000WEBPVP8X\n\u0000\u0000\u0000\u0000\u0000\u0000\u0000?\u0000\u0000?\u0000\u0000\r\n--pm7e--\r\n",
-                  "options": {
-                    "raw": {
-                      "language": "text"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('400', () => pm.response.to.have.status(400));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "14 A JSON body instead of a file is refused",
-              "request": {
-                "method": "PUT",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/settings/branding/logo",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "settings",
-                    "branding",
-                    "logo"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"file\": \"abc\"}",
-                  "options": {
-                    "raw": {
-                      "language": "text"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('400', () => pm.response.to.have.status(400));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "15 SuperAdmin uploads a tiny logo",
-              "request": {
-                "method": "PUT",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "multipart/form-data; boundary=pm7e"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/settings/branding/logo",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "settings",
-                    "branding",
-                    "logo"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "--pm7e\r\nContent-Disposition: form-data; name=\"file\"; filename=\"logo.webp\"\r\nContent-Type: image/webp\r\n\r\nRIFF\u0016\u0000\u0000\u0000WEBPVP8X\n\u0000\u0000\u0000\u0000\u0000\u0000\u0000?\u0000\u0000?\u0000\u0000\r\n--pm7e--\r\n",
-                  "options": {
-                    "raw": {
-                      "language": "text"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "const j = pm.response.json();",
-                      "pm.test('judged by its bytes, and only what a screen needs is told', () => { pm.expect(j.contentType).to.eql('image/webp'); pm.expect(j.width).to.eql(64); pm.expect(j.height).to.eql(64); pm.expect(j.byteSize).to.eql(30); pm.expect(Object.keys(j).sort()).to.eql(['byteSize','contentType','createdAt','height','id','width']); });",
-                      "pm.collectionVariables.set('logoId', j.id);"
                     ]
                   }
                 }
@@ -21614,55 +19985,6 @@
               ]
             },
             {
-              "name": "35 SuperAdmin removes the logo",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/settings/branding/logo/remove",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "settings",
-                    "branding",
-                    "logo",
-                    "remove"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{}",
-                  "options": {
-                    "raw": {
-                      "language": "text"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "pm.test('no logo', () => pm.expect(pm.response.json().logo).to.eql(null));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
               "name": "36 The branding answer has no logo again",
               "request": {
                 "method": "GET",
@@ -21739,138 +20061,6 @@
         {
           "name": "0 Setup",
           "item": [
-            {
-              "name": "O1 Login Indigo Owner (no access code)",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/hq/login",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "hq",
-                    "login"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"email\":\"{{indigoOwnerEmail}}\",\"password\":\"{{indigoPassword}}\"}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('login 200', () => pm.response.to.have.status(200));",
-                      "const j = pm.response.json();",
-                      "pm.collectionVariables.set('hqOwnerAccess', j.accessToken);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "O2 The Owner sees the hospitals and picks Demo North",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{hqOwnerAccess}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/indigo/hospitals",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "indigo",
-                    "hospitals"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "const north = pm.response.json().items.find(h => h.code === 'DEMO_NORTH');",
-                      "pm.test('Demo North is listed', () => pm.expect(north).to.exist);",
-                      "pm.collectionVariables.set('northHospitalId', north.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "O3 Enter Demo North as the Indigo Owner",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{hqOwnerAccess}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/indigo/enter",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "indigo",
-                    "enter"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"hospitalId\":\"{{northHospitalId}}\"}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "const j = pm.response.json();",
-                      "pm.test('a hospital token pair', () => { pm.expect(j.accessToken).to.be.a('string'); pm.expect(j.refreshToken).to.be.a('string'); });",
-                      "pm.collectionVariables.set('rOwner', j.accessToken);"
-                    ]
-                  }
-                }
-              ]
-            },
             {
               "name": "1 Login Receptionist (north main)",
               "request": {
@@ -22291,198 +20481,6 @@
         {
           "name": "2 Receipt template: the token is mandatory",
           "item": [
-            {
-              "name": "10 Start clean: back to the default receipt",
-              "request": {
-                "method": "DELETE",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/print-templates/RECEIPT",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "print-templates",
-                    "RECEIPT"
-                  ]
-                }
-              }
-            },
-            {
-              "name": "11 A custom receipt (version 3) without a token box is refused (400)",
-              "request": {
-                "method": "PUT",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/print-templates/RECEIPT",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "print-templates",
-                    "RECEIPT"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"enabled\": true, \"preset\": null, \"paper\": \"A5\", \"orientation\": \"PORTRAIT\", \"margins\": {\"topMm\": 10, \"rightMm\": 10, \"bottomMm\": 10, \"leftMm\": 10}, \"mode\": \"FULL\", \"layout\": {\"version\": 3, \"fontSizePt\": 10, \"offset\": {\"xMm\": 0, \"yMm\": 0}, \"elements\": [{\"id\": \"bill\", \"type\": \"RICH\", \"xMm\": 10, \"yMm\": 10, \"widthMm\": 60, \"heightMm\": 8, \"content\": {\"paragraphs\": [{\"runs\": [{\"t\": \"field\", \"field\": \"billNumber\"}]}]}}]}}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('status 400', () => pm.response.to.have.status(400));",
-                      "pm.test('TOKEN_REQUIRED on the boxes', () => { const j = pm.response.json(); pm.expect(j.code).to.eql('PRINT_TEMPLATE_INVALID'); pm.expect(j.field).to.eql('layout.elements'); pm.expect(j.reason).to.eql('TOKEN_REQUIRED'); });"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "12 An older (version 1) receipt with the token switched off is refused (400)",
-              "request": {
-                "method": "PUT",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/print-templates/RECEIPT",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "print-templates",
-                    "RECEIPT"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"enabled\": true, \"preset\": null, \"paper\": \"A5\", \"orientation\": \"PORTRAIT\", \"margins\": {\"topMm\": 10, \"rightMm\": 10, \"bottomMm\": 10, \"leftMm\": 10}, \"mode\": \"FULL\", \"layout\": {\"version\": 1, \"fontSizePt\": 10, \"headerText\": \"\", \"footerText\": \"\", \"showLogo\": false, \"fields\": {\"billNumber\": true, \"total\": true, \"token\": false}, \"offset\": {\"xMm\": 0, \"yMm\": 0}, \"positions\": {}}}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('status 400', () => pm.response.to.have.status(400));",
-                      "pm.test('TOKEN_REQUIRED on the boxes', () => { const j = pm.response.json(); pm.expect(j.code).to.eql('PRINT_TEMPLATE_INVALID'); pm.expect(j.field).to.eql('layout.elements'); pm.expect(j.reason).to.eql('TOKEN_REQUIRED'); });"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "13 The same receipt WITH a token box is saved (200)",
-              "request": {
-                "method": "PUT",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/print-templates/RECEIPT",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "print-templates",
-                    "RECEIPT"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"enabled\": true, \"preset\": null, \"paper\": \"A5\", \"orientation\": \"PORTRAIT\", \"margins\": {\"topMm\": 10, \"rightMm\": 10, \"bottomMm\": 10, \"leftMm\": 10}, \"mode\": \"FULL\", \"layout\": {\"version\": 3, \"fontSizePt\": 10, \"offset\": {\"xMm\": 0, \"yMm\": 0}, \"elements\": [{\"id\": \"bill\", \"type\": \"RICH\", \"xMm\": 10, \"yMm\": 10, \"widthMm\": 60, \"heightMm\": 8, \"content\": {\"paragraphs\": [{\"runs\": [{\"t\": \"field\", \"field\": \"billNumber\"}]}]}}, {\"id\": \"tok\", \"type\": \"RICH\", \"xMm\": 10, \"yMm\": 20, \"widthMm\": 40, \"heightMm\": 8, \"content\": {\"paragraphs\": [{\"runs\": [{\"t\": \"field\", \"field\": \"token\"}]}]}}]}}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('status 200', () => pm.response.to.have.status(200));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "14 Go back to the default receipt",
-              "request": {
-                "method": "DELETE",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/print-templates/RECEIPT",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "print-templates",
-                    "RECEIPT"
-                  ]
-                }
-              }
-            },
             {
               "name": "15 The default receipt still has the token",
               "request": {
@@ -25373,138 +23371,6 @@
           "name": "0 Setup",
           "item": [
             {
-              "name": "O1 Login Indigo Owner (no access code)",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/hq/login",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "hq",
-                    "login"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"email\":\"{{indigoOwnerEmail}}\",\"password\":\"{{indigoPassword}}\"}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('login 200', () => pm.response.to.have.status(200));",
-                      "const j = pm.response.json();",
-                      "pm.collectionVariables.set('hqOwnerAccess', j.accessToken);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "O2 The Owner sees the hospitals and picks Demo North",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{hqOwnerAccess}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/indigo/hospitals",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "indigo",
-                    "hospitals"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "const north = pm.response.json().items.find(h => h.code === 'DEMO_NORTH');",
-                      "pm.test('Demo North is listed', () => pm.expect(north).to.exist);",
-                      "pm.collectionVariables.set('northHospitalId', north.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "O3 Enter Demo North as the Indigo Owner",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{hqOwnerAccess}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/indigo/enter",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "indigo",
-                    "enter"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"hospitalId\":\"{{northHospitalId}}\"}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200', () => pm.response.to.have.status(200));",
-                      "const j = pm.response.json();",
-                      "pm.test('a hospital token pair', () => { pm.expect(j.accessToken).to.be.a('string'); pm.expect(j.refreshToken).to.be.a('string'); });",
-                      "pm.collectionVariables.set('rOwner', j.accessToken);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
               "name": "1 Login SuperAdmin (north main)",
               "request": {
                 "method": "POST",
@@ -28156,39 +26022,6 @@
               ]
             },
             {
-              "name": "62 The Indigo Owner may change both places (200)",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/print-templates",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "print-templates"
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('status 200', () => pm.response.to.have.status(200));",
-                      "pm.test('both', () => pm.expect(pm.response.json().canChange).to.eql({branch: true, hospital: true}));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
               "name": "63 An Admin can no longer change templates (200, nothing)",
               "request": {
                 "method": "GET",
@@ -28308,59 +26141,6 @@
               ]
             },
             {
-              "name": "66 An unknown scope is refused (400)",
-              "request": {
-                "method": "PUT",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=everyone",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "print-templates",
-                    "RECEIPT"
-                  ],
-                  "query": [
-                    {
-                      "key": "scope",
-                      "value": "everyone"
-                    }
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{{tplBody}}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('status 400', () => pm.response.to.have.status(400));",
-                      "pm.test('code PRINT_SCOPE_INVALID', () => pm.expect(pm.response.json().code).to.eql('PRINT_SCOPE_INVALID'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
               "name": "67 Branch Admin cannot save the hospital-wide template (403)",
               "request": {
                 "method": "PUT",
@@ -28459,59 +26239,6 @@
               ]
             },
             {
-              "name": "69 The Indigo Owner saves the template of this branch (200)",
-              "request": {
-                "method": "PUT",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=branch",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "print-templates",
-                    "RECEIPT"
-                  ],
-                  "query": [
-                    {
-                      "key": "scope",
-                      "value": "branch"
-                    }
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{{tplBody}}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('status 200', () => pm.response.to.have.status(200));",
-                      "pm.test('the branch template applies', () => pm.expect(pm.response.json().scope).to.eql('BRANCH'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
               "name": "70 The other hospital is not affected (200, not the branch template)",
               "request": {
                 "method": "GET",
@@ -28540,46 +26267,6 @@
                     "exec": [
                       "pm.test('status 200', () => pm.response.to.have.status(200));",
                       "pm.test('not a branch template of north', () => pm.expect(pm.response.json().scope).to.not.eql('BRANCH'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "71 Remove the branch template: back to the hospital one or the default (200)",
-              "request": {
-                "method": "DELETE",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{rOwner}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=branch",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "print-templates",
-                    "RECEIPT"
-                  ],
-                  "query": [
-                    {
-                      "key": "scope",
-                      "value": "branch"
-                    }
-                  ]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('status 200', () => pm.response.to.have.status(200));",
-                      "pm.test('no longer the branch template', () => pm.expect(pm.response.json().scope).to.not.eql('BRANCH'));"
                     ]
                   }
                 }

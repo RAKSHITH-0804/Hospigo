@@ -123,14 +123,7 @@ npm run prisma:migrate -w @hospigo/api
 npm run prisma:seed -w @hospigo/api
 ```
 
-**Showcase database (Step 2.1f).** The fictional showcase hospitals live in their OWN database `hospigo_demo`, never in `hospigo_test`. Create it once, migrate it, fill it:
-
-```bash
-node scripts/db/create-demo-db.mjs
-npm run prisma:seed-showcase -w @hospigo/api
-```
-
-Details and the migrate line: `docs/guides/dev-commands.md`, section "Showcase database".
+**Dev database (Phase 2.2).** `npm run dev:reset` drops and recreates the dev database `hospigo`, migrates it and fills it with ONLY the two realistic hospitals (Nandavana Multispeciality Hospital and Sagarika Heart and Eye Centre, all roles, history) plus the HQ Admin and HQ Staff. It takes several minutes. `hospigo_test` keeps its fixtures for Jest, Newman and the browser tests. Details: `docs/guides/dev-commands.md`.
 
 Generate the Prisma Client when needed:
 

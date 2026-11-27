@@ -71,18 +71,18 @@ const setup = [
     'xRecv',
   ),
   login(
-    'Login Indigo Owner',
+    'Login HQ Admin',
     '/auth/hq/login',
-    { email: '{{indigoOwnerEmail}}', password: '{{indigoPassword}}' },
+    { email: '{{hqAdminEmail}}', password: '{{indigoPassword}}' },
     'xHqOwner',
   ),
   login(
-    'Login Indigo Employee',
+    'Login HQ Staff',
     '/auth/hq/login',
-    { email: '{{indigoEmployeeEmail}}', password: '{{indigoPassword}}' },
+    { email: '{{hqStaffEmail}}', password: '{{indigoPassword}}' },
     'xHqEmployee',
   ),
-  req('The Owner finds north and south', 'GET', '/indigo/hospitals', {
+  req('The HQ Admin finds north and south', 'GET', '/indigo/hospitals', {
     token: 'xHqOwner',
     tests: [
       status(200),
@@ -105,7 +105,7 @@ const library = [
     token: 'xSuper',
     tests: [status(401)],
   }),
-  req('The Owner adds the designed samples', 'POST', '/indigo/library/samples', {
+  req('The HQ Admin adds the designed samples', 'POST', '/indigo/library/samples', {
     token: 'xHqOwner',
     body: {},
     tests: [
@@ -146,7 +146,7 @@ const library = [
     body: {},
     tests: [status(200)],
   }),
-  req('The Owner assigns two bills to north', 'PUT', '/indigo/hospitals/{{xNorthId}}/library', {
+  req('The HQ Admin assigns two bills to north', 'PUT', '/indigo/hospitals/{{xNorthId}}/library', {
     token: 'xHqOwner',
     body: { templateIds: ['{{xTplBill}}', '{{xTplBill2}}'], logoIds: [] },
     tests: [status(200)],
@@ -221,7 +221,7 @@ const chooser = [
 ];
 
 const terms = [
-  req('The Owner sets a word', 'PUT', '/indigo/hospitals/{{xNorthId}}/terminology', {
+  req('The HQ Admin sets a word', 'PUT', '/indigo/hospitals/{{xNorthId}}/terminology', {
     token: 'xHqOwner',
     body: { items: { patients: 'Clients' } },
     tests: [status(200)],
@@ -238,13 +238,12 @@ const terms = [
     body: { items: { patients: '<b>x</b>' } },
     tests: [status(400)],
   }),
-  req(
-    'An Employee assigned to north clears it',
-    'PUT',
-    '/indigo/hospitals/{{xNorthId}}/terminology',
-    { token: 'xHqEmployee', body: { items: { patients: null } }, tests: [status(200)] },
-  ),
-  req('An Employee cannot touch south (403)', 'PUT', '/indigo/hospitals/{{xSouthId}}/terminology', {
+  req('HQ Staff assigned to north clears it', 'PUT', '/indigo/hospitals/{{xNorthId}}/terminology', {
+    token: 'xHqEmployee',
+    body: { items: { patients: null } },
+    tests: [status(200)],
+  }),
+  req('HQ Staff cannot touch south (403)', 'PUT', '/indigo/hospitals/{{xSouthId}}/terminology', {
     token: 'xHqEmployee',
     body: { items: { patients: 'X' } },
     tests: [status(403)],
@@ -260,7 +259,7 @@ const terms = [
 
 const setupConsole = [
   req(
-    'The Owner sets the main branch modules to what it already has',
+    'The HQ Admin sets the main branch modules to what it already has',
     'PUT',
     '/indigo/hospitals/{{xNorthId}}/branches/{{xNorthBranchId}}/modules',
     { token: 'xHqOwner', raw: '{"moduleCodes":{{xNorthBranchModulesJson}}}', tests: [status(200)] },
@@ -272,7 +271,7 @@ const setupConsole = [
     { token: 'xHqOwner', body: { moduleCodes: [] }, tests: [status(400)] },
   ),
   req(
-    'An Employee cannot switch branch modules (403)',
+    'HQ Staff cannot switch branch modules (403)',
     'PUT',
     '/indigo/hospitals/{{xNorthId}}/branches/{{xNorthBranchId}}/modules',
     {
@@ -282,7 +281,7 @@ const setupConsole = [
     },
   ),
   req(
-    'The Owner runs the starter masters (safe to press twice)',
+    'The HQ Admin runs the starter masters (safe to press twice)',
     'POST',
     '/indigo/hospitals/{{xNorthId}}/starter',
     {
@@ -294,25 +293,9 @@ const setupConsole = [
       ],
     },
   ),
-  req('An Employee cannot run it (403)', 'POST', '/indigo/hospitals/{{xNorthId}}/starter', {
+  req('HQ Staff cannot run it (403)', 'POST', '/indigo/hospitals/{{xNorthId}}/starter', {
     token: 'xHqEmployee',
     body: {},
-    tests: [status(403)],
-  }),
-  req(
-    'The SuperAdmin reads the Indigo access log of the own hospital',
-    'GET',
-    '/indigo-access-log',
-    {
-      token: 'xSuper',
-      tests: [
-        status(200),
-        "pm.test('a page of entries', () => pm.expect(pm.response.json().items).to.be.an('array'));",
-      ],
-    },
-  ),
-  req('The receptionist cannot (403)', 'GET', '/indigo-access-log', {
-    token: 'xRecv',
     tests: [status(403)],
   }),
   req('The dashboard summary: SuperAdmin sees money and approvals', 'GET', '/dashboard/summary', {
@@ -339,22 +322,6 @@ const setupConsole = [
 ];
 
 const cleanup = [
-  req('The Owner enters north (to clean up the chosen designs)', 'POST', '/auth/indigo/enter', {
-    token: 'xHqOwner',
-    body: { hospitalId: '{{xNorthId}}' },
-    tests: [
-      status(200),
-      "pm.collectionVariables.set('xOwnerInside', pm.response.json().accessToken);",
-    ],
-  }),
-  req('The branch design is removed', 'DELETE', '/print-templates/RECEIPT?scope=branch', {
-    token: 'xOwnerInside',
-    tests: [status(200)],
-  }),
-  req('The hospital design is removed', 'DELETE', '/print-templates/RECEIPT?scope=hospital', {
-    token: 'xOwnerInside',
-    tests: [status(200)],
-  }),
   req('The assignment is taken away again', 'PUT', '/indigo/hospitals/{{xNorthId}}/library', {
     token: 'xHqOwner',
     body: { templateIds: [], logoIds: [] },
@@ -364,7 +331,7 @@ const cleanup = [
 
 const collection = {
   info: {
-    name: 'Hospigo 2.1f: template library, terminology, branch modules, starter, access log, dashboard',
+    name: 'Hospigo 2.1f: template library, terminology, branch modules, starter, dashboard',
     description:
       'Step 2.1f. Needs the Hospigo Local environment (baseUrl, staffPassword, superadminPassword, branchAdminPassword, indigoPassword) and the demo seed with the Indigo demo people (SEED_INDIGO_PASSWORD). Cleans up after itself (designs removed, assignment taken away, words cleared).',
     schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
@@ -373,15 +340,15 @@ const collection = {
     { key: 'baseUrl', value: 'http://127.0.0.1:3000' },
     { key: 'superEmail', value: 'superadmin@demo-north.example.test' },
     { key: 'receptionEmail', value: 'receptionist1@demo-north.example.test' },
-    { key: 'indigoOwnerEmail', value: 'owner@indigo-demo.example.test' },
-    { key: 'indigoEmployeeEmail', value: 'employee@indigo-demo.example.test' },
+    { key: 'hqAdminEmail', value: 'hq.admin@indigo.example.org' },
+    { key: 'hqStaffEmail', value: 'hq.staff@indigo.example.org' },
   ],
   item: [
     { name: '0 Setup', item: setup },
-    { name: '1 Library (Indigo Owner)', item: library },
+    { name: '1 Library (HQ Admin)', item: library },
     { name: '2 The hospital chooses', item: chooser },
     { name: '3 Terminology', item: terms },
-    { name: '4 Branch modules, starter, access log, dashboard', item: setupConsole },
+    { name: '4 Branch modules, starter, dashboard', item: setupConsole },
     { name: '5 Clean up', item: cleanup },
   ],
 };

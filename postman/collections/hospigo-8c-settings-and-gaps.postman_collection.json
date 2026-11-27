@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Hospigo 8c settings and gaps",
-    "description": "Step 8c (API): payment modes, vitals fields, bill number series, patient reference fields, doctor leave requests, per-branch print templates and extra print values. BEFORE RUNNING: (1) npm run prisma:migrate -w @hospigo/api (8c adds three migrations: number series protection, doctor leave requests, print values), (2) npm run prisma:seed -w @hospigo/api, (3) restart the API, (4) environment Hospigo Local with staffPassword, superadminPassword and branchAdminPassword. It adds test rows with the fixed codes POSTMAN8C / postman8c (running it again is fine: the second run sees 409 for the add steps) and one far-future leave that it removes again. It never lowers a counter and never deletes anything.",
+    "description": "Step 8c (API): payment modes, vitals fields, bill number series, patient reference fields, doctor leave requests, per-branch print templates and extra print values. BEFORE RUNNING: (1) npm run prisma:migrate -w @hospigo/api (8c adds three migrations: number series protection, doctor leave requests, print values), (2) npm run prisma:seed -w @hospigo/api, (3) restart the API, (4) environment Hospigo Local with staffPassword, superadminPassword and branchAdminPassword. It adds test rows with the fixed codes POSTMAN8C / postman8c (running it again is fine: the second run sees 409 for the add steps) and one far-future leave that it removes again. It never lowers a counter and never deletes anything. Phase 2.2: the steps that used the Indigo Owner inside a hospital were removed (HQ never enters a hospital); template and logo changes return with the HQ console.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -28,148 +28,12 @@
     {
       "key": "southEmail",
       "value": "superadmin@demo-south.example.test"
-    },
-    {
-      "key": "indigoOwnerEmail",
-      "value": "owner@indigo-demo.example.test"
     }
   ],
   "item": [
     {
       "name": "0 Setup",
       "item": [
-        {
-          "name": "O1 Login Indigo Owner (no access code)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/auth/hq/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "hq",
-                "login"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\"email\":\"{{indigoOwnerEmail}}\",\"password\":\"{{indigoPassword}}\"}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('login 200', () => pm.response.to.have.status(200));",
-                  "const j = pm.response.json();",
-                  "pm.collectionVariables.set('hqOwnerAccess', j.accessToken);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "O2 The Owner sees the hospitals and picks Demo North",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{hqOwnerAccess}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/auth/indigo/hospitals",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "indigo",
-                "hospitals"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('200', () => pm.response.to.have.status(200));",
-                  "const north = pm.response.json().items.find(h => h.code === 'DEMO_NORTH');",
-                  "pm.test('Demo North is listed', () => pm.expect(north).to.exist);",
-                  "pm.collectionVariables.set('northHospitalId', north.id);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "O3 Enter Demo North as the Indigo Owner",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{hqOwnerAccess}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/auth/indigo/enter",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "indigo",
-                "enter"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\"hospitalId\":\"{{northHospitalId}}\"}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('200', () => pm.response.to.have.status(200));",
-                  "const j = pm.response.json();",
-                  "pm.test('a hospital token pair', () => { pm.expect(j.accessToken).to.be.a('string'); pm.expect(j.refreshToken).to.be.a('string'); });",
-                  "pm.collectionVariables.set('rOwner', j.accessToken);"
-                ]
-              }
-            }
-          ]
-        },
         {
           "name": "1 Login SuperAdmin (north main)",
           "request": {
@@ -2822,39 +2686,6 @@
           ]
         },
         {
-          "name": "62 The Indigo Owner may change both places (200)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{rOwner}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/print-templates",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "print-templates"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('both', () => pm.expect(pm.response.json().canChange).to.eql({branch: true, hospital: true}));"
-                ]
-              }
-            }
-          ]
-        },
-        {
           "name": "63 An Admin can no longer change templates (200, nothing)",
           "request": {
             "method": "GET",
@@ -2974,59 +2805,6 @@
           ]
         },
         {
-          "name": "66 An unknown scope is refused (400)",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{rOwner}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=everyone",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "print-templates",
-                "RECEIPT"
-              ],
-              "query": [
-                {
-                  "key": "scope",
-                  "value": "everyone"
-                }
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{{tplBody}}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('status 400', () => pm.response.to.have.status(400));",
-                  "pm.test('code PRINT_SCOPE_INVALID', () => pm.expect(pm.response.json().code).to.eql('PRINT_SCOPE_INVALID'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
           "name": "67 Branch Admin cannot save the hospital-wide template (403)",
           "request": {
             "method": "PUT",
@@ -3125,59 +2903,6 @@
           ]
         },
         {
-          "name": "69 The Indigo Owner saves the template of this branch (200)",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{rOwner}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=branch",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "print-templates",
-                "RECEIPT"
-              ],
-              "query": [
-                {
-                  "key": "scope",
-                  "value": "branch"
-                }
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{{tplBody}}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('the branch template applies', () => pm.expect(pm.response.json().scope).to.eql('BRANCH'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
           "name": "70 The other hospital is not affected (200, not the branch template)",
           "request": {
             "method": "GET",
@@ -3206,46 +2931,6 @@
                 "exec": [
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
                   "pm.test('not a branch template of north', () => pm.expect(pm.response.json().scope).to.not.eql('BRANCH'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "71 Remove the branch template: back to the hospital one or the default (200)",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{rOwner}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/print-templates/RECEIPT?scope=branch",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "print-templates",
-                "RECEIPT"
-              ],
-              "query": [
-                {
-                  "key": "scope",
-                  "value": "branch"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('no longer the branch template', () => pm.expect(pm.response.json().scope).to.not.eql('BRANCH'));"
                 ]
               }
             }
