@@ -29,20 +29,20 @@ Plan: `docs/plans/phase-2-2-roles-hq-ui.md` (it wins over Phase 2.1 documents wh
 
 ### Security review, checkpoint 2
 
-| Attack | Result |
-|---|---|
-| HQ Staff with no ticks: hospitals, monitoring, health, activity, library, Super Admin routes | Empty list or 403 |
-| HQ Staff ticks their own permissions, or ticks `hq.staff.manage` / `hq.activity.read` / unknown names | 403 / 400 |
-| HQ Staff with every tick on a hospital outside the assignment | 403 on every read and write |
-| HQ Staff reads the activity log or lists HQ Staff, even with every tick | 403 |
-| Activity log changed or deleted (even by the owner login) | Refused by the database |
-| Monitoring answer holds a name, a patient or an amount | No: exactly six keys; the HQ login still has no clinical table grant |
-| Hospital token on any new HQ route | 401 |
-| Reset a Super Admin through the wrong hospital, or reset a user who is not a Super Admin | 403 |
-| Password in the log or the HQ activity detail | Not there (tested) |
-| Print design or logo set by HQ Staff without the print tick, or on another hospital | 403; another hospital's branch id as target: 400 |
-| HQ library edit reaches a hospital copy | No; the hospital row is unchanged until HQ sets it again |
-| `branch=ALL` with one branch, or with a branch id instead of ALL | 403 / 400 |
-| Admin2 (branch 3) sees branches of Admin1 (1 and 2); another hospital's branches | No; the combined view lists exactly the assigned branches |
+| Attack                                                                                                | Result                                                               |
+| ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| HQ Staff with no ticks: hospitals, monitoring, health, activity, library, Super Admin routes          | Empty list or 403                                                    |
+| HQ Staff ticks their own permissions, or ticks `hq.staff.manage` / `hq.activity.read` / unknown names | 403 / 400                                                            |
+| HQ Staff with every tick on a hospital outside the assignment                                         | 403 on every read and write                                          |
+| HQ Staff reads the activity log or lists HQ Staff, even with every tick                               | 403                                                                  |
+| Activity log changed or deleted (even by the owner login)                                             | Refused by the database                                              |
+| Monitoring answer holds a name, a patient or an amount                                                | No: exactly six keys; the HQ login still has no clinical table grant |
+| Hospital token on any new HQ route                                                                    | 401                                                                  |
+| Reset a Super Admin through the wrong hospital, or reset a user who is not a Super Admin              | 403                                                                  |
+| Password in the log or the HQ activity detail                                                         | Not there (tested)                                                   |
+| Print design or logo set by HQ Staff without the print tick, or on another hospital                   | 403; another hospital's branch id as target: 400                     |
+| HQ library edit reaches a hospital copy                                                               | No; the hospital row is unchanged until HQ sets it again             |
+| `branch=ALL` with one branch, or with a branch id instead of ALL                                      | 403 / 400                                                            |
+| Admin2 (branch 3) sees branches of Admin1 (1 and 2); another hospital's branches                      | No; the combined view lists exactly the assigned branches            |
 
 **Verdict: safe to approve, with two decisions for Rakshith:** (a) the technical owner of rows HQ writes is the hospital's Super Admin (the audit line names HQ); (b) `hospigo_security` got column-limited read of `opd_visits` and `users` for the counts function. Alternatives cost more tables or a stored counter; say if you prefer one.
