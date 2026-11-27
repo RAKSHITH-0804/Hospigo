@@ -5,10 +5,17 @@ import { Button } from '@/components/ui/button';
 import { InputField } from '@/components/ui/field';
 import { staffCopy } from '@/config/staff-copy';
 import { fill } from '@/lib/opd/clinical-format';
-import { createEmployee, saveEmployeeHospitals, setEmployeeActive } from '@/lib/indigo/client';
+import {
+  createEmployee,
+  saveEmployeeHospitals,
+  saveEmployeePermissions,
+  setEmployeeActive,
+} from '@/lib/indigo/client';
 import type { IndigoEmployee } from '@/lib/indigo/types';
 
 const copy = staffCopy.admin.console;
+const hqCopy = staffCopy.admin.hq;
+const PERMISSION_CODES = Object.keys(hqCopy.permissionLabels);
 
 function EmployeeCard({
   employee,
@@ -21,6 +28,15 @@ function EmployeeCard({
   const [active, setActive] = useState(employee.isActive);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [perms, setPerms] = useState<string[]>(employee.permissions ?? []);
+  const [permsSaved, setPermsSaved] = useState(false);
+
+  async function savePerms() {
+    setBusy(true);
+    const result = await saveEmployeePermissions(employee.id, perms);
+    setBusy(false);
+    setPermsSaved(result.ok);
+  }
 
   async function save() {
     setBusy(true);
@@ -65,6 +81,37 @@ function EmployeeCard({
             {hospital.name}
           </label>
         ))}
+      </div>
+      <p className="type-small font-medium">
+        {fill(hqCopy.permissionsHeading, { name: employee.displayName })}
+      </p>
+      <div className="flex flex-wrap gap-[var(--space-3)]">
+        {PERMISSION_CODES.map((code) => (
+          <label key={code} className="flex items-center gap-[var(--space-1)] type-small">
+            <input
+              type="checkbox"
+              checked={perms.includes(code)}
+              disabled={busy}
+              onChange={(event) => {
+                setPermsSaved(false);
+                setPerms((current) =>
+                  event.target.checked ? [...current, code] : current.filter((p) => p !== code),
+                );
+              }}
+            />
+            {hqCopy.permissionLabels[code]}
+          </label>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-[var(--space-2)]">
+        <Button type="button" variant="outline" disabled={busy} onClick={() => void savePerms()}>
+          {hqCopy.permissionsSave}
+        </Button>
+        {permsSaved ? (
+          <p role="status" className="type-small">
+            {hqCopy.permissionsSaved}
+          </p>
+        ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-[var(--space-2)]">
         <Button type="button" variant="outline" disabled={busy} onClick={() => void save()}>
@@ -126,6 +173,7 @@ export function IndigoEmployees({
         displayName: result.data.displayName,
         isActive: true,
         hospitalIds: [],
+        permissions: [],
       },
     ]);
     setName('');

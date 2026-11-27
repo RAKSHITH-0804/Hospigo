@@ -22,6 +22,7 @@ import type { EffectivePrintValue } from '@/lib/print-values/types';
 import { fill } from '@/lib/opd/clinical-format';
 import { errorMessageFor } from '@/lib/patients/client';
 import { resetPrintTemplate, savePrintTemplate } from '@/lib/print/client';
+import type { PatientsApiResult } from '@/lib/patients/client';
 import {
   duplicateBox,
   moveInOrder,
@@ -100,6 +101,7 @@ export function PrintingSettings({
   extraValues = [],
   hospitalName,
   logoImageId,
+  saveFn,
 }: {
   templates: PrintTemplate[];
   presets: PrintPreset[];
@@ -111,6 +113,15 @@ export function PrintingSettings({
   hospitalName: string;
   /** The current hospital logo (shown in the preview), or none. */
   logoImageId?: string | null;
+  /**
+   * The HQ designer (Phase 2.2) saves into a library template instead of a hospital: it passes its own
+   * save and Remove goes away (a library template cannot be reset to a default).
+   */
+  saveFn?: (
+    docType: PrintDocType,
+    input: PrintTemplateInput,
+    scope: PrintScope,
+  ) => Promise<PatientsApiResult<PrintTemplate>>;
 }) {
   const [saved, setSaved] = useState<Record<string, PrintTemplate>>(() =>
     Object.fromEntries(templates.map((t) => [t.docType, t])),
@@ -335,7 +346,7 @@ export function PrintingSettings({
     inFlight.current = true;
     setBusy('save');
     setMessage(null);
-    const result = await savePrintTemplate(docType, toPayload(form!), scope);
+    const result = await (saveFn ?? savePrintTemplate)(docType, toPayload(form!), scope);
     inFlight.current = false;
     setBusy(null);
     if (result.ok) {
@@ -795,7 +806,7 @@ export function PrintingSettings({
             >
               {busy === 'save' ? copy.saving : copy.save}
             </Button>
-            {mayChange && removable && !confirmReset ? (
+            {mayChange && removable && !saveFn && !confirmReset ? (
               <Button
                 type="button"
                 variant="outline"

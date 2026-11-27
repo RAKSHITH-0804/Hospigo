@@ -15,6 +15,8 @@ jest.mock('@/lib/indigo/client', () => ({
 }));
 
 const copy = staffCopy.admin.console;
+const hq = staffCopy.admin.hq;
+const next = () => fireEvent.click(screen.getByRole('button', { name: hq.next }));
 const catalog = [
   { code: 'OPD', name: 'Outpatient' },
   { code: 'IPD', name: 'Inpatient' },
@@ -41,13 +43,15 @@ describe('OnboardHospital', () => {
     render(<OnboardHospital moduleCatalog={catalog} />);
     fireEvent.change(screen.getByLabelText(copy.hospitalCode), { target: { value: 'newco' } });
     fireEvent.change(screen.getByLabelText(copy.hospitalName), { target: { value: 'New Co' } });
-    fireEvent.change(screen.getByLabelText(copy.branchAccessCode), {
+    next();
+    fireEvent.change(screen.getByLabelText(copy.branchAccessCode, { exact: false }), {
       target: { value: 'newco-main' },
     });
     fireEvent.change(screen.getByLabelText(copy.adminName), { target: { value: 'The Boss' } });
     fireEvent.change(screen.getByLabelText(copy.adminEmail), {
       target: { value: 'boss@example.test' },
     });
+    next();
     fireEvent.click(screen.getByLabelText('Inpatient'));
     fireEvent.click(screen.getByRole('button', { name: copy.create }));
     await waitFor(() => expect(onboardMock).toHaveBeenCalledTimes(1));
@@ -66,6 +70,8 @@ describe('OnboardHospital', () => {
   it('says plainly when a code is already used, and OPD cannot be unticked', async () => {
     onboardMock.mockResolvedValue({ ok: false, code: 'INDIGO_CONFLICT', status: 409 });
     render(<OnboardHospital moduleCatalog={catalog} />);
+    next();
+    next();
     expect((screen.getByLabelText(/Outpatient/) as HTMLInputElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: copy.create }));
     await waitFor(() => expect(screen.getByRole('alert').textContent).toBe(copy.taken));
@@ -78,6 +84,8 @@ describe('OnboardHospital', () => {
     const mains = screen.getAllByRole('radio');
     expect(mains).toHaveLength(2);
     fireEvent.click(mains[1]!);
+    next();
+    next();
     fireEvent.click(screen.getByRole('button', { name: copy.create }));
     await waitFor(() => expect(onboardMock).toHaveBeenCalledTimes(1));
     const sent = onboardMock.mock.calls[0]![0] as { branches: Array<{ isMain: boolean }> };

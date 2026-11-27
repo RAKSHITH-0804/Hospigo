@@ -43,4 +43,49 @@ export const setEmployeeActive = (
     },
   );
 
+export const saveEmployeePermissions = (
+  id: string,
+  permissions: string[],
+): Promise<PatientsApiResult<{ permissions: string[] }>> =>
+  patientsApi(`${BASE}/employees/${encodeURIComponent(id)}/permissions`, {
+    method: 'PUT',
+    body: { permissions },
+  });
+
+export const createSuperAdmin = (
+  hospitalId: string,
+  body: { name: string; email: string },
+): Promise<PatientsApiResult<{ email: string; temporaryPassword: string }>> =>
+  patientsApi(`${BASE}/hospitals/${encodeURIComponent(hospitalId)}/super-admins`, {
+    method: 'POST',
+    body,
+  });
+
+export const resetSuperAdmin = (
+  hospitalId: string,
+  userId: string,
+): Promise<PatientsApiResult<{ temporaryPassword: string }>> =>
+  patientsApi(
+    `${BASE}/hospitals/${encodeURIComponent(hospitalId)}/super-admins/${encodeURIComponent(userId)}/reset`,
+    { method: 'POST', body: {} },
+  );
+
+export const activateDesign = (
+  hospitalId: string,
+  body: { templateId: string; branchId?: string },
+): Promise<PatientsApiResult<{ docType: string; scope: string }>> =>
+  patientsApi(`${BASE}/hospitals/${encodeURIComponent(hospitalId)}/print-design`, {
+    method: 'PUT',
+    body,
+  });
+
+export const setHospitalLogo = (
+  hospitalId: string,
+  logoId: string,
+): Promise<PatientsApiResult<{ ok: true }>> =>
+  patientsApi(`${BASE}/hospitals/${encodeURIComponent(hospitalId)}/logo`, {
+    method: 'PUT',
+    body: { logoId },
+  });
+
 export type { IndigoEmployee };

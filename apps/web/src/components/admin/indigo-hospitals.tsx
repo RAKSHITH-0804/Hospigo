@@ -17,7 +17,7 @@ const consoleCopy = staffCopy.admin.console;
 
 export type IndigoHospital = { id: string; code: string; name: string };
 
-function ModuleSwitches({
+export function ModuleSwitches({
   hospital,
   catalog,
 }: {
@@ -77,7 +77,7 @@ function ModuleSwitches({
 }
 
 /** The modules of ONE branch (the hospital must hold the module; OPD stays on). */
-function BranchModuleSwitches({
+export function BranchModuleSwitches({
   hospital,
   branch,
   catalog,
@@ -142,7 +142,7 @@ function BranchModuleSwitches({
 }
 
 /** The starter masters (payment modes, vitals fields, number series, ...), safe to press twice. */
-function StarterButton({ hospitalId }: { hospitalId: string }) {
+export function StarterButton({ hospitalId }: { hospitalId: string }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 

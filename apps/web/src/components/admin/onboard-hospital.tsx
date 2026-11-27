@@ -9,6 +9,7 @@ import { onboardHospital } from '@/lib/indigo/client';
 import type { OnboardResult } from '@/lib/indigo/types';
 
 const copy = staffCopy.admin.console;
+const hqCopy = staffCopy.admin.hq;
 
 type BranchDraft = { code: string; name: string; accessCode: string };
 
@@ -27,6 +28,7 @@ export function OnboardHospital({
   const [modules, setModules] = useState<string[]>(['OPD']);
   const [adminName, setAdminName] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<OnboardResult | null>(null);
@@ -37,6 +39,10 @@ export function OnboardHospital({
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (busy) {
+      return;
+    }
+    if (step < 3) {
+      setStep((step + 1) as 2 | 3);
       return;
     }
     setBusy(true);
@@ -90,126 +96,158 @@ export function OnboardHospital({
     >
       <h1 className="type-heading font-medium">{copy.onboardTitle}</h1>
       <p className="type-label text-muted-foreground">{copy.onboardHint}</p>
-      <div className="grid gap-[var(--space-3)] md:grid-cols-2">
-        <InputField
-          label={copy.hospitalCode}
-          value={code}
-          disabled={busy}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
-        />
-        <InputField
-          label={copy.hospitalName}
-          value={name}
-          disabled={busy}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </div>
-      <div className="flex flex-col gap-[var(--space-3)]">
-        {branches.map((branch, index) => (
-          <fieldset
-            key={index}
-            className="consult-card grid gap-[var(--space-3)] md:grid-cols-4"
-            disabled={busy}
-          >
+      <p className="type-label font-medium">
+        {fill(hqCopy.stepOf, { n: step })} · {[hqCopy.step1, hqCopy.step2, hqCopy.step3][step - 1]}
+      </p>
+      {step === 1 ? (
+        <>
+          <div className="grid gap-[var(--space-3)] md:grid-cols-2">
             <InputField
-              label={copy.branchCode}
-              value={branch.code}
-              onChange={(e) => setBranch(index, { code: e.target.value.toUpperCase() })}
+              label={copy.hospitalCode}
+              value={code}
+              disabled={busy}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
             />
             <InputField
-              label={copy.branchName}
-              value={branch.name}
-              onChange={(e) => setBranch(index, { name: e.target.value })}
+              label={copy.hospitalName}
+              value={name}
+              disabled={busy}
+              onChange={(e) => setName(e.target.value)}
             />
-            <InputField
-              label={copy.branchAccessCode}
-              value={branch.accessCode}
-              onChange={(e) => setBranch(index, { accessCode: e.target.value.toLowerCase() })}
-            />
-            <div className="flex flex-col gap-[var(--space-1)]">
-              <label className="flex items-center gap-[var(--space-1)] type-label">
-                <input
-                  type="radio"
-                  name="main-branch"
-                  checked={mainIndex === index}
-                  onChange={() => setMainIndex(index)}
+          </div>
+          <div className="flex flex-col gap-[var(--space-3)]">
+            {branches.map((branch, index) => (
+              <fieldset
+                key={index}
+                className="consult-card grid gap-[var(--space-3)] md:grid-cols-3"
+                disabled={busy}
+              >
+                <InputField
+                  label={copy.branchCode}
+                  value={branch.code}
+                  onChange={(e) => setBranch(index, { code: e.target.value.toUpperCase() })}
                 />
-                {copy.branchMain}
-              </label>
-              {branches.length > 1 ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setBranches((current) => current.filter((_, i) => i !== index));
-                    setMainIndex(0);
-                  }}
-                >
-                  {copy.removeBranch}
-                </Button>
-              ) : null}
-            </div>
-          </fieldset>
-        ))}
-        <div>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy}
-            onClick={() =>
-              setBranches((current) => [...current, { code: '', name: '', accessCode: '' }])
-            }
-          >
-            {copy.addBranch}
-          </Button>
-        </div>
-      </div>
-      <div className="flex flex-col gap-[var(--space-1)]">
-        <p className="type-label font-medium">{copy.modulesHeading}</p>
-        <div className="flex flex-wrap gap-[var(--space-3)]">
-          {moduleCatalog.map((module) => (
-            <label key={module.code} className="flex items-center gap-[var(--space-1)] type-label">
-              <input
-                type="checkbox"
-                checked={modules.includes(module.code)}
-                disabled={busy || module.code === 'OPD'}
-                onChange={(event) =>
-                  setModules((current) =>
-                    event.target.checked
-                      ? [...current, module.code]
-                      : current.filter((c) => c !== module.code),
-                  )
+                <InputField
+                  label={copy.branchName}
+                  value={branch.name}
+                  onChange={(e) => setBranch(index, { name: e.target.value })}
+                />
+                <div className="flex flex-col gap-[var(--space-1)]">
+                  <label className="flex items-center gap-[var(--space-1)] type-label">
+                    <input
+                      type="radio"
+                      name="main-branch"
+                      checked={mainIndex === index}
+                      onChange={() => setMainIndex(index)}
+                    />
+                    {copy.branchMain}
+                  </label>
+                  {branches.length > 1 ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setBranches((current) => current.filter((_, i) => i !== index));
+                        setMainIndex(0);
+                      }}
+                    >
+                      {copy.removeBranch}
+                    </Button>
+                  ) : null}
+                </div>
+              </fieldset>
+            ))}
+            <div>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() =>
+                  setBranches((current) => [...current, { code: '', name: '', accessCode: '' }])
                 }
+              >
+                {copy.addBranch}
+              </Button>
+            </div>
+          </div>
+        </>
+      ) : null}
+      {step === 2 ? (
+        <>
+          <div className="grid gap-[var(--space-3)] md:grid-cols-2">
+            {branches.map((branch, index) => (
+              <InputField
+                key={index}
+                label={`${copy.branchAccessCode}: ${branch.name || branch.code}`}
+                value={branch.accessCode}
+                disabled={busy}
+                onChange={(e) => setBranch(index, { accessCode: e.target.value.toLowerCase() })}
               />
-              {module.name}
-              {module.code === 'OPD' ? ` (${copy.opdAlways})` : ''}
-            </label>
-          ))}
+            ))}
+          </div>
+          <div className="grid gap-[var(--space-3)] md:grid-cols-2">
+            <InputField
+              label={copy.adminName}
+              value={adminName}
+              disabled={busy}
+              onChange={(e) => setAdminName(e.target.value)}
+            />
+            <InputField
+              label={copy.adminEmail}
+              type="email"
+              value={adminEmail}
+              disabled={busy}
+              onChange={(e) => setAdminEmail(e.target.value)}
+            />
+          </div>
+        </>
+      ) : null}
+      {step === 3 ? (
+        <div className="flex flex-col gap-[var(--space-1)]">
+          <p className="type-label font-medium">{copy.modulesHeading}</p>
+          <div className="flex flex-wrap gap-[var(--space-3)]">
+            {moduleCatalog.map((module) => (
+              <label
+                key={module.code}
+                className="flex items-center gap-[var(--space-1)] type-label"
+              >
+                <input
+                  type="checkbox"
+                  checked={modules.includes(module.code)}
+                  disabled={busy || module.code === 'OPD'}
+                  onChange={(event) =>
+                    setModules((current) =>
+                      event.target.checked
+                        ? [...current, module.code]
+                        : current.filter((c) => c !== module.code),
+                    )
+                  }
+                />
+                {module.name}
+                {module.code === 'OPD' ? ` (${copy.opdAlways})` : ''}
+              </label>
+            ))}
+          </div>
         </div>
-      </div>
-      <div className="grid gap-[var(--space-3)] md:grid-cols-2">
-        <InputField
-          label={copy.adminName}
-          value={adminName}
-          disabled={busy}
-          onChange={(e) => setAdminName(e.target.value)}
-        />
-        <InputField
-          label={copy.adminEmail}
-          type="email"
-          value={adminEmail}
-          disabled={busy}
-          onChange={(e) => setAdminEmail(e.target.value)}
-        />
-      </div>
+      ) : null}
       {error ? (
         <p role="alert" className="type-label text-destructive">
           {error}
         </p>
       ) : null}
-      <div>
+      <div className="flex flex-wrap gap-[var(--space-2)]">
+        {step > 1 ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy}
+            onClick={() => setStep((step - 1) as 1 | 2)}
+          >
+            {hqCopy.previous}
+          </Button>
+        ) : null}
         <Button type="submit" className="touch-target" disabled={busy}>
-          {busy ? copy.creating : copy.create}
+          {step < 3 ? hqCopy.next : busy ? copy.creating : copy.create}
         </Button>
       </div>
     </form>
