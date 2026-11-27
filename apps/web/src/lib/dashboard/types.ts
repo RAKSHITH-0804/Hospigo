@@ -12,6 +12,7 @@ export type DashboardSummary = {
     visits: number;
     waiting: number;
     completed: number;
+    longWaiting: number | null;
     collectionPaise: number | null;
   };
   trend: Array<{ date: string; visits: number; collectionPaise: number | null }>;

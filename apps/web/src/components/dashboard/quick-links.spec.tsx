@@ -36,7 +36,7 @@ describe('quickLinksFor', () => {
 describe('QuickLinks', () => {
   it('welcomes the person with the branch and the hospital', () => {
     show(['patients.registry.read']);
-    expect(screen.getByText(/Welcome, Dr Meena/)).toBeTruthy();
+    expect(screen.getByText(/Good (morning|afternoon|evening), Dr Meena/)).toBeTruthy();
     expect(screen.getByText(/Main Branch/)).toBeTruthy();
     expect(screen.getByText(/Demo Clinic/)).toBeTruthy();
   });

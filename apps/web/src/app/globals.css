@@ -78,7 +78,7 @@
    * Product theme (Phase 2 Step 3b) — one palette for the whole app.
    * Hex sources → oklch; see docs/ui-design.md.
    */
-  --background: oklch(0.96 0.008 253.9);
+  --background: oklch(0.982 0.003 195);
   --foreground: oklch(0.208 0.04 265.8);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.208 0.04 265.8);
@@ -103,7 +103,7 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.375rem;
+  --radius: 0.5rem;
   --sidebar: oklch(0.221 0.039 258.3);
   --sidebar-foreground: oklch(0.869 0.02 252.9);
   --sidebar-primary: oklch(0.301 0.052 259.8);
@@ -147,8 +147,11 @@
   --font-size-label: 0.75rem;
   --font-size-heading: 0.875rem;
   --font-size-title: 1.25rem;
+  /* Page title (Phase 2.2 redesign): 24 px semibold. */
+  --font-size-page-title: 1.5rem;
   --font-size-small: 0.6875rem;
   --font-size-stat: 1.25rem;
+  --font-size-kpi: 1.75rem;
   --font-size-input: var(--font-size-body);
 
   /* Density spacing */
@@ -205,7 +208,7 @@
   --size-selection-min-height: 2.75rem;
 
   /* Radius / containers */
-  --radius-card: 0.375rem;
+  --radius-card: 0.625rem;
   /* Mark 2.5rem + wordmark ~3.75rem + collapse 2.75–3.25rem + gaps/padding need ≥13.5rem floor (+8px spare). */
   --sidebar-width: clamp(13.5rem, 12.5rem + 1.2vw, 16rem);
   --sidebar-width-collapsed: 4.5rem;
@@ -361,6 +364,15 @@
     font-size: var(--font-size-heading);
   }
 
+  /* The first heading of a page is the page title: 24 px, semibold. */
+  h1.type-heading,
+  h1.type-title {
+    font-size: var(--font-size-page-title);
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+
   .type-title {
     font-size: var(--font-size-title);
   }
@@ -503,7 +515,40 @@
 
   .kpi-card,
   .chart-card {
-    padding: var(--space-3);
+    padding: var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: var(--card);
+  }
+
+  .kpi-label {
+    font-size: var(--font-size-label);
+    font-weight: 500;
+    color: var(--muted-foreground);
+  }
+
+  .kpi-value {
+    margin-block-start: var(--space-1);
+    font-size: var(--font-size-kpi);
+    font-weight: 600;
+    line-height: 1.1;
+  }
+
+  /* "Attention required": a short list of real things that wait for someone. */
+  .attention-list {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .attention-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
     border: 1px solid var(--border);
     border-radius: var(--radius-control);
     background: var(--card);
@@ -840,7 +885,15 @@
   }
 
   .data-table thead {
-    background: color-mix(in oklch, var(--muted) 50%, transparent);
+    background: var(--table-header);
+  }
+
+  .data-table th {
+    font-size: var(--font-size-label);
+    font-weight: 600;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
 
   .data-table tbody tr {

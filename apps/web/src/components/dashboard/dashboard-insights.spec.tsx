@@ -8,7 +8,14 @@ const copy = staffCopy.dashboard.insights;
 const base = (over: Partial<DashboardSummary> = {}): DashboardSummary => ({
   branchId: 'b1',
   sections: { money: true, queue: true, vitals: false, doctor: false, approvals: false },
-  today: { registrations: 3, visits: 9, waiting: 4, completed: 5, collectionPaise: 250000 },
+  today: {
+    registrations: 3,
+    visits: 9,
+    waiting: 4,
+    completed: 5,
+    longWaiting: 2,
+    collectionPaise: 250000,
+  },
   trend: Array.from({ length: 14 }, (_, i) => ({
     date: `2026-11-${String(i + 10).padStart(2, '0')}`,
     visits: i,
@@ -48,7 +55,14 @@ describe('DashboardInsights', () => {
     reply(
       base({
         sections: { money: false, queue: true, vitals: false, doctor: true, approvals: false },
-        today: { registrations: 1, visits: 2, waiting: 1, completed: 1, collectionPaise: null },
+        today: {
+          registrations: 1,
+          visits: 2,
+          waiting: 1,
+          completed: 1,
+          longWaiting: null,
+          collectionPaise: null,
+        },
         doctor: { myWaiting: 1, mySeenToday: 1 },
       }),
     );
@@ -66,5 +80,24 @@ describe('DashboardInsights', () => {
     reply({}, false);
     render(<DashboardInsights />);
     await waitFor(() => expect(screen.getByRole('alert').textContent).toBe(copy.failed));
+  });
+});
+
+describe('Attention required', () => {
+  it('lists only real things that wait, with the long waits', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () =>
+        base({
+          sections: { money: true, queue: true, vitals: true, doctor: false, approvals: true },
+          vitals: { waiting: 3, recordedToday: 1 },
+          pendingApprovals: 2,
+        }),
+    }) as unknown as typeof fetch;
+    render(<DashboardInsights />);
+    await waitFor(() => expect(screen.getByText(staffCopy.dashboard.attention.title)).toBeTruthy());
+    expect(screen.getByText(/2 refund or cancel requests/)).toBeTruthy();
+    expect(screen.getByText(/3 patients waiting for vitals/)).toBeTruthy();
+    expect(screen.getByText(/2 patients waiting more than 30 minutes/)).toBeTruthy();
   });
 });

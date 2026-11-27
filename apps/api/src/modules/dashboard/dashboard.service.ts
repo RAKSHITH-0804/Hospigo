@@ -11,6 +11,8 @@ export const DASHBOARD_TREND_DAYS = 14;
 export const DASHBOARD_WINDOW_DAYS = 30;
 const DAY_MS = 86_400_000;
 const OPEN_STATUSES = ['WAITING', 'IN_CONSULTATION'];
+/** A patient who has been waiting longer than this (minutes) is listed under "Attention required". */
+export const DASHBOARD_LONG_WAIT_MINUTES = Number(process.env.DASHBOARD_LONG_WAIT_MINUTES ?? 30);
 
 export type DashboardSummary = {
   branchId: string;
@@ -30,6 +32,8 @@ export type DashboardSummary = {
     visits: number;
     waiting: number;
     completed: number;
+    /** Waiting longer than DASHBOARD_LONG_WAIT_MINUTES (null when the caller may not see the queue). */
+    longWaiting: number | null;
     collectionPaise: number | null;
   };
   trend: Array<{ date: string; visits: number; collectionPaise: number | null }>;
@@ -101,6 +105,7 @@ export class DashboardService {
               id: true,
               visitDate: true,
               status: true,
+              queuedAt: true,
               doctorProfileId: true,
               doctor: { select: { user: { select: { displayName: true } } } },
             },
@@ -172,6 +177,14 @@ export class DashboardService {
           visits: todays.length,
           waiting: todays.filter((v) => OPEN_STATUSES.includes(v.status)).length,
           completed: todays.filter((v) => v.status === 'COMPLETED').length,
+          longWaiting: queue
+            ? todays.filter(
+                (v) =>
+                  v.status === 'WAITING' &&
+                  v.queuedAt !== null &&
+                  now.getTime() - v.queuedAt.getTime() > DASHBOARD_LONG_WAIT_MINUTES * 60_000,
+              ).length
+            : null,
           collectionPaise: money ? (collectionByDay.get(today) ?? 0) : null,
         },
         trend: keys.map((date) => ({

@@ -1033,6 +1033,18 @@ const baseCopy = {
   dashboard: {
     title: 'Dashboard',
     welcome: 'Welcome, {name}',
+    greetingMorning: 'Good morning, {name}',
+    greetingAfternoon: 'Good afternoon, {name}',
+    greetingEvening: 'Good evening, {name}',
+    attention: {
+      title: 'Attention required',
+      none: 'Nothing is waiting for you right now.',
+      requests: '{n} refund or cancel requests waiting for a decision',
+      vitals: '{n} patients waiting for vitals',
+      longWaits: '{n} patients waiting more than {minutes} minutes',
+      open: 'Open',
+      minutes: 30,
+    },
     nothingYet: 'Nothing to start from yet. Ask an Admin for access.',
     insights: {
       title: 'This branch, in numbers',

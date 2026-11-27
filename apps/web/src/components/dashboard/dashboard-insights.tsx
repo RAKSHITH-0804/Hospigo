@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { BarChart, Donut, LineChart, sliceClass } from '@/components/dashboard/charts';
 import { formatPaise } from '@/config/money';
@@ -11,8 +12,57 @@ const copy = staffCopy.dashboard.insights;
 function Kpi({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="kpi-card">
-      <p className="type-label text-muted-foreground">{label}</p>
-      <p className="type-title font-semibold text-foreground">{value}</p>
+      <p className="kpi-label">{label}</p>
+      <p className="kpi-value">{value}</p>
+    </div>
+  );
+}
+
+const attentionCopy = staffCopy.dashboard.attention;
+
+/** Real things that wait for someone: requests to decide, patients waiting for vitals, long waits. */
+function Attention({ data }: { data: DashboardSummary }) {
+  const items: Array<{ key: string; text: string; href: string }> = [];
+  if (data.pendingApprovals) {
+    items.push({
+      key: 'requests',
+      text: attentionCopy.requests.replace('{n}', String(data.pendingApprovals)),
+      href: '/app/opd/refunds',
+    });
+  }
+  if (data.vitals?.waiting) {
+    items.push({
+      key: 'vitals',
+      text: attentionCopy.vitals.replace('{n}', String(data.vitals.waiting)),
+      href: '/app/opd',
+    });
+  }
+  if (data.today.longWaiting) {
+    items.push({
+      key: 'long',
+      text: attentionCopy.longWaits
+        .replace('{n}', String(data.today.longWaiting))
+        .replace('{minutes}', String(attentionCopy.minutes)),
+      href: '/app/opd',
+    });
+  }
+  return (
+    <div className="flex flex-col gap-[var(--space-2)]">
+      <h2 className="type-label-strong">{attentionCopy.title}</h2>
+      {items.length === 0 ? (
+        <p className="type-label text-muted-foreground">{attentionCopy.none}</p>
+      ) : (
+        <ul className="attention-list">
+          {items.map((item) => (
+            <li key={item.key} className="attention-item">
+              <span className="type-body">{item.text}</span>
+              <Link href={item.href} className="type-label-strong underline">
+                {attentionCopy.open}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -92,6 +142,7 @@ export function DashboardInsights({ allBranches = false }: { allBranches?: boole
           <Kpi label={copy.approvals} value={data.pendingApprovals} />
         ) : null}
       </div>
+      {s.queue || s.approvals ? <Attention data={data} /> : null}
       {s.queue && !hasVisits ? (
         <p className="type-label text-muted-foreground">{copy.empty}</p>
       ) : null}

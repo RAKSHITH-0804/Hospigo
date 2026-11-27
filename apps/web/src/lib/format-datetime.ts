@@ -12,6 +12,17 @@ export function hospitalTimeZone(): string {
   return opdWebConfig.reportTimeZone;
 }
 
+/** The hour (0 to 23) of a moment in the hospital time zone (for the greeting). */
+export function hospitalHour(date: Date = new Date()): number {
+  return Number(
+    new Intl.DateTimeFormat('en-GB', {
+      hour: '2-digit',
+      hourCycle: 'h23',
+      timeZone: hospitalTimeZone(),
+    }).format(date),
+  );
+}
+
 export function dateLocale(): string {
   return patientsWebConfig.dateLocale;
 }
