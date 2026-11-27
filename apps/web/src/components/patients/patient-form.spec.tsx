@@ -1,5 +1,3 @@
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { PatientForm } from '@/components/patients/patient-form';
@@ -313,10 +311,11 @@ describe('PatientForm (register)', () => {
     await renderRegister({
       'POST /api/staff/patients': () => jsonResponse({ id: 'new2', uhid: 'NREG0010' }),
     });
-    expect(screen.getByRole('button', { name: form.dobModeDob }).getAttribute('aria-pressed')).toBe(
+    // Age is the default: one box, and no sentences about estimating
+    expect(screen.getByRole('button', { name: form.dobModeAge }).getAttribute('aria-pressed')).toBe(
       'true',
     );
-    fireEvent.click(screen.getByRole('button', { name: form.dobModeAge }));
+    expect(screen.queryByText(/estimated from this age/)).toBeNull();
     expect(screen.queryByLabelText(new RegExp(`^${form.dateOfBirth}$`))).toBeNull();
     type(form.name, 'Mock Delta');
     type(form.phone, '9876543210');
@@ -469,12 +468,12 @@ describe('PatientForm (register)', () => {
     expect(alert.textContent).toBe(staffCopy.errors.forbidden);
   });
 
-  it('defaults to the date of birth (age is the second option) and keeps Register in the page header form submit', async () => {
+  it('defaults to Age (date of birth is the second option) and keeps Register in the page header form submit', async () => {
     await renderRegister();
-    expect(screen.getByRole('button', { name: form.dobModeDob }).getAttribute('aria-pressed')).toBe(
+    expect(screen.getByRole('button', { name: form.dobModeAge }).getAttribute('aria-pressed')).toBe(
       'true',
     );
-    expect(screen.getByRole('button', { name: form.dobModeAge }).getAttribute('aria-pressed')).toBe(
+    expect(screen.getByRole('button', { name: form.dobModeDob }).getAttribute('aria-pressed')).toBe(
       'false',
     );
     const register = screen.getByRole('button', { name: form.submitRegister });
@@ -643,13 +642,9 @@ describe('PatientForm server boot data and visual rules', () => {
         boot={{ fields: config.fields }}
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: form.dobModeAge }));
+    // one rounded box (Age is the default entry)
     expect(screen.getByLabelText(form.ageYears).className).toContain(
-      'rounded-e-[var(--radius-control)]',
-    );
-    const css = readFileSync(join(__dirname, '../../app/globals.css'), 'utf8');
-    expect(css).toMatch(
-      /\.patient-age-mode\s*{[^}]*border-radius: var\(--radius-control\) 0 0 var\(--radius-control\)/,
+      'rounded-[var(--radius-control)]',
     );
   });
 });

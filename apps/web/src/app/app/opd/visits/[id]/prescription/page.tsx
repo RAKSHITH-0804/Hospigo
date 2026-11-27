@@ -24,11 +24,17 @@ export const metadata: Metadata = { title: copy.pageTitle };
  */
 export default async function PrescriptionPrintPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ from?: string }>;
 }) {
   const session = await requireClinicalPrint();
   const { id } = await params;
+  // a person who came from the queue (or who may only print) goes back to the queue, not to the notes
+  const fromQueue =
+    (await searchParams)?.from === 'queue' ||
+    !(session.permissions ?? []).includes('opd.notes.read');
   const hospitalName = session.hospitalName?.trim() || staffCopy.brand;
 
   const [{ consult }, templateResult, logoImageId, extraValues] = await Promise.all([
@@ -88,7 +94,7 @@ export default async function PrescriptionPrintPage({
       }}
       title={copy.pageTitle}
       description={`${consult.data.visit.patient.name} · ${consult.data.visit.patient.uhid}`}
-      backHref={`/app/opd/visits/${encodeURIComponent(id)}/consult`}
+      backHref={fromQueue ? '/app/opd' : `/app/opd/visits/${encodeURIComponent(id)}/consult`}
       printLabel={copy.print}
     />
   );

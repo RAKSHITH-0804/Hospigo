@@ -27,12 +27,15 @@ export function BarChart({
   labels,
   label,
   hrefs,
+  titles,
 }: {
   values: number[];
   labels: string[];
   label: string;
   /** Where each bar leads (same order as the values); a bar without one is not a link. */
   hrefs?: Array<string | undefined>;
+  /** The full words of each bar for the hover tip (the label under it is short). */
+  titles?: string[];
 }) {
   const max = Math.max(1, ...values);
   return (
@@ -43,7 +46,7 @@ export function BarChart({
       style={{ gridTemplateColumns: `repeat(${values.length}, minmax(0, 1fr))` }}
     >
       {values.map((v, i) => (
-        <Wrap key={labels[i] ?? i} href={hrefs?.[i]} title={`${labels[i]}: ${v}`}>
+        <Wrap key={labels[i] ?? i} href={hrefs?.[i]} title={`${titles?.[i] ?? labels[i]}: ${v}`}>
           <span className="chart-bar-track">
             <span className="chart-bar-fill" style={{ height: `${(v / max) * 100}%` }} />
           </span>
@@ -59,11 +62,13 @@ export function LineChart({
   labels,
   label,
   hrefs,
+  titles,
 }: {
   values: number[];
   labels: string[];
   label: string;
   hrefs?: Array<string | undefined>;
+  titles?: string[];
 }) {
   const max = Math.max(1, ...values);
   const step = W / Math.max(1, values.length - 1);
@@ -78,7 +83,7 @@ export function LineChart({
         style={{ gridTemplateColumns: `repeat(${values.length}, minmax(0, 1fr))` }}
       >
         {values.map((v, i) => (
-          <Wrap key={labels[i] ?? i} href={hrefs?.[i]} title={`${labels[i]}: ${v}`}>
+          <Wrap key={labels[i] ?? i} href={hrefs?.[i]} title={`${titles?.[i] ?? labels[i]}: ${v}`}>
             <span
               className="chart-dot-point"
               style={{ bottom: `${((H - 2 - (H - 2 - (v / max) * (H - 6))) / H) * 100}%` }}

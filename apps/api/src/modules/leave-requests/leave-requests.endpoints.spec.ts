@@ -145,6 +145,28 @@ describe('Doctor leave requests (HTTP, hospigo_test)', () => {
     expect(other.body.items.some((r: { id: string }) => r.id === id)).toBe(false);
   });
 
+  it('the menu number: how many requests wait, only for people who may decide, only their hospital', async () => {
+    const before = await http()
+      .get('/opd/leave-requests/pending-count')
+      .set(auth(A.admin))
+      .expect(200);
+    await ask(A.docMainToken);
+    const after = await http()
+      .get('/opd/leave-requests/pending-count')
+      .set(auth(A.admin))
+      .expect(200);
+    expect(after.body.count).toBe(before.body.count + 1);
+    // another hospital's Admin does not count it; doctors, nobody and no token cannot ask
+    const other = await http()
+      .get('/opd/leave-requests/pending-count')
+      .set(auth(B.admin))
+      .expect(200);
+    expect(other.body.count).toBe(0);
+    await http().get('/opd/leave-requests/pending-count').set(auth(A.docMainToken)).expect(403);
+    await http().get('/opd/leave-requests/pending-count').set(auth(A.nobody)).expect(403);
+    await http().get('/opd/leave-requests/pending-count').expect(401);
+  });
+
   it('the doctor comes from the token: the body cannot name another doctor or hospital', async () => {
     const period = freshPeriod();
     const res = await http()

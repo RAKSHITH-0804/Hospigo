@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { SettingBlock } from '@/components/settings/setting-block';
 import { StaffForm } from '@/components/staff/staff-form';
+import { Modal } from '@/components/ui/modal';
 import { Badge, type BadgeVariant } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { InputField, SelectField } from '@/components/ui/field';
@@ -198,11 +199,7 @@ export function StaffAdmin({
           ))}
         </SelectField>
         {canWrite ? (
-          <Button
-            type="button"
-            className="touch-target"
-            onClick={() => setEditing(editing === 'new' ? null : 'new')}
-          >
+          <Button type="button" className="touch-target" onClick={() => setEditing('new')}>
             {copy.add}
           </Button>
         ) : null}
@@ -213,15 +210,6 @@ export function StaffAdmin({
       >
         {flash?.text ?? (loading ? copy.searching : '')}
       </p>
-      {editing === 'new' ? (
-        <StaffForm
-          key="new"
-          options={options}
-          member={null}
-          onSaved={onSaved}
-          onCancel={() => setEditing(null)}
-        />
-      ) : null}
       {data.items.length === 0 ? (
         <p className="type-label text-muted-foreground">{copy.empty}</p>
       ) : (
@@ -283,10 +271,10 @@ export function StaffAdmin({
                       type="button"
                       variant="outline"
                       size="sm"
-                      aria-label={`${member.name}: ${open ? copy.done : copy.edit}`}
-                      onClick={() => setEditing(open ? null : member.id)}
+                      aria-label={`${member.name}: ${copy.edit}`}
+                      onClick={() => setEditing(member.id)}
                     >
-                      {open ? copy.done : copy.edit}
+                      {copy.edit}
                     </Button>
                     {member.status === 'INVITED' ? (
                       <Button
@@ -367,20 +355,32 @@ export function StaffAdmin({
                     </div>
                   </div>
                 ) : null}
-                {open ? (
-                  <StaffForm
-                    key={member.id}
-                    options={options}
-                    member={member}
-                    onSaved={onSaved}
-                    onCancel={() => setEditing(null)}
-                  />
-                ) : null}
               </li>
             );
           })}
         </ul>
       )}
+      {editing ? (
+        <Modal
+          title={
+            editing === 'new'
+              ? copy.form.addTitle
+              : copy.form.editTitle.replace(
+                  '{name}',
+                  data.items.find((m) => m.id === editing)?.name ?? '',
+                )
+          }
+          onClose={() => setEditing(null)}
+        >
+          <StaffForm
+            key={editing}
+            options={options}
+            member={editing === 'new' ? null : (data.items.find((m) => m.id === editing) ?? null)}
+            onSaved={onSaved}
+            onCancel={() => setEditing(null)}
+          />
+        </Modal>
+      ) : null}
       <Pagination
         page={data.page}
         totalPages={totalPages}

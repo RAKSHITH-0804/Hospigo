@@ -117,7 +117,8 @@ function Attention({ data }: { data: DashboardSummary }) {
   );
 }
 
-const shortDay = (d: string) => d.slice(5);
+/** The day of the month only ("10"): 14 labels of "11-10" cannot fit under 14 bars. */
+const shortDay = (d: string) => String(Number(d.slice(8)));
 
 /**
  * Real numbers for the active branch from /dashboard/summary (counted from stored rows; a block the
@@ -177,6 +178,7 @@ export function DashboardInsights({
   }
   const s = data.sections;
   const days = data.trend.map((t) => shortDay(t.date));
+  const dates = data.trend.map((t) => t.date);
   const mixTotal = data.paymentMix.reduce((a, m) => a + m.amountPaise, 0);
   const hasVisits = data.trend.some((t) => t.visits > 0);
   return (
@@ -273,6 +275,7 @@ export function DashboardInsights({
             <BarChart
               values={data.trend.map((t) => t.visits)}
               labels={days}
+              titles={dates}
               label={copy.visitsTrend}
               hrefs={data.trend.map((t) => (toReport ? `${toReport}?date=${t.date}` : undefined))}
             />
@@ -283,6 +286,7 @@ export function DashboardInsights({
               <LineChart
                 values={data.trend.map((t) => t.collectionPaise ?? 0)}
                 labels={days}
+                titles={dates}
                 label={copy.collectionTrend}
                 hrefs={data.trend.map((t) => (toReport ? `${toReport}?date=${t.date}` : undefined))}
               />

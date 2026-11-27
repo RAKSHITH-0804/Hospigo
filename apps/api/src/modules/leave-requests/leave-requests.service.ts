@@ -316,6 +316,20 @@ export class LeaveRequestsService {
     });
   }
 
+  /**
+   * How many leave requests wait for a decision, in the branches the caller may decide for. It is the
+   * number the Administration menu and the Leave requests button show (Phase 2.3); the route needs the
+   * same permission as the list, so only people who can decide ever ask.
+   */
+  async pendingCount(actor: Actor): Promise<{ count: number }> {
+    const scope = await this.scope('opd.doctors.write');
+    return this.tenantDb.withTenant(async (tx) => ({
+      count: await tx.doctorLeaveRequest.count({
+        where: { tenantId: actor.tenantId, doctor: this.inScope(scope), status: 'PENDING' },
+      }),
+    }));
+  }
+
   /** Finds a request of a doctor in the Admin scope (404 otherwise), locks the doctor, re-reads it. */
   private async openForDecision(tx: TenantTx, actor: Actor, id: string, scope: Scope) {
     const first = await tx.doctorLeaveRequest.findFirst({

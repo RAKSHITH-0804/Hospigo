@@ -150,7 +150,7 @@ const baseCopy = {
       dobOrAgeLabel: 'Age or date of birth',
       dobOrAgeDob: 'Date of birth',
       dobOrAgeAge: 'Age in years',
-      dobModeAge: 'Age (not sure of the date of birth)',
+      dobModeAge: 'Age',
       dobModeDob: 'Date of birth',
       ageMonths: 'Months',
       ageDays: 'Days',
@@ -1610,6 +1610,7 @@ const baseCopy = {
     },
     approvals: {
       badge: '{count} waiting for approval',
+      leaveBadge: '{count} leave requests waiting for a decision',
       toast: 'A request is waiting for your approval.',
       bell: 'Requests waiting for approval',
       bellNone: 'No requests waiting for approval',

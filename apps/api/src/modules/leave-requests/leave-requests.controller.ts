@@ -81,6 +81,13 @@ export class LeaveRequestsController {
     return this.requests.cancel(actorOf(req), idOf(id));
   }
 
+  @Get('opd/leave-requests/pending-count')
+  @RequirePermission('opd.doctors.write', { module: 'OPD' })
+  @ApiOperation({ summary: 'How many leave requests wait for a decision (the menu number)' })
+  async pendingCount(@Req() req: HttpReq) {
+    return this.requests.pendingCount(actorOf(req));
+  }
+
   @Get('opd/leave-requests')
   @RequirePermission('opd.doctors.write', { module: 'OPD' })
   @ApiOperation({

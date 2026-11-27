@@ -581,3 +581,76 @@ a.kpi-link:focus-visible {
   padding-inline: var(--space-3);
   font-size: var(--font-size-label);
 }
+
+/* Registration: Age (default) or Date of birth, one control, no sentences. */
+.patient-age-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.patient-age-row .patient-age-mode {
+  display: inline-flex;
+  flex: none;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+}
+.patient-age-row .patient-age-mode button {
+  height: var(--size-input-height);
+  padding-inline: var(--space-4);
+  border: 0;
+  background: var(--card);
+  color: var(--muted-foreground);
+  font-size: var(--font-size-body);
+  font-weight: 600;
+}
+.patient-age-row .patient-age-mode button[aria-pressed='true'] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.patient-age-input {
+  width: 8rem;
+}
+.patient-dob-box {
+  width: 12.5rem;
+}
+.patient-dob-box button[aria-haspopup='dialog'] {
+  display: flex;
+  align-items: center;
+  height: var(--size-input-height);
+  padding-inline: var(--space-3);
+  white-space: nowrap;
+}
+.calendar-popover {
+  inset-inline-start: 0;
+  inset-block-start: 100%;
+}
+.calendar-popover .calendar-day {
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+}
+
+/* Chart labels: the day number, centred, never wider than their bar. */
+.chart-bar-label {
+  min-width: 0;
+  font-size: var(--font-size-small);
+  text-align: center;
+  overflow: hidden;
+}
+.chart-line-box .chart-svg {
+  inset: 0 0 1.5rem 0;
+  height: calc(100% - 1.5rem);
+}
+.chart-line-hits .chart-bar-label {
+  margin-block-start: auto;
+}
+
+/* Staff and doctor cards: the action buttons line up in one row. */
+.staff-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-block-start: var(--space-2);
+}

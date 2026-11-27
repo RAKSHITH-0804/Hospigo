@@ -235,13 +235,13 @@ export function OpdQueue({
             {canPrintClinical && done ? (
               <>
                 <Link
-                  href={`/app/opd/visits/${encodeURIComponent(v.id)}/prescription`}
+                  href={`/app/opd/visits/${encodeURIComponent(v.id)}/prescription?from=queue`}
                   className={cn(buttonVariants({ variant: 'outline' }), 'touch-target')}
                 >
                   {staffCopy.opd.clinical.queue.printPrescription}
                 </Link>
                 <Link
-                  href={`/app/opd/visits/${encodeURIComponent(v.id)}/report`}
+                  href={`/app/opd/visits/${encodeURIComponent(v.id)}/report?from=queue`}
                   className={cn(buttonVariants({ variant: 'outline' }), 'touch-target')}
                 >
                   {staffCopy.opd.clinical.queue.printReport}

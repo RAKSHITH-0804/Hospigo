@@ -653,15 +653,8 @@ export function PatientForm(props: Props) {
               </span>
             ) : null}
           </label>
-          <div className="patient-age-control">
+          <div className="patient-age-row">
             <div className="patient-age-mode" role="group">
-              <button
-                type="button"
-                aria-pressed={values.dobMode === 'dob'}
-                onClick={() => setDobMode('dob')}
-              >
-                {formCopy.dobModeDob}
-              </button>
               <button
                 type="button"
                 aria-pressed={values.dobMode === 'age'}
@@ -669,53 +662,58 @@ export function PatientForm(props: Props) {
               >
                 {formCopy.dobModeAge}
               </button>
+              <button
+                type="button"
+                aria-pressed={values.dobMode === 'dob'}
+                onClick={() => setDobMode('dob')}
+              >
+                {formCopy.dobModeDob}
+              </button>
             </div>
             {values.dobMode === 'dob' ? (
-              <DatePicker
-                label={formCopy.dobPick}
-                hideLabel
-                jump
-                value={values.dateOfBirth}
-                max={localTodayIso()}
-                weekStart={opdWebConfig.calendarWeekStart}
-                quickDays={[]}
-                onChange={(iso) => {
-                  setValues((prev) => ({ ...prev, dateOfBirth: iso, ageYears: '' }));
-                  setErrors((prev) => ({ ...prev, dateOfBirth: '', ageYears: '' }));
-                }}
-              />
-            ) : (
-              <div className="patient-age-parts">
-                <input
-                  id={inputId}
-                  ref={(el) => setRef('ageYears', el)}
-                  type="text"
-                  inputMode="numeric"
-                  aria-label={formCopy.ageYears}
-                  placeholder={formCopy.ageUnitYears}
-                  aria-required={field.required || undefined}
-                  aria-invalid={ageError ? true : undefined}
-                  value={values.ageYears}
-                  maxLength={cfg.ageMaxDigits}
-                  onChange={(e) => {
-                    const next = digitsOnly(e.target.value, cfg.ageMaxDigits);
-                    setValues((prev) => ({ ...prev, ageYears: next, dateOfBirth: '' }));
-                    setErrors((prev) => ({ ...prev, ageYears: '', dateOfBirth: '' }));
+              <div className="patient-dob-box">
+                <DatePicker
+                  label={formCopy.dobPick}
+                  hideLabel
+                  jump
+                  value={values.dateOfBirth}
+                  max={localTodayIso()}
+                  weekStart={opdWebConfig.calendarWeekStart}
+                  quickDays={[]}
+                  onChange={(iso) => {
+                    setValues((prev) => ({ ...prev, dateOfBirth: iso, ageYears: '' }));
+                    setErrors((prev) => ({ ...prev, dateOfBirth: '', ageYears: '' }));
                   }}
-                  className={cn(
-                    'field-control min-h-[var(--size-input-height)] h-[var(--size-input-height)] w-full rounded-e-[var(--radius-control)] border bg-card px-[var(--space-2)] text-[length:var(--font-size-input)] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                    ageError ? 'border-destructive' : 'border-[var(--input-border)]',
-                  )}
                 />
               </div>
+            ) : (
+              <input
+                id={inputId}
+                ref={(el) => setRef('ageYears', el)}
+                type="text"
+                inputMode="numeric"
+                aria-label={formCopy.ageYears}
+                placeholder={formCopy.ageUnitYears}
+                aria-required={field.required || undefined}
+                aria-invalid={ageError ? true : undefined}
+                value={values.ageYears}
+                maxLength={cfg.ageMaxDigits}
+                onChange={(e) => {
+                  const next = digitsOnly(e.target.value, cfg.ageMaxDigits);
+                  setValues((prev) => ({ ...prev, ageYears: next, dateOfBirth: '' }));
+                  setErrors((prev) => ({ ...prev, ageYears: '', dateOfBirth: '' }));
+                }}
+                className={cn(
+                  'field-control patient-age-input min-h-[var(--size-input-height)] h-[var(--size-input-height)] rounded-[var(--radius-control)] border bg-card px-[var(--space-3)] text-[length:var(--font-size-input)] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  ageError ? 'border-destructive' : 'border-[var(--input-border)]',
+                )}
+              />
             )}
           </div>
           {ageError ? (
             <p role="alert" className="type-small text-destructive">
               {ageError}
             </p>
-          ) : values.dobMode === 'age' ? (
-            <p className="type-small text-muted-foreground">{formCopy.ageEstimatedNote}</p>
           ) : null}
         </div>,
       );

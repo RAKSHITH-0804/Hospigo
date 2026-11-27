@@ -52,3 +52,12 @@ Branch `feature/step-2-3-feedback` (from `feature/step-2-2c-ui-redesign`, not pu
 - Hospitals already set up need the new permission on their Receptionist and Nurse roles (the Roles screen, or the one command below), and the new sample designs (choose them again in Print designs).
 - "Billed by" is a value the designs can use; hospital designs made earlier do not show it until the design is chosen again.
 - The dev database needs `npm run dev:reset` (or the two small commands already run in this session) to show the new designs.
+
+## Round 2 (Rakshith's review of Part 1)
+
+- **Age and date of birth.** Registration shows ONE control: two buttons **Age** (default) and **Date of birth**, and one box. The sentences about estimating and "not sure of the date of birth" are gone. The date of birth opens the calendar properly (month and year lists, fixed width). Assumption: both kinds of entry stay (a baby or an exact date), but Age is the default.
+- **Administration.** Staff edit and Add open in a pop-up window (like Roles). The action buttons sit in one row.
+- **Leave requests number.** `GET /opd/leave-requests/pending-count` (needs `opd.doctors.write`); the Administration menu item and the Leave requests button show a number badge, refreshed every 20 seconds like the refund requests, so an Admin sees at once when a doctor asks for leave.
+- **Graphs.** Labels are the day number ("14"), the full date is in the hover tip, so they fit under the bars and the line.
+- **Back button on the prescription and report pages.** A person who came from the queue, or who may only print (no notes access), goes back to the OPD queue, not to the doctor's consultation view. The queue's print buttons add `?from=queue`. Nurse and reception verified in the tests of the print pages and by the queue links.
+- **Note:** the receipt in the browser still showed the old "Payment" line because the old design copy is still chosen. `npm run dev:reset` (or choosing the design again in Settings, Print designs) shows the new one.

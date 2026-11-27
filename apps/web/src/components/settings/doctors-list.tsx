@@ -144,9 +144,17 @@ export function DoctorsList({
             variant="outline"
             size="sm"
             aria-haspopup="dialog"
+            aria-label={
+              pending ? leave.openWithCount.replace('{count}', String(pending)) : leave.open
+            }
             onClick={() => setLeaveOpen(true)}
           >
-            {pending ? leave.openWithCount.replace('{count}', String(pending)) : leave.open}
+            {leave.open}
+            {pending ? (
+              <span className="count-badge" aria-hidden="true">
+                {pending}
+              </span>
+            ) : null}
           </Button>
         </div>
       ) : null}

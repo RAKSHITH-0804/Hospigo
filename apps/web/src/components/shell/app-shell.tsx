@@ -7,6 +7,7 @@ import { useEffect, useId, useState, type ReactNode } from 'react';
 import { BranchChip } from '@/components/shell/branch-chip';
 import { BranchSwitcher } from '@/components/shell/branch-switcher';
 import { BranchSync } from '@/components/shell/branch-sync';
+import { PendingLeaveBadge } from '@/components/opd/pending-leave';
 import { NavIcon } from '@/components/shell/nav-icon';
 import { PoweredBy } from '@/components/shell/powered-by';
 import { ApprovalsBell, PendingBadge } from '@/components/opd/pending-approvals';
@@ -104,6 +105,7 @@ function NavLinks({
                     {item.label}
                   </span>
                   {item.href === '/app/opd' ? <PendingBadge /> : null}
+                  {item.href === '/app/administration' ? <PendingLeaveBadge /> : null}
                 </Link>
               );
               if (!collapsed) {
