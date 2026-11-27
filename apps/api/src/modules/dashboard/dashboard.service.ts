@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { CLOCK, type Clock } from '../../common/clock';
 import { TenantDb } from '../../database/tenant-db';
 import { AccessService } from '../access/access.service';
@@ -14,6 +14,9 @@ const OPEN_STATUSES = ['WAITING', 'IN_CONSULTATION'];
 
 export type DashboardSummary = {
   branchId: string;
+  /** BRANCH: the active branch only. ALL: the combined view of the caller's branches (Phase 2.2). */
+  scope: 'BRANCH' | 'ALL';
+  branchIds: string[];
   /** Which blocks the caller may see (the screens show only these). */
   sections: {
     money: boolean;
@@ -50,7 +53,22 @@ export class DashboardService {
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
-  async summary(actor: Actor): Promise<DashboardSummary> {
+  /**
+   * `allBranches`: the combined view of every branch the caller may read (Phase 2.2). It needs the
+   * permission on SEVERAL branches (a Super Admin, or an Admin given more than one branch); each block
+   * is counted over exactly those branches. Anyone else gets a 403.
+   */
+  async summary(actor: Actor, allBranches = false): Promise<DashboardSummary> {
+    let scopeIds = [actor.branchId];
+    if (allBranches) {
+      scopeIds = await this.access.permittedBranches('opd.billing.read', 'OPD');
+      const more = await this.access.permittedBranches('opd.visits.read', 'OPD');
+      scopeIds = scopeIds.length > 1 ? scopeIds : more;
+      if (scopeIds.length < 2) {
+        throw new ForbiddenException();
+      }
+    }
+    const inScope = { in: scopeIds };
     const [money, queue, vitalsRead, approvals] = await Promise.all([
       this.access.can('opd.billing.read', actor.branchId, 'OPD'),
       this.access.can('opd.visits.read', actor.branchId, 'OPD'),
@@ -75,7 +93,7 @@ export class DashboardService {
         ? await tx.opdVisit.findMany({
             where: {
               tenantId: actor.tenantId,
-              branchId: actor.branchId,
+              branchId: inScope,
               visitDate: { gte: sinceDay },
               status: { not: 'CANCELLED' },
             },
@@ -95,7 +113,7 @@ export class DashboardService {
       const newPatients = await tx.patient.findMany({
         where: {
           tenantId: actor.tenantId,
-          registeredBranchId: actor.branchId,
+          registeredBranchId: inScope,
           createdAt: { gte: recent },
         },
         select: { createdAt: true },
@@ -104,7 +122,7 @@ export class DashboardService {
 
       const payments = money
         ? await tx.payment.findMany({
-            where: { tenantId: actor.tenantId, branchId: actor.branchId, paidAt: { gte: since } },
+            where: { tenantId: actor.tenantId, branchId: inScope, paidAt: { gte: since } },
             select: { amountPaise: true, paidAt: true, paymentMode: { select: { name: true } } },
           })
         : [];
@@ -125,7 +143,7 @@ export class DashboardService {
       let vitals: DashboardSummary['vitals'] = null;
       if (vitalsRead) {
         const recorded = await tx.visitVitals.findMany({
-          where: { tenantId: actor.tenantId, branchId: actor.branchId, createdAt: { gte: recent } },
+          where: { tenantId: actor.tenantId, branchId: inScope, createdAt: { gte: recent } },
           select: { visitId: true, createdAt: true },
         });
         const hasVitals = new Set(recorded.map((r) => r.visitId));
@@ -140,12 +158,14 @@ export class DashboardService {
 
       const pendingApprovals = approvals
         ? await tx.refundRequest.count({
-            where: { tenantId: actor.tenantId, branchId: actor.branchId, status: 'REQUESTED' },
+            where: { tenantId: actor.tenantId, branchId: inScope, status: 'REQUESTED' },
           })
         : null;
 
       return {
         branchId: actor.branchId,
+        scope: allBranches ? ('ALL' as const) : ('BRANCH' as const),
+        branchIds: scopeIds,
         sections: { money, queue, vitals: vitalsRead, doctor: own !== null, approvals },
         today: {
           registrations,

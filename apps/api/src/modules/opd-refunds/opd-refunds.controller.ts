@@ -114,12 +114,17 @@ export class OpdRefundsController {
     @Query('status') status?: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
+    @Query('branch') branch?: string,
   ) {
+    if (branch !== undefined && branch !== 'ALL') {
+      throw new BadRequestException('branch can only be ALL');
+    }
     if (status !== undefined && !(STATUSES as readonly string[]).includes(status)) {
       throw new BadRequestException('status must be REQUESTED, APPROVED or REJECTED');
     }
     return this.refunds.list(actorOf(req), {
       status,
+      allBranches: branch === 'ALL',
       page: positiveInt(page, 1, Number.MAX_SAFE_INTEGER),
       pageSize: positiveInt(pageSize, C.listDefaultPageSize, C.listMaxPageSize),
     });

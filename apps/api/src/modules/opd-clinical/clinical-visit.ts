@@ -7,6 +7,7 @@ import { clinicalError, ClinicalErrorCode } from './opd-clinical.errors';
 /** What the clinical screens show about a visit (no money, ever). */
 export const CLINICAL_VISIT_SELECT = {
   id: true,
+  branchId: true,
   status: true,
   visitDate: true,
   tokenNo: true,

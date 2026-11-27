@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma';
 import { CLOCK, type Clock } from '../../common/clock';
 import { TenantDb, type TenantTx } from '../../database/tenant-db';
@@ -306,11 +306,25 @@ export class RefundsService {
     }));
   }
 
-  async list(actor: Actor, filter: { status?: string; page: number; pageSize: number }) {
+  /**
+   * `allBranches` (Phase 2.2): the combined list of every branch where the caller may approve (two or
+   * more); each row names its branch. Anyone else gets 403.
+   */
+  async list(
+    actor: Actor,
+    filter: { status?: string; page: number; pageSize: number; allBranches?: boolean },
+  ) {
+    let scopeIds = [actor.branchId];
+    if (filter.allBranches) {
+      scopeIds = await this.access.permittedBranches('opd.refunds.approve', 'OPD');
+      if (scopeIds.length < 2) {
+        throw new ForbiddenException();
+      }
+    }
     return this.tenantDb.withTenant(async (tx) => {
       const where: Prisma.RefundRequestWhereInput = {
         tenantId: actor.tenantId,
-        branchId: actor.branchId,
+        branchId: { in: scopeIds },
         ...(filter.status
           ? { status: filter.status as 'REQUESTED' | 'APPROVED' | 'REJECTED' }
           : {}),
@@ -326,8 +340,21 @@ export class RefundsService {
         }),
       ]);
       const prefix = await this.tokenPrefix(tx, actor.tenantId);
+      const names = new Map(
+        filter.allBranches
+          ? (
+              await tx.branch.findMany({
+                where: { tenantId: actor.tenantId, id: { in: scopeIds } },
+                select: { id: true, name: true },
+              })
+            ).map((b) => [b.id, b.name])
+          : [],
+      );
       return {
-        items: rows.map((r) => this.mapRow(r, prefix)),
+        items: rows.map((r) => ({
+          ...this.mapRow(r, prefix),
+          ...(filter.allBranches ? { branchName: names.get(r.branchId) ?? null } : {}),
+        })),
         total,
         page: filter.page,
         pageSize: filter.pageSize,
@@ -356,7 +383,28 @@ export class RefundsService {
    * in ONE transaction. Two approvals at the same moment: one wins, the other gets
    * REQUEST_ALREADY_DECIDED.
    */
-  async approve(id: string, body: ApproveRefundDto, actor: Actor) {
+  /**
+   * A request of ANOTHER branch that the caller may approve in (an Admin with several branches, the
+   * Super Admin) is decided in that request's own branch: the work is done with that branch, so the
+   * money, the number series and the visit all stay in the branch the request belongs to. A request of
+   * a branch the caller may not decide in is not found.
+   */
+  private async actorFor(id: string, actor: Actor): Promise<Actor> {
+    const row = await this.tenantDb.withTenant((tx) =>
+      tx.refundRequest.findFirst({
+        where: { id, tenantId: actor.tenantId },
+        select: { branchId: true },
+      }),
+    );
+    if (!row || row.branchId === actor.branchId) {
+      return actor;
+    }
+    const permitted = await this.access.permittedBranches('opd.refunds.approve', 'OPD');
+    return permitted.includes(row.branchId) ? { ...actor, branchId: row.branchId } : actor;
+  }
+
+  async approve(id: string, body: ApproveRefundDto, inActor: Actor) {
+    const actor = await this.actorFor(id, inActor);
     return this.run(() => this.tenantDb.withTenant((tx) => this.approveInTx(tx, id, body, actor)));
   }
 
@@ -533,7 +581,8 @@ export class RefundsService {
   }
 
   /** An Admin rejects, with a note. The asker never decides (the database refuses it too). */
-  async reject(id: string, body: RejectRefundDto, actor: Actor) {
+  async reject(id: string, body: RejectRefundDto, inActor: Actor) {
+    const actor = await this.actorFor(id, inActor);
     return this.run(() =>
       this.tenantDb.withTenant(async (tx) => {
         const { tenantId, branchId, userId } = actor;

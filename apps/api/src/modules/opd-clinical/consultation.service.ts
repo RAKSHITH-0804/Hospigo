@@ -1,7 +1,8 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma';
 import { CLOCK, type Clock } from '../../common/clock';
 import { TenantDb, type TenantTx } from '../../database/tenant-db';
+import { AccessService } from '../access/access.service';
 import { OPD_SETTINGS_DEFAULTS } from '../opd-masters/opd-settings.defaults';
 import { zonedParts } from '../patients/uhid.util';
 import { localDate, type Actor } from '../opd-visits/opd-visits.service';
@@ -228,6 +229,7 @@ function toNoteView(note: NoteRow | null) {
 export class ConsultationService {
   constructor(
     private readonly tenantDb: TenantDb,
+    private readonly access: AccessService,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -277,13 +279,21 @@ export class ConsultationService {
    * always sees only their own: the filter can never widen it). For the whole branch the answer
    * also lists the doctors that have visits in the queue, so the screen can offer them as a filter.
    */
-  async queue(actor: Actor, doctorProfileId?: string) {
+  async queue(actor: Actor, doctorProfileId?: string, allBranches = false) {
+    // Phase 2.2: the combined view of every branch the caller may read the queue of (needs two or more)
+    let scopeIds = [actor.branchId];
+    if (allBranches) {
+      scopeIds = await this.access.permittedBranches('opd.queue.read', 'OPD');
+      if (scopeIds.length < 2) {
+        throw new ForbiddenException();
+      }
+    }
     return this.tenantDb.withTenant(async (tx) => {
       const { prefix, today, startOfToday } = await this.dayInfo(tx, actor);
       const own = await ownDoctorId(tx, actor);
       const floor = {
         tenantId: actor.tenantId,
-        branchId: actor.branchId,
+        branchId: { in: scopeIds },
         OR: [
           { status: { in: ['WAITING', 'IN_CONSULTATION'] as ('WAITING' | 'IN_CONSULTATION')[] } },
           { status: 'COMPLETED' as const, completedAt: { gte: startOfToday } },
@@ -304,6 +314,16 @@ export class ConsultationService {
             b.id.localeCompare(a.id),
         );
       const ordered = [...open, ...done];
+      const branchNames = new Map(
+        allBranches
+          ? (
+              await tx.branch.findMany({
+                where: { tenantId: actor.tenantId, id: { in: scopeIds } },
+                select: { id: true, name: true },
+              })
+            ).map((b) => [b.id, b.name])
+          : [],
+      );
       const withVitals = await tx.visitVitals.findMany({
         where: { tenantId: actor.tenantId, visitId: { in: ordered.map((r) => r.id) } },
         select: { visitId: true },
@@ -327,11 +347,12 @@ export class ConsultationService {
             .sort((a, b) => a.name.localeCompare(b.name));
       return {
         date: isoDate(today),
-        scope: own ? 'OWN' : 'BRANCH',
+        scope: own ? 'OWN' : allBranches ? 'ALL' : 'BRANCH',
         total: ordered.length,
         doctors,
         items: ordered.map((r) => ({
           ...toVisitSummary(r, prefix, today),
+          ...(allBranches ? { branchName: branchNames.get(r.branchId) ?? null } : {}),
           vitalsRecorded: hasVitals.has(r.id),
         })),
       };

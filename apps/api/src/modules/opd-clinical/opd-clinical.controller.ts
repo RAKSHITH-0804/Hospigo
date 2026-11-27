@@ -78,11 +78,18 @@ export class OpdClinicalController {
     summary:
       "Today's waiting and in-consultation visits of the active branch in payment order. A doctor sees only their own queue; others may narrow it with doctorProfileId.",
   })
-  async queue(@Req() req: HttpReq, @Query('doctorProfileId') doctorProfileId?: string) {
+  async queue(
+    @Req() req: HttpReq,
+    @Query('doctorProfileId') doctorProfileId?: string,
+    @Query('branch') branch?: string,
+  ) {
+    if (branch !== undefined && branch !== 'ALL') {
+      throw new BadRequestException('branch can only be ALL');
+    }
     if (doctorProfileId !== undefined && doctorProfileId !== '' && !ID.test(doctorProfileId)) {
       throw new BadRequestException('doctorProfileId is not valid');
     }
-    return this.consultations.queue(actorOf(req), doctorProfileId || undefined);
+    return this.consultations.queue(actorOf(req), doctorProfileId || undefined, branch === 'ALL');
   }
 
   @Post('opd/visits/:id/start')
