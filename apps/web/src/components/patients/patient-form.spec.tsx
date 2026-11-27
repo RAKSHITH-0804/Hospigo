@@ -311,10 +311,11 @@ describe('PatientForm (register)', () => {
     await renderRegister({
       'POST /api/staff/patients': () => jsonResponse({ id: 'new2', uhid: 'NREG0010' }),
     });
-    // Age is the default: one box, and no sentences about estimating
-    expect(screen.getByRole('button', { name: form.dobModeAge }).getAttribute('aria-pressed')).toBe(
+    // Date of birth is the default; choosing Age gives one box and no sentences about estimating
+    expect(screen.getByRole('button', { name: form.dobModeDob }).getAttribute('aria-pressed')).toBe(
       'true',
     );
+    fireEvent.click(screen.getByRole('button', { name: form.dobModeAge }));
     expect(screen.queryByText(/estimated from this age/)).toBeNull();
     expect(screen.queryByLabelText(new RegExp(`^${form.dateOfBirth}$`))).toBeNull();
     type(form.name, 'Mock Delta');
@@ -468,12 +469,12 @@ describe('PatientForm (register)', () => {
     expect(alert.textContent).toBe(staffCopy.errors.forbidden);
   });
 
-  it('defaults to Age (date of birth is the second option) and keeps Register in the page header form submit', async () => {
+  it('defaults to the date of birth (Age is the second option) and keeps Register in the page header form submit', async () => {
     await renderRegister();
-    expect(screen.getByRole('button', { name: form.dobModeAge }).getAttribute('aria-pressed')).toBe(
+    expect(screen.getByRole('button', { name: form.dobModeDob }).getAttribute('aria-pressed')).toBe(
       'true',
     );
-    expect(screen.getByRole('button', { name: form.dobModeDob }).getAttribute('aria-pressed')).toBe(
+    expect(screen.getByRole('button', { name: form.dobModeAge }).getAttribute('aria-pressed')).toBe(
       'false',
     );
     const register = screen.getByRole('button', { name: form.submitRegister });
@@ -642,7 +643,8 @@ describe('PatientForm server boot data and visual rules', () => {
         boot={{ fields: config.fields }}
       />,
     );
-    // one rounded box (Age is the default entry)
+    // one rounded box
+    fireEvent.click(screen.getByRole('button', { name: form.dobModeAge }));
     expect(screen.getByLabelText(form.ageYears).className).toContain(
       'rounded-[var(--radius-control)]',
     );

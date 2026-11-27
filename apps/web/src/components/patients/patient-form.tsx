@@ -657,17 +657,17 @@ export function PatientForm(props: Props) {
             <div className="patient-age-mode" role="group">
               <button
                 type="button"
-                aria-pressed={values.dobMode === 'age'}
-                onClick={() => setDobMode('age')}
-              >
-                {formCopy.dobModeAge}
-              </button>
-              <button
-                type="button"
                 aria-pressed={values.dobMode === 'dob'}
                 onClick={() => setDobMode('dob')}
               >
                 {formCopy.dobModeDob}
+              </button>
+              <button
+                type="button"
+                aria-pressed={values.dobMode === 'age'}
+                onClick={() => setDobMode('age')}
+              >
+                {formCopy.dobModeAge}
               </button>
             </div>
             {values.dobMode === 'dob' ? (

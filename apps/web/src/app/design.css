@@ -654,3 +654,13 @@ a.kpi-link:focus-visible {
   gap: var(--space-2);
   margin-block-start: var(--space-2);
 }
+
+/* The calendar floats over the page (fixed), never inside a card that could cut it off. */
+.calendar-popover.calendar-popover-fixed {
+  position: fixed;
+  inset-inline-start: auto;
+  inset-block-start: auto;
+  z-index: 60;
+  max-height: calc(100vh - 1rem);
+  overflow-y: auto;
+}

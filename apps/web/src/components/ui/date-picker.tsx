@@ -66,6 +66,7 @@ export function DatePicker({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const [open, setOpen] = useState(false);
+  const [place, setPlace] = useState<{ top: number; left: number } | null>(null);
   const today = useMemo(() => todayIso ?? localTodayIso(), [open, todayIso]);
   const startDay = parseIsoDay(value) ?? parseIsoDay(min ?? today) ?? parseIsoDay(today)!;
   const [view, setView] = useState({
@@ -98,6 +99,19 @@ export function DatePicker({
 
   function toggle() {
     if (!open) {
+      // the box is placed against the window, so no card or page edge can cut it off
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (rect) {
+        const width = Math.min(340, window.innerWidth - 16);
+        const height = 420;
+        const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+        const below = rect.bottom + 4;
+        const top =
+          below + height > window.innerHeight
+            ? Math.max(8, window.innerHeight - height - 8)
+            : below;
+        setPlace({ top, left });
+      }
       const base = parseIsoDay(value) ?? parseIsoDay(min && min > today ? min : today)!;
       setView({ year: base.getUTCFullYear(), month0: base.getUTCMonth() });
     }
@@ -143,7 +157,12 @@ export function DatePicker({
         {shown}
       </button>
       {open ? (
-        <div role="dialog" aria-label={copy.dialogTitle} className="calendar-popover">
+        <div
+          role="dialog"
+          aria-label={copy.dialogTitle}
+          className="calendar-popover calendar-popover-fixed"
+          style={place ? { top: place.top, left: place.left } : undefined}
+        >
           <div className="flex items-center justify-between gap-[var(--space-2)]">
             <Button
               type="button"

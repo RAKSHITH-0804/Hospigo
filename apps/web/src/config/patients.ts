@@ -128,7 +128,7 @@ export type PatientFormSection = (typeof PATIENT_FORM_SECTION_ORDER)[number];
 export const PATIENT_FORM_SECTION_RELATIVE = 'RELATIVE' as const;
 
 /** Default age-or-DOB control mode for register: the date of birth first, age only when it is not known. */
-export const PATIENT_FORM_DEFAULT_DOB_MODE = 'age' as const;
+export const PATIENT_FORM_DEFAULT_DOB_MODE = 'dob' as const;
 
 /** Age entry: months (0 to 11) and days (0 to 30) next to the years. */
 export const PATIENT_AGE_MONTHS_MAX = 11;
