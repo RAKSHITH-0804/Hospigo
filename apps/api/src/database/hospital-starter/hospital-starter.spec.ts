@@ -105,7 +105,7 @@ describe('hospital starter script (hospigo_test only)', () => {
     const noBranch = await emptyHospital({ mainBranch: false });
     await expect(runHospitalStarter(owner, options(noBranch.code))).rejects.toThrow(/main branch/);
     const noAdmin = await emptyHospital({ superAdmin: false });
-    await expect(runHospitalStarter(owner, options(noAdmin.code))).rejects.toThrow(/SuperAdmin/);
+    await expect(runHospitalStarter(owner, options(noAdmin.code))).rejects.toThrow(/Super Admin/);
     for (const h of [noBranch, noAdmin]) {
       const c = await counts(h.tenantId);
       expect(c.paymentModes + c.vitals + c.series + c.settings + c.chargeItems + c.uhid).toBe(0);

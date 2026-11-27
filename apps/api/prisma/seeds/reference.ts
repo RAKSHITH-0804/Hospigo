@@ -73,7 +73,7 @@ const PERMISSIONS = [
   },
   {
     code: 'print.templates.manage',
-    description: 'Make and change print templates and logos (Indigo Owner only)',
+    description: 'Make and change print templates and logos (HQ only; never a hospital role)',
   },
 ] as const;
 

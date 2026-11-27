@@ -138,7 +138,7 @@ export async function chooseDesigns(
 }
 
 /**
- * The Indigo demo people for the showcase database: the Owner (every hospital) and an Employee assigned
+ * The HQ demo people: the HQ Admin (every hospital) and HQ Staff assigned
  * to both showcase hospitals. The password is the name SEED_INDIGO_PASSWORD (else the staff password) in .env.
  */
 export async function seedShowcaseIndigo(
@@ -147,15 +147,15 @@ export async function seedShowcaseIndigo(
 ): Promise<void> {
   const password = process.env.SEED_INDIGO_PASSWORD || process.env.SEED_STAFF_PASSWORD;
   if (!password) {
-    console.log('No SEED_INDIGO_PASSWORD or SEED_STAFF_PASSWORD: no Indigo demo people.');
+    console.log('No SEED_INDIGO_PASSWORD or SEED_STAFF_PASSWORD: no HQ demo people.');
     return;
   }
   const passwordHash = await argon2.hash(password);
   for (const person of [
-    { email: 'owner@indigo-demo.example.test', displayName: 'Indigo Owner', indigoRole: 'OWNER' },
+    { email: 'hq.admin@indigo.example.org', displayName: 'HQ Admin', indigoRole: 'OWNER' },
     {
-      email: 'employee@indigo-demo.example.test',
-      displayName: 'Indigo Employee',
+      email: 'hq.staff@indigo.example.org',
+      displayName: 'HQ Staff',
       indigoRole: 'EMPLOYEE',
     },
   ]) {

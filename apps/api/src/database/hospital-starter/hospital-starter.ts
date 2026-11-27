@@ -187,7 +187,7 @@ export async function runHospitalStarter(
       })
     : null;
   if (!assignment) {
-    throw new StarterError('The hospital has no SuperAdmin user yet (runbook, item 5).');
+    throw new StarterError('The hospital has no Super Admin user yet (runbook, item 5).');
   }
   const superAdminId = assignment.userId;
 

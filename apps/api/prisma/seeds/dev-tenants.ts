@@ -1134,22 +1134,22 @@ async function ensureBranchRole(
 }
 
 /**
- * Dev only (Step 2.1b): a demo Indigo Owner and a demo Indigo Employee (assigned to Demo North), for
- * trying the Indigo entry and for the Postman collections. They are created only when
+ * Dev only: a demo HQ Admin and a demo HQ Staff (assigned to Demo North) for the test database, the
+ * HQ tests and the Postman collections (HQ never enters a hospital). They are created only when
  * SEED_INDIGO_PASSWORD is set in .env; production never runs this seed.
  */
 async function seedIndigoDemoPeople(prisma: PrismaClient): Promise<void> {
   const password = process.env.SEED_INDIGO_PASSWORD;
   if (!password) {
-    console.log('SEED_INDIGO_PASSWORD is not set: no demo Indigo people created.');
+    console.log('SEED_INDIGO_PASSWORD is not set: no demo HQ people created.');
     return;
   }
   const passwordHash = await argon2.hash(password);
   const people = [
-    { email: 'owner@indigo-demo.example.test', displayName: 'Indigo Owner', indigoRole: 'OWNER' },
+    { email: 'hq.admin@indigo.example.org', displayName: 'HQ Admin', indigoRole: 'OWNER' },
     {
-      email: 'employee@indigo-demo.example.test',
-      displayName: 'Indigo Employee',
+      email: 'hq.staff@indigo.example.org',
+      displayName: 'HQ Staff',
       indigoRole: 'EMPLOYEE',
     },
   ] as const;
@@ -1168,5 +1168,5 @@ async function seedIndigoDemoPeople(prisma: PrismaClient): Promise<void> {
       });
     }
   }
-  console.log('Demo Indigo Owner and Employee are ready.');
+  console.log('Demo HQ Admin and HQ Staff are ready.');
 }

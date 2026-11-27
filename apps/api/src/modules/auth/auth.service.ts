@@ -573,7 +573,8 @@ export class AuthService {
       hospitalName: null,
       activeBranchId: null,
       activeBranchName: null,
-      roleCodes: ['HQ_ADMIN'],
+      // 'OWNER' in the database is the HQ Admin, 'EMPLOYEE' is HQ Staff (Phase 2.2 names)
+      roleCodes: [user.indigoRole === 'EMPLOYEE' ? 'HQ_STAFF' : 'HQ_ADMIN'],
       mustChangePassword: user.mustChangePassword,
       branches: [],
       enabledModules: [],

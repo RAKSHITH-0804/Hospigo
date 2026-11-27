@@ -32,7 +32,7 @@ export class IndigoController {
   @AuthenticatedOnly()
   @ApiOperation({
     summary:
-      'Onboard a hospital (Owner only): branches, access codes, modules, roles, first SuperAdmin',
+      'Onboard a hospital (HQ Admin only): branches, access codes, modules, roles, first Super Admin',
   })
   onboard(@Req() req: HttpReq, @Body() body: unknown) {
     return this.console.onboard(hqId(req), body);
@@ -50,7 +50,7 @@ export class IndigoController {
 
   @Get('employees')
   @AuthenticatedOnly()
-  @ApiOperation({ summary: 'Indigo Employees and their hospitals (Owner only)' })
+  @ApiOperation({ summary: 'HQ Staff and their hospitals (HQ Admin only)' })
   employees(@Req() req: HttpReq) {
     return this.console.employees(hqId(req));
   }
@@ -59,7 +59,7 @@ export class IndigoController {
   @HttpCode(201)
   @AuthenticatedOnly()
   @ApiOperation({
-    summary: 'Create an Indigo Employee with a one-time temporary password (Owner only)',
+    summary: 'Create HQ Staff with a one-time temporary password (HQ Admin only)',
   })
   createEmployee(@Req() req: HttpReq, @Body() body: unknown) {
     return this.console.createEmployee(hqId(req), body);
