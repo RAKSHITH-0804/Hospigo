@@ -1704,7 +1704,8 @@ const baseCopy = {
       ADDENDUM_INVALID: 'Write the addendum and the reason for it.',
       MEDICINE_NOT_FOUND: 'A medicine on the list is no longer available. Pick it again.',
       PRESCRIPTION_ITEM_INVALID: 'A medicine row is incomplete. Check the highlighted row.',
-      VITALS_VISIT_NOT_OPEN: 'Vitals can be recorded only after the visit has been paid.',
+      VITALS_VISIT_NOT_OPEN:
+        'Vitals can be recorded only after the visit has been paid, and not after the consultation is completed.',
       VITALS_FIELD_NOT_FOUND: 'A vitals field is no longer in use. Reload the page.',
       VITALS_FIELD_DUPLICATE: 'The same vitals field was sent twice. Reload the page.',
       VITALS_VALUE_INVALID: 'A vitals value cannot be used. Check the highlighted field.',
@@ -1956,6 +1957,9 @@ const baseCopy = {
         noFieldsTitle: 'No vitals fields are set up',
         noFieldsDescription: 'Ask an administrator to add vitals fields.',
         readOnlyNote: 'You can see the vitals but not change them.',
+        lockedNote:
+          'Locked: the consultation is completed, so the vitals can no longer be changed.',
+        viewVitals: 'Vitals (view)',
         notRecorded: 'Not recorded',
         errorTitle: 'Vitals could not be loaded',
         notFoundTitle: 'Visit not found',

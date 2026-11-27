@@ -188,9 +188,11 @@ describe('OpdQueue', () => {
     expect(screen.getByRole('link', { name: copy.view }).getAttribute('href')).toBe(
       '/app/opd/visits/v9/consult',
     );
-    expect(screen.getByRole('link', { name: copy.vitals }).getAttribute('href')).toBe(
-      '/app/opd/visits/v9/vitals',
-    );
+    expect(
+      screen
+        .getByRole('link', { name: staffCopy.opd.clinical.vitals.viewVitals })
+        .getAttribute('href'),
+    ).toBe('/app/opd/visits/v9/vitals');
     expect(screen.queryByText(/^From /)).toBeNull();
   });
 

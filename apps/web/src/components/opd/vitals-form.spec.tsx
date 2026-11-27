@@ -115,9 +115,11 @@ describe('VitalsForm', () => {
       }),
     ]);
     expect(screen.getByText('Pulse (bpm)')).toBeTruthy();
-    expect(screen.getByText(`${copy.current}: 130 bpm`)).toBeTruthy();
+    expect(
+      (screen.getByLabelText(`${PULSE.name}: ${copy.newValue}`) as HTMLInputElement).value,
+    ).toBe('130');
     expect(screen.getByText(copy.outOfRange)).toBeTruthy();
-    expect(screen.getByText(`${copy.current}: ${copy.notRecorded}`)).toBeTruthy();
+    expect(screen.getAllByPlaceholderText(copy.notRecorded).length).toBeGreaterThan(0);
     expect(screen.getByText(/Version 2: 130 by Nurse Two/)).toBeTruthy();
     expect(screen.getByText(/Reason: wrong finger/)).toBeTruthy();
   });
@@ -146,8 +148,8 @@ describe('VitalsForm', () => {
     expect(fetchMock.mock.calls[0]![0]).toBe(URL_VITALS);
     expect(posted()).toEqual({ readings: [{ fieldCode: 'pulse', value: 88 }] });
     expect(screen.getByText(copy.saved)).toBeTruthy();
-    expect(screen.getByText(`${copy.current}: 88 bpm`)).toBeTruthy();
-    expect((screen.getByLabelText('Pulse: New value') as HTMLInputElement).value).toBe('');
+    // the saved value stays in the box (it is not left empty)
+    expect((screen.getByLabelText('Pulse: New value') as HTMLInputElement).value).toBe('88');
   });
 
   it('changing an existing reading asks for a reason and sends nothing without it', async () => {
@@ -171,7 +173,9 @@ describe('VitalsForm', () => {
     expect(posted()).toEqual({
       readings: [{ fieldCode: 'pulse', value: 80, correctionReason: 'wrong finger' }],
     });
-    expect(screen.getByText(`${copy.current}: 80 bpm`)).toBeTruthy();
+    expect(
+      (screen.getByLabelText(`${PULSE.name}: ${copy.newValue}`) as HTMLInputElement).value,
+    ).toBe('80');
   });
 
   it('sends nothing for the same value, a blank form, or an invalid number', async () => {
@@ -224,7 +228,7 @@ describe('VitalsForm', () => {
     expect(screen.getByText(copy.readOnlyNote)).toBeTruthy();
     expect(screen.queryByLabelText('Pulse: New value')).toBeNull();
     expect(screen.queryByRole('button', { name: copy.save })).toBeNull();
-    expect(screen.getByText(`${copy.current}: 72 bpm`)).toBeTruthy();
+    expect(screen.getByText('72 bpm')).toBeTruthy();
   });
 
   it('says so when the hospital has no vitals fields', () => {

@@ -226,7 +226,7 @@ export function OpdQueue({
                   'touch-target',
                 )}
               >
-                {copy.vitals}
+                {done ? staffCopy.opd.clinical.vitals.viewVitals : copy.vitals}
               </Link>
             ) : null}
             {canRequestCancel && v.status === 'WAITING' ? (

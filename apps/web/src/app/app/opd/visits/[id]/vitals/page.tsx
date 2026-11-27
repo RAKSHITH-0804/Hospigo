@@ -43,7 +43,11 @@ export default async function VisitVitalsPage({ params }: { params: Promise<{ id
       visit={vitals.data.visit}
       fields={fields.data.items}
       initial={vitals.data.fields}
-      canWrite={session.permissions?.includes('opd.vitals.write') ?? false}
+      canWrite={
+        (session.permissions?.includes('opd.vitals.write') ?? false) &&
+        vitals.data.visit.status !== 'COMPLETED'
+      }
+      locked={vitals.data.visit.status === 'COMPLETED'}
       backHref={QUEUE_PATH}
     />
   );

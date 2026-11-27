@@ -53,12 +53,15 @@ export function VitalsForm({
   fields,
   initial,
   canWrite,
+  locked = false,
   backHref,
 }: {
   visit: ClinicalVisit;
   fields: VitalsField[];
   initial: VitalsReadingView[];
   canWrite: boolean;
+  /** The consultation is completed: the readings can only be looked at. */
+  locked?: boolean;
   backHref: string;
 }) {
   const [readings, setReadings] = useState<VitalsReadingView[]>(initial);
@@ -118,7 +121,9 @@ export function VitalsForm({
       ) : (
         <form onSubmit={submit} className="flex flex-col gap-[var(--space-4)]" noValidate>
           {canWrite ? null : (
-            <p className="type-label text-muted-foreground">{copy.readOnlyNote}</p>
+            <p className="type-label text-muted-foreground">
+              {locked ? copy.lockedNote : copy.readOnlyNote}
+            </p>
           )}
           <div className="vitals-grid">
             {fields.map((field) => {
@@ -137,19 +142,20 @@ export function VitalsForm({
                         <Badge variant="danger">{copy.outOfRange}</Badge>
                       ) : null}
                     </div>
-                    <p className="type-label text-muted-foreground">
-                      {copy.current}:{' '}
-                      {existing ? `${existing.value} ${existing.unit}` : copy.notRecorded}
-                    </p>
+                    {canWrite ? null : (
+                      <p className="type-body font-semibold">
+                        {existing ? `${existing.value} ${existing.unit}` : copy.notRecorded}
+                      </p>
+                    )}
                     {canWrite ? (
                       <div className="flex flex-col gap-[var(--space-2)]">
                         <InputField
                           hideLabel
                           label={`${field.name}: ${copy.newValue}`}
-                          placeholder={copy.newValue}
+                          placeholder={existing ? undefined : copy.notRecorded}
                           inputMode={field.valueKind === 'NUMBER' ? 'decimal' : 'text'}
                           autoComplete="off"
-                          value={draft.value}
+                          value={drafts[field.code]?.value ?? existing?.value ?? ''}
                           error={problem === 'INVALID' ? copy.invalidValue : undefined}
                           onChange={(e) => setDraft(field.code, { value: e.target.value })}
                         />

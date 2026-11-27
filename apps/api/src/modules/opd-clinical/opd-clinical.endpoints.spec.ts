@@ -1442,7 +1442,7 @@ describe('OPD clinical endpoints: queue, note, prescription, vitals (HTTP)', () 
       expect(await owner.visitVitals.count({ where: { visitId: id } })).toBe(0);
     });
 
-    it('needs a visit that has joined the queue; works for waiting, started and completed visits', async () => {
+    it('needs a visit that has joined the queue; works for waiting and started visits and is LOCKED once the consultation is completed (Phase 2.3)', async () => {
       const patientId = await newPatient(A);
       const unpaid = await owner.opdVisit.create({
         data: {
@@ -1466,8 +1466,17 @@ describe('OPD clinical endpoints: queue, note, prescription, vitals (HTTP)', () 
       const late = await vitals(A, 'nurse', id, [
         { fieldCode: 'PULSE', value: 75, correctionReason: 'rechecked after consultation' },
       ]);
-      expect(late.status).toBe(200);
-      expect(late.body.corrected).toEqual(['PULSE']);
+      // locked: the nurse and the doctor are both refused, a correction with a reason too
+      expect(late.status).toBe(409);
+      expect(late.body).toMatchObject({ code: 'VITALS_VISIT_NOT_OPEN', status: 'COMPLETED' });
+      const lateDoctor = await vitals(A, 'doc1', id, [
+        { fieldCode: 'PULSE', value: 80, correctionReason: 'again' },
+      ]);
+      expect(lateDoctor.status).toBe(409);
+      // the saved value did not change, and reading is still allowed
+      const read = await get(A, 'nurse', `/opd/visits/${id}/vitals`);
+      expect(read.status).toBe(200);
+      expect(JSON.stringify(read.body)).toContain('70');
     });
 
     it("keeps to the caller's own scope: own visits for a doctor, the branch for a nurse, 404 elsewhere", async () => {

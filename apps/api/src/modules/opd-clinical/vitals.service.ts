@@ -68,7 +68,8 @@ export class VitalsService {
       const own = await ownDoctorId(tx, actor);
       await lockVisit(tx, actor, visitId, own);
       const visit = await findClinicalVisit(tx, actor, visitId, own);
-      if (!['WAITING', 'IN_CONSULTATION', 'COMPLETED'].includes(visit.status)) {
+      // Phase 2.3: once the doctor has completed the consultation the vitals are locked too
+      if (!['WAITING', 'IN_CONSULTATION'].includes(visit.status)) {
         throw clinicalError(409, E.VITALS_VISIT_NOT_OPEN, { status: visit.status });
       }
 
