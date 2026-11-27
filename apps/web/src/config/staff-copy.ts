@@ -1885,6 +1885,8 @@ const baseCopy = {
         statusInConsultation: 'In consultation',
         vitalsDone: 'Recorded',
         vitalsPending: 'Pending',
+        colWaiting: 'Wait time',
+        waitMinutes: '{n} min',
         vitalsNotRecorded: 'Not recorded',
         open: 'Open',
         vitals: 'Vitals',

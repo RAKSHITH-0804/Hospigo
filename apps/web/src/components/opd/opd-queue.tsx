@@ -147,6 +147,20 @@ export function OpdQueue({
       ? [{ id: 'doctor', header: copy.colDoctor, cell: (v: QueueItem) => v.doctor.name }]
       : []),
     {
+      id: 'waiting',
+      header: copy.colWaiting,
+      cell: (v) =>
+        v.status === 'WAITING' && v.queuedAt ? (
+          <span suppressHydrationWarning>
+            {fill(copy.waitMinutes, {
+              n: Math.max(0, Math.round((Date.now() - new Date(v.queuedAt).getTime()) / 60_000)),
+            })}
+          </span>
+        ) : (
+          ''
+        ),
+    },
+    {
       id: 'status',
       header: copy.colStatus,
       cell: (v) => (

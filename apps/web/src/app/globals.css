@@ -151,7 +151,7 @@
   --font-size-page-title: 1.5rem;
   --font-size-small: 0.6875rem;
   --font-size-stat: 1.25rem;
-  --font-size-kpi: 1.75rem;
+  --font-size-kpi: 1.5rem;
   --font-size-input: var(--font-size-body);
 
   /* Density spacing */
@@ -532,6 +532,7 @@
     font-size: var(--font-size-kpi);
     font-weight: 600;
     line-height: 1.1;
+    overflow-wrap: anywhere;
   }
 
   /* "Attention required": a short list of real things that wait for someone. */

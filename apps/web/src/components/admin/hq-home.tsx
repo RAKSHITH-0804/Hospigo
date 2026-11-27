@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { EmptyState } from '@/components/states/empty-state';
+import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { staffCopy } from '@/config/staff-copy';
 import { formatDateTime } from '@/lib/format-datetime';
 import { fill } from '@/lib/opd/clinical-format';
@@ -38,44 +38,32 @@ export function HqHome({
           </Link>
         ) : null}
       </div>
-      <div className="stat-grid">
-        <Card>
-          <CardHeader>
-            <CardTitle className="type-small">{copy.kpiHospitals}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="type-heading font-medium">{overview.items.length}</p>
-          </CardContent>
-        </Card>
+      <div className="kpi-grid">
+        <div className="kpi-card">
+          <p className="kpi-label">{copy.kpiHospitals}</p>
+          <p className="kpi-value">{overview.items.length}</p>
+        </div>
         {staffCount !== null ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="type-small">{copy.kpiStaff}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="type-heading font-medium">{staffCount}</p>
-            </CardContent>
-          </Card>
+          <div className="kpi-card">
+            <p className="kpi-label">{copy.kpiStaff}</p>
+            <p className="kpi-value">{staffCount}</p>
+          </div>
         ) : null}
         {health ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="type-small">{copy.kpiHealth}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="type-label font-medium">
-                {health.status === 'ok' ? copy.healthOk : copy.healthDegraded}
-              </p>
-              <p className="type-small text-muted-foreground">
-                {fill(copy.healthLine, {
-                  api: health.api,
-                  database: health.database,
-                  storage: health.storage,
-                  migrations: health.migrations,
-                })}
-              </p>
-            </CardContent>
-          </Card>
+          <div className="kpi-card">
+            <p className="kpi-label">{copy.kpiHealth}</p>
+            <p className="kpi-value">
+              {health.status === 'ok' ? copy.healthOk : copy.healthDegraded}
+            </p>
+            <p className="type-small text-muted-foreground">
+              {fill(copy.healthLine, {
+                api: health.api,
+                database: health.database,
+                storage: health.storage,
+                migrations: health.migrations,
+              })}
+            </p>
+          </div>
         ) : null}
       </div>
       <p className="type-small text-muted-foreground">{copy.countsHint}</p>
@@ -86,7 +74,7 @@ export function HqHome({
         />
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full type-small">
+          <table className="data-table">
             <thead>
               <tr className="text-left">
                 <th className="py-[var(--space-1)] pr-[var(--space-3)]">{copy.colName}</th>
@@ -108,7 +96,11 @@ export function HqHome({
                     </td>
                     <td className="pr-[var(--space-3)]">{hospital.code}</td>
                     <td className="pr-[var(--space-3)]">{hospital.modules.join(', ')}</td>
-                    <td className="pr-[var(--space-3)]">{hospital.status}</td>
+                    <td className="pr-[var(--space-3)]">
+                      <Badge variant={hospital.status === 'ACTIVE' ? 'success' : 'neutral'}>
+                        {hospital.status}
+                      </Badge>
+                    </td>
                     {counts ? (
                       <td className="pr-[var(--space-3)]">{c ? c.visitsToday : '-'}</td>
                     ) : null}

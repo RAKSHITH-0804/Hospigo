@@ -113,6 +113,16 @@ for (const code of ONLY) {
       .catch(() => undefined);
     await shoot(page, `${code}-dash-${role}`);
     if (role === 'SUPER_ADMIN') {
+      for (const [name, route] of [
+        ['queue', '/app/opd'],
+        ['patients', '/app/patients'],
+        ['visit-new', '/app/patients/new'],
+        ['settings', '/app/settings'],
+      ]) {
+        await page.goto(`${BASE}${route}`);
+        await page.waitForTimeout(1500);
+        await shoot(page, `${code}-page-${name}`);
+      }
       const prints = [
         ['slip', `/app/patients/${ids.patient_id}/slip`],
         ['card', `/app/patients/${ids.patient_id}/card`],
@@ -128,6 +138,30 @@ for (const code of ONLY) {
     }
     await context.close();
   }
+}
+// HQ pages (Phase 2.2): sign in with an empty access code
+if (process.env.SHOT_HQ !== '0' && process.env.SEED_INDIGO_PASSWORD) {
+  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await context.newPage();
+  await page.goto(`${BASE}/login`);
+  await page.getByLabel('Email').fill('hq.admin@indigo.example.org');
+  await page.getByLabel('Password', { exact: true }).fill(process.env.SEED_INDIGO_PASSWORD);
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await page.waitForURL(/\/admin/, { timeout: 30000 });
+  await page.waitForTimeout(2000);
+  await shoot(page, 'HQ-home');
+  await page.getByRole('link', { name: 'Open' }).first().click();
+  await page.waitForTimeout(2000);
+  await shoot(page, 'HQ-hospital');
+  for (const [name, route] of [
+    ['onboard', '/admin/onboard'],
+    ['staff', '/admin/employees'],
+  ]) {
+    await page.goto(`${BASE}${route}`);
+    await page.waitForTimeout(1500);
+    await shoot(page, `HQ-${name}`);
+  }
+  await context.close();
 }
 await browser.close();
 await db.end();
