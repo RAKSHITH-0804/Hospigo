@@ -38,12 +38,12 @@ export const updateStaff = (
     body,
   });
 
-export type StaffAction = 'deactivate' | 'reactivate' | 'resend-invite';
+export type StaffAction = 'deactivate' | 'reactivate' | 'resend-invite' | 'reset-password';
 
 export const staffAction = (
   id: string,
   action: StaffAction,
-): Promise<PatientsApiResult<StaffMember | { activationSent: boolean }>> =>
+): Promise<PatientsApiResult<StaffMember | { activationSent: boolean } | { resetSent: boolean }>> =>
   patientsApi(`${STAFF_ROUTES.people}/${encodeURIComponent(id)}/${action}`, {
     method: 'POST',
     body: {},

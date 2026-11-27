@@ -485,4 +485,22 @@ describe('StaffAdmin: change, switch off and on, resend', () => {
       expect(screen.getByRole('alert').textContent).toBe(copy.actions.resentFailed),
     );
   });
+
+  it('Send password reset link is for active people other than you, and says where it went', async () => {
+    actionMock.mockResolvedValue({ ok: true, data: { resetSent: true } });
+    renderAdmin();
+    // Anita is active; Ravi has not activated yet (activation email, not a reset)
+    expect(
+      screen.queryByRole('button', { name: `Ravi Kumar: ${copy.actions.resetPassword}` }),
+    ).toBeNull();
+    fireEvent.click(
+      screen.getByRole('button', { name: `Anita Rao: ${copy.actions.resetPassword}` }),
+    );
+    await waitFor(() =>
+      expect(actionMock).toHaveBeenCalledWith(expect.any(String), 'reset-password'),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('status').textContent).toContain('A password reset link was sent'),
+    );
+  });
 });

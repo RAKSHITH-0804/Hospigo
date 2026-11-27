@@ -123,6 +123,10 @@ export function StaffAdmin({
       setFlash({ kind: 'error', text: staffErrorMessage(result) });
       return;
     }
+    if (action === 'reset-password') {
+      setFlash({ kind: 'ok', text: copy.actions.resetSent.replace('{email}', member.email) });
+      return;
+    }
     if (action === 'resend-invite') {
       const sent = (result.data as { activationSent?: boolean }).activationSent !== false;
       setFlash(
@@ -294,6 +298,18 @@ export function StaffAdmin({
                         onClick={() => void run(member, 'resend-invite')}
                       >
                         {copy.actions.resend}
+                      </Button>
+                    ) : null}
+                    {member.status === 'ACTIVE' && !member.isYou ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={workingId === member.id}
+                        aria-label={`${member.name}: ${copy.actions.resetPassword}`}
+                        onClick={() => void run(member, 'reset-password')}
+                      >
+                        {copy.actions.resetPassword}
                       </Button>
                     ) : null}
                     {member.status === 'INACTIVE' ? (

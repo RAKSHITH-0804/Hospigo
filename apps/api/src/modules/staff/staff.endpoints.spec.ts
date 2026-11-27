@@ -1181,5 +1181,52 @@ describe('staff and roles (HTTP)', () => {
       expect((await post(A, 'sa', '/staff/no-such-user/resend-invite')).status).toBe(404);
       expect((await post(A, 'adminMain', `/staff/${A.users.sa}/resend-invite`)).status).toBe(404);
     });
+
+    it('password reset (Phase 2.3): a link to the email on file, never a password; who may do it', async () => {
+      const made = await makeStaff(A, 'sa');
+      const id = made.body.staff.id;
+      activations.length = 0;
+      const sent = await post(A, 'sa', `/staff/${id}/reset-password`);
+      expect(sent.status).toBe(200);
+      expect(sent.body).toEqual({ resetSent: true });
+      expect(activations).toEqual([{ kind: 'PASSWORD_RESET', tenantId: A.tenant, userId: id }]);
+      expect((await audits(A, 'STAFF_PASSWORD_RESET_SENT')).some((t) => t.entityId === id)).toBe(
+        true,
+      );
+      // one a minute per person
+      expect((await post(A, 'sa', `/staff/${id}/reset-password`)).status).toBe(429);
+      expect(activations).toHaveLength(1);
+      await redis.clearPrefixKeys();
+      // nobody resets themselves this way
+      conflict(await post(A, 'sa', `/staff/${A.users.sa}/reset-password`), 'SELF');
+      conflict(await post(A, 'adminMain', `/staff/${A.users.adminMain}/reset-password`), 'SELF');
+      // a Super Admin may reset an Admin; an Admin may reset staff of own branch but never a Super Admin
+      expect((await post(A, 'sa', `/staff/${A.users.adminMain}/reset-password`)).status).toBe(200);
+      await redis.clearPrefixKeys();
+      const own = await makeStaff(A, 'adminMain');
+      expect(
+        (await post(A, 'adminMain', `/staff/${own.body.staff.id}/reset-password`)).status,
+      ).toBe(200);
+      expect((await post(A, 'adminMain', `/staff/${A.users.sa}/reset-password`)).status).toBe(404);
+      // another hospital, an unknown person and an inactive person
+      expect((await post(A, 'sa', `/staff/${B.users.sa}/reset-password`)).status).toBe(404);
+      expect((await post(A, 'sa', '/staff/no-such-user/reset-password')).status).toBe(404);
+      await post(A, 'sa', `/staff/${id}/deactivate`);
+      await redis.clearPrefixKeys();
+      conflict(await post(A, 'sa', `/staff/${id}/reset-password`), 'INACTIVE');
+      // 401 without a token
+      expect((await request(app.getHttpServer()).post(`/staff/${id}/reset-password`)).status).toBe(
+        401,
+      );
+    });
+
+    it('password reset: not for someone whose email was just changed (two separate steps)', async () => {
+      const made = await makeStaff(A, 'sa');
+      const id = made.body.staff.id;
+      expect((await put(A, 'sa', `/staff/${id}`, { email: email('moved') })).status).toBe(200);
+      activations.length = 0;
+      conflict(await post(A, 'sa', `/staff/${id}/reset-password`), 'EMAIL_JUST_CHANGED');
+      expect(activations).toHaveLength(0);
+    });
   });
 });

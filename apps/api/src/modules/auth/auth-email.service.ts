@@ -49,6 +49,14 @@ export class AuthEmailService {
     });
   }
 
+  /**
+   * A person in charge (Super Admin, Admin) sends a staff member the usual one-time reset link to the
+   * email on file (Phase 2.3). No password is made or shown; the link is the same as "Forgot password".
+   */
+  async sendPasswordReset(tenantId: string, userId: string): Promise<void> {
+    await this.mail.enqueue({ kind: 'PASSWORD_RESET', tenantId, userId });
+  }
+
   async forgotPassword(
     input: { accessCode: string; email: string },
     meta: { ip: string },

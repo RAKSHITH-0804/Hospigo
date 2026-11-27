@@ -1238,6 +1238,11 @@ const baseCopy = {
         switchOff: 'Deactivate',
         switchOn: 'Activate',
         resend: 'Send activation email again',
+        resetPassword: 'Send password reset link',
+        resetSent: 'A password reset link was sent to {email}.',
+        resetFailed: 'The reset link could not be sent. {reason}',
+        resetEmailChanged:
+          'The email was changed a moment ago. Try again in an hour, or ask the person.',
         confirmOff: 'Deactivate {name}? They are signed out at once. Their history stays.',
         confirmYes: 'Yes, deactivate',
         confirmNo: 'Cancel',
@@ -1320,6 +1325,8 @@ const baseCopy = {
         ROLE_IN_USE: 'People still hold this role. Take it off them first.',
         SYSTEM_ROLE: 'Ready-made roles cannot be changed here.',
         ALREADY_ACTIVE: 'That is already active.',
+        EMAIL_JUST_CHANGED:
+          'The email was changed a moment ago. Try again in an hour, or ask the person.',
         INACTIVE: 'That person is deactivated. Activate them first.',
         TRY_AGAIN: 'Something changed at the same moment. Try again.',
       } as Record<string, string>,

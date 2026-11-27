@@ -455,6 +455,74 @@ export class StaffService {
     return { activationSent: true };
   }
 
+  /**
+   * Phase 2.3: sends a staff member a password reset link (to the email on file). A Super Admin may do
+   * it for anyone but themselves; an Admin for staff of their own branches but never for a Super Admin
+   * and never for themselves. Refused for a person whose email was changed in the last hour (changing
+   * the address and sending the link are two separate steps, so nobody can take over an account in
+   * one go). Rate limited per person, audited by name only; no password is made or shown.
+   */
+  async sendPasswordReset(actor: Actor, id: string): Promise<{ resetSent: true }> {
+    const scope = await this.scope('user.write');
+    await this.tenantDb.withTenant(async (tx) => {
+      const target = await this.target(tx, actor, id, scope);
+      if (target.id === actor.userId) {
+        throw opdError(409, OpdErrorCode.STAFF_CONFLICT, { reason: 'SELF' });
+      }
+      if (!target.isActive) {
+        throw opdError(409, OpdErrorCode.STAFF_CONFLICT, { reason: 'INACTIVE' });
+      }
+      const targetIsSuper = target.roleAssignments.some(
+        (a) => a.role.code === SUPER_ADMIN_ROLE_CODE,
+      );
+      if (targetIsSuper) {
+        const mine = await tx.roleAssignment.findFirst({
+          where: {
+            tenantId: actor.tenantId,
+            userId: actor.userId,
+            isActive: true,
+            role: { code: SUPER_ADMIN_ROLE_CODE },
+          },
+          select: { id: true },
+        });
+        if (!mine) {
+          // an Admin cannot touch a Super Admin: the same answer as for a person that is not there
+          throw opdError(404, OpdErrorCode.SETTINGS_NOT_FOUND);
+        }
+      }
+      const since = new Date(Date.now() - STAFF_LIMITS.resetAfterEmailChangeMs);
+      const recent = await tx.auditLog.findFirst({
+        where: {
+          tenantId: actor.tenantId,
+          entityType: 'users',
+          entityId: id,
+          action: 'STAFF_CHANGE',
+          createdAt: { gte: since },
+          metadata: { path: ['changed'], array_contains: 'email' },
+        },
+        select: { id: true },
+      });
+      if (recent) {
+        throw opdError(409, OpdErrorCode.STAFF_CONFLICT, { reason: 'EMAIL_JUST_CHANGED' });
+      }
+    });
+    const key = createHash('sha256').update(`reset|${actor.tenantId}|${id}`).digest('hex');
+    try {
+      await this.redis.assertOtpResendAllowed(key);
+      await this.redis.markOtpResendCooldown(key);
+    } catch (error) {
+      if (error instanceof AuthRateLimitedError) {
+        throw opdError(429, OpdErrorCode.RATE_LIMITED, { retryAfterSec: error.retryAfterSec });
+      }
+      throw error;
+    }
+    await this.authEmail.sendPasswordReset(actor.tenantId, id);
+    await this.tenantDb.withTenant((tx) =>
+      this.audit(tx, actor, 'STAFF_PASSWORD_RESET_SENT', id, {}),
+    );
+    return { resetSent: true };
+  }
+
   // ----------------------------------------------------------------------------- helpers
 
   private async scope(code: string): Promise<Scope> {

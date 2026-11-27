@@ -12,6 +12,8 @@ export const STAFF_LIMITS = {
   searchMax: 80,
   pageSizeDefault: 25,
   pageSizeMax: 100,
+  /** A person whose email changed in this time (ms) gets no reset link yet. */
+  resetAfterEmailChangeMs: 3_600_000,
 } as const;
 
 export const STAFF_CODE_LIMITS = {

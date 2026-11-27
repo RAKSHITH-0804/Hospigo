@@ -122,6 +122,17 @@ export class StaffController {
     return this.staff.setActive(actorOf(req), id, true);
   }
 
+  @Post(':id/reset-password')
+  @HttpCode(200)
+  @RequirePermission('user.write')
+  @ApiOperation({
+    summary:
+      'Send a staff member a password reset link (Super Admin: anyone but self; Admin: own branches, never a Super Admin)',
+  })
+  async resetPassword(@Req() req: HttpReq, @Param('id') id: string) {
+    return this.staff.sendPasswordReset(actorOf(req), id);
+  }
+
   @Post(':id/resend-invite')
   @HttpCode(200)
   @RequirePermission('user.write')
