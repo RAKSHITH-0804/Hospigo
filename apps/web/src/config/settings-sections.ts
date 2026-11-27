@@ -27,7 +27,6 @@ export type SettingsSection = {
     | 'printing'
     | 'printValues'
     | 'printLibrary'
-    | 'indigoAccess'
     | 'opdRules'
     | 'staff'
     | 'roles'
@@ -76,14 +75,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     copyKey: 'printLibrary',
     route: `${SETTINGS_BASE_ROUTE}/print-library`,
     permission: 'print.templates.choose',
-  },
-  {
-    id: 'indigo-access',
-    group: 'hospital',
-    copyKey: 'indigoAccess',
-    route: `${SETTINGS_BASE_ROUTE}/indigo-access`,
-    permission: 'indigo.access.read',
-    hospitalWideOnly: true,
   },
   // People
   {

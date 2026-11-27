@@ -66,7 +66,6 @@ const PERMISSIONS = [
     description:
       'Read any patient of the hospital with the full history (read-only; views are logged)',
   },
-  { code: 'indigo.access.read', description: 'Read who from Indigo entered this hospital' },
   {
     code: 'print.templates.choose',
     description:
@@ -217,8 +216,6 @@ const PATIENT_FIELD_CATALOG = [
 export {
   ADMIN_EXCLUDED_PERMISSION_CODES,
   SUPER_ADMIN_EXCLUDED_PERMISSION_CODES,
-  INDIGO_EMPLOYEE_EXCLUDED_PREFIXES,
   SYSTEM_ROLE_CODES,
-  INDIGO_ROLE_CODES,
   ensureSystemRolesForTenant,
 } from '../../src/database/system-roles';

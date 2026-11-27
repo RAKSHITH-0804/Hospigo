@@ -212,17 +212,12 @@ describe('Indigo console (HTTP, hospigo_test)', () => {
         (b) => b.accessCode,
       ),
     ).toEqual([input.branches[0]!.accessCode]);
-    // the four system roles exist, the Super Admin with permissions
+    // the two system roles exist, the Super Admin with permissions
     const roles = await owner.role.findMany({
       where: { tenantId: hospital.id },
       select: { code: true },
     });
-    expect(roles.map((r) => r.code).sort()).toEqual([
-      'BRANCH_ADMIN',
-      'INDIGO_EMPLOYEE',
-      'SUPER_ADMIN',
-      'TENANT_ADMIN',
-    ]);
+    expect(roles.map((r) => r.code).sort()).toEqual(['BRANCH_ADMIN', 'SUPER_ADMIN']);
     expect(await owner.rolePermission.count({ where: { tenantId: hospital.id } })).toBeGreaterThan(
       40,
     );
@@ -249,12 +244,12 @@ describe('Indigo console (HTTP, hospigo_test)', () => {
     });
     expect(audit.metadata).toMatchObject({ hqUserId: ownerHq });
     expect(JSON.stringify(audit)).not.toContain(temp);
-    // and the Owner can enter the new hospital at once
+    // HQ never enters a hospital: the old entry route is gone
     const entered = await http()
       .post('/auth/indigo/enter')
       .set(auth(hq(ownerHq)))
       .send({ hospitalId: hospital.id });
-    expect(entered.status).toBe(200);
+    expect(entered.status).toBe(404);
   });
 
   it('refuses a taken code, a taken access code, two main branches, no OPD, an unknown module, extra fields and a bad email', async () => {
@@ -393,15 +388,15 @@ describe('Indigo console (HTTP, hospigo_test)', () => {
     ).toBe(400);
 
     const id: string = made.body.id;
-    // not yet assigned: nothing to enter
+    // not yet assigned: the Employee sees no hospital
     expect(
       (
         await http()
-          .post('/auth/indigo/enter')
+          .get('/indigo/hospitals')
           .set(auth(hq(id)))
-          .send({ hospitalId: B.tenant })
-      ).status,
-    ).toBe(403);
+          .expect(200)
+      ).body.items,
+    ).toEqual([]);
     await http()
       .put(`/indigo/employees/${id}/hospitals`)
       .set(o)
@@ -410,11 +405,13 @@ describe('Indigo console (HTTP, hospigo_test)', () => {
     expect(
       (
         await http()
-          .post('/auth/indigo/enter')
+          .get('/indigo/hospitals')
           .set(auth(hq(id)))
-          .send({ hospitalId: B.tenant })
-      ).status,
-    ).toBe(200);
+          .expect(200)
+      ).body.items
+        .map((h: { id: string }) => h.id)
+        .sort(),
+    ).toEqual([A.tenant, B.tenant].sort());
     // replacing the list removes B again
     await http()
       .put(`/indigo/employees/${id}/hospitals`)
@@ -424,11 +421,11 @@ describe('Indigo console (HTTP, hospigo_test)', () => {
     expect(
       (
         await http()
-          .post('/auth/indigo/enter')
+          .get('/indigo/hospitals')
           .set(auth(hq(id)))
-          .send({ hospitalId: B.tenant })
-      ).status,
-    ).toBe(403);
+          .expect(200)
+      ).body.items.map((h: { id: string }) => h.id),
+    ).toEqual([A.tenant]);
     const listed = await http().get('/indigo/employees').set(o).expect(200);
     expect(listed.body.items.find((e: { id: string }) => e.id === id).hospitalIds).toEqual([
       A.tenant,
@@ -461,36 +458,32 @@ describe('Indigo console (HTTP, hospigo_test)', () => {
     ]);
   });
 
-  it('switching an Employee off closes the door at once; an Owner cannot be switched off here; switching on reopens it', async () => {
+  it('switching an Employee off empties the hospital list at once; an Owner cannot be switched off here; switching on reopens it', async () => {
     const o = auth(hq(ownerHq));
     const id = await makeHq('toggle', 'EMPLOYEE');
     await owner.hqUserHospital.create({ data: { hqUserId: id, tenantId: A.tenant } });
-    const first = await http()
-      .post('/auth/indigo/enter')
+    await http()
+      .get('/indigo/hospitals')
       .set(auth(hq(id)))
-      .send({ hospitalId: A.tenant })
       .expect(200);
     await http().post(`/indigo/employees/${id}/deactivate`).set(o).expect(200);
     expect(
       (
         await http()
-          .post('/auth/indigo/enter')
+          .get('/indigo/hospitals')
           .set(auth(hq(id)))
-          .send({ hospitalId: A.tenant })
-      ).status,
-    ).toBe(403);
-    expect(
-      (await http().post('/auth/refresh').send({ refreshToken: first.body.refreshToken })).status,
-    ).toBe(401);
+          .expect(200)
+      ).body.items,
+    ).toEqual([]);
     expect((await http().post(`/indigo/employees/${ownerHq}/deactivate`).set(o)).status).toBe(403);
     await http().post(`/indigo/employees/${id}/reactivate`).set(o).expect(200);
     expect(
       (
         await http()
-          .post('/auth/indigo/enter')
+          .get('/indigo/hospitals')
           .set(auth(hq(id)))
-          .send({ hospitalId: A.tenant })
-      ).status,
-    ).toBe(200);
+          .expect(200)
+      ).body.items,
+    ).toHaveLength(1);
   });
 });

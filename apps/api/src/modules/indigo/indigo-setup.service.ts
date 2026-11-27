@@ -9,7 +9,7 @@ import {
 } from '../../database/hospital-starter/hospital-starter';
 import { TenantDb } from '../../database/tenant-db';
 import type { PrismaClient } from '../../generated/prisma';
-import { IndigoAccessService } from '../auth/indigo-access.service';
+import { HqScopeService } from './hq-scope.service';
 
 function invalid(field: string, reason: string): never {
   throw new HttpException({ statusCode: 400, code: 'INDIGO_INVALID', field, reason }, 400);
@@ -33,7 +33,7 @@ export class IndigoSetupService {
   constructor(
     private readonly hq: HqPrismaService,
     private readonly tenantDb: TenantDb,
-    private readonly access: IndigoAccessService,
+    private readonly access: HqScopeService,
   ) {}
 
   private async requireOwner(hqUserId: string): Promise<void> {

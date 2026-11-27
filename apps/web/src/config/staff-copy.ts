@@ -263,7 +263,6 @@ const baseCopy = {
       printing: 'Printing',
       printValues: 'Print values',
       printLibrary: 'Print designs',
-      indigoAccess: 'Indigo access',
       opdRules: 'OPD rules',
       staff: 'Staff',
       roles: 'Roles',
@@ -435,19 +434,6 @@ const baseCopy = {
             'Nothing changes until you press Use this design.',
             'The header and footer words come from Print values, not from the design.',
             'Ask Indigo if a design you need is not listed.',
-          ],
-        },
-        'indigo-access': {
-          what: 'This list shows every time a person from Indigo entered your hospital, newest first.',
-          steps: [
-            'Read the person and the time of each entry.',
-            'Use Next and Previous to move through older entries.',
-          ],
-          example:
-            'An entry says Indigo Owner entered at 10:15: Indigo looked at your setup that morning.',
-          good: [
-            'Only the person and the time are kept, never what they looked at.',
-            'Nobody can change or remove an entry.',
           ],
         },
         'vitals-fields': {
@@ -2219,23 +2205,6 @@ const baseCopy = {
     starterFailed:
       'The starter could not run. The hospital needs a main branch and a SuperAdmin first.',
   },
-  /** Step 2.1f: the hospital SuperAdmin reads who from Indigo entered the hospital. */
-  indigoLog: {
-    title: 'Indigo access',
-    hint: 'Every time a person from Indigo entered this hospital, newest first. Only the person and the time are kept.',
-    empty: 'Nobody from Indigo has entered this hospital yet.',
-    when: 'When',
-    person: 'Person',
-    action: 'What',
-    actions: { ENTER: 'Entered', REFRESH: 'Stayed signed in', DENIED: 'Was refused' } as Record<
-      string,
-      string
-    >,
-    loadFailed: 'The access log could not be loaded.',
-    page: 'Page {page} of {pages}',
-    previous: 'Previous',
-    next: 'Next',
-  },
   auth: {
     brandTagline: 'One platform. Every hospital.',
     product: 'A product by Indigo',
@@ -2335,12 +2304,8 @@ const baseCopy = {
     indigo: {
       title: 'Hospitals',
       hint: 'Choose a hospital to work in. Everything you do there is recorded, and the hospital can see that you entered.',
-      enter: 'Enter hospital',
-      entering: 'Entering…',
       emptyTitle: 'No hospitals for you yet',
       emptyHint: 'Ask the Indigo owner to assign hospitals to you.',
-      notAvailable: 'That hospital is not available to you.',
-      rateLimited: 'Too many tries. Wait a minute and try again.',
       failed: 'Could not enter the hospital. Try again.',
     },
     hospitals: {

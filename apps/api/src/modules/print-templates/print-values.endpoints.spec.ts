@@ -47,7 +47,12 @@ describe('Extra print values (HTTP, hospigo_test)', () => {
     });
     const nobody = await kit.person(h, 'nobody', [h.main]);
     const indigoOwner = await kit.person(h, 'owner', [h.main, h.east], {
-      roleId: h.ownerRoleId,
+      permissions: [
+        'hospital.settings.read',
+        'opd.settings.write',
+        'print.templates.choose',
+        'print.templates.manage',
+      ],
       scope: 'HOSPITAL',
     });
     return {

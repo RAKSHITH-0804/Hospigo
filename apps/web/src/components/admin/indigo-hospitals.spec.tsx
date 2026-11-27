@@ -66,7 +66,8 @@ describe('IndigoHospitals', () => {
   it('lists the real hospitals with status and branches, and says so when there are none', () => {
     const { unmount } = render(<IndigoHospitals overview={overview(false)} />);
     expect(screen.getByText('North Hospital')).toBeTruthy();
-    expect(screen.getAllByRole('button', { name: copy.enter })).toHaveLength(2);
+    // HQ never enters a hospital: no Enter button
+    expect(screen.queryByRole('button', { name: /enter/i })).toBeNull();
     expect(screen.getAllByText(/Status: ACTIVE/).length).toBe(2);
     unmount();
     render(<IndigoHospitals overview={overview(false, 0)} />);
@@ -96,27 +97,5 @@ describe('IndigoHospitals', () => {
       expect(screen.getByRole('status').textContent).toBe(consoleCopy.modulesSaved),
     );
     expect(saveModulesMock).toHaveBeenCalledWith('h1', ['OPD', 'IPD']);
-  });
-
-  it('Enter sends only the hospital id to the same-origin route and opens the hospital', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 200 });
-    global.fetch = fetchMock as unknown as typeof fetch;
-    render(<IndigoHospitals overview={overview(false)} />);
-    fireEvent.click(screen.getAllByRole('button', { name: copy.enter })[1]!);
-    await waitFor(() => expect(replaceMock).toHaveBeenCalled());
-    expect(String(fetchMock.mock.calls[0]![0])).toBe('/api/auth/indigo-enter');
-    expect(JSON.parse(String((fetchMock.mock.calls[0]![1] as RequestInit).body))).toEqual({
-      hospitalId: 'h2',
-    });
-  });
-
-  it('one plain message for a refusal', async () => {
-    global.fetch = jest
-      .fn()
-      .mockResolvedValue({ ok: false, status: 403 }) as unknown as typeof fetch;
-    render(<IndigoHospitals overview={overview(false)} />);
-    fireEvent.click(screen.getAllByRole('button', { name: copy.enter })[0]!);
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe(copy.notAvailable));
-    expect(replaceMock).not.toHaveBeenCalled();
   });
 });

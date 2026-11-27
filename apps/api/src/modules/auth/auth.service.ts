@@ -11,7 +11,6 @@ import { AuthRedisService } from './auth-redis.service';
 import { authFailed } from './auth.errors';
 import { HospitalLoginHelper } from './hospital-login.helper';
 import { canSwitchBranches, userHasHospitalScope } from './hospital-scope';
-import { IndigoCheckService } from './indigo-check.service';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 import type { AccessClaims, HospitalAccessClaims, HqAccessClaims } from './token.types';
@@ -77,7 +76,6 @@ export class AuthService {
     private readonly hqPrisma: HqPrismaService,
     private readonly redis: AuthRedisService,
     private readonly access: AccessService,
-    private readonly indigoCheck: IndigoCheckService,
     config: ConfigService<ApiEnv, true>,
   ) {
     this.auth = config.getOrThrow('auth', { infer: true });
@@ -644,19 +642,6 @@ export class AuthService {
             return { type: 'fail' as const };
           }
 
-          // An Indigo person is checked again here: switched off, or no longer assigned, ends the whole
-          // family of sessions at the next refresh (Step 2.1b).
-          if (
-            user.indigoHqUserId &&
-            !(await this.indigoCheck.allowed(user.indigoHqUserId, parts.tenantId))
-          ) {
-            await tx.authSession.updateMany({
-              where: { familyId: session.familyId, revokedAt: null },
-              data: { revokedAt: new Date() },
-            });
-            return { type: 'fail' as const };
-          }
-
           // A session needs an active membership of its branch OR an active hospital-wide
           // role (branch switcher; same rule as AccessService). Re-checked on every refresh:
           // losing both revokes the whole family.
@@ -817,17 +802,6 @@ export class AuthService {
       expiresIn: this.tokens.accessExpiresInSec('HQ'),
       mustChangePassword: user.mustChangePassword,
     };
-  }
-
-  /** For the Indigo entry (Step 2.1b): the same session as a login makes. */
-  createHospitalSessionFor(input: {
-    tenantId: string;
-    userId: string;
-    branchId: string;
-    ip: string;
-    userAgent: string | undefined;
-  }): Promise<TokenPairResponse> {
-    return this.createHospitalSession(input);
   }
 
   private async createHospitalSession(input: {

@@ -1,5 +1,4 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { IndigoAccessScreen } from '@/components/settings/indigo-access-screen';
 import { PrintLibraryScreen } from '@/components/settings/print-library-screen';
 import { staffCopy } from '@/config/staff-copy';
 import type { ChooserView } from '@/lib/indigo/library';
@@ -78,39 +77,5 @@ describe('PrintLibraryScreen', () => {
     empty.unmount();
     render(<PrintLibraryScreen view={null} />);
     expect(screen.getByRole('alert').textContent).toBe(copy.loadFailed);
-  });
-});
-
-describe('IndigoAccessScreen', () => {
-  const log = staffCopy.indigoLog;
-  it('lists who entered and when, newest first, with the paging line', () => {
-    render(
-      <IndigoAccessScreen
-        page={1}
-        data={{
-          items: [
-            { id: 'a', action: 'ENTER', person: 'Indigo Owner', at: '2026-11-26T10:00:00.000Z' },
-          ],
-          total: 120,
-          page: 1,
-          pageSize: 50,
-        }}
-      />,
-    );
-    expect(screen.getByText('Indigo Owner')).toBeTruthy();
-    expect(screen.getByText(log.actions.ENTER!)).toBeTruthy();
-    expect(screen.getByText('Page 1 of 3')).toBeTruthy();
-    expect(screen.getByRole('link', { name: log.next })).toBeTruthy();
-    expect(screen.queryByRole('link', { name: log.previous })).toBeNull();
-  });
-
-  it('says so when nobody entered, and when the log could not be loaded', () => {
-    const { unmount } = render(
-      <IndigoAccessScreen page={1} data={{ items: [], total: 0, page: 1, pageSize: 50 }} />,
-    );
-    expect(screen.getByText(log.empty)).toBeTruthy();
-    unmount();
-    render(<IndigoAccessScreen page={1} data={null} />);
-    expect(screen.getByRole('alert').textContent).toBe(log.loadFailed);
   });
 });

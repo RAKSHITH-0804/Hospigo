@@ -481,7 +481,7 @@ describe('staff and roles (HTTP)', () => {
         'DUPLICATE',
       );
       invalid(
-        await make({ name: 'SuperAdmin', permissionCodes: ['opd.queue.read'] }),
+        await make({ name: 'Super Admin', permissionCodes: ['opd.queue.read'] }),
         'name',
         'DUPLICATE',
       );
@@ -520,13 +520,17 @@ describe('staff and roles (HTTP)', () => {
       conflict(await put(A, 'sa', `/roles/${A.superRoleId}`, { name: 'Hacked' }), 'SYSTEM_ROLE');
       conflict(await post(A, 'sa', `/roles/${A.branchAdminRoleId}/deactivate`), 'SYSTEM_ROLE');
       expect((await owner.role.findUniqueOrThrow({ where: { id: A.superRoleId } })).name).toBe(
-        'SuperAdmin',
+        'Super Admin',
       );
       expect((await put(A, 'sa', `/roles/${B.superRoleId}`, { name: 'x' })).status).toBe(404);
       expect((await put(A, 'sa', '/roles/no-such-role', { name: 'x' })).status).toBe(404);
       const role = await makeRole(A, 'Body checks', ['opd.queue.read']);
       invalid(await put(A, 'sa', `/roles/${role.id}`, {}), 'body', 'REQUIRED');
-      invalid(await put(A, 'sa', `/roles/${role.id}`, { name: 'SuperAdmin' }), 'name', 'DUPLICATE');
+      invalid(
+        await put(A, 'sa', `/roles/${role.id}`, { name: 'Super Admin' }),
+        'name',
+        'DUPLICATE',
+      );
       invalid(
         await put(A, 'sa', `/roles/${role.id}`, { permissionCodes: [] }),
         'permissionCodes',

@@ -1,12 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { EmptyState } from '@/components/states/empty-state';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { sessionConfig } from '@/config/session';
 import { staffCopy } from '@/config/staff-copy';
 import { fill } from '@/lib/opd/clinical-format';
 import { saveHospitalModules } from '@/lib/indigo/client';
@@ -186,41 +184,9 @@ function StarterButton({ hospitalId }: { hospitalId: string }) {
 
 /**
  * The real hospitals an Indigo person may see: status, branches (access codes for the Owner only),
- * modules (the Owner switches them), and Enter. The server decides what each person may do.
+ * and modules (the HQ Admin switches them). HQ never enters a hospital. The server decides what each person may do.
  */
 export function IndigoHospitals({ overview }: { overview: IndigoOverview }) {
-  const router = useRouter();
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function enter(hospitalId: string) {
-    setBusyId(hospitalId);
-    setError(null);
-    try {
-      const response = await fetch('/api/auth/indigo-enter', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hospitalId }),
-      });
-      if (response.ok) {
-        router.replace(sessionConfig.homeHospital);
-        router.refresh();
-        return;
-      }
-      setError(
-        response.status === 403
-          ? copy.notAvailable
-          : response.status === 429
-            ? copy.rateLimited
-            : copy.failed,
-      );
-    } catch {
-      setError(copy.failed);
-    } finally {
-      setBusyId(null);
-    }
-  }
-
   return (
     <div className="section-stack content-container-inner">
       <div className="cluster-between">
@@ -232,11 +198,6 @@ export function IndigoHospitals({ overview }: { overview: IndigoOverview }) {
         ) : null}
       </div>
       <p className="type-label text-muted-foreground">{copy.hint}</p>
-      {error ? (
-        <p role="alert" className="type-label text-destructive">
-          {error}
-        </p>
-      ) : null}
       {overview.items.length === 0 ? (
         <EmptyState title={copy.emptyTitle} description={copy.emptyHint} />
       ) : (
@@ -288,14 +249,6 @@ export function IndigoHospitals({ overview }: { overview: IndigoOverview }) {
                 ) : (
                   <p className="type-small">{hospital.modules.join(', ')}</p>
                 )}
-                <Button
-                  type="button"
-                  className="touch-target w-fit"
-                  disabled={busyId !== null}
-                  onClick={() => void enter(hospital.id)}
-                >
-                  {busyId === hospital.id ? copy.entering : copy.enter}
-                </Button>
               </CardContent>
             </Card>
           ))}

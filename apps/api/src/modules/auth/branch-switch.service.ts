@@ -13,7 +13,6 @@ import type { AuthConfig } from './auth.config';
 import { AuthRedisService } from './auth-redis.service';
 import { authFailed } from './auth.errors';
 import { canSwitchBranches, switchableBranchIds } from './hospital-scope';
-import { IndigoCheckService } from './indigo-check.service';
 import { TokenService } from './token.service';
 import type { HospitalAccessClaims } from './token.types';
 import type { TokenPairResponse } from './auth.service';
@@ -58,7 +57,6 @@ export class BranchSwitchService {
     private readonly tenantDb: TenantDb,
     private readonly tokens: TokenService,
     private readonly redis: AuthRedisService,
-    private readonly indigoCheck: IndigoCheckService,
     config: ConfigService<ApiEnv, true>,
   ) {
     this.auth = config.getOrThrow('auth', { infer: true });
@@ -155,14 +153,6 @@ export class BranchSwitchService {
     const user = await tx.user.findFirst({ where: { id: claims.userId } });
     const hospital = await tx.hospital.findFirst({ where: { id: claims.tenantId } });
     if (!user?.isActive || !hospital || !hospital.isActive || hospital.status !== 'ACTIVE') {
-      return { type: 'fail' };
-    }
-
-    // 0. An Indigo person must still be allowed in this hospital (checked against the HQ side every time).
-    if (
-      user.indigoHqUserId &&
-      !(await this.indigoCheck.allowed(user.indigoHqUserId, claims.tenantId))
-    ) {
       return { type: 'fail' };
     }
 

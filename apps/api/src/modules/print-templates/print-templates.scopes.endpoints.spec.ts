@@ -35,10 +35,15 @@ describe('Print templates per branch (HTTP, hospigo_test)', () => {
 
   async function seed(label: string, kit: ReturnType<typeof createKit>): Promise<Cast> {
     const h = await kit.hospital(label);
-    // templates belong to the Indigo Owner (hospital-wide); a person who holds the permission for ONE
+    // a hospital-wide holder of the template permissions (HQ's side of the work, as the tests stand in for it); a person who holds the permission for ONE
     // branch only stands for "changes only their own branch, never the hospital".
     const admin = await kit.person(h, 'sa', [h.main, h.east], {
-      roleId: h.ownerRoleId,
+      permissions: [
+        'hospital.settings.read',
+        'opd.settings.write',
+        'print.templates.choose',
+        'print.templates.manage',
+      ],
       scope: 'HOSPITAL',
     });
     const branchAdmin = await kit.person(h, 'ba', [h.main], {

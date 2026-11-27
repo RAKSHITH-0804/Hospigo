@@ -1,8 +1,8 @@
 import type { PrismaClient } from '../generated/prisma';
 
 /**
- * The system roles every hospital has (Super Admin, Admin and, for Indigo people, Indigo Owner and Indigo
- * Employee) with the permissions each one receives. Used by the seeds and by the Indigo onboarding.
+ * The system roles every hospital has (Super Admin and Admin) with the permissions each one receives.
+ * Used by the seeds and by the HQ onboarding. HQ never enters a hospital, so there is no HQ role inside one.
  */
 
 /**
@@ -26,10 +26,9 @@ export const ADMIN_EXCLUDED_PERMISSION_CODES: readonly string[] = [
   'opd.doctors.own',
   // Step 7d: roles are made by the SuperAdmin only (an Admin gives existing roles to staff)
   'role.write',
-  // Step 2.1b: templates and logos belong to the Indigo Owner; the doctor view and the Indigo log are not for Admins
+  // Templates and logos belong to HQ (Phase 2.2); the all-doctors patient view is not for Admins
   'print.templates.manage',
   'patients.history.view_all',
-  'indigo.access.read',
 ];
 
 /**
@@ -54,41 +53,10 @@ export const SUPER_ADMIN_EXCLUDED_PERMISSION_CODES: readonly string[] = [
   'patients.history.view_all',
 ];
 
-/**
- * What the Indigo Employee never receives: patient and clinical data, money, templates and logos,
- * and the log of Indigo access. An Employee configures and loads data (staff, roles, medicines, tests,
- * prices, Excel uploads) in the hospitals the Owner assigned. The Owner receives every permission.
- */
-export const INDIGO_EMPLOYEE_EXCLUDED_PREFIXES: readonly string[] = [
-  'patients.',
-  'opd.visits.',
-  'opd.billing.',
-  'opd.queue.',
-  'opd.vitals.',
-  'opd.notes.',
-  'opd.investigations.',
-  'opd.refunds.',
-  'opd.reports.',
-  'opd.doctors.own',
-  'print.templates.manage',
-  'print.templates.choose',
-  'indigo.access.read',
-];
-
 export const SYSTEM_ROLE_CODES = {
   SUPER_ADMIN: 'SUPER_ADMIN',
   BRANCH_ADMIN: 'BRANCH_ADMIN',
-  /** Indigo Owner (Step 2.1b): full power inside a hospital. Only the Indigo entry gives it. */
-  TENANT_ADMIN: 'TENANT_ADMIN',
-  /** Indigo Employee: configuration and data loading in assigned hospitals, no patient data. */
-  INDIGO_EMPLOYEE: 'INDIGO_EMPLOYEE',
 } as const;
-
-/** The two roles that only the Indigo entry gives; hospital users never see or give them. */
-export const INDIGO_ROLE_CODES: readonly string[] = [
-  SYSTEM_ROLE_CODES.TENANT_ADMIN,
-  SYSTEM_ROLE_CODES.INDIGO_EMPLOYEE,
-];
 
 export async function ensureSystemRolesForTenant(
   prisma: PrismaClient,
@@ -96,8 +64,6 @@ export async function ensureSystemRolesForTenant(
 ): Promise<{
   superAdminRoleId: string;
   branchAdminRoleId: string;
-  ownerRoleId: string;
-  employeeRoleId: string;
 }> {
   const allPermissions = await prisma.permission.findMany({ where: { isActive: true } });
   const branchAdminExcluded = new Set(ADMIN_EXCLUDED_PERMISSION_CODES);
@@ -108,11 +74,11 @@ export async function ensureSystemRolesForTenant(
     create: {
       tenantId,
       code: SYSTEM_ROLE_CODES.SUPER_ADMIN,
-      name: 'SuperAdmin',
+      name: 'Super Admin',
       description: 'Full hospital-scope permissions',
       isSystem: true,
     },
-    update: { name: 'SuperAdmin', isActive: true, isSystem: true },
+    update: { name: 'Super Admin', isActive: true, isSystem: true },
   });
 
   const branchAdmin = await prisma.role.upsert({
@@ -127,39 +93,9 @@ export async function ensureSystemRolesForTenant(
     update: { name: 'Admin', isActive: true, isSystem: true },
   });
 
-  const owner = await prisma.role.upsert({
-    where: { tenantId_code: { tenantId, code: SYSTEM_ROLE_CODES.TENANT_ADMIN } },
-    create: {
-      tenantId,
-      code: SYSTEM_ROLE_CODES.TENANT_ADMIN,
-      name: 'Indigo Owner',
-      description: 'Indigo owner acting inside the hospital (hidden from hospital users)',
-      isSystem: true,
-    },
-    update: { name: 'Indigo Owner', isActive: true, isSystem: true },
-  });
-  const employee = await prisma.role.upsert({
-    where: { tenantId_code: { tenantId, code: SYSTEM_ROLE_CODES.INDIGO_EMPLOYEE } },
-    create: {
-      tenantId,
-      code: SYSTEM_ROLE_CODES.INDIGO_EMPLOYEE,
-      name: 'Indigo Employee',
-      description: 'Indigo employee: configuration and data loading, no patient data',
-      isSystem: true,
-    },
-    update: { name: 'Indigo Employee', isActive: true, isSystem: true },
-  });
-  const employeeExcluded = new Set(
-    allPermissions
-      .filter((p) => INDIGO_EMPLOYEE_EXCLUDED_PREFIXES.some((prefix) => p.code.startsWith(prefix)))
-      .map((p) => p.code),
-  );
-
   const roles = [
     { id: superAdmin.id, excluded: superAdminExcluded },
     { id: branchAdmin.id, excluded: branchAdminExcluded },
-    { id: owner.id, excluded: new Set<string>() },
-    { id: employee.id, excluded: employeeExcluded },
   ];
   for (const role of roles) {
     for (const permission of allPermissions) {
@@ -191,7 +127,5 @@ export async function ensureSystemRolesForTenant(
   return {
     superAdminRoleId: superAdmin.id,
     branchAdminRoleId: branchAdmin.id,
-    ownerRoleId: owner.id,
-    employeeRoleId: employee.id,
   };
 }

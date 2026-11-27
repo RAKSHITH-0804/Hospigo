@@ -15,7 +15,7 @@ import {
   DOCTOR_CODE_WIDTH,
   DOCTOR_PERMISSION_CODE,
   STAFF_LIMITS,
-  INDIGO_ROLE_CODES,
+  RETIRED_ROLE_CODES,
   SUPER_ADMIN_ROLE_CODE,
 } from './staff.config';
 import {
@@ -188,7 +188,7 @@ export class StaffService {
         where: {
           tenantId: actor.tenantId,
           isActive: true,
-          code: { notIn: [...INDIGO_ROLE_CODES] },
+          code: { notIn: [...RETIRED_ROLE_CODES] },
         },
         orderBy: [{ isSystem: 'desc' }, { name: 'asc' }],
       });
@@ -549,8 +549,8 @@ export class StaffService {
         tenantId: actor.tenantId,
         id: { in: assignments.map((a) => a.roleId) },
         isActive: true,
-        // hospital users can never give the Indigo roles (they look like roles that do not exist)
-        code: { notIn: [...INDIGO_ROLE_CODES] },
+        // retired roles can never be given
+        code: { notIn: [...RETIRED_ROLE_CODES] },
       },
     });
     const byId = new Map(roles.map((r) => [r.id, r]));

@@ -6,7 +6,7 @@ import { HqPrismaService } from '../../database/hq-prisma.service';
 import { ensureSystemRolesForTenant } from '../../database/system-roles';
 import { TenantDb } from '../../database/tenant-db';
 import type { PrismaClient } from '../../generated/prisma';
-import { IndigoAccessService } from '../auth/indigo-access.service';
+import { HqScopeService } from './hq-scope.service';
 
 /** Limits of what the console accepts (checked again by the database where it can). */
 export const INDIGO_LIMITS = {
@@ -148,7 +148,7 @@ export class IndigoConsoleService {
   constructor(
     private readonly hq: HqPrismaService,
     private readonly tenantDb: TenantDb,
-    private readonly access: IndigoAccessService,
+    private readonly access: HqScopeService,
   ) {}
 
   private async requireOwner(hqUserId: string): Promise<void> {

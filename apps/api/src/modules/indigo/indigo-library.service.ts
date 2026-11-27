@@ -1,7 +1,7 @@
 import { ForbiddenException, HttpException, Injectable } from '@nestjs/common';
 import { HqPrismaService } from '../../database/hq-prisma.service';
 import type { Prisma } from '../../generated/prisma';
-import { IndigoAccessService } from '../auth/indigo-access.service';
+import { HqScopeService } from './hq-scope.service';
 import { ImageRefused, sniffImage } from '../images/image-sniff';
 import {
   PRESETS,
@@ -34,7 +34,7 @@ export const LIBRARY_LIMITS = { nameMax: 80, descriptionMax: 200, logoMaxBytes: 
 export class IndigoLibraryService {
   constructor(
     private readonly hq: HqPrismaService,
-    private readonly access: IndigoAccessService,
+    private readonly access: HqScopeService,
   ) {}
 
   private async requireOwner(hqUserId: string): Promise<void> {

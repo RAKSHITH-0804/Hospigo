@@ -22,7 +22,7 @@ describe('the settings menu', () => {
       g.sections.map((s) => s.id),
     ]);
     expect(grouped).toEqual([
-      ['hospital', ['branding', 'printing', 'print-values', 'print-library', 'indigo-access']],
+      ['hospital', ['branding', 'printing', 'print-values', 'print-library']],
       ['people', ['staff', 'roles', 'doctors']],
       ['patients', ['patient-registration', 'patient-numbers']],
       ['opd', ['opd-rules', 'vitals-fields', 'upload-lists']],

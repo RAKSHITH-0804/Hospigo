@@ -40,13 +40,6 @@ export type ChooserView = {
 
 export type TermsResponse = { items: Record<string, string> };
 
-export type AccessLogResponse = {
-  items: Array<{ id: string; action: string; person: string | null; at: string }>;
-  total: number;
-  page: number;
-  pageSize: number;
-};
-
 const BASE = '/api/staff/indigo';
 
 export const LIBRARY_PRESETS = ['A4_FULL', 'A5_FULL', 'LABEL_SLIP', 'CARD_LABEL'] as const;
