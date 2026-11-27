@@ -208,3 +208,38 @@ Start: stop the servers, `npm run dev:reset` (several minutes), start both dev s
 **Receptionist, Nurse, Doctor** 12. Dashboard shows the new style and only their own blocks (no money for the nurse and doctor). Nothing says Demo, Mock or Test anywhere.
 
 **Screens at three widths** (Chrome, F12, device toolbar): 1920, 1366x768, 390. No sideways scrolling, no cut-off text, no big empty areas.
+
+## N. Phase 2.3 Part 1 (the change list), by role
+
+Start with `npm run dev:reset`, then both servers.
+
+**Receptionist** (`anitha.gowda@nandavana.example.org`)
+
+1. Patients, Register patient: choose **Age**; there is ONE box (years). Choose **Date of birth**: the calendar opens with month and year lists; pick 1962 in two clicks.
+2. Register, make a visit, pay cash, print the receipt: no amount in the middle of the page, and "Billed by: Anitha Gowda (Receptionist)" above the signature (after the design is chosen again, see the note below).
+3. OPD queue: on a COMPLETED visit there are two buttons, **Print prescription** and **Print patient report**; both open and print. A visit that is not completed has no print buttons.
+
+**Nurse** (`kavitha.nayak@nandavana.example.org`)
+
+4. OPD queue, Vitals on a waiting patient: the boxes hold the saved values (nothing empty); change one, it asks for a reason, save.
+5. On a COMPLETED visit the button says **Vitals (view)**; the page says "Locked: the consultation is completed" and has no Save.
+6. The completed visit has the two print buttons too.
+
+**Doctor** (`vinayak.hegde@nandavana.example.org`)
+
+7. Complete a consultation, then try the vitals page: locked, read only.
+
+**Admin** (`shobha.patil@nandavana.example.org`) and **Super Admin** (`ramesh.kulkarni@nandavana.example.org`)
+
+8. Settings, Print designs: each design has a **View** button (a sample in a window), then Use this design.
+9. The sidebar has **Administration** (Staff, Roles, Doctors). Settings no longer lists them; an old `/app/settings/staff` address opens Administration.
+10. Administration, Staff: an active person has **Send password reset link**. As the Admin: a Super Admin has no way to be reset (the answer is "not found"); you cannot reset yourself; staff of your branches can be reset. As the Super Admin: anyone but yourself. The mail arrives at the person's email (Mailpit in dev). Change a person's email, then press the reset: it is refused for an hour.
+11. Patients, click a patient: the Quick view shows initials, name, summary and two columns of facts.
+
+**Dashboard (every role)**
+
+12. No tiles with module names. The small blocks are links: Visits today and Waiting go to the OPD queue, Collected to the Collection report, Requests waiting to Refund requests (only when the role may open them). Attention required is compact. The bars of "Visits, last 14 days" and the points of the money line open the report of that day; a payment mode or a doctor in the lists opens the report filtered. Resize the window: the charts grow and shrink with it.
+
+**Collapsed menu:** press the menu button in the sidebar: icons stay centred and the "6" sits on the OPD icon's corner.
+
+_Note:_ hospitals that already exist keep the design copy they use. Choose a design again in Settings, Print designs (or run `npm run dev:reset` in dev) to get the receipt without the middle amount and with "Billed by". Give existing Receptionist and Nurse roles the permission "Print the prescription and the patient report of a COMPLETED visit" in Administration, Roles.

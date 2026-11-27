@@ -29,6 +29,13 @@
 
 ## Unreleased
 
+## 2026-11-27 — Phase 2.3 Part 1 — Rakshith's change list (branch `feature/step-2-3-feedback`, not pushed)
+
+- **Changed:** age is one number in years; own calendar with month and year; collapsed menu; View design in Print designs; better Quick view; dashboard without module tiles, compact Attention required, clickable blocks and graphs; Administration menu for Staff, Roles and Doctors; nurse vitals show saved values and lock when the consultation is completed; receipt without the middle payment amount.
+- **Added:** `POST /staff/:id/reset-password`; permission `opd.prints.clinical` and `GET /opd/visits/:id/print-data`; `GET /print-library/templates/:id`; "Billed by" (name and role) on bills; dashboard click-throughs (`paymentMode`, `doctorId` in the summary).
+- **Tests:** API 1131, web 1867, lint, format and builds green. Newman, e2e and the manual round at the end (checklist section N).
+- **Decisions:** `docs/decisions/decisions-2-3.md`.
+
 ## 2026-11-27 — Phase 2.2 checkpoint 3 — UI redesign and close (branch `feature/step-2-2c-ui-redesign`, not pushed)
 
 - **Changed:** page canvas, 24 px page titles, KPI cards, table header rows and pills (sidebar, login and blue buttons kept); dashboard greeting and "Attention required"; queue wait time; HQ home as KPI cards and table.
