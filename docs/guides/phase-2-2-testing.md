@@ -4,11 +4,11 @@ All three Phase 2.2 checkpoints are built first. The full test round for Phase 2
 
 ## Status per checkpoint
 
-| Checkpoint                                                 | Built       | Jest API / web          | Newman                              | e2e                            | Manual  |
-| ---------------------------------------------------------- | ----------- | ----------------------- | ----------------------------------- | ------------------------------ | ------- |
-| 1 Cleanup and privacy (`feature/step-2-2a-cleanup`)        | yes         | 1114 / 1858             | NOT run (newman not installed here) | 20 of 20 on the isolated stack | pending |
-| 2 HQ console and branches (`feature/step-2-2b-hq-console`) | yes         | unit and endpoint green | pending (hospigo-2-2b-hq-console)   | pending                        | pending |
-| 3 UI redesign and close                                    | not started |                         | pending                             | pending                        | pending |
+| Checkpoint                                                 | Built | Jest API / web          | Newman                              | e2e                            | Manual                        |
+| ---------------------------------------------------------- | ----- | ----------------------- | ----------------------------------- | ------------------------------ | ----------------------------- |
+| 1 Cleanup and privacy (`feature/step-2-2a-cleanup`)        | yes   | 1114 / 1858             | NOT run (newman not installed here) | 20 of 20 on the isolated stack | pending                       |
+| 2 HQ console and branches (`feature/step-2-2b-hq-console`) | yes   | unit and endpoint green | pending (hospigo-2-2b-hq-console)   | pending                        | pending                       |
+| 3 UI redesign and close (feature/step-2-2c-ui-redesign)    | yes   | API 1128 / web 1866     | pending                             | pending                        | pending (checklist section M) |
 
 ## The end-of-phase round (in this order, one minute pause between login-heavy runs)
 

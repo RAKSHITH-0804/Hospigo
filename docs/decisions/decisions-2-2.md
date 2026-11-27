@@ -46,3 +46,17 @@ Plan: `docs/plans/phase-2-2-roles-hq-ui.md` (it wins over Phase 2.1 documents wh
 | Admin2 (branch 3) sees branches of Admin1 (1 and 2); another hospital's branches                      | No; the combined view lists exactly the assigned branches            |
 
 **Verdict: safe to approve, with two decisions for Rakshith:** (a) the technical owner of rows HQ writes is the hospital's Super Admin (the audit line names HQ); (b) `hospigo_security` got column-limited read of `opd_visits` and `users` for the counts function. Alternatives cost more tables or a stored counter; say if you prefer one.
+
+## Checkpoint 3: UI redesign and close (branch `feature/step-2-2c-ui-redesign`, from `feature/step-2-2b-hq-console`, not pushed)
+
+**What changed.** Shared first: the page canvas is a light neutral (`--background`), cards have a 1 px `--border` line and rounder corners (`--radius-card` 0.625rem), the first heading of every page is a 24 px semibold title (`h1.type-heading`, `h1.type-title`, token `--font-size-page-title`), KPI cards (`.kpi-card`, `.kpi-label`, `.kpi-value`), tables with a light header row (`.data-table thead`), small pills (the `Badge` is now fully rounded). **Kept:** the sidebar and login colours and the blue buttons and links. All sizes are tokens in `globals.css`; all text is in `staff-copy.ts`.
+
+Pages: Dashboard (greeting "Good morning/afternoon/evening, {name}" by the hospital hour; KPI cards; **Attention required** with real counts: refund/cancel requests waiting, patients waiting for vitals, patients waiting longer than `DASHBOARD_LONG_WAIT_MINUTES` (30); charts as before), OPD queue (new **Wait time** column from the real queue time; the table gets the new header and pills), HQ home (KPI cards and a table with status pills). Patients, visit, consultation, settings and the print frames take the new tokens and were checked in screenshots; no layout was rebuilt there. **"Call next" was not built:** starting a consultation is the doctor's own action in the API (the "Open" button on the queue row), so a separate button would be a fake shortcut.
+
+API: `dashboard/summary` returns `today.longWaiting` (null when the caller may not see the queue).
+
+**Not drawn on purpose (not built, no fake screens):** IPD, Pharmacy, Lab, Billing desk, patient portal.
+
+**Screenshots.** `e2e/showcase-screens.mjs` now also shoots the queue, patients, new patient and settings pages and the HQ home, hospital page, onboarding and HQ Staff pages (set `E2E_BASE_URL=http://127.0.0.1:3001`, `SHOT_HOSPITALS=NANDAVANA`; `SHOT_HQ=0` skips HQ). Looked at: Super Admin dashboard (1366 and 390), queue (1366), patients (390), HQ home and HQ hospital (1366). Found and fixed: a KPI amount overflowing its card (smaller `--font-size-kpi`, wraps anywhere). No sideways scrolling at 1920, 1366 and 390.
+
+**Not verified here:** the other roles' dashboards at the new style, and the HQ onboarding and HQ Staff pages by eye (screenshots exist, not looked at). Newman, e2e and the manual round are the end-of-phase round.

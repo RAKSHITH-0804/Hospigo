@@ -185,3 +185,26 @@ Tick a line only when you saw the result. If a line fails, write the line number
 ## F. After the checklist
 
 Write down every line that failed, with the role, the page and what you saw. Do not fix by hand in the database. Open a new step in the tracker for each real problem.
+
+## M. Phase 2.2 (all three checkpoints): the manual round, by role
+
+Start: stop the servers, `npm run dev:reset` (several minutes), start both dev servers, open `http://127.0.0.1:3001`. Passwords: `docs/guides/dev-accounts.md`, `docs/guides/demo-script.md`. Do the Phase 2.1 sections (A to J) in the same round.
+
+**HQ Admin** (`hq.admin@indigo.example.org`, access code empty)
+
+1. After sign-in the HQ home opens: three cards (Hospitals 2, HQ Staff accounts, System health "All systems up") and a table with Visits today and Last activity. No Enter button anywhere. Typing `/app` in the address bar sends you away.
+2. **Open** a hospital: tabs Overview (five counts), Branches (access codes), Modules, Print design and logo, Terminology, Super Admin.
+3. Print design: pick a design for Receipt, press **Set as active**, "Done." Open the designer link: boxes with sample values; change something, Save, "Saved". Then sign in as that hospital's Super Admin: Settings, Print designs shows the design as active.
+4. Super Admin tab: the Super Admin is listed with last sign-in; **New one-time password** shows a password once. That Super Admin signs in with it and must change it.
+5. **HQ Staff**: add a person (password shown once), tick "See the hospitals" and "See counts", tick the hospitals, save. **Activity log** lists each change with your name.
+6. **Onboard hospital**: 3 steps (details and branches; access codes, Super Admin; modules), then the result page with the one-time password. The new hospital appears in the table.
+
+**HQ Staff** (`hq.staff@indigo.example.org`) 7. The menu has no Onboard, HQ Staff or Activity log. Only the assigned hospitals are listed, no access codes. Tabs without a tick show no buttons (for example Super Admin has no reset button, Print has disabled buttons).
+
+**Super Admin** (Nandavana `ramesh.kulkarni@nandavana.example.org`) 8. Dashboard: "Good morning/afternoon/evening, Ramesh Kulkarni", KPI cards, **Attention required** (requests, vitals, waits over 30 minutes), charts. The link **All my branches** shows the combined numbers; **Only this branch** goes back. 9. OPD queue: a **Wait time** column; **All my branches** adds the branch name under each patient. Refund requests: **All my branches** adds a Branch column; approve a request of another branch: it is decided in that branch. 10. Settings: there is no "Indigo access" page. Staff: open an Admin: the box "Works in" says it is the branches this Admin may operate; give two branches and save.
+
+**Admin** (`shobha.patil@nandavana.example.org`) 11. With two branches: the branch switcher and the **All my branches** links work; an Admin with one branch has neither. An Admin never sees a branch that was not ticked.
+
+**Receptionist, Nurse, Doctor** 12. Dashboard shows the new style and only their own blocks (no money for the nurse and doctor). Nothing says Demo, Mock or Test anywhere.
+
+**Screens at three widths** (Chrome, F12, device toolbar): 1920, 1366x768, 390. No sideways scrolling, no cut-off text, no big empty areas.

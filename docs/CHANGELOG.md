@@ -29,11 +29,18 @@
 
 ## Unreleased
 
+## 2026-11-27 — Phase 2.2 checkpoint 3 — UI redesign and close (branch `feature/step-2-2c-ui-redesign`, not pushed)
+
+- **Changed:** page canvas, 24 px page titles, KPI cards, table header rows and pills (sidebar, login and blue buttons kept); dashboard greeting and "Attention required"; queue wait time; HQ home as KPI cards and table.
+- **Added:** `today.longWaiting` in the dashboard summary; screenshot script covers pages and HQ.
+- **Tests:** API 1128 and web 1866 unit and endpoint tests, lint, format, both builds green. Newman, e2e and the manual round are the end-of-phase round (`docs/guides/phase-2-2-testing.md`, manual steps: checklist section M).
+- **Decisions:** `docs/decisions/decisions-2-2.md` (checkpoint 3). "Call next" not built (the doctor starts a visit); IPD, Pharmacy, Lab, Billing desk and portal not drawn.
+
 ## 2026-11-27 — Phase 2.2 checkpoint 2 — HQ console and branches (branch `feature/step-2-2b-hq-console`, not pushed)
 
 - **Added:** HQ Staff tick-box permissions; append-only HQ activity log; counts-only monitoring and one system health status; Super Admin list, create and one-time reset without entry; HQ sets the active design and logo of a hospital (tenant door) and edits library templates in the designer; HQ home table, one page per hospital, 3-step onboarding; `branch=ALL` on the dashboard, OPD queue and refund requests with the "All my branches" link; cross-branch approve and reject inside the assigned branches. Postman `hospigo-2-2b-hq-console`.
 - **Database:** migrations `20261129098000_hq_permissions_activity_monitoring` and `20261129099000_hq_superadmin_reset` (new tables are HQ-only and global; two SECURITY DEFINER read functions and one reset function; column-limited grants).
-- **Tests:** API 1131 and web 1865 unit and endpoint tests (Newman and e2e at the end of Phase 2).
+- **Tests:** API 1128 and web 1865 unit and endpoint tests (Newman and e2e at the end of Phase 2).
 - **Decisions:** `docs/decisions/decisions-2-2.md` (checkpoint 2 and its security table).
 
 ## 2026-11-27 — Phase 2.2 checkpoint 1 — Cleanup and privacy: HQ never enters a hospital (branch `feature/step-2-2a-cleanup`, not pushed)
