@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hospigo — Hospital Operations Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+          colors: {
+            sidebar: {
+              DEFAULT: '#0E2929',
+              active: '#183D3D',
+              hover: '#143535',
+              muted: '#8FA8A8',
+            },
+            canvas: '#F7F9F9',
+            tealbrand: {
+              DEFAULT: '#0F6E66',
+              hover: '#0B5751',
+              light: '#F0FDFA',
+              border: '#99F6E4',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    button, input, select, textarea { font: inherit; }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #0F6E66; outline-offset: 2px; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #F7F9F9;
+      color: #0F172A;
+      -webkit-font-smoothing: antialiased;
+    }
+    .tabular-nums { font-variant-numeric: tabular-nums; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade { animation: fadeIn 0.18s ease-out forwards; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#F7F9F9] text-[#0F172A]">
+  <!-- Top Product Header & Workspace Switcher -->
+  <header class="sticky top-0 z-40 bg-white border-b border-slate-200">
+    <div class="h-16 max-w-[1800px] mx-auto px-4 sm:px-6 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3 min-w-0">
+        <button id="mobileMenuBtn" onclick="toggleMobileSidebar()" class="lg:hidden p-2 rounded-lg border border-slate-200 text-slate-700" aria-label="Toggle navigation">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="flex items-center gap-2.5">
+          <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-[#123B3A] text-white font-bold text-sm">H</span>
+          <div class="leading-tight">
+            <div class="font-semibold text-[15px] tracking-tight text-slate-900">Hospigo</div>
+            <div class="text-[10px] tracking-wide uppercase text-slate-400">Hospital operations</div>
+          </div>
+        </div>
+      </div>
+      <div class="flex md:hidden items-center gap-2 min-w-0"><select onchange="switchWorkspace(this.value)" class="max-w-[150px] text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2 py-2"><option value="hospital">Hospital</option><option value="hq">Hospigo HQ</option><option value="patient">Patient portal</option></select></div>
+      <div class="hidden md:flex items-center gap-2 min-w-0">
+        <span class="text-xs text-slate-400">Workspace</span>
+        <select id="workspaceSelect" onchange="switchWorkspace(this.value)" class="max-w-[230px] text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-700/15">
+          <option value="hospital">Sunrise Hospital</option>
+          <option value="hq">Hospigo HQ</option>
+          <option value="patient">Patient portal preview</option>
+        </select>
+        <span class="h-5 w-px bg-slate-200 mx-1"></span>
+        <span class="text-xs text-slate-500">Demo environment</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="showToast('Notifications','You are all caught up in this demo workspace.')" class="relative p-2 rounded-lg text-slate-500 hover:bg-slate-50 border border-transparent hover:border-slate-200" aria-label="Notifications">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 8a6 6 0 00-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+          <span class="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+        </button>
+        <div class="hidden sm:flex items-center gap-2 pl-2 border-l border-slate-200">
+          <div class="w-8 h-8 rounded-full bg-[#E6F2EF] text-[#155E57] flex items-center justify-center text-xs font-semibold">DM</div>
+          <div class="leading-tight">
+            <div class="text-xs font-semibold text-slate-800">Dr. Mehta</div>
+            <div class="text-[10px] text-slate-400">Administrator</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Mount -->
+  <div id="appRoot" class="flex-1 flex relative"></div>
+
+  <!-- Slide-over Action Drawer -->
+  <div id="drawerBackdrop" onclick="closeDrawer()" class="fixed inset-0 bg-slate-900/40 backdrop-blur-[1px] z-50 hidden transition-opacity"></div>
+  <aside id="drawerPanel" class="fixed top-0 right-0 h-full w-full max-w-md bg-white border-l border-[#E2E8F0] shadow-xl z-50 transform translate-x-full transition-transform duration-200 flex flex-col">
+    <div class="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between">
+      <div>
+        <h3 id="drawerTitle" class="text-base font-semibold text-[#0F172A]">Action</h3>
+        <p id="drawerSubtitle" class="text-xs text-slate-500 mt-0.5"></p>
+      </div>
+      <button onclick="closeDrawer()" class="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div id="drawerBody" class="flex-1 overflow-y-auto p-6 space-y-4"></div>
+    <div id="drawerFooter" class="px-6 py-4 border-t border-[#E2E8F0] bg-[#F7F9F9] flex items-center justify-end gap-2.5"></div>
+  </aside>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <script>
+    // Application State & Indian Hospital Domain Data
+    const state = {
+      currentView: 'dashboard',
+      mobileSidebarOpen: false,
+      signInMode: 'staff',
+      signInForm: { accessCode: 'SUNRISE', email: 'dr.mehta@sunrisehospital.com', password: '•••••••••' },
+      hospitals: [
+        { name: 'Sunrise Hospital', city: 'Bengaluru, KA', code: 'SUNRISE', modules: ['OPD', 'IPD', 'Pharmacy', 'Lab', 'Radiology', 'Booking'], status: 'Active', staffCount: 34 },
+        { name: 'CityCare Clinic', city: 'Pune, MH', code: 'CITYCARE', modules: ['OPD', 'Booking'], status: 'Active', staffCount: 11 },
+        { name: 'Lifeline Hospital', city: 'Hyderabad, TS', code: 'LIFELINE', modules: ['OPD', 'IPD', 'Pharmacy', 'Lab'], status: 'Active', staffCount: 19 },
+        { name: 'MetroCare Hospital', city: 'Chennai, TN', code: 'METROCARE', modules: ['OPD', 'IPD', 'Pharmacy', 'Lab', 'Booking'], status: 'Active', staffCount: 18 }
+      ],
+      onboardForm: {
+        hospitalName: 'Cauvery Multispeciality Hospital', cityState: 'Mysuru, Karnataka', hospitalType: 'Multispeciality Hospital (50–150 beds)',
+        contactPhone: '+91 98450 61290', accessCode: 'CAUVERY', adminName: 'Dr. Arvind Kulkarni', adminEmail: 'admin@cauveryhospital.in',
+        tempPassword: '•••••••••', modules: { OPD: true, IPD: true, Pharmacy: true, Lab: true, Radiology: false, Booking: true }
+      },
+      opdStats: { waiting: 12, inConsultation: 1, seenToday: 41, onlineBookings: 18 },
+      opdQueue: [
+        { token: 'A-014', patient: 'Ravi Kumar, 46', slot: '10:15', status: 'In consultation' },
+        { token: 'A-015', patient: 'Anita Rao, 32', slot: '10:30', status: 'Checked in, paid' },
+        { token: 'A-016', patient: 'Suresh B, 58', slot: '10:45', status: 'Checked in, paid' },
+        { token: 'A-017', patient: 'Meena S, 27', slot: '11:00', status: 'Booked, unpaid at desk' }
+      ],
+      bookingForm: { doctor: 'Dr. Mehta', slot: '10:30', name: 'Anita Rao', mobile: '9845123490', otpSent: false, confirmed: false },
+      ipdWardFilter: 'All wards',
+      ipdDischargesToday: 5,
+      beds: [
+        { id: 'B-101', ward: 'General Ward', status: 'Occupied', patient: 'Ravi Kumar, 46', doctor: 'Dr. Mehta', diagnosis: 'Acute Angina Observation', day: 'Day 2', vitals: 'BP 128/82 • SpO₂ 98%', nursing: 'Stable', billing: 'Advance Paid' },
+        { id: 'B-102', ward: 'General Ward', status: 'Available', patient: null },
+        { id: 'B-103', ward: 'General Ward', status: 'Occupied', patient: 'Kavita Nair, 52', doctor: 'Dr. Rao', diagnosis: 'Dengue Fever (NS1+)', day: 'Day 3', vitals: 'Temp 99.1°F • Plt 1.1L', nursing: 'IV Fluids', billing: 'Insurance Pre-auth' },
+        { id: 'B-104', ward: 'General Ward', status: 'Available', patient: null },
+        { id: 'P-201', ward: 'Private Rooms', status: 'Occupied', patient: 'Meena S, 27', doctor: 'Dr. Rao', diagnosis: 'Post-Appendectomy Care', day: 'Day 1', vitals: 'BP 116/76 • HR 78', nursing: 'Post-op watch', billing: 'Pending ₹5,000' },
+        { id: 'P-202', ward: 'Private Rooms', status: 'Occupied', patient: 'Vikram Joshi, 61', doctor: 'Dr. Mehta', diagnosis: 'Uncontrolled Hypertension', day: 'Day 4', vitals: 'BP 134/86 • SpO₂ 97%', nursing: 'Discharge planned', billing: 'Paid' },
+        { id: 'ICU-01', ward: 'ICU', status: 'Occupied', patient: 'Suresh B, 58', doctor: 'Dr. Mehta', diagnosis: 'NSTEMI • Telemetry', day: 'Day 1', vitals: 'BP 110/70 • SpO₂ 96%', nursing: 'Critical watch', billing: 'Advance Paid' },
+        { id: 'ICU-02', ward: 'ICU', status: 'Available', patient: null }
+      ],
+      pharmacyStats: { pending: 9, dispensedToday: 64, lowStock: 4, todaySales: 28450 },
+      prescriptions: [
+        { rxId: 'RX-4091 (A-014)', patient: 'Ravi Kumar, 46', doctor: 'Dr. Mehta', meds: 'Atorvastatin 10mg (30), Aspirin 75mg (30), Pantoprazole 40mg (15)', amount: 640, payStatus: 'Paid at desk', status: 'Pending' },
+        { rxId: 'RX-4090 (A-013)', patient: 'Nandini Kulkarni, 39', doctor: 'Dr. Mehta', meds: 'Metoprolol Succinate 25mg (30), Telmisartan 40mg (30)', amount: 520, payStatus: 'Paid at desk', status: 'Pending' },
+        { rxId: 'RX-4089 (A-012)', patient: 'Harish Gowda, 51', doctor: 'Dr. Rao', meds: 'Amoxicillin + Clavulanate 625mg (10), Paracetamol 650mg (15)', amount: 310, payStatus: 'Unpaid', status: 'Pending' },
+        { rxId: 'RX-4088 (A-011)', patient: 'Shobha Devi, 64', doctor: 'Dr. Mehta', meds: 'Clopidogrel 75mg (30), Rosuvastatin 20mg (30)', amount: 780, payStatus: 'Paid at desk', status: 'Dispensed' }
+      ],
+      lowStockItems: [
+        { sku: 'MED-104', name: 'Atorvastatin 10mg Tablets (Strip of 15)', stock: '18 strips', reorderLevel: '50 strips', supplier: 'MedPlus Distributors', reordered: false },
+        { sku: 'MED-219', name: 'Injection Pantoprazole 40mg IV Vial', stock: '9 vials', reorderLevel: '30 vials', supplier: 'Cipla Direct Depot', reordered: false },
+        { sku: 'MED-308', name: 'Clopidogrel 75mg Tablets (Strip of 14)', stock: '12 strips', reorderLevel: '40 strips', supplier: 'Sun Pharma Hub', reordered: false },
+        { sku: 'CON-042', name: 'Sterile IV Cannula 20G (Box of 50)', stock: '2 boxes', reorderLevel: '10 boxes', supplier: 'Surgicare India', reordered: false }
+      ],
+      labTab: 'All orders',
+      labOrders: [
+        { id: 'ORD-882', patient: 'Ravi Kumar, 46 (A-014)', doctor: 'Dr. Mehta', test: 'ECG + Troponin-I Quantitative', dept: 'Cardiology / Lab', category: 'Pathology Lab', status: 'Report ready', result: 'Troponin-I: 0.03 ng/mL (Normal). Sinus rhythm, mild LVH.' },
+        { id: 'ORD-883', patient: 'Anita Rao, 32 (A-015)', doctor: 'Dr. Mehta', test: 'CBC, Lipid Profile, HbA1c', dept: 'Pathology Lab', category: 'Pathology Lab', status: 'Processing', result: 'Sample barcoded #LAB-9941 in biochemistry analyzer.' },
+        { id: 'ORD-884', patient: 'Suresh B, 58 (A-016)', doctor: 'Dr. Mehta', test: '2D Echo + Chest X-Ray PA', dept: 'Radiology & Imaging', category: 'Radiology & Imaging', status: 'Sample collected', result: 'Patient queued in Imaging Room 2.' },
+        { id: 'ORD-885', patient: 'Meena S, 27 (A-017)', doctor: 'Dr. Rao', test: 'Thyroid Profile (T3, T4, TSH)', dept: 'Pathology Lab', category: 'Pathology Lab', status: 'Awaiting sample', result: 'Phlebotomy desk token #P-19.' },
+        { id: 'ORD-886', patient: 'Vikram Joshi, 61 (P-202)', doctor: 'Dr. Mehta', test: 'Renal Function Test (RFT) + Electrolytes', dept: 'Pathology Lab', category: 'Pathology Lab', status: 'Report ready', result: 'Serum Creatinine: 1.1 mg/dL, Potassium: 4.3 mmol/L.' }
+      ],
+      billingStats: { collectedToday: 64200, pendingDesk: 4850, upiCard: 48900, cash: 15300 },
+      invoices: [
+        { id: 'INV-2026-1142', patient: 'Ravi Kumar, 46', token: 'A-014', dept: 'OPD + Lab', amount: 1450, mode: 'UPI', status: 'Paid' },
+        { id: 'INV-2026-1143', patient: 'Anita Rao, 32', token: 'A-015', dept: 'OPD Consultation', amount: 500, mode: 'UPI', status: 'Paid' },
+        { id: 'INV-2026-1144', patient: 'Suresh B, 58', token: 'A-016', dept: 'OPD + 2D Echo', amount: 2300, mode: 'Cash', status: 'Paid' },
+        { id: 'INV-2026-1145', patient: 'Meena S, 27', token: 'A-017', dept: 'OPD Consultation', amount: 500, mode: 'Pending', status: 'Unpaid at desk' },
+        { id: 'INV-2026-1146', patient: 'Kavita Nair, 52', token: 'B-103', dept: 'IPD Advance', amount: 15000, mode: 'UPI', status: 'Paid' },
+        { id: 'INV-2026-1147', patient: 'Harish Gowda, 51', token: 'A-012', dept: 'Pharmacy + Lab', amount: 1150, mode: 'Pending', status: 'Unpaid at desk' }
+      ]
+    };
+
+    // Navigation & Overlay Helpers
+    function navigate(viewId) { state.currentView = viewId; state.mobileSidebarOpen = false; renderAll(); }
+    function toggleMobileSidebar() { state.mobileSidebarOpen = !state.mobileSidebarOpen; renderAll(); }
+
+    function statusBadge(label) {
+      const normalized = label.toLowerCase();
+      let bg = 'bg-slate-100', text = 'text-slate-700', dot = 'bg-slate-400';
+      if (['active', 'checked in, paid', 'dispensed', 'report ready', 'paid', 'paid at desk', 'available', 'ready'].some(k => normalized.includes(k))) {
+        bg = 'bg-[#ECFDF5]'; text = 'text-[#065F46]'; dot = 'bg-[#10B981]';
+      } else if (['in consultation', 'admitted', 'processing', 'occupied', 'sample collected', 'checked in'].some(k => normalized.includes(k))) {
+        bg = 'bg-[#F0FDFA]'; text = 'text-[#115E59]'; dot = 'bg-[#0D9488]';
+      } else if (['booked, unpaid at desk', 'pending', 'awaiting sample', 'unpaid', 'partial'].some(k => normalized.includes(k))) {
+        bg = 'bg-[#FFFBEB]'; text = 'text-[#92400E]'; dot = 'bg-[#F59E0B]';
+      } else if (['critical', 'overdue', 'out of stock', 'low'].some(k => normalized.includes(k))) {
+        bg = 'bg-[#FEF2F2]'; text = 'text-[#991B1B]'; dot = 'bg-[#EF4444]';
+      }
+      return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${bg} ${text} whitespace-nowrap"><span class="w-1.5 h-1.5 rounded-full ${dot}"></span>${label}</span>`;
+    }
+
+    function showToast(title, subtitle = '') {
+      const container = document.getElementById('toastContainer');
+      const el = document.createElement('div');
+      el.className = 'pointer-events-auto bg-[#0E2929] text-white px-4 py-3 rounded-xl shadow-lg border border-[#183D3D] flex items-start gap-3 max-w-sm animate-fade';
+      el.innerHTML = `<span class="w-2 h-2 rounded-full bg-[#10B981] mt-1.5 shrink-0"></span><div class="text-xs"><div class="font-semibold text-white">${title}</div>${subtitle ? `<div class="text-[#8FA8A8] mt-0.5">${subtitle}</div>` : ''}</div>`;
+      container.appendChild(el);
+      setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.2s'; setTimeout(() => el.remove(), 220); }, 3200);
+    }
+
+    function openDrawer({ title, subtitle = '', bodyHtml, footerHtml = '' }) {
+      document.getElementById('drawerTitle').textContent = title;
+      document.getElementById('drawerSubtitle').textContent = subtitle;
+      document.getElementById('drawerBody').innerHTML = bodyHtml;
+      document.getElementById('drawerFooter').innerHTML = footerHtml;
+      document.getElementById('drawerBackdrop').classList.remove('hidden');
+      document.getElementById('drawerPanel').classList.remove('translate-x-full');
+    }
+
+    function closeDrawer() {
+      document.getElementById('drawerBackdrop').classList.add('hidden');
+      document.getElementById('drawerPanel').classList.add('translate-x-full');
+    }
+
+    // Sidebar Renderers
+    function renderHospitalSidebar(activeId) {
+      const groups = [
+        { label: 'WORKSPACE', items: [{ id: 'dashboard', label: 'Overview', target: 'dashboard', icon: '▦' }, { id: 'opd', label: 'OPD & appointments', target: 'opd', icon: '◷' }, { id: 'ipd', label: 'IPD & wards', target: 'ipd', icon: '▤' }] },
+        { label: 'CLINICAL & SERVICES', items: [{ id: 'patients', label: 'Patients', target: 'patients', icon: '♙' }, { id: 'doctors', label: 'Doctors', target: 'doctors', icon: '✚' }, { id: 'lab', label: 'Lab & radiology', target: 'lab', icon: '⌕' }, { id: 'pharmacy', label: 'Pharmacy', target: 'pharmacy', icon: '▧' }] },
+        { label: 'ADMINISTRATION', items: [{ id: 'billing', label: 'Billing', target: 'billing', icon: '₹' }, { id: 'staff', label: 'Staff & access', target: 'staff', icon: '♧' }, { id: 'reports', label: 'Reports', target: 'reports', icon: '▥' }] }
+      ];
+      return `
+        ${state.mobileSidebarOpen ? `<div onclick="toggleMobileSidebar()" class="fixed inset-0 bg-slate-950/35 z-30 lg:hidden"></div>` : ''}
+        <aside class="${state.mobileSidebarOpen ? 'fixed inset-y-16 left-0 z-40 translate-x-0 flex' : 'hidden lg:flex'} w-[248px] shrink-0 bg-[#102F30] text-white flex-col justify-between min-h-[calc(100vh-64px)] select-none">
+          <div class="px-3 py-5">
+            <div class="px-3 pb-5 mb-4 border-b border-white/10">
+              <div class="text-sm font-semibold tracking-tight">Sunrise Hospital</div>
+              <div class="text-[11px] text-[#A2B8B5] mt-1">Bengaluru · SUNRISE</div>
+              <div class="inline-flex mt-3 items-center gap-1.5 rounded-md bg-emerald-400/10 px-2 py-1 text-[10px] font-medium text-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Workspace active</div>
+            </div>
+            <nav class="space-y-5">
+              ${groups.map(group => `
+                <div>
+                  <div class="px-3 mb-2 text-[9px] font-semibold tracking-[.14em] text-[#799693]">${group.label}</div>
+                  <div class="space-y-1">
+                    ${group.items.map(item => `
+                      <button onclick="navigate('${item.target}')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-[12.5px] transition-colors ${activeId === item.id ? 'bg-[#24504D] text-white font-semibold shadow-sm' : 'text-[#B4C7C4] hover:bg-white/5 hover:text-white'}">
+                        <span class="w-4 text-center text-[15px] opacity-90">${item.icon}</span><span>${item.label}</span>
+                        ${activeId === item.id ? '<span class="ml-auto w-1.5 h-1.5 rounded-full bg-[#73C8B8]"></span>' : ''}
+                      </button>
+                    `).join('')}
+                  </div>
+                </div>
+              `).join('')}
+            </nav>
+          </div>
+          <div class="p-3 border-t border-white/10">
+            <div class="rounded-lg bg-white/5 p-3 mb-3">
+              <div class="text-[10px] text-[#91AAA6]">Signed in as</div>
+              <div class="text-xs font-medium text-white mt-1">Dr. Mehta</div>
+              <div class="text-[10px] text-[#91AAA6] mt-0.5">Hospital administrator</div>
+            </div>
+            <button onclick="navigate('booking')" class="w-full text-left px-3 py-2 rounded-lg text-[11px] text-[#B4C7C4] hover:bg-white/5 hover:text-white">↗ Patient booking preview</button>
+            <button onclick="navigate('signin')" class="w-full text-left px-3 py-2 rounded-lg text-[11px] text-[#B4C7C4] hover:bg-white/5 hover:text-white">Sign out</button>
+          </div>
+        </aside>
+      `;
+    }
+
+    function renderHQSidebar(activeId) {
+      const items = [
+        { id: 'hq-hospitals', label: 'Hospitals', target: 'hq-hospitals', icon: '▦' },
+        { id: 'hq-onboard', label: 'Onboard hospital', target: 'hq-onboard', icon: '+' }
+      ];
+      return `
+        ${state.mobileSidebarOpen ? `<div onclick="toggleMobileSidebar()" class="fixed inset-0 bg-slate-950/35 z-30 lg:hidden"></div>` : ''}
+        <aside class="${state.mobileSidebarOpen ? 'fixed inset-y-16 left-0 z-40 translate-x-0 flex' : 'hidden lg:flex'} w-[248px] shrink-0 bg-[#102F30] text-white flex-col justify-between min-h-[calc(100vh-64px)] select-none">
+          <div class="px-3 py-5">
+            <div class="px-3 pb-5 mb-4 border-b border-white/10">
+              <div class="text-sm font-semibold tracking-tight">Hospigo HQ</div>
+              <div class="text-[11px] text-[#A2B8B5] mt-1">Platform control centre</div>
+              <div class="inline-flex mt-3 items-center gap-1.5 rounded-md bg-sky-400/10 px-2 py-1 text-[10px] font-medium text-sky-200">Platform administrator</div>
+            </div>
+            <div class="px-3 mb-2 text-[9px] font-semibold tracking-[.14em] text-[#799693]">TENANT MANAGEMENT</div>
+            <nav class="space-y-1">
+              ${items.map(item => `<button onclick="navigate('${item.target}')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-[12.5px] transition-colors ${activeId === item.id ? 'bg-[#24504D] text-white font-semibold' : 'text-[#B4C7C4] hover:bg-white/5 hover:text-white'}"><span class="w-4 text-center text-[15px]">${item.icon}</span>${item.label}</button>`).join('')}
+            </nav>
+            <div class="mt-8 mx-2 rounded-lg border border-white/10 p-3">
+              <div class="text-[10px] font-semibold text-white">Platform scope</div>
+              <p class="text-[10px] leading-relaxed text-[#91AAA6] mt-1">Manage tenant workspaces, module access and onboarding from one control centre.</p>
+            </div>
+          </div>
+          <div class="p-4 border-t border-white/10">
+            <div class="text-[10px] text-[#91AAA6]">Indigo · Hospigo platform</div>
+            <button onclick="navigate('signin')" class="mt-2 text-left text-[11px] text-[#B4C7C4] hover:text-white">Sign out</button>
+          </div>
+        </aside>
+      `;
+    }
+
+    // IPD Wards View & Drawers
+    function renderIPDWards() {
+      const totalBeds = 48;
+      const occupiedDelta = state.beds.filter(b => b.status === 'Occupied').length - 5;
+      const occupied = 36 + occupiedDelta;
+      const available = totalBeds - occupied;
+      const wards = ['All wards', 'General Ward', 'Private Rooms', 'ICU'];
+      const filteredBeds = state.ipdWardFilter === 'All wards' ? state.beds : state.beds.filter(b => b.ward === state.ipdWardFilter);
+      const occupiedPatients = filteredBeds.filter(b => b.status === 'Occupied');
+
+      return `
+        ${renderHospitalSidebar('ipd')}
+        <main class="flex-1 p-5 sm:p-8 max-w-7xl mx-auto w-full animate-fade">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div>
+              <h1 class="text-2xl font-semibold text-[#0F172A] tracking-tight">IPD wards</h1>
+              <p class="text-sm text-slate-500 mt-0.5">In-patient bed occupancy, nursing rounds, and discharges</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <div class="inline-flex bg-white p-1 rounded-lg border border-[#E2E8F0]">
+                ${wards.map(w => `<button onclick="setIPDWardFilter('${w}')" class="px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${state.ipdWardFilter === w ? 'bg-[#0E2929] text-white' : 'text-slate-600 hover:text-[#0F172A]'}">${w}</button>`).join('')}
+              </div>
+              <button onclick="openAdmitDrawer()" class="px-4 py-2 rounded-lg bg-[#0F6E66] hover:bg-[#0B5751] text-white text-sm font-semibold transition-colors shadow-xs">+ Admit patient</button>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">Total beds</div><div class="text-2xl font-semibold text-[#0F172A] tabular-nums mt-1.5">${totalBeds}</div><div class="text-xs text-slate-400 mt-1">Across 3 wards</div></div>
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">Occupied</div><div class="text-2xl font-semibold text-[#0F172A] tabular-nums mt-1.5">${occupied}</div><div class="text-xs text-[#0D9488] font-medium mt-1">${Math.round((occupied / totalBeds) * 100)}% occupancy</div></div>
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">Available</div><div class="text-2xl font-semibold text-[#065F46] tabular-nums mt-1.5">${available}</div><div class="text-xs text-slate-400 mt-1">Ready for admission</div></div>
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">Discharges today</div><div class="text-2xl font-semibold text-[#0F172A] tabular-nums mt-1.5">${state.ipdDischargesToday}</div><div class="text-xs text-slate-400 mt-1">2 summaries pending</div></div>
+          </div>
+          <div class="bg-white border border-[#E2E8F0] rounded-xl p-5 mb-6">
+            <div class="flex items-center justify-between mb-3.5">
+              <h2 class="text-sm font-semibold text-[#0F172A]">Live ward bed map (${state.ipdWardFilter})</h2>
+              <div class="flex items-center gap-4 text-xs text-slate-500">
+                <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#0D9488]"></span>Occupied</span>
+                <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#10B981]"></span>Available</span>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              ${filteredBeds.map(bed => {
+                const isOcc = bed.status === 'Occupied';
+                return `
+                  <div onclick="${isOcc ? `openVitalsDrawer('${bed.id}')` : `openAdmitDrawer('${bed.id}')`}" class="cursor-pointer rounded-xl border p-3.5 transition-all ${isOcc ? 'bg-[#F7F9F9] border-[#CBD5E1] hover:border-[#0F6E66]' : 'bg-[#ECFDF5]/60 border-[#A7F3D0] hover:border-[#10B981]'}">
+                    <div class="flex items-center justify-between"><span class="text-xs font-semibold text-[#0F172A] tabular-nums">${bed.id}</span><span class="text-[11px] font-medium ${isOcc ? 'text-[#115E59]' : 'text-[#065F46]'}">${bed.status}</span></div>
+                    <div class="text-xs text-slate-500 mt-0.5">${bed.ward}</div>
+                    <div class="mt-2.5 pt-2 border-t border-slate-200/70">
+                      ${isOcc ? `<div class="text-xs font-medium text-[#0F172A] truncate">${bed.patient}</div><div class="text-[11px] text-slate-500 truncate">${bed.doctor} • ${bed.day}</div>` : `<div class="text-xs font-medium text-[#065F46]">+ Assign patient</div><div class="text-[11px] text-slate-500">Sanitized & ready</div>`}
+                    </div>
+                  </div>`;
+              }).join('')}
+            </div>
+          </div>
+          <div class="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden">
+            <div class="px-5 py-4 border-b border-[#E2E8F0] flex items-center justify-between"><h2 class="text-sm font-semibold text-[#0F172A]">Active in-patient admissions</h2><span class="text-xs text-slate-500">Showing ${occupiedPatients.length} admitted patients</span></div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead><tr class="border-b border-[#E2E8F0] bg-[#F7F9F9] text-[12px] font-medium text-slate-500"><th class="py-3 px-4">Bed / Ward</th><th class="py-3 px-4">Patient</th><th class="py-3 px-4">Admitting doctor</th><th class="py-3 px-4">Diagnosis & day</th><th class="py-3 px-4">Vitals / nursing</th><th class="py-3 px-4">Billing status</th><th class="py-3 px-4 text-right">Action</th></tr></thead>
+                <tbody class="divide-y divide-[#E2E8F0] text-[13.5px]">
+                  ${occupiedPatients.map(b => `
+                    <tr class="hover:bg-slate-50/70 transition-colors">
+                      <td class="py-3.5 px-4 whitespace-nowrap"><div class="font-semibold text-[#0F172A] tabular-nums">${b.id}</div><div class="text-xs text-slate-500">${b.ward}</div></td>
+                      <td class="py-3.5 px-4 font-medium text-[#0F172A] whitespace-nowrap">${b.patient}</td>
+                      <td class="py-3.5 px-4 text-slate-600 whitespace-nowrap">${b.doctor}</td>
+                      <td class="py-3.5 px-4"><div class="text-[#0F172A]">${b.diagnosis}</div><div class="text-xs text-slate-500">${b.day}</div></td>
+                      <td class="py-3.5 px-4 whitespace-nowrap"><div class="text-xs font-medium text-[#0F172A] tabular-nums">${b.vitals}</div><div class="text-[11px] text-slate-500">${b.nursing}</div></td>
+                      <td class="py-3.5 px-4 whitespace-nowrap">${statusBadge(b.billing.includes('Pending') ? 'Pending' : 'Paid')}<div class="text-[11px] text-slate-500 mt-0.5">${b.billing}</div></td>
+                      <td class="py-3.5 px-4 text-right whitespace-nowrap"><div class="inline-flex items-center gap-1.5"><button onclick="openVitalsDrawer('${b.id}')" class="px-2.5 py-1.5 rounded-lg border border-[#CBD5E1] bg-white hover:bg-slate-50 text-xs font-medium text-[#0F172A]">Update vitals</button><button onclick="openDischargeDrawer('${b.id}')" class="px-2.5 py-1.5 rounded-lg bg-[#0F6E66] hover:bg-[#0B5751] text-white text-xs font-semibold">Discharge</button></div></td>
+                    </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </main>`;
+    }
+
+    function setIPDWardFilter(ward) { state.ipdWardFilter = ward; renderAll(); }
+    function openAdmitDrawer(preselectedBedId = '') {
+      const availableBeds = state.beds.filter(b => b.status === 'Available');
+      openDrawer({
+        title: 'Admit patient to IPD', subtitle: 'Sunrise Hospital • In-Patient Desk',
+        bodyHtml: `<div><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Patient name & age</label><input id="admitPatientName" type="text" value="Ramesh Hegde, 54" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm" /></div><div><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Assign available bed</label><select id="admitBedId" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm bg-white">${availableBeds.length ? availableBeds.map(b => `<option value="${b.id}" ${b.id === preselectedBedId ? 'selected' : ''}>${b.id} — ${b.ward}</option>`).join('') : `<option value="">No vacant beds in demo list</option>`}</select></div><div><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Admitting doctor</label><select id="admitDoctor" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm bg-white"><option value="Dr. Mehta">Dr. Mehta (Cardiology)</option><option value="Dr. Rao">Dr. Rao (General Medicine)</option></select></div><div><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Provisional diagnosis</label><input id="admitDiagnosis" type="text" value="Chest pain evaluation & Holter monitoring" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm" /></div><div><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Initial deposit (₹)</label><input id="admitDeposit" type="text" value="Advance Paid (₹10,000)" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm" /></div>`,
+        footerHtml: `<button onclick="closeDrawer()" class="px-4 py-2 rounded-lg border border-[#CBD5E1] bg-white text-sm font-medium text-[#0F172A]">Cancel</button><button onclick="submitAdmitPatient()" class="px-4 py-2 rounded-lg bg-[#0F6E66] hover:bg-[#0B5751] text-white text-sm font-semibold">Confirm admission</button>`
+      });
+    }
+    function submitAdmitPatient() {
+      const bedId = document.getElementById('admitBedId')?.value;
+      const patient = document.getElementById('admitPatientName')?.value.trim();
+      const bed = state.beds.find(b => b.id === bedId);
+      if (bed && patient) {
+        bed.status = 'Occupied'; bed.patient = patient; bed.doctor = document.getElementById('admitDoctor')?.value;
+        bed.diagnosis = document.getElementById('admitDiagnosis')?.value.trim() || 'Under observation';
+        bed.day = 'Day 1'; bed.vitals = 'BP 122/80 • SpO₂ 99%'; bed.nursing = 'Admitted just now';
+        bed.billing = document.getElementById('admitDeposit')?.value.trim() || 'Advance Paid';
+        closeDrawer(); renderAll(); showToast(`Admitted ${patient}`, `Assigned to ${bed.id} (${bed.ward})`);
+      }
+    }
+    function openVitalsDrawer(bedId) {
+      const bed = state.beds.find(b => b.id === bedId);
+      if (!bed) return;
+      openDrawer({
+        title: `Update vitals • ${bed.id}`, subtitle: `${bed.patient} • ${bed.doctor}`,
+        bodyHtml: `<div><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Latest vitals reading</label><input id="vitalsInput" type="text" value="${bed.vitals}" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm" /></div><div><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Nursing station status</label><select id="nursingStatusInput" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm bg-white"><option ${bed.nursing === 'Stable' ? 'selected' : ''}>Stable</option><option ${bed.nursing === 'IV Fluids' ? 'selected' : ''}>IV Fluids</option><option ${bed.nursing === 'Post-op watch' ? 'selected' : ''}>Post-op watch</option><option ${bed.nursing === 'Critical watch' ? 'selected' : ''}>Critical watch</option><option ${bed.nursing === 'Discharge planned' ? 'selected' : ''}>Discharge planned</option></select></div>`,
+        footerHtml: `<button onclick="closeDrawer()" class="px-4 py-2 rounded-lg border border-[#CBD5E1] bg-white text-sm font-medium text-[#0F172A]">Cancel</button><button onclick="saveVitals('${bed.id}')" class="px-4 py-2 rounded-lg bg-[#0F6E66] hover:bg-[#0B5751] text-white text-sm font-semibold">Save vitals</button>`
+      });
+    }
+    function saveVitals(bedId) {
+      const bed = state.beds.find(b => b.id === bedId);
+      if (bed) { bed.vitals = document.getElementById('vitalsInput').value; bed.nursing = document.getElementById('nursingStatusInput').value; closeDrawer(); renderAll(); showToast('Nursing chart updated', `${bed.patient} (${bed.id})`); }
+    }
+    function openDischargeDrawer(bedId) {
+      const bed = state.beds.find(b => b.id === bedId);
+      if (!bed) return;
+      openDrawer({
+        title: `Discharge summary • ${bed.id}`, subtitle: `${bed.patient} • ${bed.ward}`,
+        bodyHtml: `<div class="p-3.5 rounded-xl bg-[#F7F9F9] border border-[#E2E8F0] text-xs space-y-1.5"><div class="flex justify-between"><span class="text-slate-500">Admitting consultant:</span><span class="font-medium">${bed.doctor}</span></div><div class="flex justify-between"><span class="text-slate-500">Diagnosis:</span><span class="font-medium">${bed.diagnosis}</span></div><div class="flex justify-between"><span class="text-slate-500">Stay duration:</span><span class="font-medium">${bed.day}</span></div><div class="flex justify-between"><span class="text-slate-500">Billing clearance:</span><span class="font-medium text-[#065F46]">${bed.billing}</span></div></div><div><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Discharge advice & follow-up</label><textarea rows="3" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm">Continue prescribed oral medications. Review in Cardiology OPD after 7 days with repeat ECG.</textarea></div>`,
+        footerHtml: `<button onclick="closeDrawer()" class="px-4 py-2 rounded-lg border border-[#CBD5E1] bg-white text-sm font-medium text-[#0F172A]">Close</button><button onclick="completeDischarge('${bed.id}')" class="px-4 py-2 rounded-lg bg-[#0F6E66] hover:bg-[#0B5751] text-white text-sm font-semibold">Complete discharge & free bed</button>`
+      });
+    }
+    function completeDischarge(bedId) {
+      const bed = state.beds.find(b => b.id === bedId);
+      if (bed) { const name = bed.patient; bed.status = 'Available'; bed.patient = null; state.ipdDischargesToday += 1; closeDrawer(); renderAll(); showToast(`Discharged ${name}`, `Bed ${bed.id} marked available`); }
+    }
+
+    // Pharmacy View & Actions
+    function renderPharmacy() {
+      return `
+        ${renderHospitalSidebar('pharmacy')}
+        <main class="flex-1 p-5 sm:p-8 max-w-7xl mx-auto w-full animate-fade">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div><h1 class="text-2xl font-semibold text-[#0F172A] tracking-tight">Pharmacy</h1><p class="text-sm text-slate-500 mt-0.5">OPD e-prescription dispensing, counter billing, and stock alerts</p></div>
+            <div class="flex items-center gap-2.5">
+              <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#F0FDFA] text-[#115E59] border border-[#CCFBF1] text-xs font-medium"><span class="w-1.5 h-1.5 rounded-full bg-[#0D9488]"></span>Prescription queue: ${state.pharmacyStats.pending} active</span>
+              <button onclick="openWalkInSaleDrawer()" class="px-4 py-2 rounded-lg border border-[#CBD5E1] bg-white hover:bg-slate-50 text-[#0F172A] text-sm font-medium transition-colors">+ Walk-in sale</button>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">Pending prescriptions</div><div class="text-2xl font-semibold text-[#0F172A] tabular-nums mt-1.5">${state.pharmacyStats.pending}</div><div class="text-xs text-slate-400 mt-1">Synced from OPD</div></div>
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">Dispensed today</div><div class="text-2xl font-semibold text-[#0F172A] tabular-nums mt-1.5">${state.pharmacyStats.dispensedToday}</div><div class="text-xs text-[#065F46] font-medium mt-1">Avg wait 4 mins</div></div>
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">Low stock alerts</div><div class="text-2xl font-semibold text-[#991B1B] tabular-nums mt-1.5">${state.pharmacyStats.lowStock}</div><div class="text-xs text-slate-400 mt-1">Below reorder threshold</div></div>
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">Today's sales</div><div class="text-2xl font-semibold text-[#0F172A] tabular-nums mt-1.5">₹${state.pharmacyStats.todaySales.toLocaleString('en-IN')}</div><div class="text-xs text-slate-400 mt-1">Incl. GST & walk-ins</div></div>
+          </div>
+          <div class="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden mb-6">
+            <div class="px-5 py-4 border-b border-[#E2E8F0] flex items-center justify-between"><div><h2 class="text-sm font-semibold text-[#0F172A]">E-Prescription queue</h2><p class="text-xs text-slate-500 mt-0.5">Directly linked to Dr. Mehta & Dr. Rao OPD consultations</p></div></div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead><tr class="border-b border-[#E2E8F0] bg-[#F7F9F9] text-[12px] font-medium text-slate-500"><th class="py-3 px-4">Token / Rx ID</th><th class="py-3 px-4">Patient</th><th class="py-3 px-4">Doctor</th><th class="py-3 px-4">Medicines prescribed</th><th class="py-3 px-4">Amount</th><th class="py-3 px-4">Payment status</th><th class="py-3 px-4 text-right">Action</th></tr></thead>
+                <tbody class="divide-y divide-[#E2E8F0] text-[13.5px]">
+                  ${state.prescriptions.map((rx, idx) => `
+                    <tr class="hover:bg-slate-50/70 transition-colors">
+                      <td class="py-3.5 px-4 font-semibold text-[#0F172A] tabular-nums whitespace-nowrap">${rx.rxId}</td>
+                      <td class="py-3.5 px-4 font-medium text-[#0F172A] whitespace-nowrap">${rx.patient}</td>
+                      <td class="py-3.5 px-4 text-slate-600 whitespace-nowrap">${rx.doctor}</td>
+                      <td class="py-3.5 px-4 text-slate-700 max-w-xs">${rx.meds}</td>
+                      <td class="py-3.5 px-4 font-medium text-[#0F172A] tabular-nums whitespace-nowrap">₹${rx.amount}</td>
+                      <td class="py-3.5 px-4 whitespace-nowrap">${statusBadge(rx.status === 'Dispensed' ? 'Dispensed' : rx.payStatus)}</td>
+                      <td class="py-3.5 px-4 text-right whitespace-nowrap">${rx.status === 'Pending' ? `<button onclick="dispenseRx(${idx})" class="px-3 py-1.5 rounded-lg bg-[#0F6E66] hover:bg-[#0B5751] text-white text-xs font-semibold transition-colors">Dispense & print</button>` : `<span class="text-xs font-medium text-slate-400">Label printed ✓</span>`}</td>
+                    </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden">
+            <div class="px-5 py-4 border-b border-[#E2E8F0] flex items-center justify-between"><h2 class="text-sm font-semibold text-[#0F172A]">Low stock & inventory watchlist</h2><span class="text-xs text-slate-500">Auto-monitored batch levels</span></div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead><tr class="border-b border-[#E2E8F0] bg-[#F7F9F9] text-[12px] font-medium text-slate-500"><th class="py-3 px-4">SKU</th><th class="py-3 px-4">Medicine / Consumable</th><th class="py-3 px-4">Current stock</th><th class="py-3 px-4">Reorder level</th><th class="py-3 px-4">Primary supplier</th><th class="py-3 px-4 text-right">Action</th></tr></thead>
+                <tbody class="divide-y divide-[#E2E8F0] text-[13.5px]">
+                  ${state.lowStockItems.map((item, idx) => `
+                    <tr class="hover:bg-slate-50/70">
+                      <td class="py-3 px-4 text-xs font-medium text-slate-500 tabular-nums whitespace-nowrap">${item.sku}</td>
+                      <td class="py-3 px-4 font-medium text-[#0F172A]">${item.name}</td>
+                      <td class="py-3 px-4 whitespace-nowrap">${statusBadge('Low: ' + item.stock)}</td>
+                      <td class="py-3 px-4 text-slate-600 tabular-nums whitespace-nowrap">${item.reorderLevel}</td>
+                      <td class="py-3 px-4 text-slate-600 whitespace-nowrap">${item.supplier}</td>
+                      <td class="py-3 px-4 text-right whitespace-nowrap">${item.reordered ? `<span class="text-xs font-medium text-[#065F46]">PO raised ✓</span>` : `<button onclick="reorderItem(${idx})" class="px-3 py-1.5 rounded-lg border border-[#CBD5E1] bg-white hover:bg-slate-50 text-xs font-medium text-[#0F172A]">Reorder</button>`}</td>
+                    </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </main>`;
+    }
+
+    function dispenseRx(idx) {
+      const rx = state.prescriptions[idx];
+      if (!rx || rx.status === 'Dispensed') return;
+      rx.status = 'Dispensed'; rx.payStatus = 'Paid at desk';
+      state.pharmacyStats.pending = Math.max(0, state.pharmacyStats.pending - 1);
+      state.pharmacyStats.dispensedToday += 1; state.pharmacyStats.todaySales += rx.amount;
+      renderAll(); showToast(`Dispensed ${rx.rxId}`, `Dosage label printed for ${rx.patient}`);
+    }
+    function reorderItem(idx) { const item = state.lowStockItems[idx]; if (!item) return; item.reordered = true; renderAll(); showToast('Purchase order sent', `${item.name} → ${item.supplier}`); }
+    function openWalkInSaleDrawer() {
+      openDrawer({
+        title: 'Walk-in counter sale', subtitle: 'Sunrise Hospital Pharmacy',
+        bodyHtml: `<div><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Customer name / mobile</label><input id="walkInCustomer" type="text" value="Prakash Shenoy • 9880112233" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm" /></div><div><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Items</label><input id="walkInItems" type="text" value="Accu-Chek Active Strips (50), Vitamin D3 60K (4)" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm" /></div><div><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Bill amount (₹)</label><input id="walkInAmount" type="number" value="940" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm tabular-nums" /></div>`,
+        footerHtml: `<button onclick="closeDrawer()" class="px-4 py-2 rounded-lg border border-[#CBD5E1] bg-white text-sm font-medium text-[#0F172A]">Cancel</button><button onclick="completeWalkInSale()" class="px-4 py-2 rounded-lg bg-[#0F6E66] hover:bg-[#0B5751] text-white text-sm font-semibold">Collect & print bill</button>`
+      });
+    }
+    function completeWalkInSale() {
+      const amt = parseInt(document.getElementById('walkInAmount')?.value || '0', 10);
+      if (amt > 0) { state.pharmacyStats.todaySales += amt; state.pharmacyStats.dispensedToday += 1; }
+      closeDrawer(); renderAll(); showToast('Walk-in sale recorded', `Collected ₹${amt} via UPI`);
+    }
+
+    // Lab & Radiology View
+    function renderLabRadiology() {
+      const tabs = ['All orders', 'Pathology Lab', 'Radiology & Imaging'];
+      const filteredOrders = state.labTab === 'All orders' ? state.labOrders : state.labOrders.filter(o => o.category === state.labTab);
+      const samplePending = state.labOrders.filter(o => o.status === 'Awaiting sample').length + 6;
+      const inProcessing = state.labOrders.filter(o => ['Processing', 'Sample collected'].includes(o.status)).length + 4;
+      const reportsReady = state.labOrders.filter(o => o.status === 'Report ready').length + 14;
+
+      return `
+        ${renderHospitalSidebar('lab')}
+        <main class="flex-1 p-5 sm:p-8 max-w-7xl mx-auto w-full animate-fade">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div><h1 class="text-2xl font-semibold text-[#0F172A] tracking-tight">Lab and radiology</h1><p class="text-sm text-slate-500 mt-0.5">Diagnostic worklist, sample tracking, and digital report sign-off</p></div>
+            <div class="flex flex-wrap items-center gap-2">
+              <div class="inline-flex bg-white p-1 rounded-lg border border-[#E2E8F0]">${tabs.map(t => `<button onclick="setLabTab('${t}')" class="px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${state.labTab === t ? 'bg-[#0E2929] text-white' : 'text-slate-600 hover:text-[#0F172A]'}">${t}</button>`).join('')}</div>
+              <button onclick="openNewTestDrawer()" class="px-4 py-2 rounded-lg bg-[#0F6E66] hover:bg-[#0B5751] text-white text-sm font-semibold transition-colors">+ New test order</button>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">Ordered today</div><div class="text-2xl font-semibold text-[#0F172A] tabular-nums mt-1.5">${24 + state.labOrders.length}</div><div class="text-xs text-slate-400 mt-1">OPD + IPD requests</div></div>
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">Sample pending</div><div class="text-2xl font-semibold text-[#92400E] tabular-nums mt-1.5">${samplePending}</div><div class="text-xs text-slate-400 mt-1">Phlebotomy desk</div></div>
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">In processing</div><div class="text-2xl font-semibold text-[#115E59] tabular-nums mt-1.5">${inProcessing}</div><div class="text-xs text-slate-400 mt-1">Analyzer / Imaging bay</div></div>
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">Reports ready</div><div class="text-2xl font-semibold text-[#065F46] tabular-nums mt-1.5">${reportsReady}</div><div class="text-xs text-slate-400 mt-1">Synced to doctor screen</div></div>
+          </div>
+          <div class="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden">
+            <div class="px-5 py-4 border-b border-[#E2E8F0] flex items-center justify-between"><h2 class="text-sm font-semibold text-[#0F172A]">Diagnostic orders (${state.labTab})</h2><span class="text-xs text-slate-500">${filteredOrders.length} active orders</span></div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead><tr class="border-b border-[#E2E8F0] bg-[#F7F9F9] text-[12px] font-medium text-slate-500"><th class="py-3 px-4">Order ID</th><th class="py-3 px-4">Patient</th><th class="py-3 px-4">Doctor</th><th class="py-3 px-4">Test / Scan</th><th class="py-3 px-4">Department</th><th class="py-3 px-4">Status</th><th class="py-3 px-4 text-right">Action</th></tr></thead>
+                <tbody class="divide-y divide-[#E2E8F0] text-[13.5px]">
+                  ${filteredOrders.map((ord) => {
+                    const realIdx = state.labOrders.findIndex(x => x.id === ord.id);
+                    let actionBtn = ord.status === 'Awaiting sample' ? `<button onclick="advanceLabOrder(${realIdx})" class="px-3 py-1.5 rounded-lg bg-[#0F6E66] hover:bg-[#0B5751] text-white text-xs font-semibold">Collect sample</button>`
+                      : (ord.status === 'Sample collected' || ord.status === 'Processing') ? `<button onclick="advanceLabOrder(${realIdx})" class="px-3 py-1.5 rounded-lg border border-[#CBD5E1] bg-white hover:bg-slate-50 text-xs font-medium text-[#0F172A]">Publish report</button>`
+                      : `<button onclick="viewLabReport(${realIdx})" class="px-3 py-1.5 rounded-lg border border-[#CBD5E1] bg-white hover:bg-slate-50 text-xs font-medium text-[#0F172A]">View report</button>`;
+                    return `<tr class="hover:bg-slate-50/70 transition-colors"><td class="py-3.5 px-4 font-semibold text-[#0F172A] tabular-nums whitespace-nowrap">${ord.id}</td><td class="py-3.5 px-4 font-medium text-[#0F172A] whitespace-nowrap">${ord.patient}</td><td class="py-3.5 px-4 text-slate-600 whitespace-nowrap">${ord.doctor}</td><td class="py-3.5 px-4 font-medium text-[#0F172A]">${ord.test}</td><td class="py-3.5 px-4 whitespace-nowrap"><span class="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-xs font-medium">${ord.dept}</span></td><td class="py-3.5 px-4 whitespace-nowrap">${statusBadge(ord.status)}</td><td class="py-3.5 px-4 text-right whitespace-nowrap">${actionBtn}</td></tr>`;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </main>`;
+    }
+
+    function setLabTab(tab) { state.labTab = tab; renderAll(); }
+    function advanceLabOrder(idx) {
+      const ord = state.labOrders[idx];
+      if (!ord) return;
+      if (ord.status === 'Awaiting sample') { ord.status = 'Sample collected'; showToast(`Sample collected for ${ord.id}`, ord.patient); }
+      else { ord.status = 'Report ready'; ord.result = 'All parameters verified & digitally signed by Pathologist.'; showToast(`Report published for ${ord.id}`, `Available in ${ord.doctor}'s console`); }
+      renderAll();
+    }
+    function viewLabReport(idx) {
+      const ord = state.labOrders[idx];
+      if (!ord) return;
+      openDrawer({
+        title: `Diagnostic Report • ${ord.id}`, subtitle: `${ord.patient} • Ordered by ${ord.doctor}`,
+        bodyHtml: `<div class="p-4 rounded-xl bg-[#F7F9F9] border border-[#E2E8F0] space-y-2 text-xs"><div class="flex justify-between"><span class="text-slate-500">Investigation:</span><span class="font-semibold text-[#0F172A]">${ord.test}</span></div><div class="flex justify-between"><span class="text-slate-500">Department:</span><span class="font-medium">${ord.dept}</span></div><div class="flex justify-between"><span class="text-slate-500">Status:</span><span class="font-medium text-[#065F46]">Verified & Signed</span></div></div><div><div class="text-xs font-semibold text-[#0F172A] mb-1.5">Clinical findings</div><div class="p-3.5 rounded-xl border border-[#CBD5E1] bg-white text-sm text-slate-700 leading-relaxed">${ord.result}</div></div>`,
+        footerHtml: `<button onclick="closeDrawer()" class="px-4 py-2 rounded-lg border border-[#CBD5E1] bg-white text-sm font-medium text-[#0F172A]">Close</button><button onclick="closeDrawer(); showToast('Report sent to WhatsApp', '${ord.patient}')" class="px-4 py-2 rounded-lg bg-[#0F6E66] hover:bg-[#0B5751] text-white text-sm font-semibold">Send to patient</button>`
+      });
+    }
+    function openNewTestDrawer() {
+      openDrawer({
+        title: 'New diagnostic order', subtitle: 'Sunrise Hospital Lab & Radiology',
+        bodyHtml: `<div><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Patient name & token</label><input id="newTestPatient" type="text" value="Anita Rao, 32 (A-015)" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm" /></div><div><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Category</label><select id="newTestCategory" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm bg-white"><option value="Pathology Lab">Pathology Lab</option><option value="Radiology & Imaging">Radiology & Imaging</option></select></div><div><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Test / Scan name</label><input id="newTestName" type="text" value="hs-CRP + Vitamin B12" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm" /></div>`,
+        footerHtml: `<button onclick="closeDrawer()" class="px-4 py-2 rounded-lg border border-[#CBD5E1] bg-white text-sm font-medium text-[#0F172A]">Cancel</button><button onclick="submitNewTestOrder()" class="px-4 py-2 rounded-lg bg-[#0F6E66] hover:bg-[#0B5751] text-white text-sm font-semibold">Create order</button>`
+      });
+    }
+    function submitNewTestOrder() {
+      const patient = document.getElementById('newTestPatient')?.value.trim();
+      const category = document.getElementById('newTestCategory')?.value;
+      const test = document.getElementById('newTestName')?.value.trim();
+      if (patient && test) {
+        const nextId = 'ORD-' + (882 + state.labOrders.length);
+        state.labOrders.unshift({ id: nextId, patient, doctor: 'Dr. Mehta', test, dept: category, category, status: 'Awaiting sample', result: 'Order logged.' });
+        closeDrawer(); renderAll(); showToast(`Created order ${nextId}`, `${test} for ${patient}`);
+      }
+    }
+
+    // Billing View
+    function renderBilling() {
+      return `
+        ${renderHospitalSidebar('billing')}
+        <main class="flex-1 p-5 sm:p-8 max-w-7xl mx-auto w-full animate-fade">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div><h1 class="text-2xl font-semibold text-[#0F172A] tracking-tight">Billing</h1><p class="text-sm text-slate-500 mt-0.5">Unified reception desk collection across OPD, Lab, Pharmacy, and IPD</p></div>
+            <button onclick="openCreateInvoiceDrawer()" class="px-4 py-2 rounded-lg bg-[#0F6E66] hover:bg-[#0B5751] text-white text-sm font-semibold transition-colors self-start sm:self-auto">+ Create invoice</button>
+          </div>
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">Collected today</div><div class="text-2xl font-semibold text-[#0F172A] tabular-nums mt-1.5">₹${state.billingStats.collectedToday.toLocaleString('en-IN')}</div><div class="text-xs text-[#065F46] font-medium mt-1">All counters settled</div></div>
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">Pending at desk</div><div class="text-2xl font-semibold text-[#92400E] tabular-nums mt-1.5">₹${state.billingStats.pendingDesk.toLocaleString('en-IN')}</div><div class="text-xs text-slate-400 mt-1">Pay-at-desk bookings</div></div>
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">UPI / Card</div><div class="text-2xl font-semibold text-[#0F172A] tabular-nums mt-1.5">₹${state.billingStats.upiCard.toLocaleString('en-IN')}</div><div class="text-xs text-slate-400 mt-1">76% digital share</div></div>
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">Cash</div><div class="text-2xl font-semibold text-[#0F172A] tabular-nums mt-1.5">₹${state.billingStats.cash.toLocaleString('en-IN')}</div><div class="text-xs text-slate-400 mt-1">Drawer #1 active</div></div>
+          </div>
+          <div class="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden">
+            <div class="px-5 py-4 border-b border-[#E2E8F0] flex items-center justify-between"><h2 class="text-sm font-semibold text-[#0F172A]">Today's invoices & desk collections</h2><span class="text-xs text-slate-500">GST-compliant receipts</span></div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead><tr class="border-b border-[#E2E8F0] bg-[#F7F9F9] text-[12px] font-medium text-slate-500"><th class="py-3 px-4">Invoice ID</th><th class="py-3 px-4">Patient & token</th><th class="py-3 px-4">Department</th><th class="py-3 px-4">Amount (₹)</th><th class="py-3 px-4">Payment mode</th><th class="py-3 px-4">Status</th><th class="py-3 px-4 text-right">Action</th></tr></thead>
+                <tbody class="divide-y divide-[#E2E8F0] text-[13.5px]">
+                  ${state.invoices.map((inv, idx) => `
+                    <tr class="hover:bg-slate-50/70 transition-colors">
+                      <td class="py-3.5 px-4 font-semibold text-[#0F172A] tabular-nums whitespace-nowrap">${inv.id}</td>
+                      <td class="py-3.5 px-4 whitespace-nowrap"><span class="font-medium text-[#0F172A]">${inv.patient}</span><span class="ml-1.5 text-xs text-slate-500 tabular-nums">(${inv.token})</span></td>
+                      <td class="py-3.5 px-4 text-slate-600 whitespace-nowrap">${inv.dept}</td>
+                      <td class="py-3.5 px-4 font-semibold text-[#0F172A] tabular-nums whitespace-nowrap">₹${inv.amount.toLocaleString('en-IN')}</td>
+                      <td class="py-3.5 px-4 text-slate-600 whitespace-nowrap">${inv.mode}</td>
+                      <td class="py-3.5 px-4 whitespace-nowrap">${statusBadge(inv.status)}</td>
+                      <td class="py-3.5 px-4 text-right whitespace-nowrap">${inv.status === 'Unpaid at desk' ? `<button onclick="collectInvoice(${idx})" class="px-3 py-1.5 rounded-lg bg-[#0F6E66] hover:bg-[#0B5751] text-white text-xs font-semibold transition-colors">Collect ₹${inv.amount.toLocaleString('en-IN')}</button>` : `<button onclick="showToast('Receipt printed', '${inv.id} • ₹${inv.amount} (${inv.mode})')" class="px-3 py-1.5 rounded-lg border border-[#CBD5E1] bg-white hover:bg-slate-50 text-xs font-medium text-[#0F172A]">Print receipt</button>`}</td>
+                    </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </main>`;
+    }
+
+    function collectInvoice(idx) {
+      const inv = state.invoices[idx];
+      if (!inv || inv.status === 'Paid') return;
+      inv.status = 'Paid'; inv.mode = 'UPI';
+      state.billingStats.collectedToday += inv.amount; state.billingStats.upiCard += inv.amount;
+      state.billingStats.pendingDesk = Math.max(0, state.billingStats.pendingDesk - inv.amount);
+      const opdMatch = state.opdQueue.find(q => q.token === inv.token);
+      if (opdMatch) opdMatch.status = 'Checked in, paid';
+      renderAll(); showToast(`Collected ₹${inv.amount} via UPI`, `${inv.patient} (${inv.token}) checked in & paid`);
+    }
+    function openCreateInvoiceDrawer() {
+      openDrawer({
+        title: 'Create patient invoice', subtitle: 'Sunrise Hospital Billing Desk',
+        bodyHtml: `<div><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Patient name</label><input id="invPatient" type="text" value="Deepak Hegde, 41" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm" /></div><div><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Department</label><select id="invDept" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm bg-white"><option>OPD Consultation</option><option>Lab + OPD</option><option>Pharmacy</option><option>IPD Advance</option></select></div><div><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Amount (₹)</label><input id="invAmount" type="number" value="850" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm tabular-nums" /></div><div><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Payment mode</label><select id="invMode" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm bg-white"><option value="UPI">UPI</option><option value="Cash">Cash</option></select></div>`,
+        footerHtml: `<button onclick="closeDrawer()" class="px-4 py-2 rounded-lg border border-[#CBD5E1] bg-white text-sm font-medium text-[#0F172A]">Cancel</button><button onclick="submitCreateInvoice()" class="px-4 py-2 rounded-lg bg-[#0F6E66] hover:bg-[#0B5751] text-white text-sm font-semibold">Generate & collect</button>`
+      });
+    }
+    function submitCreateInvoice() {
+      const patient = document.getElementById('invPatient')?.value.trim();
+      const dept = document.getElementById('invDept')?.value;
+      const amount = parseInt(document.getElementById('invAmount')?.value || '0', 10);
+      const mode = document.getElementById('invMode')?.value;
+      if (patient && amount > 0) {
+        const id = 'INV-2026-' + (1142 + state.invoices.length);
+        state.invoices.unshift({ id, patient, token: 'A-018', dept, amount, mode, status: 'Paid' });
+        state.billingStats.collectedToday += amount;
+        if (mode === 'UPI') state.billingStats.upiCard += amount; else state.billingStats.cash += amount;
+        closeDrawer(); renderAll(); showToast(`Invoice ${id} paid`, `₹${amount} collected via ${mode}`);
+      }
+    }
+
+    // Hospital Overview Dashboard
+    function renderHospitalDashboard() {
+      return `
+        ${renderHospitalSidebar('dashboard')}
+        <main class="flex-1 min-w-0 p-5 sm:p-7 lg:p-8 max-w-[1500px] mx-auto w-full animate-fade">
+          <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-7">
+            <div><div class="text-[11px] font-medium text-slate-400 mb-1">TUESDAY, 27 NOVEMBER 2026 · HOSPITAL OVERVIEW</div><h1 class="text-[25px] font-semibold tracking-tight text-slate-900">Good morning, Dr. Mehta</h1><p class="text-sm text-slate-500 mt-1">Here’s what is happening across Sunrise Hospital today.</p></div>
+            <div class="flex gap-2"><button onclick="navigate('opd')" class="px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50">View OPD queue</button><button onclick="openAdmitDrawer()" class="px-3.5 py-2 rounded-lg bg-[#0F6E66] text-white text-xs font-semibold hover:bg-[#0B5751]">+ Admit patient</button></div>
+          </div>
+          <div class="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-6">
+            ${[['OPD visits','86','12 waiting','+8.2%'],['IPD occupancy','36 / 48','75% occupied','Stable'],['Revenue today','₹1,24,800','Across departments','+5.4%'],['Pending actions','14','5 reports · 9 payments','Needs review']].map((x,i)=>`<section class="bg-white border border-slate-200 rounded-xl p-4"><div class="text-[11px] font-medium text-slate-500">${x[0]}</div><div class="text-[25px] font-semibold tracking-tight text-slate-900 mt-2 tabular-nums">${x[1]}</div><div class="flex items-center justify-between gap-2 mt-2"><span class="text-[10px] text-slate-400">${x[2]}</span><span class="text-[10px] font-semibold ${i===3?'text-amber-700':'text-emerald-700'}">${x[3]}</span></div></section>`).join('')}
+          </div>
+          <div class="grid grid-cols-1 2xl:grid-cols-3 gap-4">
+            <section class="2xl:col-span-2 bg-white border border-slate-200 rounded-xl overflow-hidden">
+              <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between"><div><h2 class="text-sm font-semibold text-slate-900">Today’s OPD activity</h2><p class="text-[11px] text-slate-400 mt-1">Live queue snapshot · Demo data</p></div><button onclick="navigate('opd')" class="text-xs font-semibold text-[#0F6E66]">Open queue →</button></div>
+              <div class="grid grid-cols-3 divide-x divide-slate-100 p-5"><div><div class="text-[10px] text-slate-400">Scheduled</div><div class="text-xl font-semibold mt-1">86</div></div><div><div class="text-[10px] text-slate-400">Checked in</div><div class="text-xl font-semibold mt-1">64</div></div><div><div class="text-[10px] text-slate-400">Completed</div><div class="text-xl font-semibold mt-1">52</div></div></div>
+              <div class="px-5 pb-5"><div class="flex items-end gap-2 h-28 border-b border-slate-100">${[38,56,46,72,61,88,68,95,73,82,55,67].map((v)=>`<div class="flex-1 flex flex-col justify-end h-full"><div class="rounded-t-sm bg-[#B8DAD3] hover:bg-[#0F6E66] transition-colors" style="height:${v}%"></div></div>`).join('')}</div><div class="flex justify-between text-[9px] text-slate-400 mt-2"><span>08:00</span><span>10:00</span><span>12:00</span><span>14:00</span><span>16:00</span><span>18:00</span></div></div>
+            </section>
+            <section class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+              <div class="px-5 py-4 border-b border-slate-100"><h2 class="text-sm font-semibold text-slate-900">Attention required</h2><p class="text-[11px] text-slate-400 mt-1">Items that may need follow-up</p></div>
+              <div class="divide-y divide-slate-100">
+                <button onclick="navigate('lab')" class="w-full text-left p-4 hover:bg-slate-50"><div class="flex justify-between"><span class="text-xs font-medium">Lab reports pending</span><span class="text-xs font-semibold text-amber-700">05</span></div><div class="text-[10px] text-slate-400 mt-1">Awaiting verification or release</div></button>
+                <button onclick="navigate('pharmacy')" class="w-full text-left p-4 hover:bg-slate-50"><div class="flex justify-between"><span class="text-xs font-medium">Low-stock medicines</span><span class="text-xs font-semibold text-rose-700">03</span></div><div class="text-[10px] text-slate-400 mt-1">Review reorder levels</div></button>
+                <button onclick="navigate('billing')" class="w-full text-left p-4 hover:bg-slate-50"><div class="flex justify-between"><span class="text-xs font-medium">Unsettled invoices</span><span class="text-xs font-semibold text-amber-700">09</span></div><div class="text-[10px] text-slate-400 mt-1">Outstanding patient balances</div></button>
+              </div>
+            </section>
+          </div>
+          <section class="mt-4 bg-white border border-slate-200 rounded-xl overflow-hidden"><div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between"><div><h2 class="text-sm font-semibold">Recent patient activity</h2><p class="text-[11px] text-slate-400 mt-1">Latest encounters across the hospital</p></div><button onclick="navigate('patients')" class="text-xs font-semibold text-[#0F6E66]">View patients →</button></div><div class="overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-400"><tr><th class="px-5 py-3 font-semibold">Patient</th><th class="px-4 py-3 font-semibold">Patient ID</th><th class="px-4 py-3 font-semibold">Department</th><th class="px-4 py-3 font-semibold">Consultant</th><th class="px-5 py-3 font-semibold">Status</th></tr></thead><tbody class="divide-y divide-slate-100">${[['Ananya Rao','HSP-02418','Cardiology','Dr. Mehta','In consultation'],['Rohan Shetty','HSP-02417','Orthopaedics','Dr. Nair','Checked in'],['Fatima Khan','HSP-02416','General Medicine','Dr. Iyer','Report ready']].map(r=>`<tr class="hover:bg-slate-50"><td class="px-5 py-3 font-medium text-slate-800">${r[0]}</td><td class="px-4 py-3 text-slate-500">${r[1]}</td><td class="px-4 py-3 text-slate-600">${r[2]}</td><td class="px-4 py-3 text-slate-600">${r[3]}</td><td class="px-5 py-3">${statusBadge(r[4])}</td></tr>`).join('')}</tbody></table></div></section>
+        </main>`;
+    }
+
+    // Shared Directory Screens (Patients, Doctors, Staff, Reports)
+    function renderDirectoryScreen(type) {
+      const configs = {
+        patients: { title:'Patients', subtitle:'Patient directory, demographics and encounter history', action:'Register patient', headers:['Patient','Patient ID','Phone','Last visit','Status'], rows:[['Ananya Rao','HSP-02418','+91 98450 12001','Today','Active'],['Rohan Shetty','HSP-02417','+91 98450 12002','Today','Active'],['Fatima Khan','HSP-02416','+91 98450 12003','26 Nov 2026','Active'],['Vikram Patil','HSP-02415','+91 98450 12004','25 Nov 2026','Active'],['Meera Joshi','HSP-02414','+91 98450 12005','22 Nov 2026','Active']] },
+        doctors: { title:'Doctors', subtitle:'Consultant directory, departments and availability', action:'Add doctor', headers:['Doctor','Department','Availability','Today’s appointments','Status'], rows:[['Dr. Arvind Mehta','Cardiology','09:00–14:00','18','Available'],['Dr. Priya Nair','Orthopaedics','10:00–16:00','14','Available'],['Dr. Kavita Iyer','General Medicine','09:00–13:00','22','In consultation'],['Dr. Sameer Rao','Neurology','14:00–18:00','08','Available']] },
+        staff: { title:'Staff & access', subtitle:'Hospital workforce and workspace access overview', action:'Invite staff', headers:['Name','Role','Department','Access','Status'], rows:[['Dr. Arvind Mehta','Consultant','Cardiology','Clinical','Active'],['Nisha Thomas','Nurse','IPD','Clinical','Active'],['Rahul Menon','Pharmacist','Pharmacy','Operations','Active'],['Pooja Shah','Lab technician','Laboratory','Clinical','Active'],['Amit Kulkarni','Billing executive','Finance','Operations','Active']] },
+        reports: { title:'Reports & analytics', subtitle:'Operational summaries across clinical and administrative workflows', action:'Export report', headers:['Report','Period','Last generated','Owner','Status'], rows:[['OPD daily summary','Today','27 Nov, 09:15','Administration','Ready'],['IPD occupancy','Today','27 Nov, 08:45','Nursing desk','Ready'],['Pharmacy stock movement','This week','26 Nov, 18:10','Pharmacy','Ready'],['Revenue & collections','This month','26 Nov, 17:30','Finance','Ready']] }
+      };
+      const c = configs[type];
+      return `${renderHospitalSidebar(type)}<main class="flex-1 min-w-0 p-5 sm:p-7 lg:p-8 max-w-[1500px] mx-auto w-full animate-fade">
+        <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6"><div><div class="text-[10px] font-semibold tracking-[.13em] text-slate-400 uppercase mb-1">Hospital workspace</div><h1 class="text-[25px] font-semibold tracking-tight text-slate-900">${c.title}</h1><p class="text-sm text-slate-500 mt-1">${c.subtitle}</p></div><button onclick="${type==='reports'?"showToast('Export queued','Report export is represented as a demo action.')":"openDrawer({title:'"+c.action+"',subtitle:'Demo form',bodyHtml:'<p class=\\'text-sm text-slate-600\\'>This workflow is represented in the UI prototype. Connect the corresponding backend service to persist changes.</p><label class=\\'block text-xs font-medium mt-4 mb-1\\'>Name</label><input class=\\'w-full border rounded-lg p-2 text-sm\\' placeholder=\\'Enter name\\' /><label class=\\'block text-xs font-medium mt-3 mb-1\\'>Notes</label><textarea class=\\'w-full border rounded-lg p-2 text-sm\\' rows=\\'3\\' placeholder=\\'Add details\\'></textarea>',footerHtml:'<button onclick=closeDrawer() class=\\'px-4 py-2 text-xs rounded-lg border\\'>Cancel</button><button onclick=\\'closeDrawer();showToast(\"Demo action\",\"No data was saved to a server.\")\\' class=\\'px-4 py-2 text-xs rounded-lg bg-[#0F6E66] text-white\\'>Continue</button>'})"}" class="px-4 py-2.5 rounded-lg bg-[#0F6E66] text-white text-xs font-semibold hover:bg-[#0B5751]">${c.action}</button></div>
+        <div class="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5"><div class="bg-white border border-slate-200 rounded-xl p-4"><div class="text-[10px] text-slate-400">Total records</div><div class="text-2xl font-semibold mt-2">${c.rows.length}</div></div><div class="bg-white border border-slate-200 rounded-xl p-4"><div class="text-[10px] text-slate-400">Active today</div><div class="text-2xl font-semibold mt-2">${type==='patients'?'64':type==='doctors'?'3':type==='staff'?'5':'4'}</div></div><div class="bg-white border border-slate-200 rounded-xl p-4"><div class="text-[10px] text-slate-400">Needs review</div><div class="text-2xl font-semibold mt-2">02</div></div><div class="bg-white border border-slate-200 rounded-xl p-4"><div class="text-[10px] text-slate-400">Last updated</div><div class="text-base font-semibold mt-2">Just now</div></div></div>
+        <section class="bg-white border border-slate-200 rounded-xl overflow-hidden"><div class="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between"><div><h2 class="text-sm font-semibold text-slate-900">${c.title} directory</h2><p class="text-[11px] text-slate-400 mt-1">Sample records for interface demonstration</p></div><div class="flex gap-2"><input oninput="filterTableRows(this)" placeholder="Search records..." class="w-full sm:w-56 px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-teal-700"><button onclick="showToast('Filters','Advanced filters can be connected to the data service.')" class="px-3 py-2 border border-slate-200 rounded-lg text-xs text-slate-600">Filters</button></div></div><div class="overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-400"><tr>${c.headers.map(h=>`<th class="px-5 py-3 font-semibold">${h}</th>`).join('')}<th class="px-5 py-3"></th></tr></thead><tbody class="divide-y divide-slate-100">${c.rows.map(r=>`<tr class="hover:bg-slate-50">${r.map((v,j)=>`<td class="px-5 py-3 ${j===0?'font-medium text-slate-800':'text-slate-600'}">${j===r.length-1?statusBadge(v):v}</td>`).join('')}<td class="px-5 py-3 text-right"><button onclick="showToast('Record details','Details panel is a demo interaction.')" class="text-[#0F6E66] font-semibold">View</button></td></tr>`).join('')}</tbody></table></div><div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400"><span>Showing ${c.rows.length} sample records</span><span>Page 1 of 1</span></div></section>
+      </main>`;
+    }
+
+    function filterTableRows(input) {
+      const query = input.value.toLowerCase();
+      input.closest('section').querySelectorAll('tbody tr').forEach(row => row.classList.toggle('hidden', !row.innerText.toLowerCase().includes(query)));
+    }
+
+    // Patient Portal Preview
+    function renderPatientPortal() {
+      return `<div class="min-h-[calc(100vh-64px)] w-full bg-[#F7FAF9]">
+        <div class="max-w-6xl mx-auto px-5 sm:px-8 py-8">
+          <div class="flex items-center justify-between gap-3 mb-10"><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-xl bg-[#123B3A] text-white flex items-center justify-center font-bold">H</div><div><div class="font-semibold text-slate-900">Hospigo</div><div class="text-[10px] text-slate-400">Patient services · Sunrise Hospital</div></div></div><button onclick="navigate('signin')" class="text-xs font-semibold text-slate-500">Sign out</button></div>
+          <div class="grid lg:grid-cols-[1.1fr_.9fr] gap-8 items-start"><div><div class="text-[11px] font-semibold tracking-[.14em] text-[#0F6E66] mb-3">PATIENT PORTAL</div><h1 class="text-3xl sm:text-4xl leading-tight font-semibold tracking-tight text-slate-900">Your care, <span class="text-[#0F6E66]">connected.</span></h1><p class="text-sm leading-6 text-slate-500 mt-4 max-w-lg">Book appointments, keep track of visits and access your hospital services in one secure place.</p><div class="mt-8 grid sm:grid-cols-2 gap-3"><button onclick="navigate('booking')" class="text-left p-4 bg-white border border-slate-200 rounded-xl hover:border-teal-600"><div class="text-lg">＋</div><div class="text-sm font-semibold mt-3">Book an appointment</div><div class="text-xs text-slate-400 mt-1">Find a department and available slot</div></button><button onclick="showToast('Medical records','Patient authentication and record access are demo-only.')" class="text-left p-4 bg-white border border-slate-200 rounded-xl hover:border-teal-600"><div class="text-lg">▤</div><div class="text-sm font-semibold mt-3">Medical records</div><div class="text-xs text-slate-400 mt-1">Reports, prescriptions and visit history</div></button><button onclick="showToast('Billing','Secure patient billing access is not connected in this prototype.')" class="text-left p-4 bg-white border border-slate-200 rounded-xl hover:border-teal-600"><div class="text-lg">₹</div><div class="text-sm font-semibold mt-3">Bills & payments</div><div class="text-xs text-slate-400 mt-1">Review invoices and payment status</div></button><button onclick="showToast('Appointments','Sign in to view your appointment history.')" class="text-left p-4 bg-white border border-slate-200 rounded-xl hover:border-teal-600"><div class="text-lg">◷</div><div class="text-sm font-semibold mt-3">My appointments</div><div class="text-xs text-slate-400 mt-1">Upcoming and previous visits</div></button></div></div>
+          <section class="bg-white border border-slate-200 rounded-2xl p-6 sm:p-7 shadow-[0_12px_36px_rgba(15,45,43,.05)]"><div class="text-xs font-semibold text-slate-900">Welcome to Sunrise Hospital</div><p class="text-xs text-slate-500 mt-1">Book an outpatient consultation</p><div class="mt-6 space-y-4"><div><label class="block text-[11px] font-medium text-slate-600 mb-1.5">Choose department</label><select id="patientDept" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-xs bg-white"><option>Cardiology</option><option>General Medicine</option><option>Orthopaedics</option><option>Neurology</option><option>Paediatrics</option></select></div><div><label class="block text-[11px] font-medium text-slate-600 mb-1.5">Preferred date</label><input type="date" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-xs"></div><div><label class="block text-[11px] font-medium text-slate-600 mb-1.5">Mobile number</label><input type="tel" placeholder="+91" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-xs"></div><button onclick="navigate('booking')" class="w-full rounded-lg bg-[#0F6E66] hover:bg-[#0B5751] text-white text-xs font-semibold py-3">Continue to appointment booking</button></div></section></div>
+        </div></div>`;
+    }
+
+    function switchWorkspace(value) {
+      if (value === 'hq') navigate('hq-hospitals');
+      else if (value === 'patient') navigate('patient-portal');
+      else navigate('dashboard');
+    }
+
+    // Hospigo HQ Onboarding View
+    function renderHQOnboard() {
+      const f = state.onboardForm;
+      const moduleList = [
+        { key: 'OPD', desc: 'Token queue, doctor console, vitals' }, { key: 'IPD', desc: 'Wards, bed map, nursing, discharge' },
+        { key: 'Pharmacy', desc: 'E-prescription queue & stock alerts' }, { key: 'Lab', desc: 'Pathology orders, samples, reports' },
+        { key: 'Radiology', desc: 'X-Ray, 2D Echo, USG imaging bay' }, { key: 'Booking', desc: 'Public OTP appointment booking page' }
+      ];
+      const activeModules = Object.keys(f.modules).filter(k => f.modules[k]);
+      const cleanSlug = (f.accessCode || 'HOSPITAL').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      return `
+        ${renderHQSidebar('hq-onboard')}
+        <main class="flex-1 p-5 sm:p-8 max-w-7xl mx-auto w-full animate-fade">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+            <div><h1 class="text-2xl font-semibold text-[#0F172A] tracking-tight">Onboard hospital</h1><p class="text-sm text-slate-500 mt-0.5">Provision an isolated hospital workspace, access code, and module plan</p></div>
+            <button onclick="navigate('hq-hospitals')" class="px-3.5 py-2 rounded-lg border border-[#CBD5E1] bg-white hover:bg-slate-50 text-xs font-medium text-[#0F172A] self-start sm:self-auto">← Back to hospitals (${state.hospitals.length})</button>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div class="lg:col-span-7 space-y-5">
+              <section class="bg-white border border-[#E2E8F0] rounded-xl p-5 sm:p-6">
+                <h2 class="text-sm font-semibold text-[#0F172A] mb-4">1. Hospital details</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div class="sm:col-span-2"><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Hospital name</label><input type="text" value="${f.hospitalName}" oninput="updateOnboardField('hospitalName', this.value)" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm" /></div>
+                  <div><label class="block text-xs font-medium text-[#0F172A] mb-1.5">City & state</label><input type="text" value="${f.cityState}" oninput="updateOnboardField('cityState', this.value)" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm" /></div>
+                  <div><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Facility type</label><input type="text" value="${f.hospitalType}" oninput="updateOnboardField('hospitalType', this.value)" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm" /></div>
+                </div>
+              </section>
+              <section class="bg-white border border-[#E2E8F0] rounded-xl p-5 sm:p-6">
+                <h2 class="text-sm font-semibold text-[#0F172A] mb-4">2. Access code & admin account</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Hospital access code</label><input type="text" value="${f.accessCode}" oninput="updateOnboardField('accessCode', this.value.toUpperCase())" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm font-semibold uppercase tracking-wide" /></div>
+                  <div><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Primary hospital admin</label><input type="text" value="${f.adminName}" oninput="updateOnboardField('adminName', this.value)" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm" /></div>
+                  <div class="sm:col-span-2"><label class="block text-xs font-medium text-[#0F172A] mb-1.5">Admin login email</label><input type="email" value="${f.adminEmail}" oninput="updateOnboardField('adminEmail', this.value)" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm" /></div>
+                </div>
+              </section>
+              <section class="bg-white border border-[#E2E8F0] rounded-xl p-5 sm:p-6">
+                <div class="flex items-center justify-between mb-4"><h2 class="text-sm font-semibold text-[#0F172A]">3. Select active modules</h2><span class="text-xs text-slate-500">${activeModules.length} of 6 enabled</span></div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  ${moduleList.map(m => {
+                    const checked = !!f.modules[m.key];
+                    return `<div onclick="toggleOnboardModule('${m.key}')" class="cursor-pointer rounded-xl border p-3.5 transition-all flex items-start gap-3 ${checked ? 'border-[#0F6E66] bg-[#F0FDFA]/60' : 'border-[#E2E8F0] bg-white hover:border-[#CBD5E1]'}"><input type="checkbox" ${checked ? 'checked' : ''} class="mt-0.5 accent-[#0F6E66] pointer-events-none" /><div><div class="text-xs font-semibold text-[#0F172A]">${m.key}</div><div class="text-[11px] text-slate-500 mt-0.5">${m.desc}</div></div></div>`;
+                  }).join('')}
+                </div>
+                <div class="mt-6 pt-4 border-t border-[#E2E8F0] flex items-center justify-end gap-3"><button onclick="provisionNewHospital()" class="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-[#0F6E66] hover:bg-[#0B5751] text-white text-sm font-semibold transition-colors">Create hospital workspace</button></div>
+              </section>
+            </div>
+            <div class="lg:col-span-5 space-y-4 lg:sticky lg:top-20">
+              <div class="bg-white border border-[#E2E8F0] rounded-xl p-5 sm:p-6">
+                <div class="flex items-center justify-between mb-4"><span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Live tenant preview</span>${statusBadge('Ready to provision')}</div>
+                <div class="rounded-xl bg-[#0E2929] text-white p-4 mb-4">
+                  <div class="font-semibold text-base">${f.hospitalName || 'New Hospital'}</div>
+                  <div class="text-xs text-[#8FA8A8] mt-0.5">Powered by Hospigo • ${f.cityState || 'India'}</div>
+                  <div class="mt-3 flex flex-wrap gap-1.5">${activeModules.map(mod => `<span class="px-2 py-0.5 rounded bg-[#183D3D] text-teal-100 text-[11px] font-medium">${mod}</span>`).join('')}</div>
+                </div>
+                <div class="space-y-3 text-xs">
+                  <div class="p-3 rounded-lg bg-[#F7F9F9] border border-[#E2E8F0]"><div class="text-slate-500">Staff sign-in credentials</div><div class="font-semibold text-[#0F172A] mt-1">Code: <span class="font-mono text-[#0F6E66]">${f.accessCode || 'CODE'}</span></div><div class="text-slate-600 mt-0.5">${f.adminEmail || 'admin@hospital.com'}</div></div>
+                  <div class="p-3 rounded-lg bg-[#F7F9F9] border border-[#E2E8F0]"><div class="text-slate-500">Public patient booking link</div><div class="font-medium text-[#0F6E66] mt-1">hospigo.in/book/${cleanSlug || 'clinic'}</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>`;
+    }
+
+    function updateOnboardField(key, val) { state.onboardForm[key] = val; renderAll(); }
+    function toggleOnboardModule(modKey) { state.onboardForm.modules[modKey] = !state.onboardForm.modules[modKey]; renderAll(); }
+    function provisionNewHospital() {
+      const f = state.onboardForm;
+      const enabled = Object.keys(f.modules).filter(k => f.modules[k]);
+      if (!f.hospitalName.trim() || !f.accessCode.trim()) return;
+      state.hospitals.push({ name: f.hospitalName.trim(), city: f.cityState.trim() || 'India', code: f.accessCode.trim().toUpperCase(), modules: enabled.length ? enabled : ['OPD'], status: 'Active', staffCount: 12 });
+      navigate('hq-hospitals'); showToast(`${f.hospitalName} onboarded`, `Access code ${f.accessCode.toUpperCase()} is now live`);
+    }
+
+    // Sign In View
+    function renderSignIn() {
+      const isStaff = state.signInMode === 'staff';
+      return `
+        <div class="flex-1 grid grid-cols-1 lg:grid-cols-12 min-h-[calc(100vh-49px)] bg-white animate-fade">
+          <div class="lg:col-span-5 bg-[#0E2929] text-white p-8 sm:p-12 flex flex-col justify-between">
+            <div>
+              <div class="inline-flex items-center gap-2 text-lg font-semibold tracking-tight"><span class="w-7 h-7 rounded-lg bg-[#0F6E66] flex items-center justify-center text-sm font-bold">H</span>Hospigo</div>
+              <div class="mt-12 sm:mt-20 max-w-sm"><h2 class="text-3xl sm:text-4xl font-semibold tracking-tight leading-tight">One platform.<br/>Every hospital.</h2><p class="mt-4 text-sm sm:text-base text-[#8FA8A8] leading-relaxed">OPD, IPD, pharmacy, lab and online booking, set up for your hospital.</p></div>
+            </div>
+            <div class="pt-8 text-xs text-[#8FA8A8]">A product by Indigo</div>
+          </div>
+          <div class="lg:col-span-7 flex items-center justify-center p-6 sm:p-12 bg-[#F7F9F9]">
+            <div class="w-full max-w-md bg-white border border-[#E2E8F0] rounded-2xl p-6 sm:p-8 shadow-xs">
+              <h1 class="text-2xl font-bold text-[#0F172A] tracking-tight">Sign in</h1>
+              <div class="mt-5 grid grid-cols-2 p-1 rounded-xl bg-[#F1F5F9]">
+                <button onclick="setSignInMode('staff')" class="py-2 text-sm font-semibold rounded-lg transition-all ${isStaff ? 'bg-white text-[#0F172A] shadow-xs' : 'text-slate-500 hover:text-[#0F172A]'}">Hospital staff</button>
+                <button onclick="setSignInMode('hq')" class="py-2 text-sm font-semibold rounded-lg transition-all ${!isStaff ? 'bg-white text-[#0F172A] shadow-xs' : 'text-slate-500 hover:text-[#0F172A]'}">Indigo HQ</button>
+              </div>
+              <div class="mt-5 space-y-4">
+                ${isStaff ? `<div><label class="block text-xs font-semibold text-[#0F172A] mb-1.5">Hospital access code</label><input type="text" value="${state.signInForm.accessCode}" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm text-[#0F172A]" /></div>` : ''}
+                <div><label class="block text-xs font-semibold text-[#0F172A] mb-1.5">Email</label><input type="email" value="${isStaff ? state.signInForm.email : 'ops@indigohealth.in'}" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm text-[#0F172A]" /></div>
+                <div><label class="block text-xs font-semibold text-[#0F172A] mb-1.5">Password</label><input type="password" value="${state.signInForm.password}" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm text-[#0F172A]" /></div>
+                <button onclick="handleSignInSubmit()" class="w-full py-2.5 rounded-lg bg-[#0F6E66] hover:bg-[#0B5751] text-white text-sm font-semibold transition-colors mt-2">Sign in</button>
+              </div>
+              <p class="mt-4 text-xs text-slate-500 leading-relaxed">HQ team: switch to Indigo HQ, no access code needed.</p>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function setSignInMode(mode) { state.signInMode = mode; renderAll(); }
+    function handleSignInSubmit() {
+      if (state.signInMode === 'staff') { navigate('opd'); showToast('Signed in to Sunrise Hospital', 'Welcome back, Dr. Mehta'); }
+      else { navigate('hq-hospitals'); showToast('Signed in to Hospigo HQ', 'Indigo platform admin console'); }
+    }
+
+    // Hospigo HQ Hospitals List View
+    function renderHQHospitals() {
+      const totalStaff = state.hospitals.reduce((acc, h) => acc + h.staffCount, 0);
+      return `
+        ${renderHQSidebar('hq-hospitals')}
+        <main class="flex-1 p-5 sm:p-8 max-w-7xl mx-auto w-full animate-fade">
+          <div class="flex items-center justify-between mb-6"><h1 class="text-2xl font-semibold text-[#0F172A] tracking-tight">Hospitals</h1><button onclick="navigate('hq-onboard')" class="px-4 py-2 rounded-lg bg-[#0F6E66] hover:bg-[#0B5751] text-white text-sm font-semibold transition-colors">Onboard hospital</button></div>
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">Hospitals</div><div class="text-2xl font-semibold text-[#0F172A] tabular-nums mt-1.5">${state.hospitals.length}</div></div>
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">Staff accounts</div><div class="text-2xl font-semibold text-[#0F172A] tabular-nums mt-1.5">${totalStaff}</div></div>
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">Last backup</div><div class="text-xl font-semibold text-[#0F172A] tabular-nums mt-2">Today 02:00</div></div>
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">System health</div><div class="mt-2 flex items-start gap-2 text-xs font-medium text-[#065F46]"><span class="w-2 h-2 rounded-full bg-[#10B981] mt-1 shrink-0"></span><span>Database, Redis, MinIO, WebSocket: all up</span></div></div>
+          </div>
+          <div class="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead><tr class="border-b border-[#E2E8F0] bg-[#F7F9F9] text-[12px] font-medium text-slate-500"><th class="py-3 px-4">Hospital</th><th class="py-3 px-4">Access code</th><th class="py-3 px-4">Modules</th><th class="py-3 px-4">Status</th></tr></thead>
+                <tbody class="divide-y divide-[#E2E8F0] text-[13.5px]">
+                  ${state.hospitals.map(h => `
+                    <tr onclick="navigate('ipd')" class="cursor-pointer hover:bg-slate-50/80 transition-colors">
+                      <td class="py-3.5 px-4 font-medium text-[#0F172A] whitespace-nowrap">${h.name}</td>
+                      <td class="py-3.5 px-4 font-mono text-xs font-semibold text-slate-600 whitespace-nowrap">${h.code}</td>
+                      <td class="py-3.5 px-4"><div class="flex flex-wrap gap-1.5">${h.modules.map(m => `<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs font-medium">${m}</span>`).join('')}</div></td>
+                      <td class="py-3.5 px-4 whitespace-nowrap">${statusBadge(h.status)}</td>
+                    </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </main>`;
+    }
+
+    // OPD Queue View
+    function renderOPDQueue() {
+      return `
+        ${renderHospitalSidebar('opd')}
+        <main class="flex-1 p-5 sm:p-8 max-w-7xl mx-auto w-full animate-fade">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div><h1 class="text-2xl font-semibold text-[#0F172A] tracking-tight">OPD queue</h1><p class="text-sm text-slate-500 mt-0.5">Dr. Mehta, Cardiology</p></div>
+            <button onclick="callNextPatient()" class="px-4 py-2 rounded-lg bg-[#0F6E66] hover:bg-[#0B5751] text-white text-sm font-semibold transition-colors self-start sm:self-auto">Call next patient</button>
+          </div>
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">Waiting</div><div class="text-2xl font-semibold text-[#0F172A] tabular-nums mt-1.5">${state.opdStats.waiting}</div></div>
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">In consultation</div><div class="text-2xl font-semibold text-[#0F172A] tabular-nums mt-1.5">${state.opdStats.inConsultation}</div></div>
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">Seen today</div><div class="text-2xl font-semibold text-[#0F172A] tabular-nums mt-1.5">${state.opdStats.seenToday}</div></div>
+            <div class="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5"><div class="text-xs font-medium text-slate-500">Online bookings</div><div class="text-2xl font-semibold text-[#0F172A] tabular-nums mt-1.5">${state.opdStats.onlineBookings}</div></div>
+          </div>
+          <div class="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead><tr class="border-b border-[#E2E8F0] bg-[#F7F9F9] text-[12px] font-medium text-slate-500"><th class="py-3 px-4">Token</th><th class="py-3 px-4">Patient</th><th class="py-3 px-4">Slot</th><th class="py-3 px-4">Status</th></tr></thead>
+                <tbody class="divide-y divide-[#E2E8F0] text-[13.5px]">
+                  ${state.opdQueue.map(row => `<tr class="hover:bg-slate-50/70 transition-colors"><td class="py-3.5 px-4 font-semibold text-[#0F172A] tabular-nums whitespace-nowrap">${row.token}</td><td class="py-3.5 px-4 font-medium text-[#0F172A] whitespace-nowrap">${row.patient}</td><td class="py-3.5 px-4 text-slate-600 tabular-nums whitespace-nowrap">${row.slot}</td><td class="py-3.5 px-4 whitespace-nowrap">${statusBadge(row.status)}</td></tr>`).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </main>`;
+    }
+
+    function callNextPatient() {
+      const currentIdx = state.opdQueue.findIndex(p => p.status === 'In consultation');
+      if (currentIdx !== -1) { state.opdQueue[currentIdx].status = 'Seen'; state.opdStats.seenToday += 1; }
+      const nextIdx = state.opdQueue.findIndex(p => p.status.includes('Checked in'));
+      if (nextIdx !== -1) { state.opdQueue[nextIdx].status = 'In consultation'; state.opdStats.waiting = Math.max(0, state.opdStats.waiting - 1); renderAll(); showToast(`Called Token ${state.opdQueue[nextIdx].token}`, `${state.opdQueue[nextIdx].patient} moved to consultation`); }
+      else { renderAll(); showToast('Queue updated', 'No more checked-in patients waiting'); }
+    }
+
+    // Public Patient OPD Booking View
+    function renderPublicBooking() {
+      const bf = state.bookingForm;
+      const doctors = [{ name: 'Dr. Mehta', spec: 'Cardiology, fee 500' }, { name: 'Dr. Rao', spec: 'General medicine, fee 300' }];
+      const slots = ['10:00', '10:15', '10:30', '10:45'];
+      return `
+        <div class="flex-1 flex items-center justify-center p-4 sm:p-8 bg-[#F7F9F9] animate-fade">
+          <div class="w-full max-w-lg bg-white border border-[#E2E8F0] rounded-2xl p-6 sm:p-8 shadow-xs">
+            <div class="text-xs font-semibold text-[#0F6E66] uppercase tracking-wider">Sunrise Hospital</div>
+            <h1 class="text-2xl font-bold text-[#0F172A] tracking-tight mt-1">Book an OPD appointment</h1>
+            <div class="mt-6">
+              <div class="text-xs font-semibold text-[#0F172A] mb-2.5">1. Choose doctor</div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                ${doctors.map(d => `<button type="button" onclick="selectBookingDoctor('${d.name}')" class="text-left p-3.5 rounded-xl border transition-all ${bf.doctor === d.name ? 'border-[#0F6E66] bg-[#F0FDFA]/70' : 'border-[#E2E8F0] bg-white hover:border-[#CBD5E1]'}"><div class="text-sm font-semibold text-[#0F172A]">${d.name}</div><div class="text-xs text-slate-500 mt-0.5">${d.spec}</div></button>`).join('')}
+              </div>
+            </div>
+            <div class="mt-6">
+              <div class="text-xs font-semibold text-[#0F172A] mb-2.5">2. Choose slot, today</div>
+              <div class="grid grid-cols-4 gap-2">
+                ${slots.map(s => `<button type="button" onclick="selectBookingSlot('${s}')" class="py-2 rounded-lg border text-xs font-semibold tabular-nums transition-all ${bf.slot === s ? 'border-[#0F6E66] bg-[#0F6E66] text-white' : 'border-[#CBD5E1] bg-white text-[#0F172A] hover:bg-slate-50'}">${s}</button>`).join('')}
+              </div>
+            </div>
+            <div class="mt-6 space-y-3.5">
+              <div class="text-xs font-semibold text-[#0F172A]">3. Your details</div>
+              <div><label class="block text-xs font-medium text-slate-600 mb-1">Name</label><input type="text" value="${bf.name}" oninput="state.bookingForm.name = this.value" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm text-[#0F172A]" /></div>
+              <div><label class="block text-xs font-medium text-slate-600 mb-1">Mobile number</label><input type="tel" value="${bf.mobile}" oninput="state.bookingForm.mobile = this.value" class="w-full px-3.5 py-2.5 rounded-lg border border-[#CBD5E1] text-sm text-[#0F172A] tabular-nums" /></div>
+              ${bf.confirmed ? `<div class="p-3.5 rounded-xl bg-[#ECFDF5] border border-[#A7F3D0] text-xs text-[#065F46] font-medium">✓ Appointment booked! Token <span class="font-bold">A-018</span> reserved for ${bf.name} with ${bf.doctor} at ${bf.slot}.</div>`
+                : `<button onclick="triggerBookingOTP()" class="w-full py-2.5 rounded-lg bg-[#0F6E66] hover:bg-[#0B5751] text-white text-sm font-semibold transition-colors mt-1">${bf.otpSent ? 'Verify OTP (4829) & confirm' : 'Send OTP'}</button>`}
+            </div>
+            <p class="mt-4 text-xs text-slate-500 leading-relaxed">No payment now. Pay the fee at the hospital desk when you arrive.</p>
+          </div>
+        </div>`;
+    }
+
+    function selectBookingDoctor(doc) { state.bookingForm.doctor = doc; state.bookingForm.confirmed = false; renderAll(); }
+    function selectBookingSlot(slot) { state.bookingForm.slot = slot; state.bookingForm.confirmed = false; renderAll(); }
+    function triggerBookingOTP() {
+      if (!state.bookingForm.otpSent) { state.bookingForm.otpSent = true; renderAll(); showToast('OTP sent via SMS', 'Use auto-filled demo OTP 4829 to confirm'); }
+      else { state.bookingForm.confirmed = true; state.opdStats.onlineBookings += 1; state.opdQueue.push({ token: 'A-018', patient: `${state.bookingForm.name}, 32`, slot: state.bookingForm.slot, status: 'Booked, unpaid at desk' }); renderAll(); showToast('OPD slot confirmed', 'Added Token A-018 to OPD Queue & Billing desk'); }
+    }
+
+    // Master Render Router
+    function renderAll() {
+      const root = document.getElementById('appRoot');
+      const select = document.getElementById('workspaceSelect');
+      if (select) {
+        select.value = ['hq-hospitals','hq-onboard'].includes(state.currentView) ? 'hq' : state.currentView === 'patient-portal' || state.currentView === 'booking' ? 'patient' : 'hospital';
+        select.classList.toggle('hidden', state.currentView === 'signin' || state.currentView === 'patient-portal' || state.currentView === 'booking');
+      }
+      switch (state.currentView) {
+        case 'dashboard': root.innerHTML = renderHospitalDashboard(); break;
+        case 'patients': case 'doctors': case 'staff': case 'reports': root.innerHTML = renderDirectoryScreen(state.currentView); break;
+        case 'ipd': root.innerHTML = renderIPDWards(); break;
+        case 'pharmacy': root.innerHTML = renderPharmacy(); break;
+        case 'lab': root.innerHTML = renderLabRadiology(); break;
+        case 'billing': root.innerHTML = renderBilling(); break;
+        case 'hq-onboard': root.innerHTML = renderHQOnboard(); break;
+        case 'signin': root.innerHTML = renderSignIn(); break;
+        case 'hq-hospitals': root.innerHTML = renderHQHospitals(); break;
+        case 'opd': root.innerHTML = renderOPDQueue(); break;
+        case 'booking': root.innerHTML = renderPublicBooking(); break;
+        case 'patient-portal': root.innerHTML = renderPatientPortal(); break;
+        default: root.innerHTML = renderHospitalDashboard();
+      }
+    }
+    window.addEventListener('DOMContentLoaded', renderAll);
+  </script>
+</body>
+</html>
