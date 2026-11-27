@@ -16,8 +16,8 @@ export type DashboardSummary = {
     collectionPaise: number | null;
   };
   trend: Array<{ date: string; visits: number; collectionPaise: number | null }>;
-  paymentMix: Array<{ mode: string; amountPaise: number }>;
-  topDoctors: Array<{ doctor: string; visits: number }>;
+  paymentMix: Array<{ mode: string; code: string; amountPaise: number }>;
+  topDoctors: Array<{ doctor: string; doctorId: string; visits: number }>;
   vitals: { waiting: number; recordedToday: number } | null;
   doctor: { myWaiting: number; mySeenToday: number } | null;
   pendingApprovals: number | null;

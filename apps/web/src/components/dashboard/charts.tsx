@@ -1,45 +1,56 @@
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 
-/** Small SVG charts drawn from theme tokens only (no chart library, no fixed colours). */
+/**
+ * Small charts drawn from theme tokens only (no chart library, no fixed colours). The bars and
+ * points are real elements that grow with the card (not a stretched picture), and each can be a
+ * link: a bar for a day opens the report of that day.
+ */
 
 const W = 100;
 const H = 40;
+
+function Wrap({ href, title, children }: { href?: string; title: string; children: ReactNode }) {
+  return href ? (
+    <Link href={href} title={title} className="chart-hit">
+      {children}
+    </Link>
+  ) : (
+    <span title={title} className="chart-hit">
+      {children}
+    </span>
+  );
+}
 
 export function BarChart({
   values,
   labels,
   label,
+  hrefs,
 }: {
   values: number[];
   labels: string[];
   label: string;
+  /** Where each bar leads (same order as the values); a bar without one is not a link. */
+  hrefs?: Array<string | undefined>;
 }) {
   const max = Math.max(1, ...values);
-  const step = W / Math.max(1, values.length);
   return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      className="chart-svg"
+    <div
+      className="chart-bars"
       role="img"
       aria-label={label}
-      preserveAspectRatio="none"
+      style={{ gridTemplateColumns: `repeat(${values.length}, minmax(0, 1fr))` }}
     >
-      {values.map((v, i) => {
-        const h = (v / max) * (H - 2);
-        return (
-          <rect
-            key={labels[i] ?? i}
-            x={i * step + step * 0.15}
-            y={H - h}
-            width={step * 0.7}
-            height={h}
-            className="chart-bar"
-          >
-            <title>{`${labels[i]}: ${v}`}</title>
-          </rect>
-        );
-      })}
-    </svg>
+      {values.map((v, i) => (
+        <Wrap key={labels[i] ?? i} href={hrefs?.[i]} title={`${labels[i]}: ${v}`}>
+          <span className="chart-bar-track">
+            <span className="chart-bar-fill" style={{ height: `${(v / max) * 100}%` }} />
+          </span>
+          <span className="chart-bar-label">{labels[i]}</span>
+        </Wrap>
+      ))}
+    </div>
   );
 }
 
@@ -47,29 +58,36 @@ export function LineChart({
   values,
   labels,
   label,
+  hrefs,
 }: {
   values: number[];
   labels: string[];
   label: string;
+  hrefs?: Array<string | undefined>;
 }) {
   const max = Math.max(1, ...values);
   const step = W / Math.max(1, values.length - 1);
   const pts = values.map((v, i) => `${i * step},${H - 2 - (v / max) * (H - 6)}`);
   return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      className="chart-svg"
-      role="img"
-      aria-label={label}
-      preserveAspectRatio="none"
-    >
-      <polyline points={pts.join(' ')} className="chart-line" vectorEffect="non-scaling-stroke" />
-      {values.map((v, i) => (
-        <circle key={labels[i] ?? i} cx={i * step} cy={H - 2 - (v / max) * (H - 6)} r="0.9">
-          <title>{`${labels[i]}: ${v}`}</title>
-        </circle>
-      ))}
-    </svg>
+    <div className="chart-line-box" role="img" aria-label={label}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="chart-svg" preserveAspectRatio="none" aria-hidden>
+        <polyline points={pts.join(' ')} className="chart-line" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <div
+        className="chart-line-hits"
+        style={{ gridTemplateColumns: `repeat(${values.length}, minmax(0, 1fr))` }}
+      >
+        {values.map((v, i) => (
+          <Wrap key={labels[i] ?? i} href={hrefs?.[i]} title={`${labels[i]}: ${v}`}>
+            <span
+              className="chart-dot-point"
+              style={{ bottom: `${((H - 2 - (H - 2 - (v / max) * (H - 6))) / H) * 100}%` }}
+            />
+            <span className="chart-bar-label">{labels[i]}</span>
+          </Wrap>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -80,7 +98,7 @@ export function Donut({
   label,
   centre,
 }: {
-  slices: Array<{ name: string; value: number }>;
+  slices: Array<{ name: string; value: number; href?: string }>;
   label: string;
   centre?: ReactNode;
 }) {
@@ -92,9 +110,8 @@ export function Donut({
       <circle cx="21" cy="21" r={R} className="chart-track" fill="none" />
       {slices.map((s, i) => {
         const part = (s.value / total) * 100;
-        const el = (
+        const circle = (
           <circle
-            key={s.name}
             cx="21"
             cy="21"
             r={R}
@@ -107,7 +124,13 @@ export function Donut({
           </circle>
         );
         offset -= part;
-        return el;
+        return s.href ? (
+          <a key={s.name} href={s.href} className="chart-slice-link">
+            {circle}
+          </a>
+        ) : (
+          <g key={s.name}>{circle}</g>
+        );
       })}
       {centre}
     </svg>

@@ -21,8 +21,8 @@ const base = (over: Partial<DashboardSummary> = {}): DashboardSummary => ({
     visits: i,
     collectionPaise: i * 1000,
   })),
-  paymentMix: [{ mode: 'Cash', amountPaise: 1000 }],
-  topDoctors: [{ doctor: 'Dr. Rao', visits: 7 }],
+  paymentMix: [{ mode: 'Cash', code: 'CASH', amountPaise: 1000 }],
+  topDoctors: [{ doctor: 'Dr. Rao', doctorId: 'd1', visits: 7 }],
   vitals: null,
   doctor: null,
   pendingApprovals: null,
@@ -99,5 +99,30 @@ describe('Attention required', () => {
     expect(screen.getByText(/2 refund or cancel requests/)).toBeTruthy();
     expect(screen.getByText(/3 patients waiting for vitals/)).toBeTruthy();
     expect(screen.getByText(/2 patients waiting more than 30 minutes/)).toBeTruthy();
+  });
+});
+
+describe('Clickable blocks and charts', () => {
+  it('a block and a chart lead to the screens the person may open, and nowhere else', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => base(),
+    }) as unknown as typeof fetch;
+    const { unmount } = render(
+      <DashboardInsights permissions={['opd.queue.read', 'opd.reports.read']} />,
+    );
+    await waitFor(() => expect(screen.getByText(copy.visitsToday)).toBeTruthy());
+    expect(screen.getByText(copy.visitsToday).closest('a')?.getAttribute('href')).toBe('/app/opd');
+    expect(screen.getByText(copy.collection).closest('a')?.getAttribute('href')).toBe(
+      '/app/opd/reports',
+    );
+    expect(document.querySelector('a[href="/app/opd/reports?date=2026-11-10"]')).not.toBeNull();
+    expect(document.querySelector('a[href="/app/opd/reports?paymentMode=CASH"]')).not.toBeNull();
+    expect(document.querySelector('a[href="/app/opd/reports?doctor=d1"]')).not.toBeNull();
+    unmount();
+    render(<DashboardInsights permissions={[]} />);
+    await waitFor(() => expect(screen.getByText(copy.visitsToday)).toBeTruthy());
+    expect(screen.getByText(copy.visitsToday).closest('a')).toBeNull();
+    expect(document.querySelector('a[href^="/app/opd/reports"]')).toBeNull();
   });
 });

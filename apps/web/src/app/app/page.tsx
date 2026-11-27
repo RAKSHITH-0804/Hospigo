@@ -35,10 +35,9 @@ export default async function StaffDashboardPage({
         displayName={session.displayName}
         branchName={session.activeBranchName?.trim() || '—'}
         hospitalName={session.hospitalName?.trim() || staffCopy.brand}
-        permissions={session.permissions}
       />
       {session.canSwitchBranch === true ? <AllBranchesToggle href="/app" active={all} /> : null}
-      <DashboardInsights allBranches={all} />
+      <DashboardInsights allBranches={all} permissions={session.permissions ?? []} />
     </div>
   );
 }

@@ -1,6 +1,5 @@
 import { render, screen } from '@testing-library/react';
 import { QuickLinks, quickLinksFor } from '@/components/dashboard/quick-links';
-import { staffCopy } from '@/config/staff-copy';
 
 jest.mock('next/link', () => ({
   __esModule: true,
@@ -11,14 +10,12 @@ jest.mock('next/link', () => ({
   ),
 }));
 
-const copy = staffCopy.dashboard;
-const show = (permissions: string[] | undefined) =>
+const show = (_permissions?: string[]) =>
   render(
     <QuickLinks
       displayName="Dr Meena"
       branchName="Main Branch"
       hospitalName="Demo Clinic"
-      permissions={permissions}
     />,
   );
 
@@ -41,43 +38,8 @@ describe('QuickLinks', () => {
     expect(screen.getByText(/Demo Clinic/)).toBeTruthy();
   });
 
-  it('a receptionist sees register, find and queue; an Admin sees reports and settings too', () => {
-    const first = show(['patients.registry.read', 'patients.registry.write', 'opd.queue.read']);
-    expect(
-      screen
-        .getByRole('link', { name: new RegExp(copy.links.register.title) })
-        .getAttribute('href'),
-    ).toBe('/app/patients/new');
-    expect(
-      screen.getByRole('link', { name: new RegExp(copy.links.queue.title) }).getAttribute('href'),
-    ).toBe('/app/opd');
-    expect(screen.queryByRole('link', { name: new RegExp(copy.links.report.title) })).toBeNull();
-    first.unmount();
-    show(['opd.reports.read', 'hospital.settings.read', 'opd.refunds.approve']);
-    expect(
-      screen.getByRole('link', { name: new RegExp(copy.links.report.title) }).getAttribute('href'),
-    ).toBe('/app/opd/reports');
-    expect(
-      screen
-        .getByRole('link', { name: new RegExp(copy.links.settings.title) })
-        .getAttribute('href'),
-    ).toBe('/app/settings');
-    expect(
-      screen.getByRole('link', { name: new RegExp(copy.links.refunds.title) }).getAttribute('href'),
-    ).toBe('/app/opd/refunds');
-  });
-
-  it('a doctor sees My profile', () => {
-    show(['opd.doctors.own', 'opd.queue.read']);
-    expect(
-      screen.getByRole('link', { name: new RegExp(copy.links.profile.title) }).getAttribute('href'),
-    ).toBe('/app/profile');
-  });
-
-  it('says so when there is nothing to start from, and shows no fake numbers', () => {
-    const { container } = show([]);
-    expect(screen.getByText(copy.nothingYet)).toBeTruthy();
+  it('has no tiles of module names: the blocks below lead to the screens', () => {
+    show(['patients.registry.read', 'opd.queue.read', 'opd.reports.read']);
     expect(screen.queryByRole('link')).toBeNull();
-    expect(container.textContent).not.toMatch(/\d{2,}/);
   });
 });

@@ -37,8 +37,10 @@ export type DashboardSummary = {
     collectionPaise: number | null;
   };
   trend: Array<{ date: string; visits: number; collectionPaise: number | null }>;
-  paymentMix: Array<{ mode: string; amountPaise: number }>;
-  topDoctors: Array<{ doctor: string; visits: number }>;
+  /** `code` is the payment mode code, for the click-through to the report. */
+  paymentMix: Array<{ mode: string; code: string; amountPaise: number }>;
+  /** `doctorId` is the doctor profile, for the click-through to the report. */
+  topDoctors: Array<{ doctor: string; doctorId: string; visits: number }>;
   vitals: { waiting: number; recordedToday: number } | null;
   doctor: { myWaiting: number; mySeenToday: number } | null;
   pendingApprovals: number | null;
@@ -128,21 +130,31 @@ export class DashboardService {
       const payments = money
         ? await tx.payment.findMany({
             where: { tenantId: actor.tenantId, branchId: inScope, paidAt: { gte: since } },
-            select: { amountPaise: true, paidAt: true, paymentMode: { select: { name: true } } },
+            select: {
+              amountPaise: true,
+              paidAt: true,
+              paymentMode: { select: { name: true, code: true } },
+            },
           })
         : [];
       const collectionByDay = new Map<string, number>();
-      const mix = new Map<string, number>();
+      const mix = new Map<string, { name: string; amountPaise: number }>();
       for (const p of payments) {
         const key = dayKey(p.paidAt);
         collectionByDay.set(key, (collectionByDay.get(key) ?? 0) + p.amountPaise);
-        mix.set(p.paymentMode.name, (mix.get(p.paymentMode.name) ?? 0) + p.amountPaise);
+        const code = p.paymentMode.code;
+        mix.set(code, {
+          name: p.paymentMode.name,
+          amountPaise: (mix.get(code)?.amountPaise ?? 0) + p.amountPaise,
+        });
       }
 
-      const perDoctor = new Map<string, number>();
+      const perDoctor = new Map<string, { name: string; visits: number }>();
       for (const v of visits) {
-        const name = v.doctor.user.displayName;
-        perDoctor.set(name, (perDoctor.get(name) ?? 0) + 1);
+        perDoctor.set(v.doctorProfileId, {
+          name: v.doctor.user.displayName,
+          visits: (perDoctor.get(v.doctorProfileId)?.visits ?? 0) + 1,
+        });
       }
 
       let vitals: DashboardSummary['vitals'] = null;
@@ -193,10 +205,10 @@ export class DashboardService {
           collectionPaise: money ? (collectionByDay.get(date) ?? 0) : null,
         })),
         paymentMix: [...mix]
-          .map(([mode, amountPaise]) => ({ mode, amountPaise }))
+          .map(([code, m]) => ({ mode: m.name, code, amountPaise: m.amountPaise }))
           .sort((a, b) => b.amountPaise - a.amountPaise),
         topDoctors: [...perDoctor]
-          .map(([doctor, count]) => ({ doctor, visits: count }))
+          .map(([doctorId, d]) => ({ doctor: d.name, doctorId, visits: d.visits }))
           .sort((a, b) => b.visits - a.visits)
           .slice(0, 5),
         vitals,

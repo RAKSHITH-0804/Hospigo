@@ -27,14 +27,17 @@ function Kpi({
   value,
   icon: Icon,
   tone,
+  href,
 }: {
   label: string;
   value: string | number;
   icon: LucideIcon;
   tone: string;
+  /** Where the block leads; none when the person may not open that screen. */
+  href?: string;
 }) {
-  return (
-    <div className={`kpi-card ${tone}`}>
+  const body = (
+    <>
       <span className="icon-tile icon-tile-solid">
         <Icon aria-hidden="true" />
       </span>
@@ -42,7 +45,14 @@ function Kpi({
         <p className="kpi-label">{label}</p>
         <p className="kpi-value">{value}</p>
       </div>
-    </div>
+    </>
+  );
+  return href ? (
+    <Link href={href} className={`kpi-card kpi-link ${tone}`}>
+      {body}
+    </Link>
+  ) : (
+    <div className={`kpi-card ${tone}`}>{body}</div>
   );
 }
 
@@ -113,7 +123,17 @@ const shortDay = (d: string) => d.slice(5);
  * Real numbers for the active branch from /dashboard/summary (counted from stored rows; a block the
  * person may not see is simply not sent). Skeleton while loading, plain message on failure or no data.
  */
-export function DashboardInsights({ allBranches = false }: { allBranches?: boolean }) {
+export function DashboardInsights({
+  allBranches = false,
+  permissions = [],
+}: {
+  allBranches?: boolean;
+  /** What the person may open: a block or chart is a link only when its screen is open to them. */
+  permissions?: readonly string[];
+}) {
+  const can = (code: string) => permissions.includes(code);
+  const toQueue = can('opd.queue.read') ? '/app/opd' : undefined;
+  const toReport = can('opd.reports.read') ? '/app/opd/reports' : undefined;
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -163,10 +183,22 @@ export function DashboardInsights({ allBranches = false }: { allBranches?: boole
     <section className="dash-insights" aria-label={copy.title}>
       <div className="kpi-grid">
         {s.queue ? (
-          <Kpi label={copy.visitsToday} value={data.today.visits} icon={Users} tone="tone-blue" />
+          <Kpi
+            label={copy.visitsToday}
+            value={data.today.visits}
+            icon={Users}
+            tone="tone-blue"
+            href={toQueue}
+          />
         ) : null}
         {s.queue ? (
-          <Kpi label={copy.waiting} value={data.today.waiting} icon={Clock} tone="tone-amber" />
+          <Kpi
+            label={copy.waiting}
+            value={data.today.waiting}
+            icon={Clock}
+            tone="tone-amber"
+            href={toQueue}
+          />
         ) : null}
         {s.queue ? (
           <Kpi
@@ -174,6 +206,7 @@ export function DashboardInsights({ allBranches = false }: { allBranches?: boole
             value={data.today.completed}
             icon={CheckCircle2}
             tone="tone-green"
+            href={toQueue}
           />
         ) : null}
         <Kpi
@@ -181,6 +214,7 @@ export function DashboardInsights({ allBranches = false }: { allBranches?: boole
           value={data.today.registrations}
           icon={UserPlus}
           tone="tone-violet"
+          href={can('patients.registry.read') ? '/app/patients' : undefined}
         />
         {s.money && data.today.collectionPaise !== null ? (
           <Kpi
@@ -188,6 +222,7 @@ export function DashboardInsights({ allBranches = false }: { allBranches?: boole
             value={formatPaise(data.today.collectionPaise)}
             icon={IndianRupee}
             tone="tone-teal"
+            href={toReport}
           />
         ) : null}
         {s.vitals && data.vitals ? (
@@ -196,6 +231,7 @@ export function DashboardInsights({ allBranches = false }: { allBranches?: boole
             value={data.vitals.waiting}
             icon={HeartPulse}
             tone="tone-rose"
+            href={toQueue}
           />
         ) : null}
         {s.doctor && data.doctor ? (
@@ -205,12 +241,14 @@ export function DashboardInsights({ allBranches = false }: { allBranches?: boole
               value={data.doctor.myWaiting}
               icon={Clock}
               tone="tone-amber"
+              href={toQueue}
             />
             <Kpi
               label={copy.mySeen}
               value={data.doctor.mySeenToday}
               icon={CheckCircle2}
               tone="tone-green"
+              href={toQueue}
             />
           </>
         ) : null}
@@ -220,6 +258,7 @@ export function DashboardInsights({ allBranches = false }: { allBranches?: boole
             value={data.pendingApprovals}
             icon={ShieldAlert}
             tone="tone-orange"
+            href={can('opd.refunds.approve') ? '/app/opd/refunds' : undefined}
           />
         ) : null}
       </div>
@@ -235,6 +274,7 @@ export function DashboardInsights({ allBranches = false }: { allBranches?: boole
               values={data.trend.map((t) => t.visits)}
               labels={days}
               label={copy.visitsTrend}
+              hrefs={data.trend.map((t) => (toReport ? `${toReport}?date=${t.date}` : undefined))}
             />
           </div>
           {s.money ? (
@@ -244,6 +284,7 @@ export function DashboardInsights({ allBranches = false }: { allBranches?: boole
                 values={data.trend.map((t) => t.collectionPaise ?? 0)}
                 labels={days}
                 label={copy.collectionTrend}
+                hrefs={data.trend.map((t) => (toReport ? `${toReport}?date=${t.date}` : undefined))}
               />
             </div>
           ) : null}
@@ -252,14 +293,28 @@ export function DashboardInsights({ allBranches = false }: { allBranches?: boole
               <p>{copy.paymentMix}</p>
               <div className="chart-donut-row">
                 <Donut
-                  slices={data.paymentMix.map((m) => ({ name: m.mode, value: m.amountPaise }))}
+                  slices={data.paymentMix.map((m) => ({
+                    name: m.mode,
+                    value: m.amountPaise,
+                    href: toReport
+                      ? `${toReport}?paymentMode=${encodeURIComponent(m.code)}`
+                      : undefined,
+                  }))}
                   label={copy.paymentMix}
                 />
                 <ul className="chart-legend type-label">
                   {data.paymentMix.map((m, i) => (
                     <li key={m.mode}>
                       <span className={`chart-dot ${sliceClass(i)}`} aria-hidden="true" />
-                      {m.mode} · {formatPaise(m.amountPaise)}
+                      {toReport ? (
+                        <Link href={`${toReport}?paymentMode=${encodeURIComponent(m.code)}`}>
+                          {m.mode} · {formatPaise(m.amountPaise)}
+                        </Link>
+                      ) : (
+                        <>
+                          {m.mode} · {formatPaise(m.amountPaise)}
+                        </>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -271,8 +326,16 @@ export function DashboardInsights({ allBranches = false }: { allBranches?: boole
               <p>{copy.topDoctors}</p>
               <ol className="chart-legend type-label">
                 {data.topDoctors.map((d) => (
-                  <li key={d.doctor}>
-                    {d.doctor} · {d.visits}
+                  <li key={d.doctorId}>
+                    {toReport ? (
+                      <Link href={`${toReport}?doctor=${encodeURIComponent(d.doctorId)}`}>
+                        {d.doctor} · {d.visits}
+                      </Link>
+                    ) : (
+                      <>
+                        {d.doctor} · {d.visits}
+                      </>
+                    )}
                   </li>
                 ))}
               </ol>
