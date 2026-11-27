@@ -121,7 +121,7 @@ async function defaultPaperOf(tx: TenantTx, tenantId: string): Promise<DefaultPa
     : 'A5';
 }
 
-function effective(
+export function effective(
   docType: PrintDocType,
   input: PrintTemplateInput,
   scope: 'BRANCH' | 'HOSPITAL' | 'DEFAULT',
@@ -216,7 +216,43 @@ export class PrintTemplatesService {
     from?: { libraryTemplateId: string },
   ): Promise<EffectiveTemplate> {
     await this.assertMayChange(actor, scope, from ? 'print.templates.choose' : undefined);
-    const input = validateTemplate(docType, body);
+    return this.persist(actor, docType, validateTemplate(docType, body), scope, from);
+  }
+
+  /**
+   * Phase 2.2: HQ sets the active design of a hospital WITHOUT entering it (called through the tenant
+   * door, so row level security still applies). The permission was checked by the HQ service. The row
+   * needs a user of the hospital as its technical owner (the Super Admin); the audit entry names the
+   * HQ person instead (no hospital user acted).
+   */
+  saveForHq(
+    actor: Actor,
+    docType: PrintDocType,
+    input: PrintTemplateInput,
+    scope: PrintScope,
+    libraryTemplateId: string,
+    hqUserId: string,
+  ): Promise<EffectiveTemplate> {
+    return this.persist(
+      actor,
+      docType,
+      validateTemplate(docType, input),
+      scope,
+      {
+        libraryTemplateId,
+      },
+      hqUserId,
+    );
+  }
+
+  private async persist(
+    actor: Actor,
+    docType: PrintDocType,
+    input: PrintTemplateInput,
+    scope: PrintScope,
+    from?: { libraryTemplateId: string },
+    viaHq?: string,
+  ): Promise<EffectiveTemplate> {
     const branchId = scope === 'branch' ? actor.branchId : null;
     return this.tenantDb.withTenant(async (tx) => {
       const where = { tenantId: actor.tenantId, branchId, docType, retiredAt: null };
@@ -260,7 +296,7 @@ export class PrintTemplatesService {
       await tx.auditLog.create({
         data: {
           tenantId: actor.tenantId,
-          actorUserId: actor.userId,
+          actorUserId: viaHq ? null : actor.userId,
           branchId: actor.branchId,
           action: PRINT_TEMPLATE_AUDIT.updated,
           entityType: 'print_template',
@@ -271,6 +307,7 @@ export class PrintTemplatesService {
             scope,
             created,
             changed,
+            ...(viaHq ? { hqUserId: viaHq } : {}),
             ...(from ? { libraryTemplateId: from.libraryTemplateId } : {}),
           },
         },

@@ -18,6 +18,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthenticatedOnly } from '../access/permission.decorators';
 import { TokenKinds } from '../auth/token-kinds.decorator';
 import type { AccessClaims, HqAccessClaims } from '../auth/token.types';
+import { HqPrintService } from './hq-print.service';
 import { IndigoLibraryService, LIBRARY_LIMITS } from './indigo-library.service';
 import { IndigoSetupService } from './indigo-setup.service';
 
@@ -36,6 +37,7 @@ export class IndigoLibraryController {
   constructor(
     private readonly library: IndigoLibraryService,
     private readonly setup: IndigoSetupService,
+    private readonly print: HqPrintService,
   ) {}
 
   @Get('library')
@@ -167,5 +169,43 @@ export class IndigoLibraryController {
   })
   starter(@Req() req: HttpReq, @Param('id') id: string) {
     return this.setup.runStarter(hqId(req), id);
+  }
+
+  @Get('library/templates/:id')
+  @AuthenticatedOnly()
+  @ApiOperation({ summary: 'One library template, as the designer loads it' })
+  libraryTemplate(@Req() req: HttpReq, @Param('id') id: string) {
+    return this.print.libraryTemplate(hqId(req), id);
+  }
+
+  @Put('library/templates/:id')
+  @HttpCode(200)
+  @AuthenticatedOnly()
+  @ApiOperation({ summary: 'Save the designer changes into a library template' })
+  saveLibraryTemplate(@Req() req: HttpReq, @Param('id') id: string, @Body() body: unknown) {
+    return this.print.saveLibraryTemplate(hqId(req), id, body);
+  }
+
+  @Get('hospitals/:id/print')
+  @AuthenticatedOnly()
+  @ApiOperation({ summary: 'The active designs and the logo state of a hospital' })
+  activePrint(@Req() req: HttpReq, @Param('id') id: string) {
+    return this.print.active(hqId(req), id);
+  }
+
+  @Put('hospitals/:id/print-design')
+  @HttpCode(200)
+  @AuthenticatedOnly()
+  @ApiOperation({ summary: 'Set the active design of a hospital or branch (no entry)' })
+  activateDesign(@Req() req: HttpReq, @Param('id') id: string, @Body() body: unknown) {
+    return this.print.activateDesign(hqId(req), id, body);
+  }
+
+  @Put('hospitals/:id/logo')
+  @HttpCode(200)
+  @AuthenticatedOnly()
+  @ApiOperation({ summary: 'Set the logo of a hospital from the library (no entry)' })
+  setLogo(@Req() req: HttpReq, @Param('id') id: string, @Body() body: unknown) {
+    return this.print.setLogo(hqId(req), id, body);
   }
 }

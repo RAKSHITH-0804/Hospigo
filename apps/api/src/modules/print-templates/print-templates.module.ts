@@ -12,6 +12,7 @@ import { PrintValuesService } from './print-values.service';
 @Module({
   imports: [AccessModule, ImagesModule],
   controllers: [PrintTemplatesController, PrintValuesController, PrintLibraryController],
+  exports: [PrintTemplatesService],
   providers: [
     { provide: CLOCK, useClass: SystemClock },
     PrintTemplatesService,
