@@ -1,3 +1,14 @@
+import {
+  ArrowRight,
+  FileBarChart,
+  ListChecks,
+  ReceiptText,
+  Search,
+  Settings,
+  Stethoscope,
+  UserPlus,
+  type LucideIcon,
+} from 'lucide-react';
 import Link from 'next/link';
 import { staffCopy } from '@/config/staff-copy';
 import { hospitalHour } from '@/lib/format-datetime';
@@ -5,6 +16,18 @@ import { hospitalHour } from '@/lib/format-datetime';
 const copy = staffCopy.dashboard;
 
 type QuickLink = { id: keyof typeof copy.links; href: string; permission: string };
+
+/** Each place to go has its own icon and colour, so people find it by sight. */
+const LOOK: Record<keyof typeof copy.links, { icon: LucideIcon; tone: string }> = {
+  register: { icon: UserPlus, tone: 'tone-green' },
+  patients: { icon: Search, tone: 'tone-blue' },
+  queue: { icon: ListChecks, tone: 'tone-amber' },
+  refunds: { icon: ReceiptText, tone: 'tone-rose' },
+  tests: { icon: Stethoscope, tone: 'tone-violet' },
+  report: { icon: FileBarChart, tone: 'tone-teal' },
+  settings: { icon: Settings, tone: 'tone-sky' },
+  profile: { icon: Stethoscope, tone: 'tone-orange' },
+};
 
 /** Everything a person can start from the dashboard, in this order. Each one needs its permission. */
 const LINKS: readonly QuickLink[] = [
@@ -45,11 +68,14 @@ export function QuickLinks({
   const links = quickLinksFor(permissions);
   return (
     <section className="section-stack" aria-label={copy.title}>
-      <div>
-        <h1 className="type-title font-semibold text-foreground">{greetingFor(displayName)}</h1>
-        <p className="type-label text-muted-foreground">
-          {branchName} · {hospitalName}
-        </p>
+      <div className="page-hero">
+        <div className="flex flex-col gap-[var(--space-2)]">
+          <h1>{greetingFor(displayName)}</h1>
+          <div className="flex flex-wrap gap-[var(--space-2)]">
+            <span className="hero-chip">{branchName}</span>
+            <span className="hero-chip">{hospitalName}</span>
+          </div>
+        </div>
       </div>
       {links.length === 0 ? (
         <p className="type-label text-muted-foreground">{copy.nothingYet}</p>
@@ -57,11 +83,22 @@ export function QuickLinks({
         <ul className="dashboard-links">
           {links.map((link) => (
             <li key={link.id}>
-              <Link href={link.href} className="dashboard-link">
-                <span className="type-label-strong">{copy.links[link.id].title}</span>
-                <span className="type-small text-muted-foreground">
-                  {copy.links[link.id].description}
+              <Link href={link.href} className={`dashboard-link ${LOOK[link.id].tone}`}>
+                <span className="icon-tile icon-tile-solid">
+                  {(() => {
+                    const Icon = LOOK[link.id].icon;
+                    return <Icon aria-hidden="true" />;
+                  })()}
                 </span>
+                <span className="link-text">
+                  <span className="type-body font-semibold text-foreground">
+                    {copy.links[link.id].title}
+                  </span>
+                  <span className="type-label text-muted-foreground">
+                    {copy.links[link.id].description}
+                  </span>
+                </span>
+                <ArrowRight className="link-arrow size-5" aria-hidden="true" />
               </Link>
             </li>
           ))}

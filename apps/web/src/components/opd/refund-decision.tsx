@@ -123,6 +123,7 @@ export function RefundDecision({
       <div className="flex flex-wrap gap-[var(--space-2)]">
         <Button
           type="button"
+          variant="success"
           className="touch-target"
           aria-label={fill(copy.approveLabel, { amount: amountText })}
           onClick={() => setMode('approve')}
@@ -131,7 +132,7 @@ export function RefundDecision({
         </Button>
         <Button
           type="button"
-          variant="outline"
+          variant="danger"
           className="touch-target"
           aria-label={fill(copy.rejectLabel, { amount: amountText })}
           onClick={() => setMode('reject')}
@@ -185,6 +186,7 @@ export function RefundDecision({
       <div className="flex flex-wrap gap-[var(--space-2)]">
         <Button
           type="submit"
+          variant={approving ? 'success' : 'danger'}
           className="touch-target"
           disabled={submitting || (approving ? !refsReady : note.trim() === '')}
           aria-busy={submitting}

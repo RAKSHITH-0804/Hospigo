@@ -1,3 +1,4 @@
+import { Activity, Building2, Users } from 'lucide-react';
 import Link from 'next/link';
 import { EmptyState } from '@/components/states/empty-state';
 import { Badge } from '@/components/ui/badge';
@@ -30,43 +31,63 @@ export function HqHome({
   const byHospital = new Map((counts ?? []).map((c) => [c.hospitalId, c]));
   return (
     <div className="section-stack content-container-inner">
-      <div className="cluster-between">
-        <h1 className="type-heading font-medium">{copy.homeTitle}</h1>
+      <div className="page-hero">
+        <div className="flex flex-col gap-[var(--space-2)]">
+          <h1>{copy.homeTitle}</h1>
+          <p>{copy.countsHint}</p>
+        </div>
         {overview.canManage ? (
-          <Link href="/admin/onboard" className={cn(buttonVariants(), 'touch-target')}>
+          <Link
+            href="/admin/onboard"
+            className={cn(buttonVariants({ variant: 'outline' }), 'touch-target')}
+          >
             {consoleCopy.navOnboard}
           </Link>
         ) : null}
       </div>
       <div className="kpi-grid">
-        <div className="kpi-card">
-          <p className="kpi-label">{copy.kpiHospitals}</p>
-          <p className="kpi-value">{overview.items.length}</p>
+        <div className="kpi-card tone-blue">
+          <span className="icon-tile icon-tile-solid">
+            <Building2 aria-hidden="true" />
+          </span>
+          <div className="kpi-text">
+            <p className="kpi-label">{copy.kpiHospitals}</p>
+            <p className="kpi-value">{overview.items.length}</p>
+          </div>
         </div>
         {staffCount !== null ? (
-          <div className="kpi-card">
-            <p className="kpi-label">{copy.kpiStaff}</p>
-            <p className="kpi-value">{staffCount}</p>
+          <div className="kpi-card tone-violet">
+            <span className="icon-tile icon-tile-solid">
+              <Users aria-hidden="true" />
+            </span>
+            <div className="kpi-text">
+              <p className="kpi-label">{copy.kpiStaff}</p>
+              <p className="kpi-value">{staffCount}</p>
+            </div>
           </div>
         ) : null}
         {health ? (
-          <div className="kpi-card">
-            <p className="kpi-label">{copy.kpiHealth}</p>
-            <p className="kpi-value">
-              {health.status === 'ok' ? copy.healthOk : copy.healthDegraded}
-            </p>
-            <p className="type-small text-muted-foreground">
-              {fill(copy.healthLine, {
-                api: health.api,
-                database: health.database,
-                storage: health.storage,
-                migrations: health.migrations,
-              })}
-            </p>
+          <div className={`kpi-card ${health.status === 'ok' ? 'tone-green' : 'tone-rose'}`}>
+            <span className="icon-tile icon-tile-solid">
+              <Activity aria-hidden="true" />
+            </span>
+            <div className="kpi-text">
+              <p className="kpi-label">{copy.kpiHealth}</p>
+              <p className="type-body font-bold text-foreground">
+                {health.status === 'ok' ? copy.healthOk : copy.healthDegraded}
+              </p>
+              <p className="type-small text-muted-foreground">
+                {fill(copy.healthLine, {
+                  api: health.api,
+                  database: health.database,
+                  storage: health.storage,
+                  migrations: health.migrations,
+                })}
+              </p>
+            </div>
           </div>
         ) : null}
       </div>
-      <p className="type-small text-muted-foreground">{copy.countsHint}</p>
       {overview.items.length === 0 ? (
         <EmptyState
           title={staffCopy.admin.indigo.emptyTitle}

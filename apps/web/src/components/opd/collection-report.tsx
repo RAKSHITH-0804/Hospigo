@@ -35,7 +35,7 @@ function TestsTable({ rows }: { rows: DailyCollectionReport['byTest'] }) {
     return null;
   }
   return (
-    <section className="report-section" aria-label={copy.byTest}>
+    <section className="report-section tone-orange" aria-label={copy.byTest}>
       <h2 className="type-heading font-semibold">{copy.byTest}</h2>
       <p className="type-small text-muted-foreground">{copy.testsNote}</p>
       <div className="report-table-wrap">
@@ -65,6 +65,7 @@ function TestsTable({ rows }: { rows: DailyCollectionReport['byTest'] }) {
 }
 
 function RowsTable({
+  tone = 'tone-blue',
   title,
   rows,
   showVisits,
@@ -74,13 +75,14 @@ function RowsTable({
   rows: CollectionRow[];
   showVisits?: boolean;
   nameOf?: (row: CollectionRow) => string;
+  tone?: string;
 }) {
   if (rows.length === 0) {
     return null;
   }
   return (
-    <section className="report-section" aria-label={title}>
-      <h2 className="type-heading font-semibold">{title}</h2>
+    <section className={`report-section ${tone}`} aria-label={title}>
+      <h2 className="type-heading font-bold">{title}</h2>
       <div className="report-table-wrap">
         <table className="report-table">
           <thead>
@@ -124,14 +126,16 @@ function Tile({
   label,
   value,
   note,
+  tone,
 }: {
   testId: string;
+  tone: string;
   label: string;
   value: string | number;
   note: string;
 }) {
   return (
-    <div className="report-tile" data-testid={testId}>
+    <div className={`report-tile ${tone}`} data-testid={testId}>
       <span className="type-label text-muted-foreground">{label}</span>
       <span className="report-tile-value">{value}</span>
       <span className="type-small text-muted-foreground">{note}</span>
@@ -197,24 +201,28 @@ export function CollectionReport({
           <div className="report-tiles">
             <Tile
               testId="tile-collected"
+              tone="tone-green"
               label={copy.collected}
               value={formatPaise(totals.collectedPaise)}
               note={fill(copy.payments, { count: totals.payments })}
             />
             <Tile
               testId="tile-refunded"
+              tone="tone-rose"
               label={copy.refunded}
               value={formatPaise(totals.refundedPaise)}
               note={fill(copy.refundsCount, { count: totals.refunds })}
             />
             <Tile
               testId="tile-net"
+              tone="tone-blue"
               label={copy.net}
               value={formatPaise(totals.netPaise)}
               note={fill(copy.bills, { count: counts.bills })}
             />
             <Tile
               testId="tile-visits"
+              tone="tone-violet"
               label={copy.visits}
               value={counts.visits}
               note={fill(copy.visitsCancelled, { count: counts.visitsCancelled })}
@@ -236,14 +244,20 @@ export function CollectionReport({
           )}
 
           <div className="report-sections">
-            <RowsTable title={copy.byMode} rows={report.byMode} />
-            <RowsTable title={copy.byDoctor} rows={report.byDoctor} showVisits />
+            <RowsTable title={copy.byMode} rows={report.byMode} tone="tone-green" />
+            <RowsTable title={copy.byDoctor} rows={report.byDoctor} showVisits tone="tone-blue" />
             <RowsTable
               title={copy.byDepartment}
               rows={report.byDepartment}
               nameOf={departmentName}
+              tone="tone-violet"
             />
-            <RowsTable title={copy.byBillType} rows={report.byBillType} nameOf={billTypeName} />
+            <RowsTable
+              title={copy.byBillType}
+              rows={report.byBillType}
+              nameOf={billTypeName}
+              tone="tone-teal"
+            />
             {report.combined ? (
               <RowsTable title={copy.byBranch} rows={report.byBranch} showVisits />
             ) : null}

@@ -38,16 +38,13 @@ export function DataTable<T extends { id: string }>({
   stackOnPhone?: boolean;
 }) {
   return (
-    <div className="w-full overflow-x-auto">
+    <div className="ui-table-wrap w-full overflow-x-auto">
       <table
-        className={cn(
-          'w-full border-collapse text-left',
-          stackOnPhone ? 'data-table-stack' : undefined,
-        )}
+        className={cn('ui-table w-full text-left', stackOnPhone ? 'data-table-stack' : undefined)}
         aria-label={ariaLabel}
       >
         {caption ? <caption className="sr-only">{caption}</caption> : null}
-        <thead className="bg-[var(--table-header)]">
+        <thead>
           <tr>
             {columns.map((col) => {
               const ariaSort =

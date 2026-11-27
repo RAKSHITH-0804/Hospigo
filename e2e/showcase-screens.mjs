@@ -115,6 +115,8 @@ for (const code of ONLY) {
     if (role === 'SUPER_ADMIN') {
       for (const [name, route] of [
         ['queue', '/app/opd'],
+        ['refunds', '/app/opd/refunds'],
+        ['report', '/app/opd/reports'],
         ['patients', '/app/patients'],
         ['visit-new', '/app/patients/new'],
         ['settings', '/app/settings'],

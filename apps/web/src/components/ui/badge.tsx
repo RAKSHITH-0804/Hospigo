@@ -18,6 +18,7 @@ export const Badge = forwardRef<
   return (
     <span
       ref={ref}
+      data-slot="badge"
       className={cn(
         'inline-flex items-center rounded-full px-[var(--space-3)] py-[var(--space-1)] type-small font-medium',
         VARIANT_CLASS[variant],

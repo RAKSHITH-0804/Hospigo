@@ -35,7 +35,15 @@ async function backdate(ownerUrl: string): Promise<void> {
   const client = new pg.Client({ connectionString: ownerUrl });
   await client.connect();
   const tenants = "SELECT id FROM hospitals WHERE code IN ('NANDAVANA', 'SAGARIKA')";
-  const tables = ['opd_visits', 'bills', 'receipts', 'payments', 'patients', 'visit_vitals'];
+  const tables = [
+    'opd_visits',
+    'bills',
+    'receipts',
+    'payments',
+    'patients',
+    'visit_vitals',
+    'ledger_entries',
+  ];
   try {
     await client.query('BEGIN');
     for (const t of tables) {
@@ -55,6 +63,13 @@ async function backdate(ownerUrl: string): Promise<void> {
     );
     await client.query(
       `UPDATE payments p SET paid_at = r.created_at, created_at = r.created_at FROM receipts r WHERE p.receipt_id = r.id AND p.tenant_id = r.tenant_id AND p.tenant_id IN (${tenants})`,
+    );
+    // the ledger must say the same day as the payment it records (the collection report checks it)
+    await client.query(
+      `UPDATE ledger_entries l SET posted_at = p.paid_at FROM payments p WHERE l.payment_id = p.id AND l.tenant_id = p.tenant_id AND l.tenant_id IN (${tenants})`,
+    );
+    await client.query(
+      `UPDATE ledger_entries l SET posted_at = b.created_at + interval '5 minutes' FROM bills b WHERE l.payment_id IS NULL AND l.bill_id = b.id AND l.tenant_id = b.tenant_id AND l.tenant_id IN (${tenants})`,
     );
     await client.query(
       `UPDATE visit_vitals t SET created_at = v.created_at + interval '15 minutes' FROM opd_visits v WHERE t.visit_id = v.id AND t.tenant_id = v.tenant_id AND t.tenant_id IN (${tenants})`,

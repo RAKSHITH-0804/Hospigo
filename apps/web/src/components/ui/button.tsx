@@ -7,9 +7,10 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/80',
+        default:
+          'bg-primary text-primary-foreground shadow-sm hover:bg-[color-mix(in_oklch,var(--primary),black_12%)]',
         outline:
-          'border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50',
+          'border-2 border-[color-mix(in_oklch,var(--primary),white_55%)] bg-card text-[color:var(--tone-blue-fg)] shadow-sm hover:border-primary hover:bg-[var(--tone-blue-bg)] aria-expanded:bg-[var(--tone-blue-bg)]',
         secondary:
           'bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground',
         ghost:
@@ -17,6 +18,10 @@ const buttonVariants = cva(
         destructive:
           'bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40',
         link: 'text-primary underline-offset-4 hover:underline',
+        success:
+          'bg-[var(--tone-green-solid)] text-white shadow-sm hover:bg-[color-mix(in_oklch,var(--tone-green-solid),black_12%)]',
+        danger:
+          'border-2 border-[var(--tone-rose-solid)] bg-card text-[color:var(--tone-rose-fg)] shadow-sm hover:bg-[var(--tone-rose-bg)]',
       },
       size: {
         default:

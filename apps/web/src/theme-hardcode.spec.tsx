@@ -21,7 +21,7 @@ function walk(dir: string, files: string[] = []): string[] {
 }
 
 function shouldScan(file: string): boolean {
-  if (file.endsWith('globals.css')) {
+  if (file.endsWith('globals.css') || file.endsWith('design.css')) {
     return false;
   }
   if (/\.spec\.(tsx|ts|jsx|js)$/.test(file)) {
@@ -31,7 +31,7 @@ function shouldScan(file: string): boolean {
 }
 
 describe('theme hardcoding guard', () => {
-  it('forbids hex colours, rgb(, and fixed px values outside globals.css', () => {
+  it('forbids hex colours, rgb(, and fixed px values outside globals.css and design.css (the theme files)', () => {
     const offenders: string[] = [];
 
     for (const root of SCAN_ROOTS) {
