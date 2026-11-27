@@ -1,9 +1,9 @@
 /* global document, window */
 /**
  * Step 2.1f: screenshots of every role's dashboard and of the sample prints of the two showcase
- * hospitals at 1920x1080, 1366x768 and 390x844. Run it against the stack on the showcase database:
+ * hospitals at 1920x1080, 1366x768 and 390x844. Run it against the dev servers on the database hospigo
+ * (npm run dev:reset, then both dev servers), with E2E_BASE_URL=http://127.0.0.1:3001:
  *
- *   npm run demo:stack            (leave it running in its own terminal)
  *   node e2e/showcase-screens.mjs
  *
  * Pictures go to e2e/.output/showcase/ (never committed). It also prints a line for every picture
@@ -36,7 +36,7 @@ const PASSWORDS = {
 };
 const ONLY = (process.env.SHOT_HOSPITALS || 'NANDAVANA,SAGARIKA').split(',');
 
-const db = new pg.Client({ connectionString: process.env.DATABASE_URL_OWNER_DEMO });
+const db = new pg.Client({ connectionString: process.env.DATABASE_URL_OWNER });
 await db.connect();
 
 async function people(code) {

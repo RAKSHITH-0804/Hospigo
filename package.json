@@ -18,9 +18,7 @@
     "e2e": "playwright test",
     "e2e:fresh": "node scripts/e2e-fresh.mjs",
     "e2e:stack": "node e2e/test-stack.mjs",
-    "demo:stack": "node e2e/demo-stack.mjs",
-    "demo:reset": "node scripts/demo-reset.mjs",
-    "showcase:dev": "cross-env-shell SHOWCASE_TARGET=dev NODE_ENV=development npm run prisma:seed-showcase -w @hospigo/api"
+    "dev:reset": "node scripts/dev-reset.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.57.0",

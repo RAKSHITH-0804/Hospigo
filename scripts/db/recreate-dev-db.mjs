@@ -1,19 +1,16 @@
 #!/usr/bin/env node
 /**
- * Step 2.1f: creates the separate SHOWCASE database `hospigo_demo` (idempotent), hardened like the
- * others, and adds DATABASE_URL_DEMO and DATABASE_URL_OWNER_DEMO to .env (the same users as the test
- * database, only the database name differs). It does not touch roles or passwords.
+ * Phase 2.2: drops and recreates the DEVELOPMENT database `hospigo` (called by npm run dev:reset),
+ * hardened like the others. Also drops the old showcase database `hospigo_demo` if it is still there.
+ * It does not touch roles or passwords and never touches hospigo_test.
  * Needs POSTGRES_SUPERUSER_URL in .env. Never prints a password.
- *
- * Usage (Git Bash or PowerShell): node scripts/db/create-demo-db.mjs
- * Then: migrate it and seed it (see docs/guides/dev-commands.md, "Showcase database").
  */
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
 
-const DB = 'hospigo_demo';
+const DB = 'hospigo';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const envPath = path.join(root, '.env');
 const lines = fs.readFileSync(envPath, 'utf8').split(/\r?\n/);
@@ -28,18 +25,19 @@ const need = (k) => {
   }
   return env[k];
 };
-const swapDb = (url) => {
-  const u = new URL(url);
-  u.pathname = `/${DB}`;
-  return u.toString();
-};
 const quote = (s) => `"${s.replace(/"/g, '""')}"`;
 
+for (const key of ['DATABASE_URL', 'DATABASE_URL_OWNER']) {
+  if (new URL(need(key)).pathname !== `/${DB}`) {
+    throw new Error(`${key} must point at the database ${DB}`);
+  }
+}
 const superUrl = need('POSTGRES_SUPERUSER_URL');
 const client = new pg.Client({ connectionString: superUrl, connectionTimeoutMillis: 8000 });
 await client.connect();
-if (process.argv.includes('--reset')) {
-  // drop it completely (demo:reset): every demo hospital and all its history goes
+{
+  // drop both completely: every hospital in them and all its history goes
+  await client.query(`DROP DATABASE IF EXISTS "hospigo_demo" WITH (FORCE)`);
   await client.query(`DROP DATABASE IF EXISTS ${quote(DB)} WITH (FORCE)`);
   console.log(`dropped_database ${DB}`);
 }
@@ -74,13 +72,3 @@ for (const role of ['hospigo_owner', 'hospigo_app', 'hospigo_hq', 'hospigo_patie
 }
 await client.end();
 console.log(`hardened ${DB}`);
-
-const updates = {
-  DATABASE_URL_DEMO: swapDb(need('DATABASE_URL_TEST')),
-  DATABASE_URL_OWNER_DEMO: swapDb(need('DATABASE_URL_OWNER_TEST')),
-};
-const kept = lines.filter((l) => !Object.keys(updates).some((k) => l.startsWith(`${k}=`)));
-while (kept.length && kept[kept.length - 1] === '') kept.pop();
-for (const [k, v] of Object.entries(updates)) kept.push(`${k}=${v}`);
-fs.writeFileSync(envPath, `${kept.join('\n')}\n`);
-console.log('DATABASE_URL_DEMO and DATABASE_URL_OWNER_DEMO written to .env (not printed).');

@@ -18,8 +18,7 @@ import { config as loadEnv } from 'dotenv';
 const here = path.dirname(fileURLToPath(import.meta.url));
 loadEnv({ path: path.resolve(here, '..', '.env') });
 
-// STACK_DB=hospigo_demo starts the same stack on the showcase database (docs/guides/dev-commands.md).
-const STACK_DB = process.env.STACK_DB === 'hospigo_demo' ? 'hospigo_demo' : 'hospigo_test';
+const STACK_DB = 'hospigo_test';
 
 function testUrl(key, fallbackKey) {
   const raw = process.env[key] || (fallbackKey ? process.env[fallbackKey] : undefined);
