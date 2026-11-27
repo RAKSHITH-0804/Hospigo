@@ -1188,7 +1188,7 @@ const baseCopy = {
         email: 'Email address',
         emailHint: 'The activation link is sent here.',
         phone: 'Phone',
-        branches: 'Works in',
+        branches: 'Works in (for an Admin: the branches this Admin may operate)',
         roles: 'Roles',
         rolesHint: 'Tick one or more.',
         scopeTitle: 'Where each role applies',
@@ -2242,6 +2242,12 @@ const baseCopy = {
   },
   states: {
     retry: 'Retry',
+  },
+  allBranches: {
+    on: 'All my branches',
+    off: 'Only this branch',
+    note: 'Showing every branch you may see. To change something, switch to one branch.',
+    branchColumn: 'Branch',
   },
   admin: {
     hq: {

@@ -29,8 +29,13 @@ export function vitalsPath(visitId: string): string {
 export function loadQueue(
   signal?: AbortSignal,
   doctorProfileId?: string,
+  allBranches = false,
 ): Promise<PatientsApiResult<QueueResponse>> {
-  const query = doctorProfileId ? `?doctorProfileId=${encodeURIComponent(doctorProfileId)}` : '';
+  const parts = [
+    doctorProfileId ? `doctorProfileId=${encodeURIComponent(doctorProfileId)}` : '',
+    allBranches ? 'branch=ALL' : '',
+  ].filter(Boolean);
+  const query = parts.length > 0 ? `?${parts.join('&')}` : '';
   return patientsApi<QueueResponse>(`${OPD_QUEUE_API}${query}`, { signal });
 }
 

@@ -50,6 +50,7 @@ export function OpdQueue({
   canViewNotes,
   canRecordVitals,
   canRequestCancel = false,
+  allBranches = false,
 }: {
   initial: QueueResponse;
   refreshSeconds: number;
@@ -58,6 +59,8 @@ export function OpdQueue({
   canRecordVitals: boolean;
   /** Reception may ask to cancel a waiting visit (opd.refunds.request). */
   canRequestCancel?: boolean;
+  /** The combined view of every branch the person may read (Phase 2.2). */
+  allBranches?: boolean;
 }) {
   const [data, setData] = useState<QueueResponse>(initial);
   const [updatedAt, setUpdatedAt] = useState<Date>(() => new Date());
@@ -76,7 +79,7 @@ export function OpdQueue({
     }
     inFlight.current = true;
     setRefreshing(true);
-    const result = await loadQueue(undefined, doctorRef.current || undefined);
+    const result = await loadQueue(undefined, doctorRef.current || undefined, allBranches);
     inFlight.current = false;
     setRefreshing(false);
     if (result.ok) {
@@ -135,6 +138,7 @@ export function OpdQueue({
           <span className="type-label-strong">{v.patient.name}</span>
           <span className="type-small text-muted-foreground">
             {v.patient.uhid} · {genderLabel(v.patient.gender)} · {ageText(v.patient.ageYears)}
+            {v.branchName ? ` · ${v.branchName}` : ''}
           </span>
         </div>
       ),

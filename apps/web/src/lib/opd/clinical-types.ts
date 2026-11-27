@@ -30,12 +30,12 @@ export type ClinicalVisit = {
   doctor: { id: string; code: string; name: string };
 };
 
-export type QueueItem = ClinicalVisit & { vitalsRecorded: boolean };
+export type QueueItem = ClinicalVisit & { vitalsRecorded: boolean; branchName?: string | null };
 
 export type QueueResponse = {
   date: string;
   /** OWN: a doctor's own queue. BRANCH: the whole branch (a nurse). */
-  scope: 'OWN' | 'BRANCH';
+  scope: 'OWN' | 'BRANCH' | 'ALL';
   total: number;
   /** The doctors that have visits in the branch queue (empty for a doctor's own queue): the filter choices. */
   doctors: Array<{ id: string; name: string }>;

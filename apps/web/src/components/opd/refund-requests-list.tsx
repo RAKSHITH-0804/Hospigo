@@ -129,6 +129,15 @@ export function RefundRequestsList({
         </div>
       ),
     },
+    ...(data.items.some((r) => r.branchName)
+      ? [
+          {
+            id: 'branch',
+            header: staffCopy.allBranches.branchColumn,
+            cell: (r: RefundRequestView) => r.branchName ?? '',
+          },
+        ]
+      : []),
     { id: 'reason', header: copy.colReason, cell: (r) => r.reason },
     { id: 'by', header: copy.colAskedBy, cell: (r) => r.requestedBy.name },
     {

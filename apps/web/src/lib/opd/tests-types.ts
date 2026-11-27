@@ -73,6 +73,8 @@ export type RefundRequestType = 'REFUND' | 'CANCEL_VISIT';
 export type RefundRequestStatus = 'REQUESTED' | 'APPROVED' | 'REJECTED';
 
 export type RefundRequestView = {
+  /** Only in the combined view (All my branches). */
+  branchName?: string | null;
   id: string;
   type: RefundRequestType;
   status: RefundRequestStatus;

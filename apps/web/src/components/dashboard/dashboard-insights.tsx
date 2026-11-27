@@ -23,13 +23,13 @@ const shortDay = (d: string) => d.slice(5);
  * Real numbers for the active branch from /dashboard/summary (counted from stored rows; a block the
  * person may not see is simply not sent). Skeleton while loading, plain message on failure or no data.
  */
-export function DashboardInsights() {
+export function DashboardInsights({ allBranches = false }: { allBranches?: boolean }) {
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let stopped = false;
-    fetch('/api/staff/dashboard/summary', { cache: 'no-store' })
+    fetch(`/api/staff/dashboard/summary${allBranches ? '?branch=ALL' : ''}`, { cache: 'no-store' })
       .then(async (r) => {
         if (!r.ok) {
           throw new Error('bad');

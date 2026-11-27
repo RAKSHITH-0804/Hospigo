@@ -3,6 +3,7 @@ import { RefundRequestsList, type RefundFilter } from '@/components/opd/refund-r
 import { opdWebConfig } from '@/config/opd';
 import { staffCopy } from '@/config/staff-copy';
 import { requirePermission } from '@/lib/auth/guards';
+import { AllBranchesToggle } from '@/components/shell/all-branches-toggle';
 import { API_OPD_REFUND_REQUESTS } from '@/lib/opd/server';
 import type { RefundListResponse } from '@/lib/opd/tests-types';
 import { errorMessageFor } from '@/lib/patients/client';
@@ -26,6 +27,7 @@ export default async function RefundRequestsPage({
   const session = await requirePermission('opd.billing.read');
   const canDecide = session.permissions?.includes('opd.refunds.approve') ?? false;
   const query = (await searchParams) ?? {};
+  const all = query.branch === 'ALL' && session.canSwitchBranch === true;
 
   // Approvers start on the open requests; everyone else on all of them.
   const rawFilter = typeof query.status === 'string' ? query.status : undefined;
@@ -43,6 +45,7 @@ export default async function RefundRequestsPage({
 
   const list = await fetchStaffOnServer<RefundListResponse>(API_OPD_REFUND_REQUESTS, {
     ...(filter === 'ALL' ? {} : { status: filter }),
+    ...(all ? { branch: 'ALL' } : {}),
     page,
     pageSize: opdWebConfig.refundsPageSize,
   });
@@ -59,12 +62,19 @@ export default async function RefundRequestsPage({
   }
 
   return (
-    <RefundRequestsList
-      data={list.data}
-      filter={filter}
-      hrefFor={(f, p) => `/app/opd/refunds?status=${f}&${opdWebConfig.refundsPageParam}=${p}`}
-      canDecide={canDecide}
-      currentUserId={session.id ?? null}
-    />
+    <>
+      {session.canSwitchBranch === true ? (
+        <AllBranchesToggle href={`/app/opd/refunds?status=${filter}`} active={all} />
+      ) : null}
+      <RefundRequestsList
+        data={list.data}
+        filter={filter}
+        hrefFor={(f, p) =>
+          `/app/opd/refunds?status=${f}&${opdWebConfig.refundsPageParam}=${p}${all ? '&branch=ALL' : ''}`
+        }
+        canDecide={canDecide}
+        currentUserId={session.id ?? null}
+      />
+    </>
   );
 }
