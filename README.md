@@ -39,6 +39,8 @@ This repository is the npm workspaces monorepo for the API, web app, and shared 
 
 ## Getting started
 
+> Continuing the Phase 2 work on another laptop? Check out branch `feature/step-2-3-feedback` (it holds all stacked work; `develop` is older) and follow `docs/guides/new-laptop-setup.md`.
+
 1. Ask the repo owner to add you as a collaborator (the repo is private).
 2. Clone with Git (do not use a zip download):
 

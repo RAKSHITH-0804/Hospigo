@@ -55,7 +55,7 @@ Branch `feature/step-2-3-feedback` (from `feature/step-2-2c-ui-redesign`, not pu
 
 ## Round 2 (Rakshith's review of Part 1)
 
-- **Age and date of birth.** Registration shows ONE control: two buttons **Age** (default) and **Date of birth**, and one box. The sentences about estimating and "not sure of the date of birth" are gone. The date of birth opens the calendar properly (month and year lists, fixed width). Assumption: both kinds of entry stay (a baby or an exact date), but Age is the default.
+- **Age and date of birth.** Registration shows ONE control: two buttons **Date of birth** (default, first) and **Age**, and one box. The sentences about estimating and "not sure of the date of birth" are gone. The date of birth opens the calendar properly (month and year lists, fixed width). Assumption: both kinds of entry stay (a baby or an exact date), but Date of birth is the default (Rakshith, 28 Nov). The calendar opens in a fixed layer (`calendar-popover-fixed`), placed against the window, so no card edge cuts it off.
 - **Administration.** Staff edit and Add open in a pop-up window (like Roles). The action buttons sit in one row.
 - **Leave requests number.** `GET /opd/leave-requests/pending-count` (needs `opd.doctors.write`); the Administration menu item and the Leave requests button show a number badge, refreshed every 20 seconds like the refund requests, so an Admin sees at once when a doctor asks for leave.
 - **Graphs.** Labels are the day number ("14"), the full date is in the hover tip, so they fit under the bars and the line.

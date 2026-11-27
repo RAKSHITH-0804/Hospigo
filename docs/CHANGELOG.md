@@ -29,6 +29,11 @@
 
 ## Unreleased
 
+## 2026-11-28 — Phase 2.3 Part 1, round 2 and handover (branch `feature/step-2-3-feedback`, pushed)
+
+- **Changed:** Patient Register shows ONE age control, Date of birth is the default (then Age, years only); the calendar opens in a fixed layer so dates after 29 are never cut off; staff edit pop-up; leave-request number on the Administration menu; chart labels; print pages go back to the queue.
+- **Added:** `docs/guides/new-laptop-setup.md` (continue on another laptop and Claude account) and `docs/plans/phase-2-3-part2-performance.md` (next work: speed and load test). Nothing else changed in behaviour.
+
 ## 2026-11-27 — Phase 2.3 Part 1 — Rakshith's change list (branch `feature/step-2-3-feedback`, not pushed)
 
 - **Changed:** age is one number in years; own calendar with month and year; collapsed menu; View design in Print designs; better Quick view; dashboard without module tiles, compact Attention required, clickable blocks and graphs; Administration menu for Staff, Roles and Doctors; nurse vitals show saved values and lock when the consultation is completed; receipt without the middle payment amount.
