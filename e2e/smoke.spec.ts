@@ -21,7 +21,8 @@ async function registerPatient(page: Page, label: string): Promise<{ name: strin
   const name = `E2E ${label} ${stamp}${seq}`;
   await page.goto('/app/patients/new');
   await page.getByLabel('Full name *').fill(name);
-  await page.getByLabel('Date of birth').fill('1992-04-10');
+  await page.getByRole('button', { name: 'Age (not sure of the date of birth)' }).click();
+  await page.getByLabel('Age in years').fill('33');
   await page.getByLabel('Phone *').fill(`9${String(stamp + seq).slice(-9)}`);
   await page.getByRole('button', { name: 'Register', exact: true }).click();
   await page.waitForURL(/\/app\/patients\/(?!new)[a-z0-9]+$/);
@@ -135,7 +136,7 @@ test('the SuperAdmin switches branch and back', async ({ browser }) => {
   await expect(admin.getByRole('button', { name: 'Switch branch' })).toContainText('East Wing', {
     timeout: 20_000,
   });
-  await admin.goto('/app/settings/doctors');
+  await admin.goto('/app/administration/doctors');
   await expect(admin.getByRole('button', { name: 'Switch branch' })).toContainText('East Wing');
   // and back
   await admin.getByRole('button', { name: 'Switch branch' }).click();
