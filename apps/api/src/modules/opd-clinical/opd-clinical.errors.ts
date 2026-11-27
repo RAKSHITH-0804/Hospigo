@@ -10,6 +10,7 @@ export const ClinicalErrorCode = {
   VISIT_NOT_WAITING: 'VISIT_NOT_WAITING',
   /** Note, prescription, complete: the consultation has not been started (or is over). */
   VISIT_NOT_IN_CONSULTATION: 'VISIT_NOT_IN_CONSULTATION',
+  VISIT_NOT_COMPLETED: 'VISIT_NOT_COMPLETED',
   NOTE_NOT_FOUND: 'NOTE_NOT_FOUND',
   NOTE_ALREADY_COMPLETED: 'NOTE_ALREADY_COMPLETED',
   NOTE_EMPTY: 'NOTE_EMPTY',

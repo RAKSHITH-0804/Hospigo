@@ -40,6 +40,11 @@ const PERMISSIONS = [
   { code: 'opd.vitals.write', description: 'Record and correct visit vitals' },
   { code: 'opd.notes.read', description: 'Read consultation notes and prescriptions' },
   { code: 'opd.notes.write', description: 'Write consultation notes and prescriptions' },
+  {
+    code: 'opd.prints.clinical',
+    description:
+      'Print the prescription and the patient report of a COMPLETED visit (no notes screen)',
+  },
   { code: 'opd.investigations.order', description: 'Order tests during a consultation' },
   { code: 'opd.investigations.bill', description: 'See ordered tests and bill them' },
   { code: 'opd.refunds.request', description: 'Ask for a refund or a visit cancellation' },

@@ -684,6 +684,26 @@ export class ConsultationService {
     });
   }
 
+  /**
+   * Phase 2.3: what a person who may only PRINT (reception, nurse) gets: the note and the vitals of a
+   * COMPLETED visit of the branch. A visit that is not completed is refused, so nobody reads a draft
+   * through this route. It goes through the same read (and the same audit line) as the notes screen.
+   */
+  async printData<V>(
+    visitId: string,
+    actor: Actor,
+    readVitals: (visitId: string, actor: Actor) => Promise<V>,
+  ) {
+    const consultation = await this.getNote(visitId, actor);
+    if (
+      consultation.visit.status !== 'COMPLETED' ||
+      consultation.consultation?.status !== 'COMPLETED'
+    ) {
+      throw clinicalError(409, E.VISIT_NOT_COMPLETED, { status: consultation.visit.status });
+    }
+    return { consultation, vitals: await readVitals(visitId, actor) };
+  }
+
   // -------------------------------------------------------------------------------- helpers
 
   /** A doctor acts on their own visit: the profile, the row lock and the visit (404 otherwise). */

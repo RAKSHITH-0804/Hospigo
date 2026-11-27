@@ -70,7 +70,10 @@ const NURSE_PERMS = [
 ] as const;
 const DOCTOR_PERMS = [...NURSE_PERMS, 'opd.notes.write', 'patients.history.view_all'] as const;
 const AMEND_PERMS = ['opd.visits.read', 'opd.notes.read', 'opd.notes.amend'] as const;
-const ALL_CLINICAL = [...new Set([...RECEPTION_PERMS, ...DOCTOR_PERMS, ...AMEND_PERMS])];
+const PRINT_PERMS = ['opd.visits.read', 'opd.prints.clinical'] as const;
+const ALL_CLINICAL = [
+  ...new Set([...RECEPTION_PERMS, ...DOCTOR_PERMS, ...AMEND_PERMS, ...PRINT_PERMS]),
+];
 
 /** JSON bodies of the HTTP responses are checked field by field in these tests. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -210,6 +213,15 @@ describe('OPD clinical endpoints: queue, note, prescription, vitals (HTTP)', () 
       data: { tenantId: tenant, code: 'OLDMED', name: 'Old medicine', active: false },
     });
 
+    // the print-only permission (Phase 2.3) may not be in an older test catalog yet
+    await owner.permission.upsert({
+      where: { code: 'opd.prints.clinical' },
+      create: {
+        code: 'opd.prints.clinical',
+        description: 'Print the prescription and the patient report of a COMPLETED visit',
+      },
+      update: {},
+    });
     const perms = await owner.permission.findMany({ where: { code: { in: ALL_CLINICAL } } });
     if (perms.length !== ALL_CLINICAL.length) {
       throw new Error('Clinical permissions missing from the test catalog');
@@ -260,6 +272,7 @@ describe('OPD clinical endpoints: queue, note, prescription, vitals (HTTP)', () 
 
     await makeUser('recv', RECEPTION_PERMS, [main]);
     await makeUser('nurse', NURSE_PERMS, [main]);
+    await makeUser('printer', PRINT_PERMS, [main]);
     await makeUser('nurseEast', NURSE_PERMS, [east]);
     await makeUser('admin', ['opd.visits.read', 'opd.billing.read'], [main]);
     await makeUser('docNoProfile', DOCTOR_PERMS, [main]);
@@ -456,6 +469,34 @@ describe('OPD clinical endpoints: queue, note, prescription, vitals (HTTP)', () 
         }
       }
       expect((await get(A, 'recv', '/opd/queue')).status).toBe(200);
+    });
+
+    it('print-only access (Phase 2.3): the note and vitals of a COMPLETED visit, nothing else', async () => {
+      const draftId = await started(A);
+      // a visit that is not completed is refused, so a draft is never read this way
+      const early = await get(A, 'printer', `/opd/visits/${draftId}/print-data`);
+      expect(early.status).toBe(409);
+      expect(early.body.code).toBe('VISIT_NOT_COMPLETED');
+      await saveNote(A, 'doc1', draftId, { diagnosis: 'seen' });
+      await complete(A, 'doc1', draftId);
+      const ok = await get(A, 'printer', `/opd/visits/${draftId}/print-data`);
+      expect(ok.status).toBe(200);
+      expect(Object.keys(ok.body).sort()).toEqual(['consultation', 'vitals']);
+      expect(ok.body.consultation.visit.id).toBe(draftId);
+      // the notes screen, the writes and the vitals screen stay closed to this person
+      expect((await get(A, 'printer', `/opd/visits/${draftId}/consultation`)).status).toBe(403);
+      expect((await get(A, 'printer', `/opd/visits/${draftId}/vitals`)).status).toBe(403);
+      for (const [method, url] of [
+        ['put', `/opd/visits/${draftId}/consultation`],
+        ['post', `/opd/visits/${draftId}/complete`],
+        ['post', `/opd/visits/${draftId}/vitals`],
+      ]) {
+        expect((await call(method, url, as(A, 'printer'))).status).toBe(403);
+      }
+      // without the permission: refused; another hospital and another branch: not found
+      expect((await get(A, 'recv', `/opd/visits/${draftId}/print-data`)).status).toBe(403);
+      expect((await get(B, 'printer', `/opd/visits/${draftId}/print-data`)).status).toBe(404);
+      expect((await get(A, 'printer', '/opd/visits/no-such/print-data')).status).toBe(404);
     });
 
     it('a nurse reads and records vitals but cannot start, write notes or complete', async () => {

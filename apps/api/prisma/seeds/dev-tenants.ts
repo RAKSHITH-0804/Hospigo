@@ -281,6 +281,7 @@ async function seedOpdMasters(
       'opd.queue.read',
       'opd.investigations.bill',
       'opd.refunds.request',
+      'opd.prints.clinical',
     ],
     [OPD_ROLE_CODES.NURSE]: [
       'opd.masters.read',
@@ -290,6 +291,7 @@ async function seedOpdMasters(
       'opd.vitals.read',
       'opd.vitals.write',
       'opd.notes.read',
+      'opd.prints.clinical',
     ],
     [OPD_ROLE_CODES.DOCTOR]: [
       'opd.masters.read',

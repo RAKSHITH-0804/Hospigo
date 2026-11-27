@@ -112,6 +112,18 @@ export class OpdClinicalController {
     return this.consultations.getNote(id, actorOf(req));
   }
 
+  @Get('opd/visits/:id/print-data')
+  @RequirePermission('opd.prints.clinical', { module: 'OPD' })
+  @ApiOperation({
+    summary:
+      'The note and the vitals of a COMPLETED visit, only so the prescription and the patient report can be printed (Phase 2.3). Every read is audited.',
+  })
+  async printData(@Req() req: HttpReq, @Param('id') id: string) {
+    return this.consultations.printData(id, actorOf(req), (visitId, actor) =>
+      this.vitals.getForVisit(visitId, actor),
+    );
+  }
+
   @Put('opd/visits/:id/consultation')
   @HttpCode(200)
   @RequirePermission('opd.notes.write', { module: 'OPD' })

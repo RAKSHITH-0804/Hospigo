@@ -34,6 +34,7 @@ jest.mock('@/lib/patients/server', () => ({
     routes.has(path) ? routes.get(path) : { status: 'notFound' },
 }));
 jest.mock('@/lib/auth/guards', () => ({
+  requireKind: async () => sessionMock(),
   requirePermission: async (code: string) => {
     const session = await sessionMock();
     if (!session.permissions?.includes(code)) {
@@ -266,10 +267,31 @@ describe('prescription print page', () => {
   );
   const copy = staffCopy.print.prescription;
 
-  it('needs opd.notes.read', async () => {
+  it('needs opd.notes.read or the print permission', async () => {
     sessionMock.mockResolvedValue(session(['opd.visits.read']));
     await expect(PrescriptionPrintPage(idParams)).rejects.toThrow(
       'REDIRECT:/app?notice=no-permission',
+    );
+  });
+
+  it('a print-only person (reception) prints it through the print-data route', async () => {
+    sessionMock.mockResolvedValue(session(['opd.prints.clinical']));
+    routes.set(
+      '/opd/visits/p1/print-data',
+      ok({ consultation: completedConsult(), vitals: { fields: [] } }),
+    );
+    routes.set(
+      '/print-templates/PRESCRIPTION',
+      ok(
+        withFields(
+          makeTemplate('PRESCRIPTION', { paper: 'A5', pageWidthMm: 148, pageHeightMm: 210 }),
+          ['patientName'],
+        ),
+      ),
+    );
+    const { container } = render(await PrescriptionPrintPage(idParams));
+    expect(container.querySelector('style')?.textContent).toBe(
+      '@page { size: 148mm 210mm; margin: 0; }',
     );
   });
 
@@ -464,7 +486,7 @@ describe('patient report print page', () => {
   );
   const copy = staffCopy.print.patientReport;
 
-  it('needs opd.notes.read', async () => {
+  it('needs opd.notes.read or the print permission', async () => {
     sessionMock.mockResolvedValue(session(['opd.visits.read']));
     await expect(PatientReportPrintPage(idParams)).rejects.toThrow(
       'REDIRECT:/app?notice=no-permission',

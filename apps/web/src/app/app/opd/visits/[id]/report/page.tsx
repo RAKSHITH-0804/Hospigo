@@ -2,9 +2,8 @@ import type { Metadata } from 'next';
 import { PrintStage } from '@/components/print/print-sheet';
 import { EmptyState } from '@/components/states/empty-state';
 import { staffCopy } from '@/config/staff-copy';
-import { requirePermission } from '@/lib/auth/guards';
-import type { ConsultationResponse, VitalsResponse } from '@/lib/opd/clinical-types';
-import { apiConsultationPath, apiVisitTestsPath, apiVisitVitalsPath } from '@/lib/opd/server';
+import { fetchClinicalForPrint, requireClinicalPrint } from '@/lib/opd/print-access';
+import { apiVisitTestsPath } from '@/lib/opd/server';
 import type { VisitTestsResponse } from '@/lib/opd/tests-types';
 import { errorMessageFor } from '@/lib/patients/client';
 import { fetchStaffOnServer, serverErrorCode } from '@/lib/patients/server';
@@ -31,16 +30,13 @@ export default async function PatientReportPrintPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await requirePermission('opd.notes.read');
+  const session = await requireClinicalPrint();
   const { id } = await params;
   const permissions = session.permissions ?? [];
   const hospitalName = session.hospitalName?.trim() || staffCopy.brand;
 
-  const [consult, vitals, tests, templateResult, logoImageId, extraValues] = await Promise.all([
-    fetchStaffOnServer<ConsultationResponse>(apiConsultationPath(id)),
-    permissions.includes('opd.vitals.read')
-      ? fetchStaffOnServer<VitalsResponse>(apiVisitVitalsPath(id))
-      : Promise.resolve(null),
+  const [{ consult, vitals }, tests, templateResult, logoImageId, extraValues] = await Promise.all([
+    fetchClinicalForPrint(id, permissions),
     permissions.includes('opd.investigations.order')
       ? fetchStaffOnServer<VisitTestsResponse>(apiVisitTestsPath(id))
       : Promise.resolve(null),

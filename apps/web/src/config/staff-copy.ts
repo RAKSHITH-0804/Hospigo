@@ -1905,6 +1905,8 @@ const baseCopy = {
         vitalsDone: 'Recorded',
         vitalsPending: 'Pending',
         colWaiting: 'Wait time',
+        printPrescription: 'Print prescription',
+        printReport: 'Print patient report',
         waitMinutes: '{n} min',
         vitalsNotRecorded: 'Not recorded',
         open: 'Open',

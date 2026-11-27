@@ -56,6 +56,7 @@ export const FLOOR_PERMISSION_CODES: readonly string[] = [
   'opd.vitals.write',
   'opd.notes.read',
   'opd.notes.write',
+  'opd.prints.clinical',
   'opd.investigations.order',
   'opd.investigations.bill',
   'opd.refunds.request',
@@ -86,6 +87,7 @@ export const ROLE_TEMPLATES: ReadonlyArray<{
       'opd.queue.read',
       'opd.investigations.bill',
       'opd.refunds.request',
+      'opd.prints.clinical',
     ],
   },
   {
@@ -100,6 +102,7 @@ export const ROLE_TEMPLATES: ReadonlyArray<{
       'opd.vitals.read',
       'opd.vitals.write',
       'opd.notes.read',
+      'opd.prints.clinical',
     ],
   },
   {

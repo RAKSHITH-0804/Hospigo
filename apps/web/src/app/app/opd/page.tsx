@@ -56,6 +56,7 @@ export default async function OpdPage({
         refreshSeconds={opdWebConfig.queueRefreshSeconds}
         canOpenConsultation={permissions.includes('opd.notes.write')}
         canViewNotes={permissions.includes('opd.notes.read')}
+        canPrintClinical={permissions.includes('opd.prints.clinical')}
         canRecordVitals={permissions.includes('opd.vitals.write')}
         canRequestCancel={permissions.includes('opd.refunds.request')}
       />

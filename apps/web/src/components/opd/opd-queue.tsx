@@ -51,6 +51,7 @@ export function OpdQueue({
   canRecordVitals,
   canRequestCancel = false,
   allBranches = false,
+  canPrintClinical = false,
 }: {
   initial: QueueResponse;
   refreshSeconds: number;
@@ -61,6 +62,8 @@ export function OpdQueue({
   canRequestCancel?: boolean;
   /** The combined view of every branch the person may read (Phase 2.2). */
   allBranches?: boolean;
+  /** May print the prescription and the patient report of a completed visit (reception, nurse). */
+  canPrintClinical?: boolean;
 }) {
   const [data, setData] = useState<QueueResponse>(initial);
   const [updatedAt, setUpdatedAt] = useState<Date>(() => new Date());
@@ -228,6 +231,22 @@ export function OpdQueue({
               >
                 {done ? staffCopy.opd.clinical.vitals.viewVitals : copy.vitals}
               </Link>
+            ) : null}
+            {canPrintClinical && done ? (
+              <>
+                <Link
+                  href={`/app/opd/visits/${encodeURIComponent(v.id)}/prescription`}
+                  className={cn(buttonVariants({ variant: 'outline' }), 'touch-target')}
+                >
+                  {staffCopy.opd.clinical.queue.printPrescription}
+                </Link>
+                <Link
+                  href={`/app/opd/visits/${encodeURIComponent(v.id)}/report`}
+                  className={cn(buttonVariants({ variant: 'outline' }), 'touch-target')}
+                >
+                  {staffCopy.opd.clinical.queue.printReport}
+                </Link>
+              </>
             ) : null}
             {canRequestCancel && v.status === 'WAITING' ? (
               <RefundRequestAction kind="CANCEL" visitId={v.id} onSent={() => void refresh()} />

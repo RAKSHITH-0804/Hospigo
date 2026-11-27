@@ -2,11 +2,9 @@ import type { Metadata } from 'next';
 import { PrintStage } from '@/components/print/print-sheet';
 import { EmptyState } from '@/components/states/empty-state';
 import { staffCopy } from '@/config/staff-copy';
-import { requirePermission } from '@/lib/auth/guards';
-import type { ConsultationResponse } from '@/lib/opd/clinical-types';
-import { apiConsultationPath } from '@/lib/opd/server';
+import { fetchClinicalForPrint, requireClinicalPrint } from '@/lib/opd/print-access';
 import { errorMessageFor } from '@/lib/patients/client';
-import { fetchStaffOnServer, serverErrorCode } from '@/lib/patients/server';
+import { serverErrorCode } from '@/lib/patients/server';
 import { prescriptionItems, withExtraValues } from '@/lib/print/documents';
 import {
   fetchLogoImageId,
@@ -29,12 +27,12 @@ export default async function PrescriptionPrintPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await requirePermission('opd.notes.read');
+  const session = await requireClinicalPrint();
   const { id } = await params;
   const hospitalName = session.hospitalName?.trim() || staffCopy.brand;
 
-  const [consult, templateResult, logoImageId, extraValues] = await Promise.all([
-    fetchStaffOnServer<ConsultationResponse>(apiConsultationPath(id)),
+  const [{ consult }, templateResult, logoImageId, extraValues] = await Promise.all([
+    fetchClinicalForPrint(id, session.permissions ?? []),
     fetchTemplate('PRESCRIPTION'),
     fetchLogoImageId(),
     fetchPrintValues(),
