@@ -34,6 +34,13 @@ export type PreviewInput = Pick<CreateVisitInput, 'patientId' | 'doctorProfileId
 /** What a bill carries when it is shown (lines, receipts, payments). Shared with the 6a services. */
 export const BILL_INCLUDE = {
   lines: { orderBy: { lineNo: 'asc' } },
+  // who saved the bill (printed as "Billed by": name and role)
+  creator: {
+    select: {
+      displayName: true,
+      roleAssignments: { where: { isActive: true }, select: { role: { select: { name: true } } } },
+    },
+  },
   receipts: { orderBy: { createdAt: 'asc' } },
   payments: {
     orderBy: { paidAt: 'asc' },
@@ -74,6 +81,8 @@ export type BillView = {
   paidPaise: number;
   refundedPaise: number;
   paymentStatus: string;
+  /** The person who saved the bill and their role, for the "Billed by" line. */
+  billedBy: string;
   lines?: Array<{
     lineNo: number;
     kind: string;
@@ -146,6 +155,15 @@ function isUniqueViolation(error: unknown): boolean {
   );
 }
 
+/** "Mohammed Irfan (Receptionist)": the name, then the role(s) the person holds. */
+export function billedByText(creator: {
+  displayName: string;
+  roleAssignments: Array<{ role: { name: string } }>;
+}): string {
+  const roles = [...new Set(creator.roleAssignments.map((a) => a.role.name))].sort();
+  return roles.length > 0 ? `${creator.displayName} (${roles.join(', ')})` : creator.displayName;
+}
+
 export function toBillView(bill: VisitRow['bills'][number], detail: boolean): BillView {
   const base: BillView = {
     id: bill.id,
@@ -158,6 +176,7 @@ export function toBillView(bill: VisitRow['bills'][number], detail: boolean): Bi
     paidPaise: bill.paidPaise,
     refundedPaise: bill.refundedPaise,
     paymentStatus: bill.paymentStatus,
+    billedBy: billedByText(bill.creator),
   };
   if (!detail) {
     return base;

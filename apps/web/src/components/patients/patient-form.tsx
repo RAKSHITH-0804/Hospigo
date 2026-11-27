@@ -18,7 +18,10 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { InputField, SelectField } from '@/components/ui/field';
+import { DatePicker } from '@/components/ui/date-picker';
 import { PageHeader } from '@/components/ui/page-header';
+import { opdWebConfig } from '@/config/opd';
+import { localTodayIso } from '@/lib/dates/calendar';
 import {
   PATIENT_FORM_ELEMENT_ID,
   PATIENT_FORM_SECTION_ORDER,
@@ -668,22 +671,18 @@ export function PatientForm(props: Props) {
               </button>
             </div>
             {values.dobMode === 'dob' ? (
-              <input
-                id={inputId}
-                ref={(el) => setRef('dateOfBirth', el)}
-                type="date"
-                aria-label={formCopy.dateOfBirth}
-                aria-required={field.required || undefined}
-                aria-invalid={ageError ? true : undefined}
+              <DatePicker
+                label={formCopy.dobPick}
+                hideLabel
+                jump
                 value={values.dateOfBirth}
-                onChange={(e) => {
-                  setValues((prev) => ({ ...prev, dateOfBirth: e.target.value, ageYears: '' }));
+                max={localTodayIso()}
+                weekStart={opdWebConfig.calendarWeekStart}
+                quickDays={[]}
+                onChange={(iso) => {
+                  setValues((prev) => ({ ...prev, dateOfBirth: iso, ageYears: '' }));
                   setErrors((prev) => ({ ...prev, dateOfBirth: '', ageYears: '' }));
                 }}
-                className={cn(
-                  'field-control min-h-[var(--size-input-height)] h-[var(--size-input-height)] w-full rounded-e-[var(--radius-control)] border bg-card px-[var(--space-2)] text-[length:var(--font-size-input)] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  ageError ? 'border-destructive' : 'border-[var(--input-border)]',
-                )}
               />
             ) : (
               <div className="patient-age-parts">
@@ -702,42 +701,6 @@ export function PatientForm(props: Props) {
                     const next = digitsOnly(e.target.value, cfg.ageMaxDigits);
                     setValues((prev) => ({ ...prev, ageYears: next, dateOfBirth: '' }));
                     setErrors((prev) => ({ ...prev, ageYears: '', dateOfBirth: '' }));
-                  }}
-                  className={cn(
-                    'field-control min-h-[var(--size-input-height)] h-[var(--size-input-height)] w-full border bg-card px-[var(--space-2)] text-[length:var(--font-size-input)] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                    ageError ? 'border-destructive' : 'border-[var(--input-border)]',
-                  )}
-                />
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  aria-label={formCopy.ageMonths}
-                  placeholder={formCopy.ageUnitMonths}
-                  aria-invalid={ageError ? true : undefined}
-                  value={values.ageMonths}
-                  maxLength={2}
-                  onChange={(e) => {
-                    const next = digitsOnly(e.target.value, 2);
-                    setValues((prev) => ({ ...prev, ageMonths: next }));
-                    setErrors((prev) => ({ ...prev, ageYears: '' }));
-                  }}
-                  className={cn(
-                    'field-control min-h-[var(--size-input-height)] h-[var(--size-input-height)] w-full border bg-card px-[var(--space-2)] text-[length:var(--font-size-input)] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                    ageError ? 'border-destructive' : 'border-[var(--input-border)]',
-                  )}
-                />
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  aria-label={formCopy.ageDays}
-                  placeholder={formCopy.ageUnitDays}
-                  aria-invalid={ageError ? true : undefined}
-                  value={values.ageDays}
-                  maxLength={2}
-                  onChange={(e) => {
-                    const next = digitsOnly(e.target.value, 2);
-                    setValues((prev) => ({ ...prev, ageDays: next }));
-                    setErrors((prev) => ({ ...prev, ageYears: '' }));
                   }}
                   className={cn(
                     'field-control min-h-[var(--size-input-height)] h-[var(--size-input-height)] w-full rounded-e-[var(--radius-control)] border bg-card px-[var(--space-2)] text-[length:var(--font-size-input)] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',

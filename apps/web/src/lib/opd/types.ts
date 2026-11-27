@@ -80,6 +80,8 @@ export type BillView = {
   paidPaise: number;
   refundedPaise: number;
   paymentStatus: 'UNPAID' | 'PART_PAID' | 'PAID';
+  /** Who saved the bill and their role ("Billed by"). */
+  billedBy?: string;
   lines?: BillLineView[];
   receipts?: ReceiptView[];
   payments?: PaymentView[];

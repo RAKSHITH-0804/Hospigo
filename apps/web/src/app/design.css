@@ -390,3 +390,69 @@ h1.type-title::before {
   gap: var(--space-4);
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 34rem), 1fr));
 }
+
+.calendar-select {
+  height: var(--size-button-height);
+  padding-inline: var(--space-2);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-control);
+  background: var(--card);
+  font-size: var(--font-size-body);
+  font-weight: 600;
+}
+
+/* Collapsed menu: the icon stays centred, the count sits on its corner. */
+.shell-nav-link-icon {
+  position: relative;
+  justify-content: center;
+  gap: 0;
+  padding-inline: 0;
+}
+.shell-nav-link-icon .count-badge {
+  position: absolute;
+  inset-block-start: 0.125rem;
+  inset-inline-end: 0.125rem;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding-inline: 0.25rem;
+  font-size: 0.625rem;
+  line-height: 1.125rem;
+}
+
+/* Patients page, quick view: initials, name and a short summary, then the facts in two columns. */
+.quick-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.quick-avatar {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  background: var(--tone-blue-bg);
+  color: var(--tone-blue-fg);
+  font-size: var(--font-size-body);
+  font-weight: 700;
+}
+.quick-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-4);
+  padding-block: var(--space-3);
+  border-block: 1px solid var(--hairline);
+}
+.quick-facts dt {
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--label-tone);
+}
+.quick-facts dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--foreground);
+}

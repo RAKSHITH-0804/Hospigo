@@ -116,6 +116,7 @@ export function receiptItems(visit: VisitView, hospitalName: string): PrintItem[
       payments.filter((p) => p.referenceNo).map((p) => `${p.paymentMode.name}: ${p.referenceNo}`),
     ),
     text('receptionistName', visit.createdByName),
+    text('billedBy', bill?.billedBy),
   ];
 }
 

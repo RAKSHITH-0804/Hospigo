@@ -402,8 +402,25 @@ export function PatientsSearch({
                   <CardHeader>
                     <CardTitle className="section-heading">{copy.search.quickView.title}</CardTitle>
                   </CardHeader>
-                  <CardContent className="flex flex-col gap-[var(--space-3)]">
-                    <dl className="flex flex-col gap-[var(--space-2)] type-label">
+                  <CardContent className="flex flex-col gap-[var(--space-4)]">
+                    <div className="quick-head">
+                      <span className="quick-avatar" aria-hidden="true">
+                        {selected.name
+                          .split(/\s+/)
+                          .filter(Boolean)
+                          .slice(0, 2)
+                          .map((w) => w[0]!.toUpperCase())
+                          .join('')}
+                      </span>
+                      <div className="flex min-w-0 flex-col">
+                        <span className="type-body truncate font-bold">{selected.name}</span>
+                        <span className="type-small text-muted-foreground">
+                          {selected.uhid} · {genderLabel(selected.gender)} ·{' '}
+                          {selected.ageYears === null ? EMPTY_VALUE : ageDisplay(selected)}
+                        </span>
+                      </div>
+                    </div>
+                    <dl className="quick-facts type-label">
                       <div>
                         <dt className="text-muted-foreground">{copy.search.quickView.uhid}</dt>
                         <dd>{selected.uhid}</dd>

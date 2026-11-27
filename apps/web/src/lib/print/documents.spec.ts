@@ -199,10 +199,10 @@ describe('receiptItems', () => {
     const items = receiptItems(visit, 'Demo Hospital');
     // the designed templates also use the patient's age and gender on the bill (Step 2.1f): extra values
     const keys = items.map((i) => i.key);
-    expect(keys.filter((k) => !['age', 'gender', 'linesNumbered'].includes(k))).toEqual([
+    expect(keys.filter((k) => !['age', 'gender', 'linesNumbered', 'billedBy'].includes(k))).toEqual([
       ...API_FIELDS.RECEIPT,
     ]);
-    expect(keys).toEqual(expect.arrayContaining(['age', 'gender', 'linesNumbered']));
+    expect(keys).toEqual(expect.arrayContaining(['age', 'gender', 'linesNumbered', 'billedBy']));
     for (const item of items) {
       expect({ key: item.key, label: item.label }).toEqual({
         key: item.key,

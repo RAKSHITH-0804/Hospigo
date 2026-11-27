@@ -293,6 +293,7 @@ export const FIELD_CAPTIONS: Record<string, string> = {
   paid: 'Paid',
   refunded: 'Refunded',
   paymentModes: 'Payment',
+  billedBy: 'Billed by',
   referenceNo: 'Reference',
   doctorDepartment: 'Department',
   doctorQualifications: 'Qualifications',

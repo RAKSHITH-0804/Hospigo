@@ -269,8 +269,10 @@ function bill(page: Page, kind: HeaderKind, serif: boolean, title: string): Prin
     ]),
     box('pay', m, y + 9, inner - 58, 14, [
       para([t('Paid: ', { bold: true }), f('paid')]),
-      para([t('Payment: ', { bold: true }), f('paymentModes')]),
       para([f('referenceNo', GREY)]),
+    ]),
+    box('billedby', page.w - page.m - 70, y + 9, 70, 6, [
+      para([t('Billed by: ', GREY), f('billedBy', GREY)], 'RIGHT'),
     ]),
     ...signatory(page, y + 22, 'Authorised signatory'),
   );

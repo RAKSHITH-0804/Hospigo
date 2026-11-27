@@ -3,9 +3,15 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { EmptyState } from '@/components/states/empty-state';
+import { Eye } from 'lucide-react';
+import { PrintSheet } from '@/components/print/print-sheet';
 import { Button } from '@/components/ui/button';
+import { Modal } from '@/components/ui/modal';
 import { staffCopy } from '@/config/staff-copy';
 import { chooseLogo, chooseTemplate, type ChooserView } from '@/lib/indigo/library';
+import { DOC_FIELD_ORDER, sampleItems } from '@/lib/print/form';
+import type { PrintDocType, PrintTemplate } from '@/lib/print/types';
+import { patientsApi } from '@/lib/patients/client';
 
 const copy = staffCopy.library;
 const DOC_TYPES = Object.keys(copy.docTypes);
@@ -15,7 +21,14 @@ const DOC_TYPES = Object.keys(copy.docTypes);
  * SuperAdmin for the whole hospital, an Admin for the own branch) and the logo (SuperAdmin). The
  * API decides who may do what; the buttons shown follow what it says the person can do.
  */
-export function PrintLibraryScreen({ view }: { view: ChooserView | null }) {
+export function PrintLibraryScreen({
+  view,
+  hospitalName = staffCopy.brand,
+}: {
+  view: ChooserView | null;
+  hospitalName?: string;
+}) {
+  const [looking, setLooking] = useState<{ name: string; template: PrintTemplate } | null>(null);
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
@@ -39,6 +52,18 @@ export function PrintLibraryScreen({ view }: { view: ChooserView | null }) {
     setNotice(result.ok ? { ok: true, text: copy.chosen } : { ok: false, text: copy.chooseFailed });
     if (result.ok) {
       router.refresh();
+    }
+  }
+  async function look(id: string, name: string) {
+    setBusy(id);
+    const result = await patientsApi<PrintTemplate>(
+      `/api/staff/print-library/templates/${encodeURIComponent(id)}`,
+    );
+    setBusy(null);
+    if (result.ok) {
+      setLooking({ name, template: result.data });
+    } else {
+      setNotice({ ok: false, text: copy.viewFailed });
     }
   }
   async function useLogo(id: string) {
@@ -76,18 +101,29 @@ export function PrintLibraryScreen({ view }: { view: ChooserView | null }) {
                       <span className="font-medium">{t.name}</span> · {t.paper}
                       {t.description ? ` · ${t.description}` : ''}
                     </span>
-                    {t.active ? (
-                      <span className="type-small font-medium">{copy.inUse}</span>
-                    ) : (
+                    <span className="flex items-center gap-[var(--space-2)]">
                       <Button
                         type="button"
                         variant="outline"
                         disabled={busy !== null}
-                        onClick={() => void use(t.id)}
+                        onClick={() => void look(t.id, t.name)}
                       >
-                        {copy.use}
+                        <Eye aria-hidden="true" className="mr-1" />
+                        {copy.view}
                       </Button>
-                    )}
+                      {t.active ? (
+                        <span className="type-small font-medium">{copy.inUse}</span>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={busy !== null || !view.canChoose[scope]}
+                          onClick={() => void use(t.id)}
+                        >
+                          {copy.use}
+                        </Button>
+                      )}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -122,6 +158,23 @@ export function PrintLibraryScreen({ view }: { view: ChooserView | null }) {
           </section>
         ) : null}
       </div>
+      {looking ? (
+        <Modal
+          title={copy.viewTitle.replace('{name}', looking.name)}
+          onClose={() => setLooking(null)}
+        >
+          <p className="type-small text-muted-foreground">{copy.viewHint}</p>
+          <div className="print-paper-wrap">
+            <PrintSheet
+              template={looking.template}
+              items={sampleItems(
+                [...DOC_FIELD_ORDER[looking.template.docType as PrintDocType]],
+                hospitalName,
+              )}
+            />
+          </div>
+        </Modal>
+      ) : null}
     </div>
   );
 }

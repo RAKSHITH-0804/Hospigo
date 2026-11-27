@@ -4,9 +4,13 @@ import { AccessService } from '../access/access.service';
 import { ImagesService } from '../images/images.service';
 import { opdError, OpdErrorCode } from '../opd-visits/opd-visit.errors';
 import type { Actor } from '../opd-visits/opd-visits.service';
-import { PRINT_DOC_TYPES, type PrintDocType } from './print-template.rules';
+import { PRINT_DOC_TYPES, validateTemplate, type PrintDocType } from './print-template.rules';
 import type { PrintScope } from './print-scope';
-import { PrintTemplatesService, type EffectiveTemplate } from './print-templates.service';
+import {
+  effective,
+  PrintTemplatesService,
+  type EffectiveTemplate,
+} from './print-templates.service';
 
 export type LibraryView = {
   /** What the caller may do here: choose for this branch, and for the whole hospital. */
@@ -89,6 +93,21 @@ export class PrintLibraryService {
         logos,
       };
     });
+  }
+
+  /**
+   * One assigned design as the print screens know it, to LOOK at before choosing it (Phase 2.3). The
+   * database shows the hospital login only what is assigned to it, so any other id is "not found".
+   */
+  async viewTemplate(id: string): Promise<EffectiveTemplate> {
+    const row = await this.tenantDb.withTenant((tx) =>
+      tx.printLibraryTemplate.findFirst({ where: { id, retiredAt: null } }),
+    );
+    if (!row) {
+      throw opdError(404, OpdErrorCode.LIBRARY_ITEM_NOT_FOUND);
+    }
+    const docType = row.docType as PrintDocType;
+    return effective(docType, validateTemplate(docType, row.input), 'HOSPITAL', null);
   }
 
   async chooseTemplate(actor: Actor, id: string, scope: PrintScope): Promise<EffectiveTemplate> {

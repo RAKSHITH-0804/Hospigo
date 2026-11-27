@@ -123,7 +123,12 @@ export default async function SettingsSectionPage({
   let content: ReactNode = null;
   if (section.id === 'print-library') {
     const view = await fetchStaffOnServer<ChooserView>('/print-library');
-    content = <PrintLibraryScreen view={view.status === 'ok' ? view.data : null} />;
+    content = (
+      <PrintLibraryScreen
+        view={view.status === 'ok' ? view.data : null}
+        hospitalName={session.hospitalName?.trim() || staffCopy.brand}
+      />
+    );
   }
   if (section.id === 'patient-registration') {
     const fields = await fetchStaffOnServer<PatientFieldsResponse>(API_PATIENT_FIELDS);

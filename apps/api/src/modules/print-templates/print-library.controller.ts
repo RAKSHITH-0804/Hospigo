@@ -66,6 +66,13 @@ export class PrintLibraryController {
     return this.library.chooseLogo(actorOf(req), id);
   }
 
+  @Get('templates/:id')
+  @RequirePermission('print.templates.choose', { module: 'OPD' })
+  @ApiOperation({ summary: 'One assigned design, to look at before choosing it (Phase 2.3)' })
+  viewTemplate(@Param('id') id: string) {
+    return this.library.viewTemplate(id);
+  }
+
   @Get('logos/:id/image')
   @RequirePermission('print.templates.choose', { module: 'OPD' })
   @ApiOperation({ summary: 'The picture of an assigned logo (for the chooser)' })

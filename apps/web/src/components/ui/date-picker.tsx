@@ -41,6 +41,8 @@ export function DatePicker({
   quickPicks,
   todayIso,
   disabled,
+  jump = false,
+  hideLabel = false,
   locale = patientsWebConfig.dateLocale,
 }: {
   label: string;
@@ -55,6 +57,9 @@ export function DatePicker({
   /** Today as the hospital counts it (a time zone may differ from the browser's). */
   todayIso?: string;
   disabled?: boolean;
+  /** Month and year dropdowns in the header (for a birth date: 1962 is two clicks away). */
+  jump?: boolean;
+  hideLabel?: boolean;
   locale?: string;
 }) {
   const fieldId = useId();
@@ -118,7 +123,7 @@ export function DatePicker({
 
   return (
     <div ref={rootRef} className="relative flex flex-col gap-[var(--space-1)]">
-      <label htmlFor={fieldId} className="type-label">
+      <label htmlFor={fieldId} className={hideLabel ? 'sr-only' : 'type-label'}>
         {label}
       </label>
       <button
@@ -148,9 +153,50 @@ export function DatePicker({
             >
               <ChevronLeft aria-hidden="true" className="size-[var(--size-icon-menu)]" />
             </Button>
-            <p role="status" className="type-label-strong">
-              {monthTitle}
-            </p>
+            {jump ? (
+              <div className="flex items-center gap-[var(--space-1)]">
+                <select
+                  aria-label={copy.monthSelect}
+                  className="calendar-select"
+                  value={view.month0}
+                  onChange={(e) => setView((v) => ({ ...v, month0: Number(e.target.value) }))}
+                >
+                  {Array.from({ length: 12 }, (_, m) => (
+                    <option key={m} value={m}>
+                      {new Intl.DateTimeFormat(locale, { month: 'long', timeZone: 'UTC' }).format(
+                        new Date(Date.UTC(2026, m, 1)),
+                      )}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label={copy.yearSelect}
+                  className="calendar-select"
+                  value={view.year}
+                  onChange={(e) => setView((v) => ({ ...v, year: Number(e.target.value) }))}
+                >
+                  {Array.from(
+                    {
+                      length:
+                        (parseIsoDay(max ?? today)?.getUTCFullYear() ?? view.year) -
+                        (parseIsoDay(min ?? '')?.getUTCFullYear() ??
+                          (parseIsoDay(max ?? today)?.getUTCFullYear() ?? view.year) -
+                            patientsWebConfig.ageMax) +
+                        1,
+                    },
+                    (_, i) => (parseIsoDay(max ?? today)?.getUTCFullYear() ?? view.year) - i,
+                  ).map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <p role="status" className="type-label-strong">
+                {monthTitle}
+              </p>
+            )}
             <Button
               type="button"
               variant="outline"

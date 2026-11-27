@@ -138,6 +138,32 @@ function field(label: string): HTMLInputElement {
   return screen.getByLabelText(new RegExp(`^${label}`)) as HTMLInputElement;
 }
 
+/** Picks a birth date in the calendar: month, year, then the day. */
+function pickDob(iso: string) {
+  const [y, m, d] = iso.split('-').map(Number);
+  fireEvent.click(screen.getByRole('button', { name: form.dobPick }));
+  fireEvent.change(screen.getByLabelText('Month'), { target: { value: String(m! - 1) } });
+  fireEvent.change(screen.getByLabelText('Year'), { target: { value: String(y) } });
+  const day = screen
+    .getAllByRole('button')
+    .find((b) => (b.getAttribute('aria-label') ?? '').endsWith(`${d} ${MONTHS[m! - 1]} ${y}`));
+  fireEvent.click(day!);
+}
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
 function type(label: string, value: string) {
   fireEvent.change(field(label), { target: { value } });
 }
@@ -173,7 +199,7 @@ function chooseDobMode() {
 function fillRequired() {
   type(form.name, 'Mock Alpha');
   chooseDobMode();
-  type(form.dateOfBirth, '1990-01-15');
+  pickDob('1990-01-15');
   type(form.phone, '9876543210');
 }
 
@@ -243,7 +269,7 @@ describe('PatientForm (register)', () => {
     type(form.name, '  Mock Gamma ');
     fireEvent.change(field(form.gender), { target: { value: 'F' } });
     chooseDobMode();
-    type(form.dateOfBirth, '1990-01-15');
+    pickDob('1990-01-15');
     type(form.phone, '9876543210');
     type(form.addressStreet, '1 Test Street');
     type(form.addressCross, '2nd Cross');
@@ -302,34 +328,22 @@ describe('PatientForm (register)', () => {
     expect('dateOfBirth' in body).toBe(false);
   });
 
-  it('age entry sends years, months and days for a baby', async () => {
+  it('age entry is one number, in years only', async () => {
     await renderRegister({
       'POST /api/staff/patients': () => jsonResponse({ id: 'new3', uhid: 'NREG0011' }),
     });
     fireEvent.click(screen.getByRole('button', { name: form.dobModeAge }));
-    type(form.name, 'Baby Test');
+    expect(screen.queryByLabelText(form.ageMonths)).toBeNull();
+    expect(screen.queryByLabelText(form.ageDays)).toBeNull();
+    type(form.name, 'Child Test');
     type(form.phone, '9876543210');
-    type(form.ageYears, '0');
-    fireEvent.change(screen.getByLabelText(form.ageMonths), { target: { value: '5' } });
-    fireEvent.change(screen.getByLabelText(form.ageDays), { target: { value: '12' } });
+    type(form.ageYears, '7');
     fireEvent.click(screen.getByRole('button', { name: form.submitRegister }));
     await waitFor(() => expect(pushMock).toHaveBeenCalled());
     const body = bodyOf(postCalls()[0] as unknown[]);
-    expect(body.ageYears).toBe(0);
-    expect(body.ageMonths).toBe(5);
-    expect(body.ageDays).toBe(12);
+    expect(body.ageYears).toBe(7);
+    expect('ageMonths' in body).toBe(false);
     expect('dateOfBirth' in body).toBe(false);
-  });
-
-  it('a month over 11 is refused on the screen, nothing is sent', async () => {
-    await renderRegister();
-    fireEvent.click(screen.getByRole('button', { name: form.dobModeAge }));
-    type(form.name, 'Baby Test');
-    type(form.phone, '9876543210');
-    type(form.ageYears, '1');
-    fireEvent.change(screen.getByLabelText(form.ageMonths), { target: { value: '12' } });
-    fireEvent.click(screen.getByRole('button', { name: form.submitRegister }));
-    expect(postCalls()).toHaveLength(0);
   });
 
   it('maps API fieldErrors for built-in, custom.<code> and ageYears', async () => {
@@ -510,7 +524,7 @@ describe('PatientForm (edit)', () => {
     expect(uhid.readOnly).toBe(true);
     expect(field(form.name).value).toBe('Mock Alpha');
     expect(field(form.phone).value).toBe('9876543210');
-    expect(field(form.dateOfBirth).value).toBe('1990-01-15');
+    expect(screen.getByRole('button', { name: form.dobPick }).textContent).toContain('1990');
 
     type(form.name, 'Mock Alpha Updated');
     fireEvent.click(screen.getByRole('button', { name: form.submitSave }));
@@ -620,7 +634,7 @@ describe('PatientForm server boot data and visual rules', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('the age and date-of-birth inputs have the control radius on their free corners', () => {
+  it('the age input has the control radius on its free corner', () => {
     render(
       <PatientForm
         mode="register"
@@ -629,15 +643,8 @@ describe('PatientForm server boot data and visual rules', () => {
         boot={{ fields: config.fields }}
       />,
     );
-    // date of birth is the default entry
-    expect(screen.getByLabelText(form.dateOfBirth).className).toContain(
-      'rounded-e-[var(--radius-control)]',
-    );
-    // age entry: years, months and days side by side; the last one closes the group
     fireEvent.click(screen.getByRole('button', { name: form.dobModeAge }));
-    expect(screen.getByLabelText(form.ageYears)).toBeTruthy();
-    expect(screen.getByLabelText(form.ageMonths)).toBeTruthy();
-    expect(screen.getByLabelText(form.ageDays).className).toContain(
+    expect(screen.getByLabelText(form.ageYears).className).toContain(
       'rounded-e-[var(--radius-control)]',
     );
     const css = readFileSync(join(__dirname, '../../app/globals.css'), 'utf8');
